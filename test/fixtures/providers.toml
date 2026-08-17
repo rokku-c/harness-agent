@@ -1,0 +1,12 @@
+default = "responses"
+
+[providers.responses]
+api = "openai.responses"
+model = "gpt-test"
+apiKey = "${TEST_OPENAI_KEY}"
+
+[providers.chat]
+api = "openai.chat"
+model = "gpt-test"
+apiKey = "env:TEST_OPENAI_KEY"
+baseURL = "${TEST_BASE_URL}/v1"

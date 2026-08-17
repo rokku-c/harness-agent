@@ -1,0 +1,48 @@
+default = "reasoner"
+
+[providers.reasoner]
+api = "openai.responses"
+model = "gpt-5.2"
+apiKey = "${OPENAI_API_KEY}"
+maxOutputTokens = 8192
+
+[providers.compatible_chat]
+api = "openai.chat"
+model = "deepseek-chat"
+baseURL = "${OPENAI_COMPATIBLE_BASE_URL}"
+apiKey = "env:OPENAI_COMPATIBLE_API_KEY"
+
+[providers.claude]
+api = "anthropic.messages"
+model = "claude-sonnet-4-5"
+apiKey = "${ANTHROPIC_API_KEY}"
+
+# Claude Code 是完整外部 Agent，配置与 providers.* 分开。
+[composedAgents.claudeCode]
+# 继承 providers.claude 的 model/apiKey/baseURL，避免重复配置。
+provider = "claude"
+cwd = "."
+# 省略时每次运行创建并回收随机 CLAUDE_CONFIG_DIR。
+# claudeHome = "/path/to/isolated/claude-home"
+# model 留空时使用 Claude Code CLI / 账号的默认模型。
+# model = "claude-sonnet-4-6"
+# 没有 provider 引用时也可以直接配置：
+# apiKey = "${ANTHROPIC_API_KEY}"
+# Anthropic-compatible 网关可配置 baseURL；结尾 /v1 会被自动移除。
+# baseURL = "${ANTHROPIC_BASE_URL}"
+maxTurns = 3
+permissionMode = "plan"
+tools = []
+# 仅当上游网关证书异常（如已过期）时放开：向子进程注入 NODE_TLS_REJECT_UNAUTHORIZED=0，
+# 绕过 TLS 证书校验。会禁用证书验证，存在安全风险，正常配置请不要开启。
+# insecureTls = true
+# 把外部 Skill 复制到隔离 Claude Home；默认自动启用注入的全部 Skill。
+# skillPaths = ["./skills/reviewer"]
+# skills = ["reviewer"]
+settingSources = []
+persistSession = false
+
+# 全局 TLS 绕过默认值：开启后所有未单独配置 insecureTls 的 composed agent 都会继承。
+# 单个 agent 显式配置 insecureTls（无论 true/false）时以 agent 为准。
+# [insecureTls]
+# enabled = true
