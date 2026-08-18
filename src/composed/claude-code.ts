@@ -10,8 +10,9 @@ import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import * as z from "zod"
-import { AgentFailure, decode, type Driver, materialize, report, requireUntil, schemaJson, type RunRequest } from "../core.js"
-import { loadToml, ProviderConfigError, type LoadProvidersOptions } from "../providers.js"
+import { AgentFailure, decode, type Driver, materialize, report, requireSubagents, requireUntil, schemaJson, toolName, type AgentError, type DriverContext, type DriverSession, type StepEvent, type SubagentProgram } from "../core.js"
+import { loadToml, ProviderConfigError, type LoadProvidersOptions } from "../providers/index.js"
+import { ComposedAgentDefaults, ToolNaming } from "../defaults.js"
 
 export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks"> {
   readonly query?: typeof query
@@ -28,6 +29,14 @@ export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks
    * and is a security risk. Off by default.
    */
   readonly insecureTls?: boolean
+  /**
+   * Prefix applied to injected tool names. Default is no prefix.
+   * The MCP allowlist name is always `mcp__<channel>__<tool>` (SDK requirement);
+   * this affects the `<tool>` segment. `false` means no prefix.
+   */
+  readonly toolPrefix?: string | false
+  /** MCP server channel name for injected tools. Default `"effect_agent"`. */
+  readonly mcpChannel?: string
 }
 
 export interface ClaudeCodeTomlOptions extends LoadProvidersOptions {
@@ -51,8 +60,6 @@ interface ClaudeCodeTomlConfig extends Omit<ClaudeCodeOptions, "query" | "env"> 
 export interface InsecureTlsConfig {
   readonly enabled?: boolean
 }
-
-const safeToolName = (name: string) => name.replace(/[^a-zA-Z0-9_-]/g, "_")
 
 const zodFromJson = (schema: any): z.ZodType => {
   if (schema?.enum && Array.isArray(schema.enum)) {
@@ -79,18 +86,18 @@ const zodFromJson = (schema: any): z.ZodType => {
   }
 }
 
-const mcpTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>) =>
-  request.access.flatMap(({ binding, write }) => (binding.ops ?? [])
+const mcpTools = (request: DriverContext, runtime: Runtime.Runtime<any>, toolPrefix: string | false, mcpChannel: string) =>
+  request.context.access.flatMap(({ binding, write }) => (binding.ops ?? [])
     .filter((op) => op.access === "read" || write)
     .map((op) => {
-      const name = safeToolName(op.name)
+      const name = toolName(op.name, toolPrefix)
       const json = schemaJson(op.input) as any
       const root = zodFromJson(json)
       const shape = root instanceof z.ZodObject ? root.shape : { input: root }
       return {
         opName: op.name,
         name,
-        allowedName: `mcp__effect_agent__${name}`,
+        allowedName: `mcp__${mcpChannel}__${name}`,
         definition: sdkTool(name, op.description, shape, async (input) => {
           const decoded = await Runtime.runPromise(runtime)(Schema.decodeUnknown(op.input)(input))
           const output = await Runtime.runPromise(runtime)(op.execute(decoded))
@@ -98,6 +105,32 @@ const mcpTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>) 
         })
       }
     }))
+
+/**
+ * Inject a `delegate` MCP tool per declared sub-agent. When the running model calls it
+ * with a goal, the driver builds a child context from the SubagentProgram and runs
+ * it on the same driver (recursive `query()` — an independent child process), returning
+ * the child's final output as the tool result for the parent to consume.
+ */
+const delegateSubagents = (request: DriverContext, runtime: Runtime.Runtime<any>, runChild: (subagent: SubagentProgram, goal: string) => Effect.Effect<unknown, AgentError, any>, toolPrefix: string | false, mcpChannel: string) =>
+  request.context.subagents.map((subagent) => {
+    const name = toolName(`effect_agent_subagent_${subagent.id}`, toolPrefix)
+    return {
+      opName: `effect_agent_subagent_${subagent.id}`,
+      name,
+      allowedName: `mcp__${mcpChannel}__${name}`,
+      definition: sdkTool(
+        name,
+        `Delegate a sub-task to the "${subagent.id}" sub-agent. Call with a precise goal; the sub-agent runs and returns its result.`,
+        { goal: z.string() },
+        async (input) => {
+          const goal = String((input as any)?.goal ?? "")
+          const output = await Runtime.runPromise(runtime)(runChild(subagent, goal))
+          return { content: [{ type: "text" as const, text: JSON.stringify(output) }] }
+        }
+      )
+    }
+  })
 
 const acquireClaudeHome = (configured?: string) => configured
   ? Effect.succeed({ path: resolve(configured), temporary: false })
@@ -111,21 +144,30 @@ const acquireClaudeHome = (configured?: string) => configured
         : Effect.void
     )
 
-const injectSkills = (home: string, paths: ReadonlyArray<string>) => Effect.tryPromise({
-  try: async () => {
+const injectSkills = (home: string, paths: ReadonlyArray<string>) =>
+  Effect.gen(function*() {
     if (paths.length === 0) return
     const root = join(home, "skills")
-    await mkdir(root, { recursive: true })
-    for (const sourcePath of paths) {
-      const source = resolve(sourcePath)
-      const info = await stat(source)
-      const directory = info.isDirectory() ? source : dirname(source)
-      const name = basename(directory)
-      await cp(directory, join(root, name), { recursive: true, force: false, errorOnExist: true })
-    }
-  },
-  catch: (cause) => new AgentFailure({ agent: "claude-code", cause, message: `Unable to inject Claude skills: ${String(cause)}` })
-})
+    yield* Effect.tryPromise({
+      try: () => mkdir(root, { recursive: true }),
+      catch: (cause) => new AgentFailure({ agent: "claude-code", cause, message: `Unable to create skills dir: ${String(cause)}` })
+    })
+    yield* Effect.forEach(paths, (sourcePath) => Effect.tryPromise({
+      try: async () => {
+        const source = resolve(sourcePath)
+        const info = await stat(source)
+        const directory = info.isDirectory() ? source : dirname(source)
+        const name = basename(directory)
+        await cp(directory, join(root, name), { recursive: true, force: false, errorOnExist: true })
+      },
+      catch: (cause) => new AgentFailure({ agent: "claude-code", cause, message: `Unable to inject Claude skill ${sourcePath}: ${String(cause)}` })
+    }), { concurrency: 1 })
+  }).pipe(
+    Effect.mapError((cause) => cause instanceof AgentFailure
+      ? cause
+      : new AgentFailure({ agent: "claude-code", cause, message: `Unable to inject Claude skills: ${String(cause)}` }))
+  )
+
 
 const fromConfig = (config: ClaudeCodeTomlConfig, overrides: ClaudeCodeOptions = {}): ClaudeCodeOptions => {
   const { provider: _provider, apiKey, authToken, baseURL, env, ...sdk } = config
@@ -147,15 +189,12 @@ export const ClaudeCode = {
       capabilities: {
         provider: { _tag: "Fixed", api: "anthropic.agent-sdk" }, granularity: "event", thinking: true,
         cancel: true, pause: false, resume: true, fork: "node",
-        tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"
+        tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated", subagents: true
       },
-      run: <A, R>(request: RunRequest<A, R>) => Effect.gen(function*() {
-        yield* requireUntil(driver.id, driver.capabilities, request.until)
+      start: (request: DriverContext): Effect.Effect<DriverSession, AgentError, never> => Effect.gen(function*() {
+        yield* requireUntil(driver.id, driver.capabilities, request.context.until)
+        yield* requireSubagents(driver.id, driver.capabilities, request.context.subagents)
         request = yield* materialize(request)
-        const runtime = yield* Effect.runtime<any>()
-        const home = yield* acquireClaudeHome(options.claudeHome)
-        yield* injectSkills(home.path, options.skillPaths ?? [])
-        const injected = mcpTools(request, runtime)
         const runQuery = options.query ?? query
         const {
           query: _query,
@@ -163,111 +202,151 @@ export const ClaudeCode = {
           skillPaths: _skillPaths,
           claudeCodeHooks,
           insecureTls,
+          toolPrefix,
+          mcpChannel,
           ...sdkOptions
         } = options
-        const outputFormat = request.until._tag === "Schema"
-          ? { type: "json_schema" as const, schema: schemaJson(request.until.schema) as unknown as Record<string, unknown> }
-          : undefined
-        const effectiveTools = sdkOptions.tools ?? []
-        const effectiveSkills = sdkOptions.skills ?? ((options.skillPaths?.length ?? 0) > 0 ? "all" : undefined)
-        const effectiveAllowedTools = [
-          ...(sdkOptions.allowedTools ?? []),
-          ...injected.map(({ allowedName }) => allowedName)
-        ]
-        const effectiveMcpServers = injected.length > 0 ? {
-          ...sdkOptions.mcpServers,
-          effect_agent: createSdkMcpServer({
-            name: "effect_agent",
-            version: "0.0.0",
-            tools: injected.map(({ definition }) => definition)
+        const prefix = toolPrefix ?? ToolNaming.prefix
+        const channel = mcpChannel ?? ToolNaming.mcpChannel
+        const runChild = (subagent: SubagentProgram, goal: string) =>
+          Effect.gen(function*() {
+            const childContext = subagent.context(goal).withUntil(subagent.until).withAccess(subagent.access)
+            const childRequest: DriverContext = { context: childContext }
+            const childSession = yield* driver.start(childRequest)
+            const event = yield* childSession.step
+            if (event._tag === "Result") return event.value
+            return event.detail
           })
-        } : sdkOptions.mcpServers
-        const effectiveEnv: Record<string, string | undefined> = {
-          ...process.env,
-          ...sdkOptions.env,
-          CLAUDE_CONFIG_DIR: home.path,
-          CLAUDE_AGENT_SDK_CLIENT_APP: "effect-agent/0.0.0",
-          ...(insecureTls ? { NODE_TLS_REJECT_UNAUTHORIZED: "0" } : {})
-        }
-        yield* report(request, {
-          _tag: "DriverPrepared",
-          agent: driver.id,
-          runtime: "claude-agent-sdk",
-          details: {
-            cwd: sdkOptions.cwd ?? process.cwd(),
-            claudeHome: home.path,
-            temporaryClaudeHome: home.temporary,
-            model: sdkOptions.model ?? "<claude-default>",
-            fallbackModel: sdkOptions.fallbackModel,
-            permissionMode: sdkOptions.permissionMode ?? "default",
-            builtinTools: effectiveTools,
-            allowedTools: effectiveAllowedTools,
-            disallowedTools: sdkOptions.disallowedTools ?? [],
-            injectedOps: injected.map(({ opName, allowedName }) => ({ op: opName, claudeTool: allowedName })),
-            mcpServers: Object.keys(effectiveMcpServers ?? {}),
-            skillPaths: options.skillPaths ?? [],
-            skills: effectiveSkills ?? [],
-            settingSources: sdkOptions.settingSources ?? "<claude-default>",
-            persistSession: sdkOptions.persistSession ?? true,
-            maxTurns: sdkOptions.maxTurns,
-            maxBudgetUsd: sdkOptions.maxBudgetUsd,
-            thinking: sdkOptions.thinking,
-            effort: sdkOptions.effort,
-            sandbox: sdkOptions.sandbox ?? { enabled: false },
-            strictMcpConfig: sdkOptions.strictMcpConfig ?? false,
-            insecureTls: insecureTls ?? false,
-            nativeHookEvents: Object.keys(claudeCodeHooks ?? {}),
-            output: request.until._tag,
-            structuredOutput: outputFormat?.type,
-            executable: sdkOptions.pathToClaudeCodeExecutable ?? sdkOptions.executable ?? "<sdk-default>",
-            authentication: {
-              apiKeyConfigured: Boolean(effectiveEnv.ANTHROPIC_API_KEY),
-              authTokenConfigured: Boolean(effectiveEnv.ANTHROPIC_AUTH_TOKEN),
-              baseURL: effectiveEnv.ANTHROPIC_BASE_URL ?? "<anthropic-default>"
+        // The temp Claude home and skill injection live for the duration of the step,
+        // released when the session's scope closes after the query completes.
+        const step = Effect.acquireRelease(
+          acquireClaudeHome(options.claudeHome),
+          ({ path, temporary }) => temporary
+            ? Effect.promise(() => rm(path, { recursive: true, force: true })).pipe(Effect.ignore)
+            : Effect.void
+        ).pipe(
+          Effect.flatMap((home) => Effect.gen(function*() {
+            yield* injectSkills(home.path, options.skillPaths ?? [])
+            const runtime = yield* Effect.runtime<any>()
+            const injected = [
+              ...mcpTools(request, runtime, prefix, channel),
+              ...delegateSubagents(request, runtime, runChild, prefix, channel)
+            ]
+            const outputFormat = request.context.until?._tag === "Schema"
+              ? { type: "json_schema" as const, schema: schemaJson(request.context.until.schema) as unknown as Record<string, unknown> }
+              : undefined
+            const effectiveTools = sdkOptions.tools ?? []
+            const effectiveSkills = sdkOptions.skills ?? ((options.skillPaths?.length ?? 0) > 0 ? "all" : undefined)
+            const effectiveAllowedTools = [
+              ...(sdkOptions.allowedTools ?? []),
+              ...injected.map(({ allowedName }) => allowedName)
+            ]
+            const effectiveMcpServers = injected.length > 0 ? {
+              ...sdkOptions.mcpServers,
+              [channel]: createSdkMcpServer({
+                name: channel,
+                version: "0.0.0",
+                tools: injected.map(({ definition }) => definition)
+              })
+            } : sdkOptions.mcpServers
+            const effectiveEnv: Record<string, string | undefined> = {
+              ...process.env,
+              ...sdkOptions.env,
+              CLAUDE_CONFIG_DIR: home.path,
+              CLAUDE_AGENT_SDK_CLIENT_APP: "effect-agent/0.0.0",
+              ...(insecureTls ? { NODE_TLS_REJECT_UNAUTHORIZED: "0" } : {})
             }
-          }
-        })
-        const messages = yield* Effect.tryPromise({
-          try: async () => {
-            const all: SDKMessage[] = []
-            for await (const message of runQuery({
-              prompt: request.context.render(),
-              options: {
-                ...sdkOptions,
-                hooks: claudeCodeHooks,
+            yield* report(request, {
+              _tag: "DriverPrepared",
+              agent: driver.id,
+              runtime: "claude-agent-sdk",
+              details: {
                 cwd: sdkOptions.cwd ?? process.cwd(),
-                tools: effectiveTools,
-                skills: effectiveSkills,
-                env: effectiveEnv,
-                mcpServers: effectiveMcpServers,
+                claudeHome: home.path,
+                temporaryClaudeHome: home.temporary,
+                model: sdkOptions.model ?? "<claude-default>",
+                fallbackModel: sdkOptions.fallbackModel,
+                permissionMode: sdkOptions.permissionMode ?? "default",
+                builtinTools: effectiveTools,
                 allowedTools: effectiveAllowedTools,
-                outputFormat
+                disallowedTools: sdkOptions.disallowedTools ?? [],
+                injectedOps: injected.map(({ opName, allowedName }) => ({ op: opName, claudeTool: allowedName })),
+                mcpServers: Object.keys(effectiveMcpServers ?? {}),
+                skillPaths: options.skillPaths ?? [],
+                skills: effectiveSkills ?? [],
+                settingSources: sdkOptions.settingSources ?? ComposedAgentDefaults.settingSources as any,
+                persistSession: sdkOptions.persistSession ?? ComposedAgentDefaults.persistSession,
+                maxTurns: sdkOptions.maxTurns,
+                maxBudgetUsd: sdkOptions.maxBudgetUsd,
+                thinking: sdkOptions.thinking,
+                effort: sdkOptions.effort,
+                sandbox: sdkOptions.sandbox ?? { enabled: false },
+                strictMcpConfig: sdkOptions.strictMcpConfig ?? false,
+                insecureTls: insecureTls ?? false,
+                toolPrefix: prefix,
+                mcpChannel: channel,
+                subagentTools: injected.map(({ opName }) => opName).filter((name) => name.startsWith(`${prefix}effect_agent_subagent_`)),
+                nativeHookEvents: Object.keys(claudeCodeHooks ?? {}),
+                output: request.context.until?._tag ?? "Stop",
+                structuredOutput: outputFormat?.type,
+                executable: sdkOptions.pathToClaudeCodeExecutable ?? sdkOptions.executable ?? "<sdk-default>",
+                authentication: {
+                  apiKeyConfigured: Boolean(effectiveEnv.ANTHROPIC_API_KEY),
+                  authTokenConfigured: Boolean(effectiveEnv.ANTHROPIC_AUTH_TOKEN),
+                  baseURL: effectiveEnv.ANTHROPIC_BASE_URL ?? "<anthropic-default>"
+                }
               }
-            })) all.push(message)
-            return all
-          },
-          catch: (cause) => new AgentFailure({
-            agent: driver.id,
-            cause,
-            message: cause instanceof Error ? cause.message : String(cause)
-          })
-        })
-        const result = messages.findLast((message) => message.type === "result")
-        if (!result || result.subtype !== "success")
-          return yield* new AgentFailure({ agent: driver.id, cause: result ?? "No result" })
-        if (request.until._tag === "Schema") return yield* decode(request.until.schema, result.structured_output)
-        if (request.until._tag === "Stop" || request.until._tag === "Text") return result.result as A
-        const assistant = messages.findLast((message) => message.type === "assistant")
-        const blocks = assistant?.message.content ?? []
-        if (request.until._tag === "Thinking") {
-          const thinking = blocks.find((block) => block.type === "thinking")
-          return (thinking && "thinking" in thinking ? thinking.thinking : "") as A
-        }
-        const call = blocks.find((block) => block.type === "tool_use")
-        if (!call || !("id" in call) || !("name" in call))
-          return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })
-        return { _tag: "ToolCall", id: call.id, name: call.name, input: call.input } as A
-      }).pipe(Effect.scoped)
+            })
+            const execute = (): Effect.Effect<StepEvent, AgentError, never> => Effect.tryPromise({
+              try: async () => {
+                const messages: SDKMessage[] = []
+                const systemPrompt = request.context.alwaysText
+                for await (const message of runQuery({
+                  prompt: request.context.render(),
+                  options: {
+                    ...sdkOptions,
+                    hooks: claudeCodeHooks,
+                    cwd: sdkOptions.cwd ?? process.cwd(),
+                    tools: effectiveTools,
+                    skills: effectiveSkills,
+                    env: effectiveEnv,
+                    mcpServers: effectiveMcpServers,
+                    allowedTools: effectiveAllowedTools,
+                    ...(systemPrompt !== undefined ? { systemPrompt } : {}),
+                    outputFormat
+                  }
+                })) messages.push(message)
+                return messages
+              },
+              catch: (cause) => new AgentFailure({
+                agent: driver.id,
+                cause,
+                message: cause instanceof Error ? cause.message : String(cause)
+              })
+            }).pipe(Effect.flatMap((messages) => Effect.gen(function*() {
+              const result = messages.findLast((message) => message.type === "result")
+              if (!result || result.subtype !== "success")
+                return yield* new AgentFailure({ agent: driver.id, cause: result ?? "No result" })
+              const until = request.context.until
+              if (until?._tag === "Schema") return yield* decode(until.schema, result.structured_output)
+              if (until?._tag === "Stop" || until?._tag === "Text") return result.result
+              const assistant = messages.findLast((message) => message.type === "assistant")
+              const blocks = assistant?.message.content ?? []
+              if (until?._tag === "Thinking") {
+                const thinking = blocks.find((block) => block.type === "thinking")
+                return (thinking && "thinking" in thinking ? thinking.thinking : "")
+              }
+              const call = blocks.find((block) => block.type === "tool_use")
+              if (!call || !("id" in call) || !("name" in call))
+                return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })
+              return { _tag: "ToolCall", id: call.id, name: call.name, input: call.input }
+            })))
+            return execute().pipe(Effect.map((value) => ({ _tag: "Result", value }) as StepEvent))
+          }))
+        ).pipe(Effect.flatten, Effect.scoped)
+        // The SDK query runs the whole agent in one pass; the session is one step.
+        return { step }
+      }) as Effect.Effect<DriverSession, AgentError, never>
     }
     return driver
   },

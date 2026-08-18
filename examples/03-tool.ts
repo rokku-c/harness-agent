@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Op, Providers, Until, Uri, type Binding } from "../src/index.js"
+import { Agent, AgentContext, Op, Providers, Until, Uri, type Binding } from "effect-agent"
 
 const Weather = Op.read({
   name: "lookup_weather",
@@ -18,16 +18,16 @@ const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const Assistant = Agent
-    .define<string>("WeatherAssistant", AgentContext.text)
+    .define<string>((city) => AgentContext.input({ operation: "weather-advice", city }))
     .returns(Until.stop)
     .uses(WeatherService)
     .implementedBy(driver)
 
-  return yield* Assistant.run("请查询上海天气，并给我一句出行建议。不要猜测天气。")
+  return yield* Assistant.run("上海")
 })
 
-const answer = await Effect.runPromise(
-  program.pipe(Effect.provide(Providers.layer({ path: "config.toml" })))
-)
+  const result = await Effect.runPromise(
+    program.pipe(Effect.provide(Providers.layer({ path: "config.toml" })))
+  )
 
-console.log(answer)
+  console.log(result.output)

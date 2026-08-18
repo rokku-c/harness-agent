@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Providers, Until } from "../src/index.js"
+import { Agent, AgentContext, Providers, Until } from "effect-agent"
 
 const Plan = Schema.Struct({
   goal: Schema.String,
@@ -14,7 +14,7 @@ const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const Planner = Agent
-    .define<string>("Planner", (task) => AgentContext.text(`为这个任务制定执行计划：${task}`))
+    .define<string>((task) => AgentContext.input({ operation: "plan", task }))
     .returns(Until.schema(Plan))
     .implementedBy(driver)
 
@@ -25,4 +25,4 @@ const plan = await Effect.runPromise(
   program.pipe(Effect.provide(Providers.layer({ path: "config.toml" })))
 )
 
-console.log(JSON.stringify(plan, null, 2))
+console.log(JSON.stringify(plan.output, null, 2))

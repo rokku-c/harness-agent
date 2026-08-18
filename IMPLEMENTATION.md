@@ -1,29 +1,37 @@
-# effect-agent implementation
+# Implementation
 
-当前实现坚持一个业务概念：`Agent<I, O, E, R>`。Vercel AI SDK 是普通 Agent 的执行引擎；Claude Code、Codex 和 Pi 都只是 `Driver`，业务定义不感知 SDK。
+本文记录当前代码已经实现的能力。目标设计见 [DRAFT.md](./DRAFT.md)。
 
-```ts
-const Review = Schema.Struct({
-  summary: Schema.String,
-  risk: Schema.Literal("low", "medium", "high"),
-  findings: Schema.Array(Schema.String)
-})
+## 模块
 
-const PRReview = (driver: Driver) => Agent
-  .define<string>("PRReview", diff => AgentContext.text(`Review:\n${diff}`))
-  .returns(Until.schema(Review))
-  .implementedBy(driver)
-
-const candidates = yield* Agent.map([
-  PRReview(ClaudeCode.make()),
-  PRReview(CodexAgent.make()),
-  PRReview(PiAgent.make())
-], diff)
+```text
+src/core.ts               Context、Binding、Op、Driver、Session
+src/agent.ts              Agent Builder 与 map/reduce
+src/providers/index.ts    Provider 配置与 Driver 路由
+src/providers/native.ts   OpenAI/Anthropic 官方 SDK Driver
+src/providers/vercel.ts   Vercel AI SDK Driver
+src/composed/             Claude Code、Codex、Pi Driver
+src/hooks.ts              Harness 生命周期观测
+src/ssh.ts                SSH 文件资源
+src/defaults.ts           运行默认值
 ```
 
-## TOML Provider 配置
+## Agent 运行
 
-Provider 的身份精确到 API，而不是厂商。`openai.responses` 和 `openai.chat` 是两个不同能力，不能互换：
+```text
+Agent.define
+  → Context + Until + Access
+  → Driver.start
+  → DriverSession.step
+  → Session.run
+  → Result { output, details }
+```
+
+`Agent.map` 和 `Agent.reduce` 使用 Effect 并发运行多个 Agent。
+
+## Provider
+
+Provider 配置来自 TOML，可通过 `Providers.layer(...)` 注入：
 
 ```toml
 default = "reasoner"
@@ -32,104 +40,137 @@ default = "reasoner"
 api = "openai.responses"
 model = "gpt-5.2"
 apiKey = "${OPENAI_API_KEY}"
-
-[providers.compatible_chat]
-api = "openai.chat"
-model = "deepseek-chat"
-baseURL = "${OPENAI_COMPATIBLE_BASE_URL}"
-apiKey = "env:OPENAI_COMPATIBLE_API_KEY"
 ```
 
-默认读取当前目录的 `.env`，但不会覆盖已经存在的进程环境变量。支持两种引用形式：
-
-```text
-${ENV_KEY}
-env:ENV_KEY
-```
-
-任意字符串字段都能引用环境变量，包括 `apiKey`、`baseURL` 和 headers。缺少引用时，配置加载立即以 `ProviderConfigError` 失败，不会带着空密钥运行。
-
-Vercel `LanguageModel` 公共接口不提供模型的最大输出 token 元数据，因此调用层默认显式传入 `maxOutputTokens = 8192`。可以按 provider 覆盖：
-
-```toml
-[providers.reasoner]
-api = "openai.responses"
-model = "gpt-5.2"
-maxOutputTokens = 16384
-```
-
-基础设施只需提供一层：
-
-```ts
-const program = Effect.gen(function*() {
-  const driver = yield* Providers.agent("reasoner")
-  return yield* PRReview(driver).run(diff)
-}).pipe(
-  Effect.provide(Providers.layer({ path: "agents.toml" }))
-)
-```
-
-当前内置 API：
+支持：
 
 - `openai.responses`
 - `openai.chat`
 - `openai.completions`
 - `anthropic.messages`
 
-OpenAI-compatible 服务选择它实际实现的 API，并通过 `baseURL` 指向兼容端点；不能仅因为厂商宣称 OpenAI-compatible 就默认当作 Responses API。
+`driver = "native"` 使用官方 SDK；`driver = "vercel"` 使用 Vercel AI SDK。
 
-Binding 的 `read` 自动进入 Context；允许的 `Op` 自动进入支持工具的 Driver。Op 在发起 Agent 的 Effect runtime 中执行，因此它自己的 Layer 依赖不会丢失。
+## 工具与结构化输出
 
-## 两类 Hook
+Binding `read` 在 Driver 启动前物化到 Context。获准的 Binding Ops 自动投影为底层工具。
 
-effect-agent 的 `HarnessHook` 与外部 Agent 的原生 Hook 是两个不同概念。
+`Until.schema`：
 
-```ts
-const observed = Harness.withHooks(claude, ConsoleHook)
+- Native：合成 output tool，并对入参做 Schema 校验；
+- Vercel：默认使用 output tool，也可使用 JSON output；
+- Claude Code：使用 SDK structured output；
+- Codex：使用原生 output schema；
+- Pi：注入 typed output tool。
+
+工具循环和 Schema 修正循环默认持续到成功或 API 失败；可以配置 guard rail。
+
+## Composed Driver
+
+| Driver | Binding Ops | Schema 输出 | 子 Agent | 沙盒 |
+|---|---:|---:|---:|---:|
+| Claude Code | MCP | 原生 | 已接入 | delegated |
+| Codex | 未接入 | 原生 | 未接入 | enforced |
+| Pi | custom tools | output tool | 未接入 | none |
+
+Claude Code 支持临时配置目录、Skill 注入、原生 Hook、MCP 工具和配置化会话。
+
+## Hook
+
+`Harness.withHooks(driver, ...hooks)` 观察：
+
+- `RunStarted`
+- `DriverPrepared`
+- `ToolStarted`
+- `ToolCompleted`
+- `Detail`
+- `Output`
+- `RunFailed`
+- `RunCompleted`
+
+外部 SDK 原生 Hook 保留在对应 Driver 配置中，不伪装成跨 Driver Hook。
+
+## Predictive Harness
+
+`PredictiveHarness.withPrediction` 为所有注入的 Binding Ops 增加统一执行管线：
+
+```text
+读取历史误差 → 预测工具结果 → 执行工具 → 校验预测 → 错误时写入记忆
 ```
 
-`HarnessHook` 跨所有 Agent/ComposedAgent 工作，观察 effect-agent 管理的 `RunStarted`、`ToolStarted`、`ToolCompleted`、`Output`、`RunFailed` 和 `RunCompleted`。Hook 本身是 Effect，可以依赖日志、telemetry、存储等服务；Hook 失败会以 effect-agent 的 `AgentFailure` 终止对应流程。
+预测和校验本身都是普通 `AgentProgram`；记忆通过 `PredictionMemory` Tag + Layer 注入。预测正确时不写入误差记忆，判断错误时记录工具、输入、预测、实际输出、原因和学习。
 
-Claude Agent SDK 原生 Hook 通过专属名称传入：
+## SSH
 
-```ts
-ClaudeCode.make({
-  claudeCodeHooks: {
-    PreToolUse: [{ matcher: "Bash", hooks: [nativeClaudeHook] }]
-  }
-})
+`SshConnection(uri)` 将远程文件读写包装为 Container 和 Binding Ops。它支持 SSH URI 与用户 SSH config。
+
+当前 SSH 实现仍有裸 Promise、同步 IO 和普通 `Error`，需要按 `AGENTS.md` 收敛成细粒度 Effect 与 TaggedError。
+
+## 已知问题
+
+- `AgentBuilder.subagents()` 的定义尚未完整传入运行 Context；
+- 部分 SDK 边界存在较多 `as any`；
+- `materialize` 没有准确保留 Binding read 的错误通道；
+- 默认输出 token 与部分测试断言可能不同步；
+- `AgentKeeper` 尚未实现；
+- 资源位置可见性和 Harness 自我 Binding 尚未实现。
+
+## 架构现状
+
+当前实现支持的是“单次 Agent 的组合型架构”，还不是完整的有状态多 Agent Runtime。
+
+| 架构 | 当前实现 | 状态 |
+|---|---|---|
+| 单 Agent | `Agent.run` | 原生支持 |
+| Pipeline | 上一个 `Result` 作为下一个输入 | 可手工组合 |
+| Fan-out | `Agent.map` | 支持 |
+| Fan-in / Reduce | `Agent.reduce` | 支持 |
+| 多 Provider 对比 | 多个 Agent 并发执行 | 支持 |
+| Blackboard | 共享 `Ref` 或 Binding | 可手工组合 |
+| Supervisor / Worker | 并发 Agent 加汇总 Agent | 可手工组合 |
+| Peer-to-peer | 共享状态或手工传递结果 | 非一等能力 |
+| Composed Agent | `ComposedAgent.make(agent)` | 最小包装 |
+| 长期托管 | `AgentKeeper` | 最小版本 |
+| MCP 能力 | Binding Ops 投影为 MCP | Claude Code 已支持 |
+| SSH 环境 | SSH Connection → Binding | 已支持 |
+
+### AgentKeeper 的当前语义
+
+`AgentKeeper` 使用 `Queue + Deferred + PubSub + Scope + Fiber` 托管一个 `AgentProgram`：
+
+```text
+Queue<Input>
+  → agent.run(input)
+  → Result / KeeperEvent
 ```
 
-`claudeCodeHooks` 保留 Claude SDK 的 matcher、输入和返回协议，只能用于 Claude Code，不会被包装成可移植的 `HarnessHook`。公共配置中不再使用含义模糊的 `hooks`。
+它是长期任务执行器，不是带持续认知上下文的会话。每次 `send` 都创建新的 Context 和 Driver Session。当前默认串行处理，尚未提供并发度、任务优先级、指定任务取消、上下文累积、Session resume 或长期记忆。
 
-## SDK 调研结论
+### ComposedAgent 的当前语义
 
-下表区分“SDK 能力上限”和“当前 adapter 已兑现能力”。能力协商只声明后者，防止 SDK 理论支持但 adapter 尚未接线时产生静默越权。
+`ComposedAgent.make(agent)` 当前是可复用程序的类型标记和薄包装，复用原有 `AgentProgram` 执行模型。它尚未成为：
 
-| 能力 | Claude Agent SDK 0.3.232 | Codex SDK 0.147.0 | Pi 0.73.1 |
-|---|---|---|---|
-| Provider | Claude/Anthropic 体系 | Codex/OpenAI 兼容配置 | 多 Provider、可换 Model |
-| 最细事件 | partial assistant、thinking、tool、result | turn/item；没有 token text delta | token delta、thinking、tool、turn |
-| 取消/介入 | AbortController、`interrupt()`、权限回调及 hooks | AbortSignal；无 pause API | `abort()`、steer、follow-up、extension hooks |
-| 恢复/fork | resume、`forkSession`、`resumeSessionAt` 任意链节点 | resume thread；无任意节点 fork | session tree，runtime/RPC 可按 entry fork |
-| 工具 | SDK MCP、PreToolUse/PostToolUse、`canUseTool` | MCP 可见；TS SDK 无通用原生 tool 注册或 pre-tool callback | customTools；extension 可在执行前 block/mutate |
-| Object | 原生 JSON Schema，result 带 `structured_output` | 每 turn 原生 `outputSchema` | 无同级原语；适配器注入 typed output tool |
-| 沙盒 | SDK sandbox/permissions，可配置不可用时失败 | read-only/workspace-write/danger-full-access + approvals | 无硬沙盒；必须交给外部 Container 隔离 |
+- 可作为另一个 Agent Driver 的完整运行时；
+- 自动封装内部 Binding、权限和生命周期的容器；
+- 通用动态子 Agent 或拓扑节点。
 
-当前 adapter 状态：
+### 尚未支持的架构能力
 
-- Claude Code：stop、原生 object、隔离 Claude Home、cwd、Skill 注入和 Binding Ops → 进程内 SDK MCP 已接；默认隐藏全部内置工具。细粒度暂停尚未接，因此如实声明 `tools: mcp, pause: false`。
-- Codex：文本、原生 object、resume、sandbox/approval/thread 配置已接；MCP 只能由调用方通过 Codex 配置提供，Binding Ops 不会伪装成已注入。
-- Pi：stop、Binding custom tools、typed output tool 已接；细粒度暂停尚未接，硬沙盒仍为 `none`。
-- Vercel：`generateText` tool loop、Effect Schema → JSON Schema、Binding tools、`Output.object` 已接。当前采用完整 run，所以 tool call 只可观察、不可安全暂停。
+- 通用 Supervisor：任务分配、Worker 状态、重启和超时；
+- 运行中的 Peer-to-peer Agent 寻址与通信；
+- 动态创建、连接、销毁和重配 Agent；
+- Keeper 间的持久消息、跨进程传输和崩溃恢复；
+- 有状态会话、上下文压缩和长期记忆；
+- Harness 自身 Binding 和资源位置可见性策略。
 
-下一层接入会集中在统一的事件/暂停协议：Vercel 改用 `streamText` + approval boundary，Claude 生成 in-process SDK MCP，Pi 用 pre-tool extension hook。完成前 `Until.toolCall` 会通过 `UnsupportedCapability` 提前失败，而不是在工具已经执行后假装暂停。
+这些能力目前不要通过增加 `Pipeline`、`Worker`、`Supervisor` 等专用 Agent 类型来模拟。优先完善 `ComposedAgent → AgentKeeper → Harness` 的生命周期链；只有出现跨进程、持久化、事件回放或复杂路由需求时，再引入独立 Message 层。
 
-## 配置粒度
+## 配置边界
 
-- Claude：几乎全部 `Options` 透传，包括 model、thinking/effort、maxTurns、budget、permissionMode、sandbox、hooks、plugins、skills、agents、resume/fork 和 MCP。
-- Codex：`CodexOptions`、`ThreadOptions` 和 resume thread ID 分层传入，包括 model、reasoning effort、cwd、sandbox、approval、network/web search、base URL 与 CLI config。
-- Pi：`CreateAgentSessionOptions` 透传，包括 model、thinkingLevel、cwd、session manager、resource loader、built-in tool allowlist 和 custom tools。
+- 通用 Provider 配置放在 `[providers.*]`；
+- Claude Code 等完整 Agent 放在 `[composedAgents.*]`；
+- Binding 权限由 `.uses/.writes` 声明；
+- Driver 通过 `Capabilities` 如实报告已接入能力。
 
 ## 验证
 

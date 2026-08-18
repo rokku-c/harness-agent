@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { AgentContext, Harness, Op, Until, type Binding, type Driver } from "../src/index.js"
+import { AgentContext, Harness, Op, runDriver, Until, type Binding, type Driver } from "../src/index.js"
 
 describe("HarnessHook", () => {
   test("observes framework lifecycle and instrumented Binding Ops", async () => {
@@ -19,16 +19,19 @@ describe("HarnessHook", () => {
       capabilities: {
         provider: { _tag: "Configurable" }, granularity: "run", thinking: false,
         cancel: false, pause: false, resume: false, fork: "none",
-        tools: "native", toolCalls: "observe", structuredOutput: "none", sandbox: "none"
+        tools: "native", toolCalls: "observe", structuredOutput: "none", sandbox: "none", subagents: false
       },
-      run: (request) => request.access[0]!.binding.ops![0]!.execute({ text: "ok" }) as any
+      start: (request): any => Effect.succeed({
+        step: request.context.access[0]!.binding.ops![0]!.execute({ text: "ok" }).pipe(
+          Effect.map((value) => ({ _tag: "Result", value }))
+        )
+      })
     }
 
-    const output = await Effect.runPromise(Harness.withHooks(driver, hook).run({
-      context: AgentContext.text("hello"), until: Until.stop, access: [{ binding, write: false }]
-    }))
+    const context = AgentContext.current("hello").withUntil(Until.stop).withAccess([{ binding, write: false }])
+    const output = await Effect.runPromise(runDriver(Harness.withHooks(driver, hook), context))
 
-    expect(output).toBe("ok")
+    expect(output.output).toBe("ok")
     expect(events).toEqual([
       "RunStarted", "ToolStarted", "ToolCompleted", "Output", "RunCompleted"
     ])

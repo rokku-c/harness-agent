@@ -1,10 +1,17 @@
 default = "reasoner"
 
+# driver 选择 provider 的实现：
+#   "native"（默认）— 直接使用官方 SDK（@anthropic-ai/sdk / openai），绕开 @ai-sdk/* 兼容层
+#                      （其对部分网关的 thinking 块校验不稳定）。
+#   "vercel"          — 使用 @ai-sdk/* 兼容层。仅当官方 SDK 对你的网关不适配时选用。
+# 可在每个 provider 里单独设置，也可通过 Providers.agent(name, { driver }) 覆盖。
+
 [providers.reasoner]
 api = "openai.responses"
 model = "gpt-5.2"
 apiKey = "${OPENAI_API_KEY}"
-maxOutputTokens = 8192
+maxOutputTokens = 4096
+# driver = "native"
 
 [providers.compatible_chat]
 api = "openai.chat"
@@ -39,6 +46,9 @@ tools = []
 # 把外部 Skill 复制到隔离 Claude Home；默认自动启用注入的全部 Skill。
 # skillPaths = ["./skills/reviewer"]
 # skills = ["reviewer"]
+# 注入工具的命名：默认无前缀；MCP 授权名固定为 mcp__<channel>__<tool>。
+# toolPrefix = "ea_"
+# mcpChannel = "my_agent"
 settingSources = []
 persistSession = false
 

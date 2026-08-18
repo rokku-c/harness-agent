@@ -1,5 +1,6 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, ClaudeCode, Until } from "../src/index.js"
+import { Agent, AgentContext, ClaudeCode, Harness, Until } from "effect-agent"
+import { DetailHook } from "./hooks/detailed-review.js"
 
 const Plan = Schema.Struct({
   goal: Schema.String,
@@ -26,16 +27,16 @@ const program = Effect.gen(function*() {
     }
   })
 
+  const observedClaude = Harness.withHooks(driver, DetailHook)
+
   const Planner = Agent
-    .define<string>("ClaudeCodePlanner", (task) => AgentContext.text(
-      `只分析任务并制定计划（设置语言：简体中文），不要修改任何文件：\n\n${task}`
-    ))
+    .define<string>((task) => AgentContext.input({ operation: "plan", task, locale: "zh-CN" }))
     .returns(Until.schema(Plan))
-    .implementedBy(driver)
+    .implementedBy(observedClaude)
 
   return yield* Planner.run("发布一个 TypeScript npm package")
 })
 
 const plan = await Effect.runPromise(program)
 
-console.log(JSON.stringify(plan, null, 2))
+console.log(JSON.stringify(plan.output, null, 2))

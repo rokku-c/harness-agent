@@ -7,7 +7,7 @@ import {
   PiAgent,
   Until,
   type Driver
-} from "../src/index.js"
+} from "effect-agent"
 
 const Review = Schema.Struct({
   summary: Schema.String,
@@ -17,7 +17,7 @@ const Review = Schema.Struct({
 
 // 业务 Agent 只描述输入和输出，不知道底层是哪个完整外部 Agent。
 const PRReview = (driver: Driver) => Agent
-  .define<string>("PRReview", (diff) => AgentContext.text(`Review this diff:\n${diff}`))
+  .define<string>((diff) => AgentContext.input({ operation: "review", diff }))
   .returns(Until.schema(Review))
   .implementedBy(driver)
 

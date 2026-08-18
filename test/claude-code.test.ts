@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { existsSync } from "node:fs"
-import { AgentContext, ClaudeCode, Harness, Op, Until, type Binding } from "../src/index.js"
+import { AgentContext, ClaudeCode, Harness, Op, runDriver, Until, type Binding, type SubagentProgram } from "../src/index.js"
+
+/** Compatibility shim: old driver.run({ context, until, access, subagents }) via the new runDriver. */
+const run = (driver: any, args: { context: any; until: any; access?: any; subagents?: any }) => {
+  let ctx = args.context.withUntil(args.until).withAccess(args.access ?? [])
+  if (args.subagents?.length) ctx = ctx.withSubagents(args.subagents)
+  return runDriver(driver, ctx)
+}
 
 describe("Claude Code isolation", () => {
   test("uses a temporary home, disables builtins, injects ops and skills", async () => {
@@ -33,13 +40,10 @@ describe("Claude Code isolation", () => {
     }), Harness.hook("prepared", (event) => Effect.sync(() => {
       if (event._tag === "DriverPrepared") prepared = event.details
     })))
-    const answer = await Effect.runPromise(driver.run({
-      context: AgentContext.text("hello"),
-      until: Until.stop,
-      access: [{ binding: Docs, write: false }]
-    }))
+    const answer = await Effect.runPromise(runDriver(driver,
+      AgentContext.current("hello").withUntil(Until.stop).withAccess([{ binding: Docs, write: false }])))
 
-    expect(answer).toBe("ok")
+    expect(answer.output).toBe("ok")
     expect(observed.tools).toEqual([])
     expect(observed.hooks).toBe(nativeHooks)
     expect(observed.skills).toBe("all")
@@ -52,6 +56,18 @@ describe("Claude Code isolation", () => {
     expect(prepared.insecureTls).toBe(true)
     expect(observed.env.NODE_TLS_REJECT_UNAUTHORIZED).toBe("0")
     expect(existsSync(home)).toBe(false)
+  })
+
+  test("injects AgentContext system text as native systemPrompt", async () => {
+    let observed: any
+    const fakeQuery = (async function* (params: any) {
+      observed = params.options
+      yield { type: "result", subtype: "success", result: "ok" }
+    }) as any
+    const driver = ClaudeCode.make({ query: fakeQuery })
+    await Effect.runPromise(runDriver(driver,
+      AgentContext.always("You are a review specialist.").appendCurrent({ _tag: "Text", text: "hello" }).withUntil(Until.stop)))
+    expect(observed.systemPrompt).toBe("You are a review specialist.")
   })
 })
 
@@ -71,11 +87,7 @@ describe("Claude Code global insecureTls", () => {
         provider: "claude",
         overrides: { query: fakeQuery }
       }))
-      await Effect.runPromise(driver.run({
-        context: AgentContext.text("hello"),
-        until: Until.stop,
-        access: []
-      }))
+      await Effect.runPromise(runDriver(driver, AgentContext.current("hello").withUntil(Until.stop)))
       return observed
     }
 
@@ -84,5 +96,135 @@ describe("Claude Code global insecureTls", () => {
 
     const overridden = await makeObserved("codexOnly")
     expect(overridden.env.NODE_TLS_REJECT_UNAUTHORIZED).toBeUndefined()
+  })
+})
+
+describe("Claude Code runtime subagents", () => {
+  const makeFakeQuery = (observed: { value?: any }) => (async function* (params: any) {
+    observed.value = params.options
+    yield { type: "result", subtype: "success", result: "ok" }
+  }) as any
+
+  test("injects a delegate MCP tool per declared subagent", async () => {
+    const observed: { value?: any } = {}
+    const driver = ClaudeCode.make({ query: makeFakeQuery(observed) })
+    const subagent: SubagentProgram = {
+      id: "reviewer",
+      until: Until.stop,
+      access: [],
+      context: (goal) => AgentContext.current(`审查：${goal}`)
+    }
+    await Effect.runPromise(run(driver, {
+      context: AgentContext.current("hello"),
+      until: Until.stop,
+      access: [],
+      subagents: [subagent]
+    }))
+
+    // The delegate tool is registered on the effect_agent MCP server instance.
+    const registered = observed.value!.mcpServers.effect_agent.instance._registeredTools
+    const delegate = registered.effect_agent_subagent_reviewer
+    expect(delegate).toBeDefined()
+    expect(delegate.description).toContain("reviewer")
+    // And allowedTools grants it.
+    expect(observed.value!.allowedTools).toContain("mcp__effect_agent__effect_agent_subagent_reviewer")
+  })
+
+  test("delegate tool runs the child subagent and returns its output", async () => {
+    const observed: { value?: any } = {}
+    const driver = ClaudeCode.make({ query: makeFakeQuery(observed) })
+    const subagent: SubagentProgram = {
+      id: "reviewer",
+      until: Until.stop,
+      access: [],
+      context: (goal) => AgentContext.current(`审查：${goal}`)
+    }
+    await Effect.runPromise(run(driver, {
+      context: AgentContext.current("hello"),
+      until: Until.stop,
+      access: [],
+      subagents: [subagent]
+    }))
+
+    // Invoke the delegate tool handler directly and confirm it returns a tool result.
+    const registered = observed.value!.mcpServers.effect_agent.instance._registeredTools
+    const result = await registered.effect_agent_subagent_reviewer.handler({ goal: "检查 auth" })
+    expect(result.content[0].text).toBe(JSON.stringify("ok"))
+  })
+
+  test("does not inject delegate tools when no subagents declared", async () => {
+    const observed: { value?: any } = {}
+    const driver = ClaudeCode.make({ query: makeFakeQuery(observed) })
+    await Effect.runPromise(run(driver, {
+      context: AgentContext.current("hello"),
+      until: Until.stop,
+      access: []
+    }))
+
+    // With no ops and no subagents, no effect_agent MCP server is created at all.
+    expect(observed.value!.mcpServers).toBeUndefined()
+  })
+})
+
+describe("Claude Code configurable tool naming", () => {
+  const Lookup = Op.read({
+    name: "docs.lookup",
+    description: "Lookup docs",
+    input: Schema.Struct({ query: Schema.String }),
+    output: Schema.String,
+    execute: ({ query }) => Effect.succeed(query)
+  })
+  const Docs: Binding = { uri: "ea://test/service/docs", ops: [Lookup] }
+
+  test("applies toolPrefix to injected tool names", async () => {
+    const observed: { value?: any } = {}
+    const fakeQuery = (async function* (params: any) {
+      observed.value = params.options
+      yield { type: "result", subtype: "success", result: "ok" }
+    }) as any
+    const driver = ClaudeCode.make({ query: fakeQuery, toolPrefix: "ea_" })
+    await Effect.runPromise(run(driver, {
+      context: AgentContext.current("hello"),
+      until: Until.stop,
+      access: [{ binding: Docs, write: false }]
+    }))
+
+    expect(observed.value!.mcpServers.effect_agent).toBeDefined()
+    // tool name gets the prefix; allowedName is mcp__<channel>__<prefixed name>
+    expect(observed.value!.allowedTools).toContain("mcp__effect_agent__ea_docs_lookup")
+  })
+
+  test("honors custom mcpChannel", async () => {
+    const observed: { value?: any } = {}
+    const fakeQuery = (async function* (params: any) {
+      observed.value = params.options
+      yield { type: "result", subtype: "success", result: "ok" }
+    }) as any
+    const driver = ClaudeCode.make({ query: fakeQuery, mcpChannel: "my_agent" })
+    await Effect.runPromise(run(driver, {
+      context: AgentContext.current("hello"),
+      until: Until.stop,
+      access: [{ binding: Docs, write: false }]
+    }))
+
+    expect(observed.value!.mcpServers.my_agent).toBeDefined()
+    expect(observed.value!.allowedTools).toContain("mcp__my_agent__docs_lookup")
+  })
+
+  test("combines toolPrefix and mcpChannel", async () => {
+    const observed: { value?: any } = {}
+    const fakeQuery = (async function* (params: any) {
+      observed.value = params.options
+      yield { type: "result", subtype: "success", result: "ok" }
+    }) as any
+    const driver = ClaudeCode.make({ query: fakeQuery, toolPrefix: "x_", mcpChannel: "c" })
+    await Effect.runPromise(run(driver, {
+      context: AgentContext.current("hello"),
+      until: Until.stop,
+      access: [{ binding: Docs, write: false }]
+    }))
+
+    expect(observed.value!.mcpServers.c).toBeDefined()
+    expect(observed.value!.allowedTools).toContain("mcp__c__x_docs_lookup")
   })
 })

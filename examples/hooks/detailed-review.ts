@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { Harness, type HarnessEvent } from "../../src/index.js"
+import { Harness, type HarnessEvent } from "effect-agent"
 
 const started = performance.now()
 const toolStarted = new Map<string, number>()
@@ -20,21 +20,37 @@ const preview = (value: unknown, limit = 1200): unknown => {
 }
 
 const write = (event: string, detail?: unknown) => {
-  const heading = `[review ${elapsed()}] ${event}`
+  const heading = `[agent ${elapsed()}] ${event}`
   if (detail === undefined) return console.error(heading)
   console.error(`${heading}\n${JSON.stringify(preview(detail), null, 2)}`)
 }
 
-export const DetailedReviewHook = Harness.hook("detailed-review", (event: HarnessEvent) => Effect.sync(() => {
+/**
+ * 通用 detail hook：打印一次 agent run 的完整细节。
+ * 适用于任意 driver（Claude Code、Codex、Pi、Vercel），不绑定特定场景。
+ *
+ *   const agent = Harness.withHooks(driver, DetailHook)
+ *
+ * 输出：
+ *   - RunStarted     初始 context（always / current / until）
+ *   - DriverPrepared 驱动配置详情
+ *   - ToolStarted / ToolCompleted  工具调用过程
+ *   - Detail         驱动暴露的内部过程（thinking / text / toolCall）
+ *   - Output         最终结构化输出
+ *   - RunFailed / RunCompleted     运行结束
+ */
+export const DetailHook = Harness.hook("detail", (event: HarnessEvent) => Effect.sync(() => {
   switch (event._tag) {
     case "RunStarted":
       write(`run started: ${event.agent}`, {
-        contextEntries: event.context.entries.length,
-        prompt: event.context.render()
+        always: event.context.always.map((entry) => entry.text),
+        current: event.context.current.map((entry) =>
+          entry._tag === "Text" ? entry.text : `Object: ${preview(entry.value)}`),
+        until: event.context.until?._tag ?? "Stop"
       })
       break
     case "DriverPrepared":
-      write(`composed agent prepared: ${event.runtime}`, event.details)
+      write(`driver prepared: ${event.runtime}`, event.details)
       break
     case "ToolStarted": {
       toolStarted.set(event.callId, performance.now())
@@ -52,8 +68,11 @@ export const DetailedReviewHook = Harness.hook("detailed-review", (event: Harnes
       })
       break
     }
+    case "Detail":
+      write(`detail: ${event.detail._tag}`, event.detail)
+      break
     case "Output":
-      write("structured output received", event.output)
+      write("structured output", event.output)
       break
     case "RunFailed":
       write(`run failed: ${event.agent}`, {

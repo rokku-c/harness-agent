@@ -10,15 +10,18 @@ import {
   Op,
   Until,
   Uri,
-  type Binding
+  type Binding,
+  type SubagentProgram
 } from "effect-agent"
 import { DetailHook } from "./hooks/detailed-review.js"
 
-const root = process.cwd()
-const ignored = new Set([".git", "node_modules", "dist", "build", "coverage"])
-const maxFilesRead = 24
-let filesRead = 0
+const Review = Schema.Struct({
+  verdict: Schema.String,
+  issues: Schema.Array(Schema.String),
+  summary: Schema.String
+})
 
+const root = process.cwd()
 const insideRoot = (path: string) => {
   const target = resolve(root, path)
   if (target !== root && !target.startsWith(root + sep)) throw new Error(`Path escapes project: ${path}`)
@@ -27,18 +30,15 @@ const insideRoot = (path: string) => {
 
 const ListFiles = Op.read({
   name: "project.listFiles",
-  description: "列出当前项目中的源代码和配置文件。可以用 glob 参数缩小范围。",
-  input: Schema.Struct({
-    pattern: Schema.optionalWith(Schema.String, { default: () => "**/*" })
-  }),
+  description: "列出当前项目中的源代码和配置文件。",
+  input: Schema.Struct({ pattern: Schema.optionalWith(Schema.String, { default: () => "**/*" }) }),
   output: Schema.Array(Schema.String),
   execute: ({ pattern }) => Effect.tryPromise({
     try: async () => {
       const files: string[] = []
-      for await (const path of glob(pattern, { cwd: root, exclude: [...ignored].map((name) => `${name}/**`) })) {
+      for await (const path of glob(pattern, { cwd: root, exclude: ["node_modules/**", ".git/**", "dist/**"] })) {
         const target = insideRoot(path)
         if ((await stat(target)).isFile()) files.push(relative(root, target))
-        if (files.length >= 250) break
       }
       return files.sort()
     },
@@ -48,14 +48,11 @@ const ListFiles = Op.read({
 
 const ReadFile = Op.read({
   name: "project.readFile",
-  description: `读取当前项目中的一个 UTF-8 文本文件。只能读取项目目录内、最大 256 KiB 的文件；本次审查最多读取 ${maxFilesRead} 个文件。`,
+  description: "读取当前项目中的一个 UTF-8 文本文件（≤ 256 KiB）。",
   input: Schema.Struct({ path: Schema.String }),
   output: Schema.String,
   execute: ({ path }) => Effect.tryPromise({
     try: async () => {
-      if (filesRead >= maxFilesRead)
-        throw new Error(`Review read budget exhausted (${maxFilesRead} files). Stop exploring and return the review now.`)
-      filesRead += 1
       const target = insideRoot(path)
       const info = await stat(target)
       if (!info.isFile()) throw new Error(`Not a file: ${path}`)
@@ -71,21 +68,14 @@ const Project: Binding = {
   ops: [ListFiles, ReadFile]
 }
 
-const Finding = Schema.Struct({
-  severity: Schema.Literal("critical", "high", "medium", "low"),
-  file: Schema.String,
-  line: Schema.optional(Schema.Number),
-  title: Schema.String,
-  evidence: Schema.String,
-  recommendation: Schema.String
-})
-
-const Review = Schema.Struct({
-  summary: Schema.String,
-  findings: Schema.Array(Finding),
-  strengths: Schema.Array(Schema.String),
-  filesReviewed: Schema.Array(Schema.String)
-})
+// 声明一个运行时派生的子代理：主模型在运行中可通过 delegate 工具
+// 调用它（用 goal 输入任务），子代理作为一个独立进程运行并返回结果。
+const reviewer: SubagentProgram = {
+  id: "reviewer",
+  until: Until.stop,
+  access: [{ binding: Project, write: false }],
+  context: (goal) => AgentContext.input({ operation: "review", goal, access: "read-only" })
+}
 
 const program = Effect.gen(function*() {
   const claude = yield* ClaudeCode.configured({
@@ -93,37 +83,23 @@ const program = Effect.gen(function*() {
     provider: "claude",
     overrides: {
       cwd: root,
-      maxTurns: 20,
+      maxTurns: 10,
       permissionMode: "dontAsk",
       tools: [],
-      skillPaths: ["examples/skills/project-review"],
-      skills: ["project-review"],
       settingSources: [],
-      persistSession: false,
-      // 仅在显式设置环境变量时覆盖 config.toml 中的 insecureTls；
-      // 未设置时交给配置（composedAgents.* 或全局 [insecureTls]）决定。
-      // ...(Bun.env.REVIEW_INSECURE_TLS !== undefined
-      //   ? { insecureTls: Bun.env.REVIEW_INSECURE_TLS === "1" }
-      //   : {})
+      persistSession: false
     }
   })
 
   const observedClaude = Harness.withHooks(claude, DetailHook)
 
-  const ProjectReviewer = Agent
-    .define<string>((focus) => AgentContext.input({
-      operation: "review-project",
-      focus,
-      maxFilesRead,
-      evidenceRequired: true
-    }))
+  const Reviewer = Agent
+    .define<string>((task) => AgentContext.input({ operation: "review-project", task, delegation: true }))
     .returns(Until.schema(Review))
-    .uses(Project)
+    .subagents(reviewer)
     .implementedBy(observedClaude)
 
-  return yield* ProjectReviewer.run(
-    "API 抽象是否一致、Effect 依赖是否正确、能力声明是否真实，以及安全边界是否可靠"
-  )
+  return yield* Reviewer.run("检查 src/ 下的 API 抽象一致性")
 })
 
 const review = await Effect.runPromise(program)
