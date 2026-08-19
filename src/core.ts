@@ -1,5 +1,6 @@
 import { Context as EffectContext, Data, Effect, Either, JSONSchema, Layer, Option, Ref, Schema } from "effect"
 import { AgentDefaults } from "./defaults.js"
+import type { Gate, Stage } from "./orchestration.js"
 
 /* ────────────────────────── 认知层（数据） ────────────────────────── */
 
@@ -188,6 +189,10 @@ export interface ContextInit {
   readonly details?: ReadonlyArray<Detail>
   readonly containers?: ContainersService
   readonly connections?: ConnectionsService
+  /** 执行编排：推进路径。 */
+  readonly stages?: Stage
+  /** 执行编排：按阶段解锁。 */
+  readonly gates?: ReadonlyArray<Gate>
 }
 
 /**
@@ -212,6 +217,8 @@ export class Context {
   get details() { return this.init.details ?? [] }
   get containers(): Option.Option<ContainersService> { return Option.fromNullable(this.init.containers) }
   get connections(): Option.Option<ConnectionsService> { return Option.fromNullable(this.init.connections) }
+  get stages(): Stage | undefined { return this.init.stages }
+  get gates(): ReadonlyArray<Gate> { return this.init.gates ?? [] }
   /** Persistent instruction text, or undefined when none was set. */
   get alwaysText() {
     return this.always.find((entry): entry is Always => entry._tag === "Always")?.text ?? AgentDefaults.instructions
@@ -224,6 +231,12 @@ export class Context {
   }
   withUntil(until: Until<any>) {
     return new Context({ ...this.init, until })
+  }
+  withStages(stages: Stage | undefined) {
+    return new Context({ ...this.init, stages })
+  }
+  withGates(gates: ReadonlyArray<Gate> | undefined) {
+    return new Context({ ...this.init, gates })
   }
   withAccess(access: ReadonlyArray<Access<any>>) {
     return new Context({ ...this.init, access })

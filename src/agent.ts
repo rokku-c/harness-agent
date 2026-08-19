@@ -2,6 +2,7 @@ import { Effect, Ref } from "effect"
 import { Context } from "./core.js"
 import type { Access, AgentProgram, AgentError, Binding, Detail, Driver, Result, Session, SubagentProgram, Until } from "./core.js"
 import { Session as SessionImpl } from "./core.js"
+import type { Gate, Stage } from "./orchestration.js"
 
 export interface Definition<I, O, R> {
   readonly id: string
@@ -9,6 +10,8 @@ export interface Definition<I, O, R> {
   readonly until: Until<O>
   readonly access: ReadonlyArray<Access<R>>
   readonly subagents: ReadonlyArray<SubagentProgram>
+  readonly stages?: Stage
+  readonly gates?: ReadonlyArray<Gate>
 }
 
 /** Add a binding to access, de-duplicating by `binding.uri` (later declaration wins). */
@@ -37,13 +40,27 @@ export class AgentBuilder<I, O, R = never> {
     return new AgentBuilder<I, O, R>({ ...this.definition, subagents: [...this.definition.subagents, ...subagents] })
   }
 
+  /** Execution orchestration: progression path. */
+  stages(stages: Stage): AgentBuilder<I, O, R> {
+    return new AgentBuilder<I, O, R>({ ...this.definition, stages })
+  }
+
+  /** Execution orchestration: per-stage unlock (always/container/tool access). */
+  gates(gates: ReadonlyArray<Gate>): AgentBuilder<I, O, R> {
+    return new AgentBuilder<I, O, R>({ ...this.definition, gates })
+  }
+
   implementedBy<RD>(driver: Driver<RD>): AgentProgram<I, O, AgentError, R | RD> {
     const definition = this.definition
     return {
       id: definition.id,
       capabilities: driver.capabilities,
       run: (input) => Effect.gen(function*() {
-        const context = definition.input(input).withUntil(definition.until).withAccess(definition.access)
+        const context = definition.input(input)
+          .withUntil(definition.until)
+          .withAccess(definition.access)
+          .withStages(definition.stages)
+          .withGates(definition.gates)
         const driverSession = yield* driver.start({ context })
         const detailsRef = yield* Ref.make<ReadonlyArray<Detail>>([])
         return yield* new SessionImpl(context, driverSession, detailsRef).run<O>()

@@ -1,8 +1,8 @@
-import { pipe, Schema } from "effect"
-import { Gate, Stage, then, Until } from "../src/index.js"
+import { Effect, pipe, Schema } from "effect"
+import { Agent, AgentContext, Gate, Stage, then, Until, type Driver } from "../src/index.js"
 
 /**
- * 示例 17：执行编排 —— Stage / Until / Gates 组合子。
+ * 示例 19：执行编排接入 Agent —— Stage / Until / Gates 组合子。
  *
  * 目标：让 agent 以「我们想要的方式」工作——推进到什么阶段、拿什么、什么可用。
  *
@@ -12,16 +12,12 @@ import { Gate, Stage, then, Until } from "../src/index.js"
  *   阶段 2：提交审查结论（submit）
  */
 
-// ── 1. Stage：推进路径（pipe 风格）──
 const plan = pipe(
   Stage.guard("list_dir"),
   then("read_file"),
   then("submit"),
 )
 
-console.log("Stage 推进路径:", plan.marks.join(" → "))
-
-// ── 2. Gates：解锁投影 ──
 const gates = [
   Gate.at(0, {
     always: "你是只读代码审查者，只能读不能改。",
@@ -38,18 +34,43 @@ const gates = [
   }),
 ]
 
-// ── 3. Until：观察投影 ──
 const Review = Schema.Struct({
   summary: Schema.String,
   findings: Schema.Array(Schema.String),
 })
 
-const until = Until.schema(Review)     // 推进到产出符合 Review
+// 最小 fake driver：验证编排能接进 AgentProgram
+const fakeDriver: Driver = {
+  id: "fake",
+  capabilities: {
+    provider: { _tag: "Configurable" }, granularity: "run", thinking: false,
+    cancel: false, pause: false, resume: false, fork: "none",
+    tools: "native", toolCalls: "observe", structuredOutput: "native", sandbox: "none", subagents: false,
+  },
+  start: (request) => Effect.succeed({
+    step: Effect.succeed({
+      _tag: "Result",
+      value: {
+        summary: "审查完成",
+        findings: ["编排已接入 Agent 定义流"],
+        // 透传 stages/gates 以证明它们到达了 driver
+        _stages: request.context.stages?.marks.join(" → "),
+        _gateCount: request.context.gates.length,
+      },
+    } as any),
+  }),
+}
 
-console.log("Gates 阶段数:", gates.length)
-console.log("Until:", until._tag === "Schema" ? "等 schema 产出" : until._tag)
+const Reviewer = Agent
+  .define<string>("Reviewer", (task) => AgentContext.current(task))
+  .returns(Until.schema(Review))
+  .stages(plan)
+  .gates(gates)
+  .implementedBy(fakeDriver)
 
-console.log("\n编排完成：")
-console.log("  推进:", plan.marks.map(m => `→${m}`).join(" "))
-console.log("  观察:", "产出 Review 结构")
-console.log("  约束:", "阶段0禁submit → 阶段1解锁 → 阶段2禁commit")
+const result = await Effect.runPromise(Reviewer.run("审查 src/core.ts"))
+
+console.log("编排已接入 Agent：")
+console.log("  推进路径:", (result.output as any)._stages)
+console.log("  阶段门数:", (result.output as any)._gateCount)
+console.log("  结论:", result.output.summary)
