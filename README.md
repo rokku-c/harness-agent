@@ -43,11 +43,18 @@ console.log(result.output)
 
 ## 核心概念
 
+- `Agent`：一个请求的边界（循环契约：输入/输出/资源/执行/停条件）；
 - `Context`：Agent 当前获得的输入和状态；
 - `Binding`：Agent 可访问的环境资源；
 - `Op`：Binding 提供的可执行能力；
+- `Container`：一组有边界的 Binding（工具集）；
 - `Driver`：模型 SDK 或完整 Agent 的适配器；
-- `Until`：一次运行的结束条件；
+- `Until`：观察投影——推进到什么阶段拿什么（`schema`/`toolCall`/`stop`）；
+- `Stage`/`Gates`：执行编排——推进路径 + 按阶段解锁工具/容器/规则；
+- `Resource`：可访问/可协作的东西（注入/帧视图/租约）；
+- `Connection`：把远程资源/容器接过来给 agent（transport 是实现）；
+- `Group`/`Organization`：组织 agent 的范围；
+- `Messenger`：通信方式（应答/双向/邮件）；
 - `Result`：最终输出和执行细节。
 
 ## 开发
@@ -59,8 +66,9 @@ bun test
 bun run example
 ```
 
-## 文档
+## 设计文档
 
+- [目标](./GOAL.md)
 - [设计草案](./DRAFT.md)
 - [实现状态](./IMPLEMENTATION.md)
 - [Core 与 Connection 架构方案](./CORE_CONNECTION_PLAN.md)

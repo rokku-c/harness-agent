@@ -1,6 +1,7 @@
 export * from "./core.js"
 export * from "./agent.js"
 export * from "./defaults.js"
+export * from "./orchestration.js"
 export * from "./providers/index.js"
 export * from "./hooks.js"
 export * from "./ssh.js"

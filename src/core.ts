@@ -155,18 +155,28 @@ export interface SubagentProgram {
 /* ────────────────────────── 抽象 Context ────────────────────────── */
 
 export type Until<A> =
-  | { readonly _tag: "Text" }
-  | { readonly _tag: "Thinking" }
-  | { readonly _tag: "ToolCall" }
-  | { readonly _tag: "Stop" }
+  /** 推进到第 at 个阶段（可选），拿工具调用。 */
+  | { readonly _tag: "ToolCall"; readonly at?: number }
+  /** 推进到产出符合 schema。 */
   | { readonly _tag: "Schema"; readonly schema: Schema.Schema<A, any, never> }
+  /** 完整跑完，不中途拿。 */
+  | { readonly _tag: "Stop" }
+  /** 兼容旧语义：推进到出现文本。 */
+  | { readonly _tag: "Text" }
+  /** 兼容旧语义：推进到出现思考。 */
+  | { readonly _tag: "Thinking" }
 
 export const Until = {
-  text: { _tag: "Text" } as Until<string>,
-  thinking: { _tag: "Thinking" } as Until<string>,
-  toolCall: { _tag: "ToolCall" } as Until<Extract<Detail, { _tag: "ToolCall" }>>,
+  /** 推进到第 at 个阶段（可选），拿工具调用。 */
+  toolCall: (at?: number): Until<Extract<Detail, { _tag: "ToolCall" }>> => ({ _tag: "ToolCall", at }),
+  /** 推进到产出符合 schema。 */
+  schema: <A>(schema: Schema.Schema<A, any, never>): Until<A> => ({ _tag: "Schema", schema }),
+  /** 完整跑完，不中途拿。 */
   stop: { _tag: "Stop" } as Until<string>,
-  schema: <A>(schema: Schema.Schema<A, any, never>): Until<A> => ({ _tag: "Schema", schema })
+  /** 推进到出现文本（兼容）。 */
+  text: { _tag: "Text" } as Until<string>,
+  /** 推进到出现思考（兼容）。 */
+  thinking: { _tag: "Thinking" } as Until<string>
 }
 
 export interface ContextInit {
