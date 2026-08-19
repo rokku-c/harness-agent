@@ -2,7 +2,7 @@ import { Effect, Ref } from "effect"
 import { Context } from "./core.js"
 import type { Access, AgentProgram, AgentError, Binding, Detail, Driver, Result, Session, SubagentProgram, Until } from "./core.js"
 import { Session as SessionImpl } from "./core.js"
-import type { Gate, Stage } from "./orchestration.js"
+import { gatesOf, type Gate, type Stage } from "./orchestration.js"
 
 export interface Definition<I, O, R> {
   readonly id: string
@@ -40,12 +40,12 @@ export class AgentBuilder<I, O, R = never> {
     return new AgentBuilder<I, O, R>({ ...this.definition, subagents: [...this.definition.subagents, ...subagents] })
   }
 
-  /** Execution orchestration: progression path. */
+  /** Execution orchestration: progression path with per-stage unlock gates. */
   stages(stages: Stage): AgentBuilder<I, O, R> {
-    return new AgentBuilder<I, O, R>({ ...this.definition, stages })
+    return new AgentBuilder<I, O, R>({ ...this.definition, stages, gates: gatesOf(stages) })
   }
 
-  /** Execution orchestration: per-stage unlock (always/container/tool access). */
+  /** Execution orchestration: per-stage unlock (legacy, overrides stages-derived gates). */
   gates(gates: ReadonlyArray<Gate>): AgentBuilder<I, O, R> {
     return new AgentBuilder<I, O, R>({ ...this.definition, gates })
   }

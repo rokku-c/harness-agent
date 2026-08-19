@@ -1,45 +1,36 @@
 import { Effect, pipe, Schema } from "effect"
-import { Agent, AgentContext, Gate, Stage, then, Until, type Driver } from "../src/index.js"
+import { Agent, AgentContext, Stage, then, Until, type Driver } from "../src/index.js"
 
 /**
- * 示例 19：执行编排接入 Agent —— Stage / Until / Gates 组合子。
- *
- * 目标：让 agent 以「我们想要的方式」工作——推进到什么阶段、拿什么、什么可用。
+ * 示例 19：执行编排接入 Agent —— Stage（每阶段自带解锁配置）。
  *
  * 场景：一个「代码审查」agent。
- *   阶段 0：列出项目文件（list_dir）
- *   阶段 1：读取关键文件（read_file）
- *   阶段 2：提交审查结论（submit）
+ *   阶段 0：列出项目文件（list_dir），只读角色
+ *   阶段 1：读取关键文件（read_file），解锁提交
+ *   阶段 2：提交审查结论（submit），收敛角色
  */
 
 const plan = pipe(
-  Stage.guard("list_dir"),
-  then("read_file"),
-  then("submit"),
-)
-
-const gates = [
-  Gate.at(0, {
+  Stage.guard("list_dir", {
     always: "你是只读代码审查者，只能读不能改。",
     container: ["filesystem"],
     tools: { list_dir: "allow", read_file: "allow", submit: "deny" },
   }),
-  Gate.at(1, {
+  then("read_file", {
     always: "你已经看到代码，开始找问题。",
     tools: { submit: "allow", structuredOutput: "show" },
   }),
-  Gate.at(2, {
+  then("submit", {
     always: "现在收敛，返回结构化审查结论。",
     tools: { commit: "deny" },
   }),
-]
+)
 
 const Review = Schema.Struct({
   summary: Schema.String,
   findings: Schema.Array(Schema.String),
 })
 
-// 最小 fake driver：验证编排能接进 AgentProgram
 const fakeDriver: Driver = {
   id: "fake",
   capabilities: {
@@ -53,8 +44,7 @@ const fakeDriver: Driver = {
       value: {
         summary: "审查完成",
         findings: ["编排已接入 Agent 定义流"],
-        // 透传 stages/gates 以证明它们到达了 driver
-        _stages: request.context.stages?.marks.join(" → "),
+        _stages: request.context.stages?.marks.map(m => m.tool).join(" → "),
         _gateCount: request.context.gates.length,
       },
     } as any),
@@ -65,7 +55,6 @@ const Reviewer = Agent
   .define<string>("Reviewer", (task) => AgentContext.current(task))
   .returns(Until.schema(Review))
   .stages(plan)
-  .gates(gates)
   .implementedBy(fakeDriver)
 
 const result = await Effect.runPromise(Reviewer.run("审查 src/core.ts"))

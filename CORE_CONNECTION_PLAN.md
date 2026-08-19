@@ -485,15 +485,11 @@ const until = plan.observe(at.schema(Review))        // 推进到产出符合 Re
 按阶段**变更 agent 能触及的世界**——挂载资源、变更规则、解锁/约束工具。字段名即动作，没有多余的 `inject` 包装：
 
 ```ts
-Gate = {
-  at: StageRef,              // 到哪个阶段生效
-  always?: string,           // 变更持久指令（system prompt / 角色规则）
-  container?: ContainerRef,  // 挂载容器 → 派生工具进 toolCall 列表
-  resource?: ResourceRef,    // 挂载资源（SSH / DB / 远程目录）
-  allow?: string[],          // 可用
-  deny?: string[],           // 可见但不可用（调用时失败）
-  show?: string[],           // 可见
-  hide?: string[],           // 不可见
+Gate = {                       // 挂在 Stage 的每个节点上，无索引
+  always?: string,             // 变更持久指令（system prompt / 角色规则）
+  container?: ContainerRef,    // 挂载容器 → 派生工具进 toolCall 列表
+  resource?: ResourceRef,      // 挂载资源（SSH / DB / 远程目录）
+  tools?: Record<string, ToolAccess>,  // 工具控制：show/hide 管可见，allow/deny 管可用
 }
 ```
 
@@ -506,36 +502,49 @@ Gate = {
 
 - 没有「直接注入上下文片段」——上下文永远由容器/always 派生；
 - `show/hide` 管可见性，`allow/deny` 管可用性（两个正交维度）；
-- 缺省（无 gates）= 自由，全可见全可用（评测场景）。
+- 缺省（无 stages）= 自由，全可见全可用（评测场景）。
 
 #### 组合
 
 ```ts
-const plan =
-  Stage.guard(tool("list_dir"))
-       .then  (tool("read_file"), gates: {
-         always: "你是只读审查者",
-         container: [filesystem],
-         allow: ["submit"],
-       })
-       .then  (tool("submit"), gates: {
-         always: "现在收敛，返回 Review",
-         show:   ["structuredOutput"],
-         deny:   ["commit"],
-       })
-       .observe(at.schema(Review))
+import { pipe } from "effect"
+import { Stage, then, Until } from "effect-agent"
+
+// Stage：推进路径，每个节点自带解锁配置（方案 A：无索引）
+const plan = pipe(
+  Stage.guard("list_dir", {
+    always: "你是只读审查者",
+    container: [filesystem],
+    tools: { list_dir: "allow", read_file: "allow", submit: "deny" },
+  }),
+  then("read_file", {
+    always: "你已经看到代码，开始找问题。",
+    tools: { submit: "allow", structuredOutput: "show" },
+  }),
+  then("submit", {
+    always: "现在收敛，返回 Review",
+    tools: { commit: "deny" },
+  }),
+)
+
+// 接入 Agent：stages 自带 gate
+const Reviewer = Agent
+  .define<string>(/* ... */)
+  .returns(Until.schema(Review))
+  .stages(plan)
+  .implementedBy(driver)
 ```
 
-**阶段是共享事实**：`Until` 和 `Gates` 都引用同一条 Stage 路径，不各自定义阶段，避免漂移。宿主只推进一个 Stage，观察/解锁自动同步。
+**阶段是共享事实**：Gate 就是 Stage 节点的一部分，不各自定义阶段，避免漂移。宿主只推进一个 Stage，观察/解锁自动同步。
 
 #### 与现有 `Until` 的关系
 
 现有 `Until.schema(S)` / `Until.stop` / `Until.toolCall` 是这里的**特例**：
-- `Until.schema(S)` → `observe(at.schema(S))`
-- `Until.stop` → `observe(at.end)` + `.stop`
-- `Until.toolCall` → `observe(at.toolCall(...))`
+- `Until.schema(S)` → 推进到产出符合 schema
+- `Until.stop` → 完整跑完，不中途拿
+- `Until.toolCall` → 推进到出现工具调用
 
-新设计不推翻现有 API，而是把它扩展为「推进路径 + 观察 + 解锁」的组合。
+新设计不推翻现有 API，而是把它扩展为「推进路径（每节点带解锁）+ 观察」的组合。
 
 ## 4. TOML 与 Effect-TS 同像
 
