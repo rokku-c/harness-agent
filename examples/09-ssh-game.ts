@@ -80,7 +80,7 @@ const program = Effect.gen(function*() {
     .implementedBy(observedClaude)
 
   return yield* GameWriter.run(
-    `在远程目录中写一个 CLI 小游戏（例如猜数字、井字棋或贪吃蛇）。要求：
+    `在远程目录中写一个 CLI 小游戏（例如贪吃蛇）。要求：
 1. 用 Node.js 或纯 TypeScript 写，一个或多个源文件；
 2. 先在远程目录用 ssh.writeFile 创建 package.json（含启动脚本），再创建游戏源码；
 3. 游戏能独立运行（stdin 输入、stdout 输出）；

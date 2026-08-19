@@ -31,7 +31,7 @@ export const EffectAgent = {
       id: "effect",
       capabilities: {
         provider: { _tag: "Fixed", api: options.api },
-        granularity: "event", thinking: true,
+        granularity: "event", thinking: false,
         cancel: true, pause: false, resume: false, fork: "node",
         tools: "native", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated", subagents: false
       },

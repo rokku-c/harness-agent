@@ -110,10 +110,11 @@ Claude Code 支持临时配置目录、Skill 注入、原生 Hook、MCP 工具�
 
 - `AgentBuilder.subagents()` 的定义尚未完整传入运行 Context；
 - 部分 SDK 边界存在较多 `as any`；
-- `materialize` 没有准确保留 Binding read 的错误通道；
 - 默认输出 token 与部分测试断言可能不同步；
 - `AgentKeeper` 尚未实现；
-- 资源位置可见性和 Harness 自我 Binding 尚未实现。
+- 资源位置可见性（`visibility` 三态）和 Harness 自我 Binding 尚未实现；
+- **当前 `AgentKeeper.send` 是同步 RPC（`Effect<Result>`）；非阻塞异步 Delivery 是未来协议**。`Messenger.deliver` 目前只是 `agent.run(payload)` 的转发，`source`/`target`/`correlation` 尚未被消费。方案见 CORE_CONNECTION_PLAN 3.10；
+- **`harness` 叠加是洋葱式：先包的后触发**。`Harness.withHooks(PredictiveHarness.withPrediction(driver), hooks)` 里 hook 事件包住 predict→execute→assess 全过程；反过来则 hook 只见裸 execute。
 
 ## 架构现状
 

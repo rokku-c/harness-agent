@@ -257,7 +257,11 @@ export interface Capabilities {
   readonly thinking: boolean
   readonly cancel: boolean
   readonly pause: boolean
+  /** Whether a completed session can be resumed. Independent of `fork`:
+   *  e.g. Codex resumes an external thread (`resumeThread`) without exposing in-process forks. */
   readonly resume: boolean
+  /** Whether the driver can fork a running agent into new branches:
+   *  "node" = context-node fork, "session" = full session clone, "none" = no fork. */
   readonly fork: "node" | "session" | "none"
   readonly tools: ToolInjection
   readonly toolCalls: "intercept" | "observe" | "none"
@@ -365,12 +369,14 @@ export const runDriver = <O>(
   return yield* new Session(context, driverSession, detailsRef).run<O>()
 })
 
-export const materialize = (request: DriverContext): Effect.Effect<DriverContext, never, never> => Effect.gen(function*() {
-  const nested: ReadonlyArray<ReadonlyArray<Entry>> = yield* Effect.forEach(request.context.access, ({ binding }) =>
+/** Materialize binding reads into the context, preserving each read's error channel `E`.
+ *  Callers (drivers) map `E` to `AgentFailure` as appropriate. */
+export const materialize = <E, R>(request: DriverContext): Effect.Effect<DriverContext, E, R> =>
+  Effect.forEach(request.context.access, ({ binding }) =>
     binding.read ? Effect.map(binding.read, (value): ReadonlyArray<Entry> => [value]) : Effect.succeed([] as ReadonlyArray<Entry>),
-  { concurrency: "unbounded" })
-  return { ...request, context: request.context.appendCurrent(...nested.flat()) }
-}) as unknown as Effect.Effect<DriverContext, never, never>
+  { concurrency: "unbounded" }).pipe(
+    Effect.map((nested) => ({ ...request, context: request.context.appendCurrent(...nested.flat()) }))
+  )
 
 /* ────────────────────────── Agent program ────────────────────────── */
 

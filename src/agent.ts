@@ -11,17 +11,25 @@ export interface Definition<I, O, R> {
   readonly subagents: ReadonlyArray<SubagentProgram>
 }
 
+/** Add a binding to access, de-duplicating by `binding.uri` (later declaration wins). */
+const upsertAccess = <R, R2>(
+  access: ReadonlyArray<Access<R>>,
+  binding: Binding<any, any, R2>,
+  write: boolean
+): ReadonlyArray<Access<R | R2>> => {
+  const rest = access.filter((entry) => entry.binding.uri !== binding.uri) as ReadonlyArray<Access<R | R2>>
+  return [...rest, { binding, write }]
+}
+
 export class AgentBuilder<I, O, R = never> {
   constructor(readonly definition: Definition<I, O, R>) {}
 
   uses<R2>(binding: Binding<any, any, R2>): AgentBuilder<I, O, R | R2> {
-    const access = [...this.definition.access, { binding, write: false }] as ReadonlyArray<Access<R | R2>>
-    return new AgentBuilder<I, O, R | R2>({ ...this.definition, access })
+    return new AgentBuilder<I, O, R | R2>({ ...this.definition, access: upsertAccess(this.definition.access, binding, false) })
   }
 
   writes<R2>(binding: Binding<any, any, R2>): AgentBuilder<I, O, R | R2> {
-    const access = [...this.definition.access, { binding, write: true }] as ReadonlyArray<Access<R | R2>>
-    return new AgentBuilder<I, O, R | R2>({ ...this.definition, access })
+    return new AgentBuilder<I, O, R | R2>({ ...this.definition, access: upsertAccess(this.definition.access, binding, true) })
   }
 
   /** Declare runtime-derived sub-agents the running driver may spawn via a delegate tool. */

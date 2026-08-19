@@ -4,6 +4,19 @@
 
 > Agent 是由 Context 触发、通过 Binding 作用于环境、由 Driver 执行并返回 Result 的 Effect 程序。
 
+## 快速开始
+
+```sh
+bun install
+# 配置 provider（默认读取 config.toml 与 .env，均被 gitignore 忽略）
+cp agents.example.toml config.toml
+# 在 .env 里填 API key，或在 config.toml 里直接写 apiKey = "sk-..."
+bun run example            # 列出所有示例
+bun run example 01-text    # 运行某个示例
+```
+
+`config.toml` 声明 provider（`[providers.<name>]`）与驱动选择（`driver = "native" | "vercel" | "effect"`）。示例都默认读取根目录 `config.toml`；缺配置时运行会以 `ProviderConfigError` 失败。
+
 ## 示例
 
 ```ts
