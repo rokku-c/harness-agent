@@ -39,7 +39,8 @@ export interface Binding<A = never, E = never, R = never> {
   readonly uri: string
   readonly read?: Effect.Effect<Entry, E, R>
   readonly typed?: Effect.Effect<A, E, R>
-  readonly ops?: ReadonlyArray<Op<any, any, any, any>>
+  /** Ops 的 R 与 Binding 的 R 关联，使 uses() 能收集「agent 作为工具」的依赖。 */
+  readonly ops?: ReadonlyArray<Op<any, any, any, R>>
 }
 
 /** A container is a bounded world of bindings — one workspace / one tool set. Zero to many are injected. */

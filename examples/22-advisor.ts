@@ -89,17 +89,12 @@ const MainAgent = Agent
       output: Suggestion,
       execute: ({ context }) => Advisor.run(context).pipe(
         Effect.map((r) => r.output)
-      ) as any,
+      ),
     }],
   })
   .implementedBy(mainDriver)
 
-const result = await Effect.runPromise(
-  MainAgent.run("重构 auth 模块") as unknown as Effect.Effect<{
-    output: { summary: string; advisorVerdict: string; advisorReason: string }
-    details: ReadonlyArray<unknown>
-  }, never, never>
-)
+const result = await Effect.runPromise(MainAgent.run("重构 auth 模块"))
 
 console.log("Advisor 架构表达验证：")
 console.log("  主 agent:", result.output.summary)
