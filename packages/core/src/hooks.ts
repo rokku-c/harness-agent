@@ -26,7 +26,7 @@ const emit = <E, R>(hooks: ReadonlyArray<HarnessHook<E, R>>, event: HarnessEvent
   ), { discard: true })
 
 const instrument = <E, RH>(
-  driver: Driver<any>,
+  driver: Driver<unknown>,
   context: Context,
   hooks: ReadonlyArray<HarnessHook<E, RH>>
 ): Context => {
@@ -59,9 +59,8 @@ export const Harness = {
   withHooks: <E = never, RH = never, RD = never>(
     driver: Driver<RD>,
     ...hooks: ReadonlyArray<HarnessHook<E, RH>>
-  ): Driver<RD | RH> => ({
-    ...driver,
-    start: (request) => emit(hooks, {
+  ): Driver<RD | RH> => {
+    const start = (request: import("./core.js").DriverContext) => emit(hooks, {
       _tag: "RunStarted", agent: driver.id, context: request.context
     }).pipe(
       Effect.flatMap(() => driver.start({
@@ -82,8 +81,9 @@ export const Harness = {
         )
       }) as import("./core.js").DriverSession<RH>),
       Effect.tapError((error) => emit(hooks, { _tag: "RunFailed", agent: driver.id, error }).pipe(Effect.ignore))
-    ) as any
-  })
+    )
+    return { ...driver, start: start as unknown as Driver<RD | RH>["start"] }
+  }
 }
 
 export const ConsoleHook = Harness.hook("console", (event) => Effect.sync(() => {

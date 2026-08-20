@@ -141,7 +141,59 @@ flowchart LR
 
 ---
 
-## 五、示例索引
+## 五、多 agent 协作 = 正交原语的组合
+
+核心不引入编排概念；多 agent 协作是现有正交原语的组合。四种模式：
+
+### 模式 1：回合制衔接（行动顺序）
+
+```ts
+const run = Effect.gen(function*() {
+  const idea    = (yield* A.run(task)).output      // AOutput（Until.schema 类型化）
+  const verdict = (yield* Judge.run(idea)).output  // Verdict（Schema 类型化）
+  return verdict.decision === "ok"                 // 类型化穷尽 switch
+    ? (yield* B.run(idea)).output
+    : idea
+})
+```
+
+也可用 `Handoff` 磁吸链（`packages/core/src/sequence.ts`）把「每步输出自动喂给下一步」编进类型：
+
+```ts
+const chain = Handoff.step(A)                     // A: AgentProgram<string, Idea>
+  .then(Judge)                                    // Judge 输入必须是 Idea（磁吸）
+  .when(B, (idea) => idea.promising)              // 满足才接 B（条件磁吸）
+const result = yield* chain.run(task)
+```
+
+### 模式 2：变动衔接（观测驱动）
+
+```ts
+const observeUntil = (session: Session, pred: (d: Detail) => boolean) =>
+  session.step().pipe(
+    Effect.flatMap((event) =>
+      event._tag === "Detail" && pred(event.detail) ? Effect.succeed(event.detail)
+      : event._tag === "Result"                    ? Effect.succeed(event.value)
+      : observeUntil(session, pred)))              // 递归 = 组合
+```
+
+### 模式 3：变动 + agent 判断后衔接
+
+```ts
+const observed = yield* observeUntil(session, (d) => d._tag === "Thinking")
+const decision = (yield* Gate.run(render(observed))).output   // Schema 类型化判定
+if (decision.intervene) yield* B.run(observed)                 // 判断门
+```
+
+### 模式 4：Session fork 汇报 —— 陈述句 + 用户业务
+
+`capabilities.fork` 是**陈述句**（`"node" | "session" | "none"`）—— 只声明「能不能 fork、
+用什么机制」，不描述用途。「每 10s fork 汇报进度」是用户业务，用 `Agent.run` +
+`Effect.repeat` + Timer 组合，框架不管。
+
+---
+
+## 六、示例索引
 
 | 想看的场景 | 示例 |
 |---|---|
@@ -157,4 +209,6 @@ flowchart LR
 | 编排（Stage/Gate） | `examples/19-orchestration.ts` |
 | 自由 vs 编排对比 | `examples/21-free-vs-orchestrated.ts` |
 | 顾问架构（agent 作工具） | `examples/22-advisor.ts` |
+| 回合制衔接（Handoff 磁吸链） | `examples/23-handoff.ts` |
+| 观测驱动衔接 + fork 陈述句 | `examples/24-observe-handoff.ts` |
 | 观测 hook | `examples/hooks/detailed-review.ts` |

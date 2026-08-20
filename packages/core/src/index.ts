@@ -5,6 +5,7 @@
  *   core.ts           Agent/Context/Binding/Op/Container/Resource/Connection/Driver/Session/Until
  *   agent.ts          AgentBuilder（define/returns/stages/uses）
  *   orchestration.ts  Stage/Until/Gate 组合子
+ *   sequence.ts       Handoff 磁吸链（回合制衔接）
  *   defaults.ts       默认值结构体
  *   hooks.ts          HarnessHook 生命周期
  *   keeper.ts         AgentKeeper（生命周期运行时）
@@ -14,6 +15,7 @@
 export * from "./core.js"
 export * from "./agent.js"
 export * from "./orchestration.js"
+export * from "./sequence.js"
 export * from "./defaults.js"
 export * from "./hooks.js"
 export * from "./keeper.js"
