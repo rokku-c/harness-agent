@@ -1,11 +1,13 @@
-import { Data, Effect, Schema } from "effect"
-import { makeContainer, type Binding, type Container } from "./core.js"
+import { Schema } from "effect"
+import { makeContainer, type Container } from "./core.js"
 
 /**
- * Resource —— 可访问/可协作的东西。
+ * Resource —— 可访问/可协作的东西（抽象）。
  *
  * 资源语义与物理位置分离（本地目录 / SSH / 远程 API 同一 Resource）。
  * 实现上是一种特殊 Container：管理工具就是一组 ops。
+ *
+ * Mgmt（ResourceMgmt 等管理容器）在 @effect-agent/builtin/containers/mgmt。
  *
  * 见 DESIGN.md「Resource」。
  */
@@ -52,35 +54,11 @@ export const makeResource = (spec: Omit<Resource, "container" | "boundary"> & { 
   }
 }
 
-/* ── ResourceMgmt —— 管理容器（递归收敛） ── */
-
-/** 创建模式：readonly 只能读/列；writable 能创建虚拟资源。 */
-export type CreateMode = "readonly" | "writable"
-
-/** ResourceMgmt = 管理资源的资源。是容器 + 资源两个身份。 */
-export interface ResourceMgmt extends Resource {
-  /** 能否创建虚拟资源。 */
-  readonly createMode: CreateMode
-  /** 创建虚拟资源。 */
-  readonly create: (id: string, spec: Omit<Resource, "uri">) => Effect.Effect<Resource, ResourceMgmtError>
-}
-
-export class ResourceMgmtError extends Data.TaggedError("ResourceMgmtError")<{
-  readonly cause: unknown
-  readonly uri?: string
-  readonly message?: string
-}> {}
-
-/** 递归：Resource = 普通资源 | ResourceMgmt。ResourceMgmt 本身是资源，能被挂载/注入/访问。 */
-export const isResourceMgmt = (resource: Resource): resource is ResourceMgmt =>
-  "createMode" in resource && "create" in resource
-
-/* ── 资源 Schema（序列化） ── */
+/* ── 资源 Schema（序列化契约） ── */
 
 export const ResourceInjectionSchema = Schema.Literal("direct", "auto", "managed")
 export const FrameViewSchema = Schema.Union(Schema.Literal(1, 2), Schema.Literal("inf"))
 export const ResourceBoundarySchema = Schema.Literal("closed", "open")
-export const CreateModeSchema = Schema.Literal("readonly", "writable")
 
 export const LeaseSchema = Schema.Struct({
   holder: Schema.optional(Schema.String),
@@ -93,9 +71,4 @@ export const ResourceSchema = Schema.Struct({
   frameView: FrameViewSchema,
   lease: Schema.optional(LeaseSchema),
   boundary: ResourceBoundarySchema,
-})
-
-export const ResourceMgmtSchema = Schema.Struct({
-  ...ResourceSchema.fields,
-  createMode: CreateModeSchema,
 })
