@@ -21,13 +21,13 @@ bun run example 01-text    # 运行某个示例
 
 ```ts
 import { Effect } from "effect"
-import { Agent, AgentContext, Providers, Until } from "effect-agent"
+import { Agent, Providers, Until } from "effect-agent"
 
 const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const assistant = Agent
-    .define<string>(AgentContext.current)
+    .define<string>()
     .returns(Until.stop)
     .implementedBy(driver)
 
@@ -41,21 +41,45 @@ const result = await Effect.runPromise(
 console.log(result.output)
 ```
 
+也可以声明式描述 agent（编译器形态），编译成 IR 再运行：
+
+```ts
+import { EffectAgent, defaultToSchema } from "effect-agent"
+
+const ir = EffectAgent.gen(function*() {
+  yield EffectAgent.define("reviewer")
+  yield EffectAgent.produces({ kind: "stop" })
+  yield EffectAgent.driver("composed", "claude-code")
+})
+// ir: AgentIR —— 纯数据描述，可序列化、可被 meta-agent 生成
+const program = EffectAgent.compile(ir, { resolveDriver, toSchema: defaultToSchema })
+```
+
 ## 核心概念
 
 - `Agent`：一个请求的边界（循环契约：输入/输出/资源/执行/停条件）；
-- `Context`：Agent 当前获得的输入和状态；
+- `Context`：Agent 的认知状态（`messages`/`always`/`until`/`details`，无 prompt 概念）；
 - `Binding`：Agent 可访问的环境资源；
 - `Op`：Binding 提供的可执行能力；
 - `Container`：一组有边界的 Binding（工具集）；
 - `Driver`：模型 SDK 或完整 Agent 的适配器；
 - `Until`：观察投影——推进到什么阶段拿什么（`schema`/`toolCall`/`stop`）；
-- `Stage`/`Gates`：执行编排——推进路径 + 按阶段解锁工具/容器/规则；
+- `Stage`/`Gates`：执行编排——推进路径 + 按阶段解锁工具/容器/规则（已实现 `runStaged` 引擎）；
 - `Resource`：可访问/可协作的东西（注入/帧视图/租约）；
-- `Connection`：把远程资源/容器接过来给 agent（transport 是实现）；
+- `Connection`：把远程资源/容器接过来给 agent（`makeConnection` 通用工厂 + ssh/http transport）；
 - `Group`/`Organization`：组织 agent 的范围；
 - `Messenger`：通信方式（应答/双向/邮件）；
+- `AgentIR`/`EffectAgent`：agent 编译器——声明式描述语言，compile 成可运行程序；
+- `Session` 介入：pause/resume/cancel/redirect（GOAL「可观测/介入」）；
+- `EffectAgentMcp`：把 agent 暴露为 MCP 工具（GOAL「被其他 agent 消费」）；
 - `Result`：最终输出和执行细节。
+
+## MCP 服务器
+
+```sh
+bun run mcp-server          # 启动 stdio MCP 服务器，暴露 agent 工具
+claude mcp add effect-agent -- bun run /path/to/src/mcp-server.ts
+```
 
 ## 开发
 
@@ -70,5 +94,6 @@ bun run example
 
 - [目标](./GOAL.md)
 - [设计](./DESIGN.md)
+- [指南](./GUIDELINES.md)
 - [草案](./DRAFT.md)
 - [示例](./examples/README.md)

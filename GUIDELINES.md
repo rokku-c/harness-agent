@@ -243,4 +243,6 @@ const result = yield* program.run(task)
 | 回合制衔接（Handoff 磁吸链） | `examples/23-handoff.ts` |
 | 观测驱动衔接 + fork 陈述句 | `examples/24-observe-handoff.ts` |
 | Agent 编译器（EffectAgent.gen） | `examples/25-agent-compiler.ts` |
+| 可观测/介入（pause/cancel） | `examples/26-intervene.ts` |
+| 阶段推进引擎（runStaged） | `examples/27-staged-engine.ts` |
 | 观测 hook | `examples/hooks/detailed-review.ts` |
