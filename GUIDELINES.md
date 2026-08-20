@@ -157,14 +157,25 @@ const run = Effect.gen(function*() {
 })
 ```
 
-也可用 `Handoff` 磁吸链（`packages/core/src/sequence.ts`）把「每步输出自动喂给下一步」编进类型：
+也可用 `Handoff` 磁吸链（`packages/core/src/sequence.ts`）把「每步输出自动喂给下一步」编进类型。
+**完全内联** —— 每步只声明「产出契约（until）+ 执行者（driver）」，输入由磁吸推导，
+无需预先 `const A = Agent.define(...)`：
 
 ```ts
-const chain = Handoff.step(A)                     // A: AgentProgram<string, Idea>
-  .then(Judge)                                    // Judge 输入必须是 Idea（磁吸）
-  .when(B, (idea) => idea.promising)              // 满足才接 B（条件磁吸）
+const chain = Handoff.step(
+    Until.schema(Idea),            // 第一步：产出 Idea（输入 = run 参数类型）
+    driverA)
+  .then(
+    Until.schema(Verdict),         // Judge 输入自动 = Idea（磁吸）
+    driverJudge)
+  .when(
+    Until.stop,
+    driverB,
+    (verdict) => verdict.verdict === "ok")   // 满足才接 B（cond 拿到类型化输出）
 const result = yield* chain.run(task)
 ```
+
+`Handoff.step`/`.then`/`.when` 都接收 `(until, driver, id?)`，agent 内部由链惰性构造。
 
 ### 模式 2：变动衔接（观测驱动）
 
