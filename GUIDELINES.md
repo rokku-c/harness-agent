@@ -202,6 +202,26 @@ if (decision.intervene) yield* B.run(observed)                 // 判断门
 用什么机制」，不描述用途。「每 10s fork 汇报进度」是用户业务，用 `Agent.run` +
 `Effect.repeat` + Timer 组合，框架不管。
 
+### 模式 5：Agent 编译器 —— `EffectAgent.gen` 描述语言
+
+agent 不只是 builder 链，还可以用 `EffectAgent.gen(...)` **声明式描述**，编译成纯数据 **IR**
+（可序列化、可被 meta-agent 生成、可跨基座解释），`compile()` 才变成可运行 agent：
+
+```ts
+const ir = EffectAgent.gen(function*() {
+  yield EffectAgent.define("reviewer")                       // 定义 id
+  yield EffectAgent.role("审查项目")                          // 职责（可被 meta-agent 消费）
+  yield EffectAgent.produces({ kind: "schema", schema: {...} })  // 产出契约
+  yield EffectAgent.uses({ ref: "project", access: "read" })     // 世界
+  yield EffectAgent.driver("composed", "claude-code")            // 靠谁执行
+})
+// ir: AgentIR（纯数据，可 JSON 序列化）—— 描述与运行分离
+const program = EffectAgent.compile(ir, env)                 // compile 到具体 driver
+const result = yield* program.run(task)
+```
+
+「专门的描述语言」= IR 本身（Schema-backed）：可被 meta-agent 生成、序列化/反序列化、跨基座解释。
+
 ---
 
 ## 六、示例索引
@@ -222,4 +242,5 @@ if (decision.intervene) yield* B.run(observed)                 // 判断门
 | 顾问架构（agent 作工具） | `examples/22-advisor.ts` |
 | 回合制衔接（Handoff 磁吸链） | `examples/23-handoff.ts` |
 | 观测驱动衔接 + fork 陈述句 | `examples/24-observe-handoff.ts` |
+| Agent 编译器（EffectAgent.gen） | `examples/25-agent-compiler.ts` |
 | 观测 hook | `examples/hooks/detailed-review.ts` |

@@ -26,7 +26,7 @@ export interface EffectProviderOptions {
  * The provider client+model Layer assembly is the one place we bridge provider
  * union types; everything else is Effect-native.
  */
-export const EffectAgent = {
+export const EffectAiAgent = {
   make: (options: EffectProviderOptions): Driver => {
     const driver: Driver = {
       id: "effect",

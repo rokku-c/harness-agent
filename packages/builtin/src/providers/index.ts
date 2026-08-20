@@ -4,13 +4,13 @@ import { createAnthropic } from "@ai-sdk/anthropic"
 import type { LanguageModel } from "ai"
 import Anthropic from "@anthropic-ai/sdk"
 import OpenAI from "openai"
-import { EffectAgent } from "./effect.js"
+import { EffectAiAgent } from "./effect.js"
 import { NativeAgent } from "./native.js"
 import { VercelAgent, type VercelOptions } from "./vercel.js"
 import type { Driver } from "@effect-agent/core"
 import { MaxOutputTokens, ProviderDefaults, type MaxOutputTokensConfig } from "@effect-agent/core"
 
-export { EffectAgent } from "./effect.js"
+export { EffectAiAgent } from "./effect.js"
 export { NativeAgent } from "./native.js"
 export { VercelAgent, type VercelOptions } from "./vercel.js"
 
@@ -206,7 +206,7 @@ export const loadProviders = (options: LoadProvidersOptions = {}) => loadToml(op
           })
         }
         if (driverKind === "effect") {
-          return EffectAgent.make({
+          return EffectAiAgent.make({
             api: selected.api,
             model: selected.model,
             apiKey: selected.apiKey,
