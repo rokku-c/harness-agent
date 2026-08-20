@@ -15,6 +15,7 @@
 export * from "./core.js"
 export * from "./agent.js"
 export * from "./orchestration.js"
+export * from "./engine.js"
 export * from "./sequence.js"
 export * from "./defaults.js"
 export * from "./hooks.js"
