@@ -154,5 +154,9 @@ Cloudflare    → Durable Object + DO 间消息
 
 - ✅ `Agent` 定义流（define/returns/stages/uses/implementedBy）
 - ✅ `Stage`/`Until`/`Gate` 组合子 + 接入 Agent
+- ✅ `Resource` 抽象（注入/帧视图/租约/边界）在 packages/core
+- ✅ `Mgmt`（ResourceMgmt）在 packages/builtin/containers
+- ✅ `Group`/`Organization` + `Messenger` 通信模式（reply/two-way/mail）
+- ✅ monorepo：core（抽象）/ builtin（实现）/ community（扩展）
 - 🔶 阶段推进引擎未实现（编排能表达、未真正驱动按阶段跑）
-- ❌ `Resource`/`Mgmt`/`Connection`/`Group`/`Messenger` 待实现
+- 🔶 `Connection` 接入远程的抽象待完善
