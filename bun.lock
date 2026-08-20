@@ -27,6 +27,29 @@
         "typescript": "^5.9.2",
       },
     },
+    "packages/builtin": {
+      "name": "@effect-agent/builtin",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/core": "0.0.0",
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/community": {
+      "name": "@effect-agent/community",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/core": "0.0.0",
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/core": {
+      "name": "@effect-agent/core",
+      "version": "0.0.0",
+      "dependencies": {
+        "effect": "^3.22.1",
+      },
+    },
   },
   "packages": {
     "@ai-sdk/anthropic": ["@ai-sdk/anthropic@4.0.38", "https://registry.npmmirror.com/@ai-sdk/anthropic/-/anthropic-4.0.38.tgz", { "dependencies": { "@ai-sdk/provider": "4.0.7", "@ai-sdk/provider-utils": "5.0.27" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-esbTb5jq/37dloBJzld3CpYCZskiDWGcI4O8kzst9J/0Km4by7cgQXLTB/gGdjXxBsyjPQUeotVqqRRIrx2zew=="],
@@ -102,6 +125,12 @@
     "@babel/runtime": ["@babel/runtime@7.29.7", "https://registry.npmmirror.com/@babel/runtime/-/runtime-7.29.7.tgz", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "https://registry.npmmirror.com/@borewit/text-codec/-/text-codec-0.2.2.tgz", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
+
+    "@effect-agent/builtin": ["@effect-agent/builtin@workspace:packages/builtin"],
+
+    "@effect-agent/community": ["@effect-agent/community@workspace:packages/community"],
+
+    "@effect-agent/core": ["@effect-agent/core@workspace:packages/core"],
 
     "@effect/ai": ["@effect/ai@0.37.0", "https://registry.npmmirror.com/@effect/ai/-/ai-0.37.0.tgz", { "dependencies": { "find-my-way-ts": "^0.1.6" }, "peerDependencies": { "@effect/experimental": "^0.61.0", "@effect/platform": "^0.97.0", "@effect/rpc": "^0.76.0", "effect": "^3.22.0" } }, "sha512-tHkDg/p2tNxKhXZATOokl5vGGqrV7K5FA/qdIExRTjFUOEVvKCWoVxqtUuj+NAp9BeSVuysJMPrHB9XjFPsUiQ=="],
 

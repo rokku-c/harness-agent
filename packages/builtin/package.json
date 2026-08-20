@@ -1,0 +1,13 @@
+{
+  "name": "@effect-agent/builtin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/core": "0.0.0",
+    "effect": "^3.22.1"
+  }
+}
