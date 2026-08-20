@@ -7,31 +7,12 @@
 
 ## 一、总览：五个决策点
 
-```
-        ┌─────────────────────────────────────────────┐
-        │          1. 干什么（输入/输出契约）            │
-        │   Agent.define<I>() + Until（期望输出）        │
-        └──────────────────┬──────────────────────────┘
-                           ▼
-        ┌─────────────────────────────────────────────┐
-        │          2. 靠谁跑（执行）                    │
-        │   driver：Provider / ComposedAgent / SDK      │
-        └──────────────────┬──────────────────────────┘
-                           ▼
-        ┌─────────────────────────────────────────────┐
-        │          3. 碰什么（世界）                    │
-        │   Container(Binding+Ops) ← Connection 接入   │
-        └──────────────────┬──────────────────────────┘
-                           ▼
-        ┌─────────────────────────────────────────────┐
-        │          4. 怎么跑（行为）                    │
-        │   Stage/Until/Gate 编排  （缺省=自由）        │
-        └──────────────────┬──────────────────────────┘
-                           ▼
-        ┌─────────────────────────────────────────────┐
-        │          5. 谁在边上（关系 + 观测）           │
-        │   Group/Org/Messenger + Harness hook         │
-        └─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["1. 干什么<br/>Agent.define&lt;I&gt;() + Until<br/><i>输入/输出契约</i>"] --> B["2. 靠谁跑<br/>driver<br/><i>Provider / ComposedAgent / SDK</i>"]
+    B --> C["3. 碰什么<br/>Container(Binding+Ops)<br/><i>← Connection 接入</i>"]
+    C --> D["4. 怎么跑<br/>Stage / Until / Gate 编排<br/><i>缺省 = 自由</i>"]
+    D --> E["5. 谁在边上<br/>Group / Org / Messenger<br/>+ Harness hook"]
 ```
 
 **核心原则**：
@@ -45,20 +26,16 @@
 
 ### 2.1 干什么 —— 输入 / 输出
 
-```
-需求：我的 agent 接收什么、产出什么？
-│
-├─ 只接收一个输入（request/response 型）
-│     Agent.define<Input>()            ← 只声明类型，不构造 Context
-│
-├─ 接收多次投递（长跑型，经 Messenger）
-│     Agent.define<Input>()  + 由 Messenger 反复 deliver
-│
-└─ 产出形态？
-      ├─ 只要文本          → .returns(Until.stop)
-      ├─ 要结构化对象      → .returns(Until.schema(OutputSchema))
-      ├─ 中途拿工具调用    → .returns(Until.toolCall())
-      └─ 中途拿思考        → .returns(Until.thinking())   [需 driver 支持]
+```mermaid
+flowchart LR
+    Q{"接收什么？"} -->|"单次 request/response"| DEF["Agent.define&lt;Input&gt;()<br/><i>只声明类型，不构造 Context</i>"]
+    Q -->|"多次投递（长跑）"| MSG["Agent.define&lt;Input&gt;()<br/>+ Messenger 反复 deliver"]
+    DEF --> OUT{"产出形态？"}
+    MSG --> OUT
+    OUT -->|"只要文本"| STOP["Until.stop"]
+    OUT -->|"结构化对象"| SCH["Until.schema(OutputSchema)"]
+    OUT -->|"中途拿工具调用"| TC["Until.toolCall()"]
+    OUT -->|"中途拿思考"| TH["Until.thinking()<br/><i>需 driver 支持</i>"]
 ```
 
 > 输入完全通过 **Delivery** 传输，`define<I>()` 不接收 Context 构造。
@@ -66,57 +43,38 @@
 
 ### 2.2 靠谁跑 —— 选 driver
 
-```
-需求：谁执行这个 agent？
-│
-├─ 我有 config.toml（配好 provider）     → Providers.agent("reasoner")
-│     const driver = yield* Providers.agent()      // 缺省用 config.toml 的 default
-│
-├─ 我想用「完整外部 agent」              → ComposedAgent 系列
-│     ClaudeCode.make()   // Claude Code（最强观测/子代理）
-│     CodexAgent.make()   // OpenAI Codex
-│     PiAgent.make()      // pi-coding-agent
-│
-│     注：ComposedAgent 也可以把一个已完成的 Harness Agent「命名」成可复用的
-│     组合程序，再用 AgentKeeper 保持存活（examples/16）。
-│
-├─ 我直接接官方 SDK                     → 原生驱动
-│     NativeAgent.make({ client, api, model })
-│     VercelAgent.make({ model })        // @ai-sdk 兼容层
-│     EffectAgent.make({ api, model })   // @effect/ai
-│
-└─ 我写自己的 driver
-      // 实现 Driver 接口：capabilities + start(DriverContext)
-      const myDriver: Driver = { id, capabilities, start: ... }
+```mermaid
+flowchart TD
+    Q{"谁执行这个 agent？"} -->|"有 config.toml"| P["Providers.agent(&quot;reasoner&quot;)<br/><i>缺省用 config.toml 的 default</i>"]
+    Q -->|"完整外部 agent"| CA["ComposedAgent 系列<br/>ClaudeCode.make()<br/>CodexAgent.make()<br/>PiAgent.make()"]
+    Q -->|"官方 SDK 直连"| NA["原生驱动<br/>NativeAgent.make()<br/>VercelAgent.make()<br/>EffectAgent.make()"]
+    Q -->|"自定义"| CUSTOM["实现 Driver 接口<br/>capabilities + start(DriverContext)"]
+    P -.->|implementedBy| AG
+    CA -.->|implementedBy| AG
+    NA -.->|implementedBy| AG
+    CUSTOM -.->|implementedBy| AG
+    AG["同一个 Agent 定义<br/>可 harness 多个 runtime<br/><i>examples/05</i>"]
 ```
 
 > driver 是唯一的执行者。agent 定义不绑定 driver，`implementedBy(driver)` 才绑定。
-> 同一个 `Agent.define` 可以 harness 三个 runtime（见 examples/05）。
+> ComposedAgent 也可以把一个已完成的 Harness Agent「命名」成可复用组合程序，
+> 再用 AgentKeeper 保持存活（examples/16）。
 
 ### 2.3 碰什么 —— 世界抽象成 Container
 
-```
-需求：agent 要不要接触环境？
-│
-├─ 不需要（纯推理 / 问答）              → 跳过这步，agent 已完整
-│
-├─ 需要 —— 环境抽象成 Container（一组有边界的 Binding+Ops）
-│
-│     ▸ 本地项目                         → ProjectEnvironment.make({ root, scope, write })
-│     ▸ 远程主机（SSH）                  → SshConnection(uri).open → 容器
-│     ▸ 自建环境（数据库/API/文件）      → 用 Op.read / Op.write + Uri 造 Binding
-│
-│           Op = 一个可执行能力（Schema 定输入输出，Effect 留副作用）
-│           Binding = 一组 Op + uri（资源句柄）
-│           Container = 一组 Binding（工具集）
-│
-├─ 远程资源怎么接入？                    → Connection
-│     SshConnection("ssh://root@host/tmp/test1").open
-│       → ContainersService（远程文件系统，像本地一样注入）
-│
-└─ 怎么注入 agent？
-      .uses(binding)      // 只读注入
-      .writes(binding)    // 读写注入（Op.access 控制）
+```mermaid
+flowchart TD
+    Q{"要不要接触环境？"} -->|"纯推理 / 问答"| N["跳过 —— agent 已完整"]
+    Q -->|"要"| ENV["环境抽象成 Container<br/><i>一组有边界的 Binding + Op</i>"]
+    ENV -->|"本地项目"| PROJ["ProjectEnvironment.make({ root, scope, write })"]
+    ENV -->|"远程主机"| SSH["SshConnection(uri).open<br/><i>→ 远程文件系统容器</i>"]
+    ENV -->|"自建环境"| BUILD["Op.read / Op.write + Uri<br/>造 Binding（数据库/API/文件）"]
+    PROJ --> INJ{"怎么注入 agent？"}
+    SSH --> INJ
+    BUILD --> INJ
+    INJ -->|"只读"| U["uses(binding)"]
+    INJ -->|"读写"| W["writes(binding)"]
+    ENV -.->|"远程资源接入"| CONN["Connection<br/>把远程世界接过来<br/>变成本地 Container"]
 ```
 
 > **关键心智**：环境永远是 Container。本地目录、SSH 远程、远程 API 是同一个抽象
@@ -124,47 +82,22 @@
 
 ### 2.4 怎么跑 —— 编排（缺省 = 自由）
 
-```
-需求：要不要约束 agent 的行为路径？
-│
-├─ 不要（评测 LLM 能力 / 自由探索）      → 不调 .stages()，自由跑
-│
-├─ 要 —— 按阶段推进 + 按阶段解锁
-│     const plan = pipe(
-│       Stage.guard("list_dir", { always: "...", tools: { submit: "deny" } }),
-│       then("read_file",  { tools: { submit: "allow" } }),
-│       then("submit",     { tools: { structuredOutput: "show" } }),
-│     )
-│     Agent.define<I>().stages(plan)...
-│
-└─ 结束条件                          → Until（2.1 已选）
+```mermaid
+flowchart TD
+    Q{"要不要约束行为路径？"} -->|"自由探索 / 评测 LLM"| FREE["不调 stages()<br/><i>缺省即自由，全可见全可用</i>"]
+    Q -->|"按阶段推进 + 解锁"| PLAN["const plan = pipe(<br/>Stage.guard(&quot;list_dir&quot;, { always, tools }),<br/>then(&quot;read_file&quot;, { tools }),<br/>then(&quot;submit&quot;, { tools }))"]
+    PLAN --> ST["Agent.define&lt;I&gt;().stages(plan)..."]
 ```
 
 > Stage = 推进路径，Gate = 每阶段的解锁（改 always / 挂容器 / 控工具）。
 
 ### 2.5 谁在边上 —— 关系 + 观测
 
-```
-需求：一个 agent 够吗？要不要看它？
-│
-├─ 要子代理（运行时派生）               → .subagents(program)
-│     const reviewer: SubagentProgram = {
-│       id: "reviewer", until: Until.stop,
-│       access: [...], context: (goal) => ...,
-│     }
-│     Agent.define<I>().subagents(reviewer)...
-│
-├─ 要多个 agent 协作                    → Group / Organization / Messenger
-│     makeGroup("team", [a, b, c])
-│     broadcast(group, delivery)    // 扇出
-│     sendTo(group, "a", delivery)  // 点对点
-│     Messenger：reply（应答）/ two-way（双向流）/ mail（异步投递）
-│
-└─ 要观测 / 介入                       → Harness.withHooks(driver, hook)
-      const hook = Harness.hook("name", (event) => Effect.sync(() => { ... }))
-      const observed = Harness.withHooks(driver, DetailHook)
-      // 事件：RunStarted / DriverPrepared / ToolStarted / ToolCompleted /
-      //        Detail / Output / RunFailed / RunCompleted
+```mermaid
+flowchart TD
+    Q{"一个 agent 够吗？要不要观测？"} -->|"运行时子代理"| SUB["subagents(program)<br/><i>主模型通过 delegate 工具调用</i>"]
+    Q -->|"多 agent 协作"| GRP["Group / Organization<br/>+ broadcast / sendTo<br/>+ Messenger（reply / two-way / mail）"]
+    Q -->|"观测 / 介入"| HOOK["Harness.withHooks(driver, hook)<br/><i>RunStarted / Detail / Output / RunFailed...</i>"]
 ```
 
 ---
@@ -188,20 +121,19 @@
 
 ## 四、心智模型
 
-```
-    ┌────────────────────────────────────────────┐
-    │                  Agent                     │
-    │  define<I> → until → stages → subagents     │
-    └──┬──────────────────────────────┬───────────┘
-       │ 靠谁跑 (driver)              │ 碰什么 (world)
-       ▼                              ▼
-  Provider / ComposedAgent       Container(Binding+Ops)
-  / NativeAgent / ...                 ▲
-                                      │ 远程接入
-                                  Connection
-    ┌────────────────────────────────────────────┐
-    │           关系 (Group/Org) + 观测 (Hook)     │
-    └────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph AGENT["Agent 定义"]
+        DEF["define&lt;I&gt; → until<br/>→ stages → subagents"]
+    end
+    DRIVER["driver<br/><i>Provider / ComposedAgent / Native</i>"]
+    WORLD["world<br/><i>Container(Binding + Ops)</i>"]
+    CONN["Connection<br/><i>远程接入</i>"]
+    REL["关系 + 观测<br/><i>Group / Messenger / Hook</i>"]
+    DEF ---|implementedBy| DRIVER
+    DEF ---|uses / writes| WORLD
+    CONN -.->|接入| WORLD
+    AGENT --- REL
 ```
 
 **一句话记忆**：
