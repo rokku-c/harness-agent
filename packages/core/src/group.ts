@@ -58,7 +58,7 @@ export const sendTo = <I, O, E, R>(
   delivery: Omit<Delivery<I>, "id" | "payload"> & { payload: I }
 ): Effect.Effect<Result<O>, E | GroupError, R> => {
   const agent = group.agents.find((a) => a.id === agentId)
-  if (!agent) return Effect.fail(new GroupError({ group: group.id, message: `Agent ${agentId} not in group` }))
+  if (!agent) return Effect.fail(new GroupError({ cause: new Error(`Agent ${agentId} not in group`), group: group.id }))
   return agent.run(delivery.payload).pipe(
     Effect.mapError((cause) => new GroupError({ cause, group: group.id }))
   )
