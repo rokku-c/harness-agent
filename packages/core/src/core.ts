@@ -131,6 +131,78 @@ export class Connections extends EffectContext.Tag("Context/Connections")<Connec
   }
 }
 
+/* ────────────────────────── Connection 工厂 ────────────────────────── */
+
+/** 远程能力的声明形式：transport 用它描述远端方法，工厂据此生成 Op + 容器/binding。 */
+export interface RemoteSpec<I = unknown, O = unknown> {
+  readonly name: string
+  readonly description: string
+  readonly input: Schema.Schema<I, any, never>
+  readonly output: Schema.Schema<O, any, never>
+  readonly access: "read" | "write"
+}
+
+export const RemoteSpec = {
+  read: <I, O>(spec: Omit<RemoteSpec<I, O>, "access">): RemoteSpec<I, O> => ({ ...spec, access: "read" }),
+  write: <I, O>(spec: Omit<RemoteSpec<I, O>, "access">): RemoteSpec<I, O> => ({ ...spec, access: "write" })
+}
+
+/** A Connection factory input: a request executor plus the remote specs it exposes. */
+export interface ConnectionSpec {
+  readonly uri: string
+  /** 通过执行器暴露的远程能力。每个 spec 编译为一个 op，execute 把 `{ method, params }` 路由到 request。 */
+  readonly spec: ReadonlyArray<RemoteSpec<any, any>>
+  readonly request: (request: RemoteRequest) => Effect.Effect<RemoteResponse, ConnectionError, never>
+}
+
+/**
+ * 把声明式 RemoteSpec 编译为绑定在单个 request 执行器上的 Op。
+ * execute: (input) → request({ method, params: input }) → 按 output schema 解码 response.value。
+ * 「一个远端方法 = 一个 op」——SSH / HTTP / 数据库 / 任何 RPC 都走这条构造路径。
+ */
+const requestOp = <I, O>(
+  spec: RemoteSpec<I, O>,
+  request: (req: RemoteRequest) => Effect.Effect<RemoteResponse, ConnectionError, never>
+): Op<I, O, ConnectionError | never, never> => {
+  const base = {
+    name: spec.name,
+    description: spec.description,
+    input: spec.input,
+    output: spec.output,
+    execute: (input: I) => request({ method: spec.name, params: input as unknown }).pipe(
+      Effect.flatMap((response) =>
+        Schema.decodeUnknown(spec.output)(response.value).pipe(
+          Effect.mapError((cause) => new ConnectionError({ uri: "connection", cause }))
+        )
+      )
+    )
+  }
+  return spec.access === "read" ? Op.read(base) : Op.write(base)
+}
+
+/**
+ * 通用 Connection 工厂：给定一个「把 RemoteRequest 变成 RemoteResponse 的执行器」和声明式
+ * RemoteSpec，自动生成 Op / binding / container，返回一个完整 Connection。
+ *
+ *   const conn = makeConnection({ uri, spec, request })
+ *   conn.open → ContainersService（含绑定到执行器的远程容器）
+ *   conn.request(remoteRequest) → RemoteResponse（透传执行器，供协议级直呼）
+ *
+ * SSH、远程 HTTP API、数据库都复用同一构造路径（见 packages/builtin/transports/*）。
+ */
+export const makeConnection = (spec: ConnectionSpec): Connection => {
+  const ops = spec.spec.map((remote) => requestOp(remote, spec.request))
+  const binding: Binding = { uri: Uri.make("connection", "remote", spec.uri), ops }
+  const container = makeContainer(binding.uri, [binding])
+  const containers = makeContainers([container])
+  return {
+    uri: spec.uri,
+    open: Effect.succeed(containers),
+    request: spec.request,
+    events: []
+  }
+}
+
 export interface Access<R = never> {
   readonly binding: Binding<any, any, R>
   readonly write: boolean

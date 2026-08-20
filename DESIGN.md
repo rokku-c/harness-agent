@@ -160,7 +160,8 @@ Cloudflare    → Durable Object + DO 间消息
 - ✅ `Group`/`Organization` + `Messenger` 通信模式（reply/two-way/mail）
 - ✅ monorepo：core（抽象）/ builtin（实现）/ community（扩展）
 - ✅ 阶段推进引擎（packages/core/engine.ts）：`progress` 推进契约 + `runStaged`/`runStagedDriver` 运行时 —— 按 `Stage.marks` 逐步推进，每到达一个 mark 的工具调用就解锁其 Gate
-- 🔶 `Connection` 接入远程的抽象待完善
+- ✅ `Connection` 接入远程：`makeConnection` 通用工厂（给定 RemoteSpec + request 执行器 → Op/binding/container）+ `ssh`/`http` transport
+- 🔶 远程 Gateway / 多 transport 编排待探索
 
 ## Context —— 四维认知模型（无 prompt 概念）
 

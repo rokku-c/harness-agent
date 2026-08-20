@@ -4,7 +4,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Client, type SFTPWrapper } from "ssh2"
 import SSHConfig from "ssh-config"
-import { ConnectionError, Op, Uri, makeContainer, makeContainers, type Connection, type ContainersService, type RemoteRequest, type RemoteResponse } from "@effect-agent/core"
+import { ConnectionError, RemoteSpec, makeConnection, type Connection, type RemoteRequest, type RemoteResponse } from "@effect-agent/core"
 import { SshDefaults } from "@effect-agent/core"
 
 /**
@@ -168,50 +168,42 @@ export const SshConnection = (
   options: SshOptions = {}
 ): Connection => {
   const parts = parseSshUri(uri)
-  const readFile = Op.read({
-    name: "ssh.readFile",
-    description: `读取远程主机上 ${parts.basePath} 目录中的一个 UTF-8 文本文件。相对路径解析到该目录下。`,
-    input: Schema.Struct({ path: Schema.String }),
-    output: Schema.String,
-    execute: ({ path }) => withSftp(parts, options, (sftp) =>
-      readRemoteFile(sftp, joinPath(parts.basePath, path))
-    ).pipe(Effect.mapError((cause) => new Error(cause instanceof Error ? cause.message : String(cause))))
-  })
 
-  const writeFile = Op.write({
-    name: "ssh.writeFile",
-    description: `在远程主机上 ${parts.basePath} 目录中写入一个 UTF-8 文本文件（自动创建父目录）。相对路径解析到该目录下。`,
-    input: Schema.Struct({ path: Schema.String, content: Schema.String }),
-    output: Schema.String,
-    execute: ({ path, content }) => withSftp(parts, options, (sftp) =>
-      writeRemoteFile(sftp, joinPath(parts.basePath, path), content).then(() => `written: ${path}`)
-    ).pipe(Effect.mapError((cause) => new Error(cause instanceof Error ? cause.message : String(cause))))
-  })
+  // 共享的「RemoteRequest → RemoteResponse」执行器：SSH 的 readFile / writeFile。
+  const request = (req: RemoteRequest): Effect.Effect<RemoteResponse, ConnectionError, never> =>
+    withSftp(parts, options, async (sftp) => {
+      const { method, params } = req
+      const p = params as Readonly<Record<string, unknown>>
+      const path = typeof p?.path === "string" ? p.path : ""
+      const target = joinPath(parts.basePath, path)
+      if (method === "readFile") return { value: await readRemoteFile(sftp, target) }
+      if (method === "writeFile") {
+        const content = typeof p?.content === "string" ? p.content : ""
+        await writeRemoteFile(sftp, target, content)
+        return { value: `written: ${path}` }
+      }
+      return { value: null }
+    })
 
-  const binding = {
-    uri: Uri.make("ssh", "filesystem", `${parts.host}:${parts.basePath}`),
-    ops: [readFile, writeFile]
-  }
-  const container = makeContainer(binding.uri, [binding])
-  const containers = makeContainers([container])
+  // 声明式远程能力，「一个远端方法 = 一个 op」。makeConnection 自动生成 Op / binding / container。
+  const spec = [
+    RemoteSpec.read({
+      name: "ssh.readFile",
+      description: `读取远程主机上 ${parts.basePath} 目录中的一个 UTF-8 文本文件。相对路径解析到该目录下。`,
+      input: Schema.Struct({ path: Schema.String }),
+      output: Schema.String
+    }),
+    RemoteSpec.write({
+      name: "ssh.writeFile",
+      description: `在远程主机上 ${parts.basePath} 目录中写入一个 UTF-8 文本文件（自动创建父目录）。相对路径解析到该目录下。`,
+      input: Schema.Struct({ path: Schema.String, content: Schema.String }),
+      output: Schema.String
+    })
+  ]
 
-  return {
+  return makeConnection({
     uri,
-    open: Effect.succeed(containers),
-    request: (request: RemoteRequest): Effect.Effect<RemoteResponse, ConnectionError, never> =>
-      withSftp(parts, options, async (sftp) => {
-        const { method, params } = request
-        const p = params as Readonly<Record<string, unknown>>
-        const path = typeof p?.path === "string" ? p.path : ""
-        const target = joinPath(parts.basePath, path)
-        if (method === "readFile") return { value: await readRemoteFile(sftp, target) }
-        if (method === "writeFile") {
-          const content = typeof p?.content === "string" ? p.content : ""
-          await writeRemoteFile(sftp, target, content)
-          return { value: `written: ${path}` }
-        }
-        return { value: null }
-      }),
-    events: []
-  }
+    spec,
+    request
+  })
 }
