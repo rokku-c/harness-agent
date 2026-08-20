@@ -66,11 +66,9 @@ bun test
 bun run example
 ```
 
-## 设计文档
+## 文档
 
 - [目标](./GOAL.md)
-- [设计草案](./DRAFT.md)
-- [实现状态](./IMPLEMENTATION.md)
-- [Core 与 Connection 架构方案](./CORE_CONNECTION_PLAN.md)
+- [设计](./DESIGN.md)
+- [草案](./DRAFT.md)
 - [示例](./examples/README.md)
-- [开发规范](./AGENTS.md)

@@ -60,6 +60,7 @@ until = "schema"             # 什么时候停
 ## 当前设计状态
 
 - ✅ `Agent`（单个请求的边界）已实现；
-- 🔶 `Connection` 定义需要修正（现有方案与代码不一致，见 CORE_CONNECTION_PLAN 6.1）；
-- ✅ 已确认：`Agent` 描述层核心（Stage/Until/Gates + Resource + Mgmt）已设计，见 CORE_CONNECTION_PLAN 3.4/3.12；
+- ✅ 已确认：`Agent` 描述层核心（Stage/Until/Gates + Resource + Mgmt + Connection/Group/Org/Messenger）已设计，见 DESIGN.md；
+- ✅ 编排组合子（Stage/Until/Gate）已实现并接入 Agent 定义流；
+- 🔶 阶段推进引擎未实现（编排能表达、未真正驱动按阶段跑）；
 - ✅ **不引入 `System` 层和运行视图层作为独立概念**——「系统」= 一组 Agent + Connection 的组合，「运行视图」= 每个 Agent 运行自然暴露的 Handle。它们是现有概念的自然涌现，不是独立抽象。

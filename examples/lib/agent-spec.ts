@@ -179,7 +179,7 @@ export const TOOLS: Record<string, ToolFactory> = {
     uri: Uri.make("local", "docs", args["label"] ?? "docs"),
     ops: [Op.read({
       name: "meta.readDocs",
-      description: "读取框架文档或示例（IMPLEMENTATION.md / AGENTS.md / examples/README.md 等），供设计 Agent 时参考惯例。",
+      description: "读取框架文档或示例（DESIGN.md / DRAFT.md / examples/README.md 等），供设计 Agent 时参考惯例。",
       input: Schema.Struct({ path: Schema.String }),
       output: Schema.String,
       execute: ({ path }) => Effect.tryPromise({

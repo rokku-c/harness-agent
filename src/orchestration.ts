@@ -8,7 +8,7 @@ import type { Until } from "./core.js"
  *   Stage   推进路径（里程碑，每个节点自带解锁配置）
  *   Until   观察投影（见 core.ts：toolCall/schema/stop）
  *
- * effect-ts 组合子表达，见 CORE_CONNECTION_PLAN 3.12。
+ * effect-ts 组合子表达，见 DESIGN。
  */
 
 export type { Until }

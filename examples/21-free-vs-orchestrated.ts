@@ -8,7 +8,7 @@ import { Agent, AgentContext, Stage, then, Until, type Driver } from "../src/ind
  *   - 自由模式（无 stages/gates）：agent 完全自由跑，评测 LLM 能力用
  *   - 显式编排（stages/gates）：agent 按阶段推进、解锁
  *
- * 这检验框架的「缺省 = 自由」原则（CORE_CONNECTION_PLAN 3.12）。
+ * 这检验框架的「缺省 = 自由」原则（DESIGN）。
  */
 
 const fakeDriver: Driver = {

@@ -5,7 +5,7 @@
  * 再让示例 14 去把路线图拆成可执行的工程迭代。
  *
  * 核心分工（与 14 同哲学）：
- *   - 宿主（此文件）：读取产品侧信息源（DRAFT.md 设计意图 / IMPLEMENTATION.md 能力 /
+ *   - 宿主（此文件）：读取产品侧信息源（DRAFT.md 设计意图 / DESIGN.md 能力 /
  *     examples/README.md 展示 / package.json / git log），做字节上限截断后渲染给 Agent，并落盘。
  *   - Agent：产品规划者，读产品快照产出 ProductRoadmap（Schema 强制：定位、目标用户、价值主张、
  *     护城河、分阶段路线图（每阶段含里程碑与 OKR）、成功指标、产品风险、下一步产品行动）。
