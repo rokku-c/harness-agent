@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { Codex, type CodexOptions, type ThreadOptions } from "@openai/codex-sdk"
-import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, type DriverContext, type DriverSession, type StepEvent } from "../core.js"
+import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
 
 export interface CodexAgentOptions {
   readonly client?: Codex

@@ -1,5 +1,5 @@
 import { Context, Data, Effect, Layer, Ref, Schema } from "effect"
-import type { AgentProgram, Driver, Result } from "./core.js"
+import type { AgentProgram, Driver, Result } from "@effect-agent/core"
 
 export const Prediction = Schema.Struct({
   expected: Schema.String,

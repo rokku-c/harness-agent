@@ -4,8 +4,8 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { Client, type SFTPWrapper } from "ssh2"
 import SSHConfig from "ssh-config"
-import { ConnectionError, Op, Uri, makeContainer, makeContainers, type Connection, type ContainersService, type RemoteRequest, type RemoteResponse } from "./core.js"
-import { SshDefaults } from "./defaults.js"
+import { ConnectionError, Op, Uri, makeContainer, makeContainers, type Connection, type ContainersService, type RemoteRequest, type RemoteResponse } from "@effect-agent/core"
+import { SshDefaults } from "@effect-agent/core"
 
 /**
  * Parse an `ssh://[user@]host[:port]/path` URI into connection parts.

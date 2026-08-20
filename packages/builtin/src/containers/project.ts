@@ -2,7 +2,7 @@ import { Data, Effect, Schema } from "effect"
 import { execFile } from "node:child_process"
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises"
 import { dirname, relative, resolve, sep } from "node:path"
-import { Op, Uri, type Binding } from "../core.js"
+import { Op, Uri, type Binding } from "@effect-agent/core"
 
 export class ProjectEnvironmentError extends Data.TaggedError("ProjectEnvironmentError")<{
   readonly operation: string

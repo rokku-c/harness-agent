@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect"
 import { createAgentSession, type CreateAgentSessionOptions, type ToolDefinition } from "@mariozechner/pi-coding-agent"
-import { AgentFailure, decodeJson, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "../core.js"
+import { AgentFailure, decodeJson, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
 
 export interface PiOptions extends CreateAgentSessionOptions {
   readonly createSession?: typeof createAgentSession

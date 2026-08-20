@@ -1,8 +1,8 @@
 import { Effect } from "effect"
 import Anthropic from "@anthropic-ai/sdk"
 import OpenAI from "openai"
-import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "../core.js"
-import { MaxOutputTokens, ToolNaming, type MaxOutputTokensConfig } from "../defaults.js"
+import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
+import { MaxOutputTokens, ToolNaming, type MaxOutputTokensConfig } from "@effect-agent/core"
 
 export interface NativeOptions {
   /** Official SDK client: `Anthropic` or `OpenAI`. */

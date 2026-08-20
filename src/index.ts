@@ -1,15 +1,10 @@
-export * from "./core.js"
-export * from "./agent.js"
-export * from "./defaults.js"
-export * from "./orchestration.js"
-export * from "./providers/index.js"
-export * from "./hooks.js"
-export * from "./ssh.js"
-export * from "./composed/claude-code.js"
-export * from "./composed/codex.js"
-export * from "./composed/pi.js"
-export * from "./composed.js"
-export * from "./keeper.js"
-export * from "./environments/project.js"
-export * from "./predictive.js"
-export * from "./messenger.js"
+/**
+ * effect-agent — 统一入口。
+ *
+ * re-export 核心抽象与内置实现：
+ *   @effect-agent/core    纯抽象（Agent/Stage/Until/Gate/Resource/...）
+ *   @effect-agent/builtin 内置实现（providers/agents/containers/transports）
+ */
+
+export * from "@effect-agent/core"
+export * from "@effect-agent/builtin"

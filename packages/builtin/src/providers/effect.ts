@@ -3,8 +3,8 @@ import { FetchHttpClient } from "@effect/platform"
 import { LanguageModel } from "@effect/ai"
 import { AnthropicClient, AnthropicLanguageModel } from "@effect/ai-anthropic"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
-import { AgentFailure, type AgentError, type Driver, materialize, requireSubagents, requireUntil, type DriverContext, type DriverSession, type StepEvent } from "../core.js"
-import { MaxOutputTokens, type MaxOutputTokensConfig } from "../defaults.js"
+import { AgentFailure, type AgentError, type Driver, materialize, requireSubagents, requireUntil, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
+import { MaxOutputTokens, type MaxOutputTokensConfig } from "@effect-agent/core"
 
 export interface EffectProviderOptions {
   /** "anthropic" | "openai". */

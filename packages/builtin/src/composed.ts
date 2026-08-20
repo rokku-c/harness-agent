@@ -1,4 +1,4 @@
-import type { AgentError, AgentProgram, Capabilities, Result } from "./core.js"
+import type { AgentError, AgentProgram, Capabilities, Result } from "@effect-agent/core"
 
 /** A completed Harness Agent that can be reused as one composed program. */
 export interface ComposedAgent<I, O, E = AgentError, R = never> extends AgentProgram<I, O, E, R> {

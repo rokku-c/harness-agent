@@ -1,7 +1,7 @@
 import { Effect, Runtime } from "effect"
 import { Output, generateText, jsonSchema, tool, type LanguageModel, type ToolSet } from "ai"
-import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "../core.js"
-import { MaxOutputTokens, ProviderDefaults, ToolNaming, type MaxOutputTokensConfig } from "../defaults.js"
+import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
+import { MaxOutputTokens, ProviderDefaults, ToolNaming, type MaxOutputTokensConfig } from "@effect-agent/core"
 
 export interface VercelOptions {
   readonly model: LanguageModel

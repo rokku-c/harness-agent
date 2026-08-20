@@ -10,9 +10,9 @@ import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import * as z from "zod"
-import { AgentFailure, decode, type Driver, materialize, report, requireSubagents, requireUntil, schemaJson, toolName, type AgentError, type DriverContext, type DriverSession, type StepEvent, type SubagentProgram } from "../core.js"
+import { AgentFailure, decode, type Driver, materialize, report, requireSubagents, requireUntil, schemaJson, toolName, type AgentError, type DriverContext, type DriverSession, type StepEvent, type SubagentProgram } from "@effect-agent/core"
 import { loadToml, ProviderConfigError, type LoadProvidersOptions } from "../providers/index.js"
-import { ComposedAgentDefaults, ToolNaming } from "../defaults.js"
+import { ComposedAgentDefaults, ToolNaming } from "@effect-agent/core"
 
 export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks"> {
   readonly query?: typeof query
