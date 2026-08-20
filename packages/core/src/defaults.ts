@@ -86,10 +86,3 @@ export const ComposedAgentDefaults = {
   /** Whether Claude Code sessions persist across runs by default. */
   persistSession: true
 } as const
-
-/* ── Agent protocol domain ─────────────────────────────────────── */
-
-/** Internal protocol projected by drivers when no explicit Always entry exists. */
-export const AgentDefaults = {
-  instructions: "Act on the supplied context using only the available capabilities. Return the requested output and do not invent observations."
-} as const

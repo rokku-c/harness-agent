@@ -34,13 +34,20 @@ export const makeGroup = <I, O, E, R>(
   messenger?: MessengerService
 ): Group<I, O, E, R> => ({ id, agents, ...(messenger ? { messenger } : {}) })
 
+/** 组内广播结果：带 agent 标识。 */
+export interface BroadcastResult<O> {
+  readonly agent: string
+  readonly result: Result<O>
+}
+
 /** 组内广播：把 delivery 投递给所有成员 agent（应答模式）。 */
 export const broadcast = <I, O, E, R>(
   group: Group<I, O, E, R>,
   delivery: Omit<Delivery<I>, "id" | "payload"> & { payload: I }
-): Effect.Effect<ReadonlyArray<Result<O>>, E | GroupError, R> =>
+): Effect.Effect<ReadonlyArray<BroadcastResult<O>>, E | GroupError, R> =>
   Effect.forEach(group.agents, (agent) =>
     agent.run(delivery.payload).pipe(
+      Effect.map((result) => ({ agent: agent.id, result })),
       Effect.mapError((cause) => new GroupError({ cause, group: group.id }))
     ), { concurrency: "unbounded" })
 

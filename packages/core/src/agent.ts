@@ -45,11 +45,6 @@ export class AgentBuilder<I, O, R = never> {
     return new AgentBuilder<I, O, R>({ ...this.definition, stages, gates: gatesOf(stages) })
   }
 
-  /** Execution orchestration: per-stage unlock (legacy, overrides stages-derived gates). */
-  gates(gates: ReadonlyArray<Gate>): AgentBuilder<I, O, R> {
-    return new AgentBuilder<I, O, R>({ ...this.definition, gates })
-  }
-
   implementedBy<RD>(driver: Driver<RD>): AgentProgram<I, O, AgentError, R | RD> {
     const definition = this.definition
     return {
@@ -70,12 +65,14 @@ export class AgentBuilder<I, O, R = never> {
 }
 
 export const Agent = {
-  define: <I>(
-    idOrInput?: string | ((input: I) => Context),
-    maybeInput?: (input: I) => Context
-  ) => {
+  /**
+   * 定义一个 agent。两种形态：
+   *   define(input)         —— id 默认为 "agent"
+   *   define(id, input)     —— 显式 id
+   */
+  define: <I>(idOrInput?: string | ((input: I) => Context), maybeInput?: (input: I) => Context) => {
     const id = typeof idOrInput === "string" ? idOrInput : "agent"
-    const input = typeof idOrInput === "string" ? maybeInput! : typeof idOrInput === "function" ? idOrInput : Context.input
+    const input = typeof idOrInput === "function" ? idOrInput : maybeInput ?? Context.input
     return {
       returns: <O>(until: Until<O>) => new AgentBuilder<I, O, never>({ id, input, until, access: [], subagents: [] })
     }

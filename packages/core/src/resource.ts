@@ -30,7 +30,7 @@ export interface Lease {
 /** 资源声明。 */
 export interface Resource {
   readonly uri: string
-  /** 实现 = 特殊 Container（管理工具就是一组 ops）。 */
+  /** 实现 = 特殊 Container（管理工具就是一组 ops）。缺省为空容器。 */
   readonly container: Container
   /** 注入形式。 */
   readonly injection: ResourceInjection
@@ -38,21 +38,25 @@ export interface Resource {
   readonly frameView: FrameView
   /** 租约：当前占用者 + 过期。 */
   readonly lease?: Lease
-  /** 边界：决定影响强弱（封闭→强影响，开放→弱影响）。 */
+  /** 边界：决定影响强弱（封闭→强影响，开放→弱影响）。缺省 closed。 */
   readonly boundary: ResourceBoundary
 }
 
-export const makeResource = (spec: Omit<Resource, "container" | "boundary"> & { container?: Container; boundary?: ResourceBoundary }): Resource => {
-  const container = spec.container ?? makeContainer(spec.uri, [])
-  return {
-    uri: spec.uri,
-    container,
-    injection: spec.injection,
-    frameView: spec.frameView,
-    ...(spec.lease ? { lease: spec.lease } : {}),
-    boundary: spec.boundary ?? "closed",
-  }
-}
+export const makeResource = (spec: {
+  readonly uri: string
+  readonly container?: Container
+  readonly injection: ResourceInjection
+  readonly frameView: FrameView
+  readonly lease?: Lease
+  readonly boundary?: ResourceBoundary
+}): Resource => ({
+  uri: spec.uri,
+  container: spec.container ?? makeContainer(spec.uri, []),
+  injection: spec.injection,
+  frameView: spec.frameView,
+  ...(spec.lease ? { lease: spec.lease } : {}),
+  boundary: spec.boundary ?? "closed",
+})
 
 /* ── 资源 Schema（序列化契约） ── */
 

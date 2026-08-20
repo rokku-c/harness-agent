@@ -1,6 +1,8 @@
 import { Context as EffectContext, Data, Effect, Either, JSONSchema, Layer, Option, Ref, Schema } from "effect"
-import { AgentDefaults } from "./defaults.js"
 import type { Gate, Stage } from "./orchestration.js"
+
+/** 内部协议：驱动投影时无显式 Always 的默认指令。框架契约，非可调默认值。 */
+const DEFAULT_ALWAYS = "Act on the supplied context using only the available capabilities. Return the requested output and do not invent observations."
 
 /* ────────────────────────── 认知层（数据） ────────────────────────── */
 
@@ -222,7 +224,7 @@ export class Context {
   get gates(): ReadonlyArray<Gate> { return this.init.gates ?? [] }
   /** Persistent instruction text, or undefined when none was set. */
   get alwaysText() {
-    return this.always.find((entry): entry is Always => entry._tag === "Always")?.text ?? AgentDefaults.instructions
+    return this.always.find((entry): entry is Always => entry._tag === "Always")?.text ?? DEFAULT_ALWAYS
   }
   get lastText() {
     return this.current.findLast((entry): entry is Extract<Entry, { _tag: "Text" }> => entry._tag === "Text")?.text
