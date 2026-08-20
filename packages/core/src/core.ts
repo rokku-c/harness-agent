@@ -298,7 +298,7 @@ export class AgentFailure extends Data.TaggedError("AgentFailure")<{
   readonly message?: string
 }> {}
 
-export type AgentError = UnsupportedCapability | AgentFailure
+export type AgentError = UnsupportedCapability | AgentFailure | AgentInterrupted
 
 /* ────────────────────────── Driver & Session ────────────────────────── */
 
@@ -312,6 +312,8 @@ export type DriverEvent = {
 export interface DriverContext {
   readonly context: Context
   readonly report?: (event: DriverEvent) => Effect.Effect<void, AgentError, never>
+  /** 介入通道（GOAL「可观测/介入」）：宿主可下发 pause/cancel/redirect。 */
+  readonly interventionRef?: Ref.Ref<Intervention>
 }
 
 /** The result of an agent run: the decoded output plus the observed process. */
@@ -321,6 +323,25 @@ export type Result<O> = { readonly output: O; readonly details: ReadonlyArray<De
 export type StepEvent =
   | { readonly _tag: "Detail"; readonly detail: Detail }
   | { readonly _tag: "Result"; readonly value: unknown }
+
+/**
+ * 介入指令 —— GOAL「可观测/介入」的可控通道。
+ * 宿主（人/agent）通过 Ref 下发介入，Session 每步检查。
+ */
+export type Intervention =
+  | { readonly _tag: "None" }
+  /** 暂停：等待 resume。 */
+  | { readonly _tag: "Pause" }
+  /** 取消：中断运行。 */
+  | { readonly _tag: "Cancel"; readonly reason?: string }
+  /** 重定向：向上下文注入新指令。 */
+  | { readonly _tag: "Redirect"; readonly message: Message }
+
+/** 介入失败（取消时抛出）。 */
+export class AgentInterrupted extends Data.TaggedError("AgentInterrupted")<{
+  readonly agent: string
+  readonly reason?: string
+}> {}
 
 /**
  * A driver session: the running external agent exposed as an iterator.
@@ -341,13 +362,55 @@ export interface Driver<RD = never> {
 /**
  * User-facing iterative session. `run` repeatedly advances the driver session,
  * collecting details, until the driver yields a result.
+ * 支持介入（GOAL「可观测/介入」）：宿主通过 interventionRef 下发 pause/cancel/redirect。
  */
 export class Session {
   constructor(
     readonly context: Context,
     readonly driverSession: DriverSession,
-    readonly detailsRef: Ref.Ref<ReadonlyArray<Detail>>
+    readonly detailsRef: Ref.Ref<ReadonlyArray<Detail>>,
+    readonly interventionRef: Ref.Ref<Intervention> = Ref.unsafeMake<Intervention>({ _tag: "None" })
   ) {}
+
+  /** 检查介入指令，有则执行（暂停等待 / 取消失败 / 重定向注入）。 */
+  private checkIntervention(): Effect.Effect<Context, AgentInterrupted, never> {
+    return this.interventionRef.get.pipe(
+      Effect.flatMap((intervention) => {
+        switch (intervention._tag) {
+          case "None":
+            return Effect.succeed(this.context)
+          case "Pause":
+            // 等待直到被 resume（状态变回 None）。
+            return Effect.sleep("10 millis").pipe(
+              Effect.orDie,
+              Effect.flatMap(() => this.checkIntervention())
+            )
+          case "Cancel":
+            return Effect.fail(new AgentInterrupted({ agent: "session", reason: intervention.reason }))
+          case "Redirect":
+            // 注入新指令后清除介入状态，返回更新后的 context。
+            return Ref.set(this.interventionRef, { _tag: "None" }).pipe(
+              Effect.map(() => this.context.appendMessages(intervention.message))
+            )
+        }
+      })
+    )
+  }
+
+  /** 下发介入指令。 */
+  intervene(intervention: Intervention) {
+    return Ref.set(this.interventionRef, intervention)
+  }
+
+  /** 暂停。 */
+  pause() { return Ref.set(this.interventionRef, { _tag: "Pause" }) }
+  /** 恢复。 */
+  resume() { return Ref.set(this.interventionRef, { _tag: "None" }) }
+  /** 取消。 */
+  cancel(reason?: string) { return Ref.set(this.interventionRef, { _tag: "Cancel", reason }) }
+  /** 重定向：注入新消息。 */
+  redirect(message: Message) { return Ref.set(this.interventionRef, { _tag: "Redirect", message }) }
+
   /** Advance one step; collect a detail if one was produced. */
   step() {
     return this.driverSession.step.pipe(
@@ -356,18 +419,22 @@ export class Session {
         : Effect.void)
     )
   }
-  /** Iterate until the driver yields a result, collecting details along the way. */
+
+  /** Iterate until the driver yields a result, collecting details along the way.
+   *  每步前检查介入：可暂停/取消/重定向（GOAL「可观测/介入」）。 */
   run<O>(): Effect.Effect<Result<O>, AgentError, never> {
-    const go = (): Effect.Effect<Result<O>, AgentError, never> =>
-      this.driverSession.step.pipe(
-        Effect.flatMap((event) => {
-          if (event._tag === "Detail") {
-            return Ref.update(this.detailsRef, (details) => [...details, event.detail]).pipe(Effect.flatMap(() => go()))
-          }
-          return this.detailsRef.get.pipe(Effect.map((details) => ({ output: event.value as O, details })))
-        })
+    const go = (ctx: Context): Effect.Effect<Result<O>, AgentError, never> =>
+      this.checkIntervention().pipe(
+        Effect.flatMap((updated) => this.driverSession.step.pipe(
+          Effect.flatMap((event) => {
+            if (event._tag === "Detail") {
+              return Ref.update(this.detailsRef, (details) => [...details, event.detail]).pipe(Effect.flatMap(() => go(updated)))
+            }
+            return this.detailsRef.get.pipe(Effect.map((details) => ({ output: event.value as O, details })))
+          })
+        ))
       )
-    return go()
+    return go(this.context)
   }
 }
 

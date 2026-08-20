@@ -13,6 +13,7 @@
   "scripts": {
     "example": "bun examples/run.ts",
     "schema": "bun src/schema-example.ts",
+    "mcp-server": "bun src/mcp-server.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
