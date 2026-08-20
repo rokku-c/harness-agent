@@ -1,5 +1,5 @@
 import { Context as EffectContext, Data, Effect, Either, JSONSchema, Layer, Option, Ref, Schema } from "effect"
-import { toMessage, textOf, type Message } from "./message.js"
+import { Message, toMessage, textOf } from "./message.js"
 import type { Gate, Stage } from "./orchestration.js"
 
 /** 内部协议：驱动投影时无显式 Always 的默认指令。框架契约，非可调默认值。 */
@@ -222,12 +222,10 @@ export class Context {
   get alwaysText() {
     return this.always.find((entry): entry is Always => entry._tag === "Always")?.text ?? DEFAULT_ALWAYS
   }
-  get lastText() {
-    for (const message of [...this.messages].reverse()) {
-      const text = textOf(message)
-      if (text.length > 0) return text
-    }
-    return undefined
+  /** 最后一条有文本的消息内容。 */
+  get lastText(): string | undefined {
+    const last = this.messages.findLast((m) => textOf(m).length > 0)
+    return last === undefined ? undefined : textOf(last)
   }
   /** 追加接收消息（驱动/投递内部用，业务只读）。 */
   appendMessages(...messages: ReadonlyArray<Message>) {
@@ -259,9 +257,6 @@ export class Context {
     return new Context({ ...this.init, containers, connections })
   }
 }
-
-/** Backward-compatible alias (read-only view; business code does not construct). */
-export const AgentContext = Context
 
 /* ────────────────────────── Capabilities ────────────────────────── */
 

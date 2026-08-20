@@ -16,9 +16,6 @@ export const renderSystem = (context: Context): string => {
 /** 渲染当前接收（user prompt）：各接收消息的文本块。 */
 export const render = (context: Context): string =>
   context.messages
-    .map((message) => {
-      const text = textOf(message)
-      return text.length > 0 ? text : "<non-text content>"
-    })
-    .filter((text) => text !== "<non-text content>")
+    .map(textOf)
+    .filter((text) => text.length > 0)
     .join("\n")
