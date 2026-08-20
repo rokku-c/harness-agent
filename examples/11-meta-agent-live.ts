@@ -20,7 +20,6 @@
 import { Effect, Schema } from "effect"
 import {
   Agent,
-  AgentContext,
   Harness,
   Providers,
   Until,
@@ -32,6 +31,7 @@ import {
   decodeAgentSpec,
   emitSpecEvent,
   makeMetaAgent,
+  META_CONSTRAINTS,
   selectDriver
 } from "./lib/agent-spec.js"
 
@@ -51,7 +51,7 @@ const program = Effect.gen(function*() {
 
   // 1) meta-agent：把用户要求编译成一份 AgentSpec。
   const meta = makeMetaAgent(observed)
-  const specResult = yield* meta.run(requirement)
+  const specResult = yield* meta.run(`[define-agent-spec] 需求：${requirement}\n\n约束：${JSON.stringify(META_CONSTRAINTS)}`)
   const spec = yield* decodeAgentSpec(specResult.output)
   yield* emitSpecEvent(`AgentSpec 产出: driver=${spec.driver} ops=${spec.ops.map((o) => o.tool).join(",")} output=${spec.output.map((o) => o.name).join(",")}`)
 

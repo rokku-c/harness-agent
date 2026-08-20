@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { AgentContext, Harness, Op, runDriver, Until, type Binding, type Driver } from "../src/index.js"
+import { Context, Harness, Op, runDriver, Until, type Binding, type Driver } from "../src/index.js"
 
 describe("HarnessHook", () => {
   test("observes framework lifecycle and instrumented Binding Ops", async () => {
@@ -28,7 +28,7 @@ describe("HarnessHook", () => {
       })
     }
 
-    const context = AgentContext.current("hello").withUntil(Until.stop).withAccess([{ binding, write: false }])
+    const context = Context.with({ messages: [{ role: "user", content: "hello" }] }).withUntil(Until.stop).withAccess([{ binding, write: false }])
     const output = await Effect.runPromise(runDriver(Harness.withHooks(driver, hook), context))
 
     expect(output.output).toBe("ok")

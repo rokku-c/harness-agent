@@ -25,7 +25,6 @@ import { execFile } from "node:child_process"
 import { promisify } from "node:util"
 import {
   Agent,
-  AgentContext,
   Harness,
   Providers,
   Until
@@ -129,11 +128,7 @@ const ProductRoadmap = Schema.Struct({
 
 const makeProductPlanner = (driver: ReturnType<typeof Harness.withHooks>, phaseCount: number) =>
   Agent
-    .define<string>((snapshot) => AgentContext.input({
-      operation: "plan-product",
-      snapshot,
-      phaseCount
-    }))
+    .define<string>()
     .returns(Until.schema(ProductRoadmap))
     .implementedBy(driver)
 
@@ -195,7 +190,7 @@ const program = Effect.gen(function*() {
   const planner = makeProductPlanner(observed, phases)
 
   const snapshot = yield* collectProduct
-  const plan = (yield* planner.run(renderProduct(snapshot))).output
+  const plan = (yield* planner.run(`[plan-product] 阶段数 ${phases}\n\n${renderProduct(snapshot)}`)).output
   const path = yield* writePlan(plan, phases)
 
   return { plan, path }

@@ -1,7 +1,6 @@
 import { Schema } from "effect"
 import {
   Agent,
-  AgentContext,
   ClaudeCode,
   CodexAgent,
   PiAgent,
@@ -17,7 +16,7 @@ const Review = Schema.Struct({
 
 // 业务 Agent 只描述输入和输出，不知道底层是哪个完整外部 Agent。
 const PRReview = (driver: Driver) => Agent
-  .define<string>((diff) => AgentContext.input({ operation: "review", diff }))
+  .define<string>()
   .returns(Until.schema(Review))
   .implementedBy(driver)
 

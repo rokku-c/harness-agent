@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { existsSync } from "node:fs"
-import { AgentContext, ClaudeCode, Harness, Op, runDriver, Until, type Binding, type SubagentProgram } from "../src/index.js"
+import { Context, ClaudeCode, Harness, Op, runDriver, Until, type Binding, type SubagentProgram } from "../src/index.js"
 
 /** Compatibility shim: old driver.run({ context, until, access, subagents }) via the new runDriver. */
 const run = (driver: any, args: { context: any; until: any; access?: any; subagents?: any }) => {
@@ -41,7 +41,7 @@ describe("Claude Code isolation", () => {
       if (event._tag === "DriverPrepared") prepared = event.details
     })))
     const answer = await Effect.runPromise(runDriver(driver,
-      AgentContext.current("hello").withUntil(Until.stop).withAccess([{ binding: Docs, write: false }])))
+      Context.with({ messages: [{ role: "user", content: "hello" }] }).withUntil(Until.stop).withAccess([{ binding: Docs, write: false }])))
 
     expect(answer.output).toBe("ok")
     expect(observed.tools).toEqual([])
@@ -58,7 +58,7 @@ describe("Claude Code isolation", () => {
     expect(existsSync(home)).toBe(false)
   })
 
-  test("injects AgentContext system text as native systemPrompt", async () => {
+  test("injects Context always text as native systemPrompt", async () => {
     let observed: any
     const fakeQuery = (async function* (params: any) {
       observed = params.options
@@ -66,7 +66,7 @@ describe("Claude Code isolation", () => {
     }) as any
     const driver = ClaudeCode.make({ query: fakeQuery })
     await Effect.runPromise(runDriver(driver,
-      AgentContext.always("You are a review specialist.").appendCurrent({ _tag: "Text", text: "hello" }).withUntil(Until.stop)))
+      Context.with({ always: [{ _tag: "Always", text: "You are a review specialist." }], messages: [{ role: "user", content: "hello" }] }).withUntil(Until.stop)))
     expect(observed.systemPrompt).toBe("You are a review specialist.")
   })
 })
@@ -87,7 +87,7 @@ describe("Claude Code global insecureTls", () => {
         provider: "claude",
         overrides: { query: fakeQuery }
       }))
-      await Effect.runPromise(runDriver(driver, AgentContext.current("hello").withUntil(Until.stop)))
+      await Effect.runPromise(runDriver(driver, Context.with({ messages: [{ role: "user", content: "hello" }] }).withUntil(Until.stop)))
       return observed
     }
 
@@ -112,10 +112,10 @@ describe("Claude Code runtime subagents", () => {
       id: "reviewer",
       until: Until.stop,
       access: [],
-      context: (goal) => AgentContext.current(`审查：${goal}`)
+      context: (goal) => Context.with({ messages: [{ role: "user", content: `审查：${goal}` }] })
     }
     await Effect.runPromise(run(driver, {
-      context: AgentContext.current("hello"),
+      context: Context.with({ messages: [{ role: "user", content: "hello" }] }),
       until: Until.stop,
       access: [],
       subagents: [subagent]
@@ -137,10 +137,10 @@ describe("Claude Code runtime subagents", () => {
       id: "reviewer",
       until: Until.stop,
       access: [],
-      context: (goal) => AgentContext.current(`审查：${goal}`)
+      context: (goal) => Context.with({ messages: [{ role: "user", content: `审查：${goal}` }] })
     }
     await Effect.runPromise(run(driver, {
-      context: AgentContext.current("hello"),
+      context: Context.with({ messages: [{ role: "user", content: "hello" }] }),
       until: Until.stop,
       access: [],
       subagents: [subagent]
@@ -156,7 +156,7 @@ describe("Claude Code runtime subagents", () => {
     const observed: { value?: any } = {}
     const driver = ClaudeCode.make({ query: makeFakeQuery(observed) })
     await Effect.runPromise(run(driver, {
-      context: AgentContext.current("hello"),
+      context: Context.with({ messages: [{ role: "user", content: "hello" }] }),
       until: Until.stop,
       access: []
     }))
@@ -184,7 +184,7 @@ describe("Claude Code configurable tool naming", () => {
     }) as any
     const driver = ClaudeCode.make({ query: fakeQuery, toolPrefix: "ea_" })
     await Effect.runPromise(run(driver, {
-      context: AgentContext.current("hello"),
+      context: Context.with({ messages: [{ role: "user", content: "hello" }] }),
       until: Until.stop,
       access: [{ binding: Docs, write: false }]
     }))
@@ -202,7 +202,7 @@ describe("Claude Code configurable tool naming", () => {
     }) as any
     const driver = ClaudeCode.make({ query: fakeQuery, mcpChannel: "my_agent" })
     await Effect.runPromise(run(driver, {
-      context: AgentContext.current("hello"),
+      context: Context.with({ messages: [{ role: "user", content: "hello" }] }),
       until: Until.stop,
       access: [{ binding: Docs, write: false }]
     }))
@@ -219,7 +219,7 @@ describe("Claude Code configurable tool naming", () => {
     }) as any
     const driver = ClaudeCode.make({ query: fakeQuery, toolPrefix: "x_", mcpChannel: "c" })
     await Effect.runPromise(run(driver, {
-      context: AgentContext.current("hello"),
+      context: Context.with({ messages: [{ role: "user", content: "hello" }] }),
       until: Until.stop,
       access: [{ binding: Docs, write: false }]
     }))

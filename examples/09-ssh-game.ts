@@ -1,7 +1,6 @@
 import { Effect, Schema } from "effect"
 import {
   Agent,
-  AgentContext,
   ClaudeCode,
   Harness,
   SshConnection,
@@ -74,7 +73,7 @@ const program = Effect.gen(function*() {
   const observedClaude = Harness.withHooks(claude, DetailHook)
 
   const GameWriter = Agent
-    .define<string>((task) => AgentContext.input({ operation: "create-cli-game", task }))
+    .define<string>()
     .returns(Until.schema(GameInfo))
     .writes(remoteBinding)
     .implementedBy(observedClaude)

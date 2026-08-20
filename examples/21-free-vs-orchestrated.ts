@@ -1,5 +1,5 @@
 import { Effect, pipe, Schema } from "effect"
-import { Agent, AgentContext, Stage, then, Until, type Driver } from "../src/index.js"
+import { Agent, Stage, then, Until, type Driver } from "../src/index.js"
 
 /**
  * 示例 21：执行编排 —— 自由模式 vs 显式编排。
@@ -27,13 +27,13 @@ const Answer = Schema.Struct({ text: Schema.String, stages: Schema.optional(Sche
 
 // ── 1. 自由模式：不指定 stages/gates ──
 const FreeAgent = Agent
-  .define<string>("Free", (t) => AgentContext.current(t))
+  .define<string>("Free")
   .returns(Until.schema(Answer))
   .implementedBy(fakeDriver)
 
 // ── 2. 显式编排：指定 stages/gates ──
 const OrchestratedAgent = Agent
-  .define<string>("Orchestrated", (t) => AgentContext.current(t))
+  .define<string>("Orchestrated")
   .returns(Until.schema(Answer))
   .stages(pipe(
     Stage.guard("search", { tools: { search: "allow", submit: "deny" } }),

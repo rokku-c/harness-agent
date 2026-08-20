@@ -16,10 +16,10 @@ import { dirname, join } from "node:path"
 import {
   Agent,
   AgentBuilder,
-  AgentContext,
   ClaudeCode,
   CodexAgent,
   ConsoleHook,
+  Context,
   Op,
   PiAgent,
   Until,
@@ -232,7 +232,7 @@ export function makeBuilder(
   const until = typeof first === "string" ? third! : first
   const ops = (typeof first === "string" ? fourth : second) as ReadonlyArray<{ tool: string; access: string; args: ReadonlyArray<{ name: string; value: string }> }>
   let builder = Agent
-    .define<string>((input) => AgentContext.input(input))
+    .define<string>()
     .returns(until)
   for (const op of ops) {
     const binding = TOOLS[op.tool]?.(Object.fromEntries(op.args.map(({ name, value }) => [name, value])))
@@ -296,7 +296,7 @@ export const compileSpec = (
       id: sub.id,
       until: Until.stop,
       access: subBuilder.definition.access as ReadonlyArray<{ binding: Binding; write: boolean }>,
-      context: (goal) => AgentContext.input({ operation: "delegate", goal })
+      context: (goal) => Context.empty.appendMessages({ role: "user", content: `[delegate] ${goal}` })
     }
     builder = builder.subagents(subagent)
   }
@@ -346,7 +346,7 @@ const renderSubagentLiteral = (
 ${indent}  id: ${JSON.stringify(sub.id)},
 ${indent}  until: Until.stop,
 ${indent}  access: [${accessBlock}${accessLines.length > 0 ? "\n" + indent + "  " : ""}],
-${indent}  context: (goal: string) => AgentContext.input({ operation: "delegate", goal })
+${indent}  context: (goal: string) => Context.empty.appendMessages({ role: "user", content: "[delegate] " + goal })
 ${indent}}`
 }
 
@@ -379,7 +379,7 @@ export const renderSpec = (spec: AgentSpec, outPath: string): Effect.Effect<stri
  * 直跑：bun run examples/generated/${spec.id}.ts -- "<task>"
  */
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, ClaudeCode, ConsoleHook, Harness, Until, type Driver } from "effect-agent"
+import { Agent, ClaudeCode, ConsoleHook, Context, Harness, Until, type Driver } from "effect-agent"
 import { TOOLS } from "../lib/agent-spec.js"
 
 // 生成的输出 Schema（宿主从 spec.output 编译）。
@@ -389,7 +389,7 @@ ${outputBlock}
 
 export const makeGeneratedAgent = (driver: Driver) => {
   let builder = Agent
-    .define<string>((input) => AgentContext.input(input))
+    .define<string>()
     .returns(Until.schema(GeneratedOutput))
 
   // 宿主工具注册表：execute 全部由宿主实现。
@@ -430,11 +430,7 @@ export const META_CONSTRAINTS = {
 /** meta-agent 本身就是一个普通 Agent：输出 Schema 强制，可 review / 可校验 / 可版本化。 */
 export const makeMetaAgent = (driver: Driver) =>
   Agent
-    .define<string>((requirement) => AgentContext.input({
-      operation: "define-agent-spec",
-      requirement,
-      constraints: META_CONSTRAINTS
-    }))
+    .define<string>()
     .returns(Until.schema(AgentSpec))
     .uses(TOOLS["readDocs"]({ label: "framework-docs", root: "" }))
     .implementedBy(driver)

@@ -8,7 +8,7 @@
 
 ```ts
 const Assistant = Agent
-  .define<string>(AgentContext.current)
+  .define<string>()
   .returns(Until.stop)
   .implementedBy(driver)
 
@@ -25,7 +25,7 @@ Context → Driver → Result
 
 ```ts
 const Assistant = Agent
-  .define<string>(AgentContext.current)
+  .define<string>()
   .returns(Until.stop)
   .uses(Project)
   .implementedBy(driver)
@@ -50,12 +50,13 @@ Result     最终输出与过程细节
 Context 是一次运行的唯一输入：
 
 - `always`：整个运行期间稳定的必要规则；
-- `current`：当前任务和注入的数据；
+- `messages`：本 run 接收的消息序列（投递填充，只读；归一化 Message，与 Anthropic/OpenAI 同义，可互相转换，支持多媒体）；
 - `access`：本次运行允许访问的 Binding；
 - `until`：结束条件；
 - `details`：可观测过程。
 
-业务代码优先传递结构化数据，不负责拼装 Driver Prompt。Driver 将 Context 投影为底层 SDK 所需的消息、指令和工具。
+核心 harness 不出现 `prompt` 概念。输入完全通过 Messenger Delivery 传输，业务只读 `messages`；
+业务代码优先传递结构化数据，不负责拼装 Driver Prompt。Driver 将 Context 投影为底层 SDK 所需的消息、指令和工具（渲染是驱动/适配职责，见 builtin/src/render.ts）。
 
 ### Binding 与 Op
 
@@ -64,13 +65,13 @@ Binding 表达环境资源：
 ```ts
 interface Binding<A, E, R> {
   readonly uri: string
-  readonly read?: Effect.Effect<Entry, E, R>
+  readonly read?: Effect.Effect<unknown, E, R>
   readonly typed?: Effect.Effect<A, E, R>
   readonly ops?: ReadonlyArray<Op<any, any, any, any>>
 }
 ```
 
-- `read` 将资源内容注入 Context；
+- `read` 将资源内容注入 Context（materialize 时归一化为 user `Message`）；
 - `typed` 供确定性 Effect 程序读取；
 - `ops` 允许 Agent 主动操作资源。
 

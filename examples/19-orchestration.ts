@@ -1,5 +1,5 @@
 import { Effect, pipe, Schema } from "effect"
-import { Agent, AgentContext, Stage, then, Until, type Driver } from "../src/index.js"
+import { Agent, Stage, then, Until, type Driver } from "../src/index.js"
 
 /**
  * 示例 19：执行编排接入 Agent —— Stage（每阶段自带解锁配置）。
@@ -52,7 +52,7 @@ const fakeDriver: Driver = {
 }
 
 const Reviewer = Agent
-  .define<string>("Reviewer", (task) => AgentContext.current(task))
+  .define<string>("Reviewer")
   .returns(Until.schema(Review))
   .stages(plan)
   .implementedBy(fakeDriver)

@@ -21,7 +21,6 @@
 import { Effect, Schema } from "effect"
 import {
   Agent,
-  AgentContext,
   Harness,
   Providers,
   Until,
@@ -64,7 +63,7 @@ const Proposal = Schema.Struct({
 /** 每个角色 Agent 共享同一份只读绑定（可让角色读到框架文档/示例作参考）。 */
 const makeRoleAgent = (perspective: string, focus: ReadonlyArray<string>, driver: ReturnType<typeof Harness.withHooks>) =>
   Agent
-    .define<string>((task) => AgentContext.input({ operation: "propose", task, perspective, focus }))
+    .define<string>()
     .returns(Until.schema(Proposal))
     .uses(readDocsBinding)
     .implementedBy(driver)
@@ -79,7 +78,7 @@ const SupervisorVerdict = Schema.Struct({
 
 const makeSupervisor = (driver: ReturnType<typeof Harness.withHooks>) =>
   Agent
-    .define<string>((proposals) => AgentContext.input({ operation: "consolidate", proposals }))
+    .define<string>()
     .returns(Until.schema(SupervisorVerdict))
     .implementedBy(driver)
 
@@ -100,7 +99,7 @@ const program = Effect.gen(function*() {
   // 2) 并行：有界并发 + 失败隔离（Effect.either）。
   const results = yield* Effect.forEach(
     roleAgents,
-    (agent, index) => agent.run(task).pipe(Effect.either),
+    (agent, index) => agent.run(`[${roleNames[index]} 视角] ${task}`).pipe(Effect.either),
     { concurrency }
   )
 
@@ -132,7 +131,7 @@ const program = Effect.gen(function*() {
 
   const supervisor = makeSupervisor(observed)
   const verdict = yield* supervisor.run(
-    `本轮 swarm 的所有提案如下：\n\n${renderAll}\n\n请判定收敛并给出最终计划。`
+    `[consolidate] 本轮 swarm 的所有提案如下：\n\n${renderAll}\n\n请判定收敛并给出最终计划。`
   )
 
   return { successes: successes.length, failures: failures.length, verdict: verdict.output }

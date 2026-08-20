@@ -1,3 +1,4 @@
+import { render, renderSystem } from "../render.js"
 import { Effect } from "effect"
 import Anthropic from "@anthropic-ai/sdk"
 import OpenAI from "openai"
@@ -187,7 +188,7 @@ export const NativeAgent = {
         // 持续迭代修正，直到成功或 API 报错。可选 maxSchemaRetries 防呆阀（默认关闭）。
         const makeStep = Effect.gen(function*() {
           // 首次 user 消息：任务内容 + output 工具的强制指令。
-          const initialMessage = { role: "user", content: request.context.render() + (outputTool
+          const initialMessage = { role: "user", content: render(request.context) + (outputTool
             ? `\n\nYou MUST call ${ToolNaming.outputToolName} exactly once to return your final structured answer. Do NOT put the answer in text.`
             : "") }
           const policy = options.maxOutputTokens ?? MaxOutputTokens

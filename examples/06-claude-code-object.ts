@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, ClaudeCode, Harness, Until } from "effect-agent"
+import { Agent, ClaudeCode, Harness, Until } from "effect-agent"
 import { DetailHook } from "./hooks/detailed-review.js"
 
 const Plan = Schema.Struct({
@@ -30,7 +30,7 @@ const program = Effect.gen(function*() {
   const observedClaude = Harness.withHooks(driver, DetailHook)
 
   const Planner = Agent
-    .define<string>((task) => AgentContext.input({ operation: "plan", task, locale: "zh-CN" }))
+    .define<string>()
     .returns(Until.schema(Plan))
     .implementedBy(observedClaude)
 

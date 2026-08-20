@@ -1,5 +1,5 @@
 import { Effect, pipe, Schema } from "effect"
-import { Agent, AgentContext, Stage, then, Until, type Driver } from "../src/index.js"
+import { Agent, Stage, textOf, then, Until, type Driver } from "../src/index.js"
 
 /**
  * 示例 22：Advisor 架构 —— 主 agent 在关键决策点咨询更强的顾问 agent。
@@ -42,14 +42,14 @@ const advisorDriver: Driver = {
         reason: "改动会影响公共 API，需要补测试",
         suggestions: ["加测试", "更新文档"],
         // 透传：证明顾问看到了完整上下文
-        _context: request.context.current.map(e => e._tag === "Text" ? e.text : "").join(""),
+        _context: request.context.messages.map((m) => textOf(m)).join(""),
       },
     } as any),
   }),
 }
 
 const Advisor = Agent
-  .define<string>("Advisor", (ctx) => AgentContext.current(ctx))
+  .define<string>("Advisor")
   .returns(Until.schema(Suggestion))
   .implementedBy(advisorDriver)
 
@@ -77,7 +77,7 @@ const mainDriver: Driver = {
 
 // 主 agent 通过 Connection 接入顾问：顾问的能力成为主 agent 的工具
 const MainAgent = Agent
-  .define<string>("Main", (task) => AgentContext.current(task))
+  .define<string>("Main")
   .returns(Until.schema(Review))
   .uses({
     uri: "ea://local/agents/advisor",

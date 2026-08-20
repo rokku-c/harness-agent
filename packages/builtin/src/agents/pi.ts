@@ -1,3 +1,4 @@
+import { render, renderSystem } from "../render.js"
 import { Effect, Runtime } from "effect"
 import { createAgentSession, type CreateAgentSessionOptions, type ToolDefinition } from "@mariozechner/pi-coding-agent"
 import { AgentFailure, decodeJson, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
@@ -71,8 +72,8 @@ export const PiAgent = {
         ).pipe(Effect.flatMap(({ session, object, outputTool }) => {
           const execute = Effect.tryPromise({
             try: () => session.prompt([
-              request.context.renderSystem(),
-              request.context.render() + (outputTool ? `\nFinish by calling ${outputName}.` : "")
+              renderSystem(request.context),
+              render(request.context) + (outputTool ? `\nFinish by calling ${outputName}.` : "")
             ].filter(Boolean).join("\n\n")),
             catch: (cause) => new AgentFailure({ agent: driver.id, cause })
           }).pipe(Effect.flatMap(() => Effect.gen(function*() {

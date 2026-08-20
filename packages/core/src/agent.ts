@@ -1,5 +1,6 @@
 import { Effect, Ref } from "effect"
 import { Context } from "./core.js"
+import { toMessage } from "./message.js"
 import type { Access, AgentProgram, AgentError, Binding, Detail, Driver, Result, Session, SubagentProgram, Until } from "./core.js"
 import { Session as SessionImpl } from "./core.js"
 import { gatesOf, type Gate, type Stage } from "./orchestration.js"
@@ -66,17 +67,13 @@ export class AgentBuilder<I, O, R = never> {
 
 export const Agent = {
   /**
-   * 定义一个 agent。两种形态：
-   *   define(input)         —— id 默认为 "agent"
-   *   define(id, input)     —— 显式 id
+   * 定义一个 agent。只声明接收类型 I，不构造 Context（运行时由投递填充）。
+   *   Agent.define<I>()          —— id 默认 "agent"
+   *   Agent.define<I>("name")    —— 显式 id
    */
-  define: <I>(idOrInput?: string | ((input: I) => Context), maybeInput?: (input: I) => Context) => {
-    const id = typeof idOrInput === "string" ? idOrInput : "agent"
-    const input = typeof idOrInput === "function" ? idOrInput : maybeInput ?? Context.input
-    return {
-      returns: <O>(until: Until<O>) => new AgentBuilder<I, O, never>({ id, input, until, access: [], subagents: [] })
-    }
-  },
+  define: <I>(id = "agent") => ({
+    returns: <O>(until: Until<O>) => new AgentBuilder<I, O, never>({ id, input: (i: I) => Context.empty.appendMessages(toMessage(i)), until, access: [], subagents: [] })
+  }),
   run: <I, O, E, R>(agent: AgentProgram<I, O, E, R>, input: I) => agent.run(input),
   map: <I, O, E, R>(agents: ReadonlyArray<AgentProgram<I, O, E, R>>, input: I) =>
     Effect.forEach(agents, (agent) => agent.run(input), { concurrency: "unbounded" }),

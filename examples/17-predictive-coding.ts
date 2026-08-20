@@ -1,7 +1,6 @@
 import { Effect } from "effect"
 import {
   Agent,
-  AgentContext,
   Harness,
   Prediction,
   PredictionAssessment,
@@ -9,7 +8,9 @@ import {
   PredictiveHarness,
   ProjectEnvironment,
   Providers,
-  Until
+  Until,
+  type PredictionAssessmentRequest,
+  type PredictionRequest
 } from "effect-agent"
 import { resolve } from "node:path"
 import { DetailHook } from "./hooks/detailed-review.js"
@@ -21,12 +22,12 @@ const program = Effect.gen(function*() {
   const raw = providers.agent()
 
   const predict = Agent
-    .define(AgentContext.input)
+    .define<PredictionRequest>()
     .returns(Until.schema(Prediction))
     .implementedBy(raw)
 
   const assess = Agent
-    .define(AgentContext.input)
+    .define<PredictionAssessmentRequest>()
     .returns(Until.schema(PredictionAssessment))
     .implementedBy(raw)
 
@@ -40,7 +41,7 @@ const program = Effect.gen(function*() {
   })
 
   const agent = Agent
-    .define<string>(AgentContext.current)
+    .define<string>()
     .returns(Until.stop)
     .uses(project)
     .implementedBy(driver)

@@ -1,7 +1,6 @@
 import { Effect } from "effect"
 import {
   Agent,
-  AgentContext,
   AgentKeeper,
   ComposedAgent,
   Messenger,
@@ -16,7 +15,7 @@ import {
 const program = Effect.scoped(Effect.gen(function*() {
   const driver = yield* Providers.agent()
   const oneShot = Agent
-    .define<string>(AgentContext.current)
+    .define<string>()
     .returns(Until.stop)
     .implementedBy(driver)
 

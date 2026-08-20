@@ -4,8 +4,8 @@ import { readFile, stat } from "node:fs/promises"
 import { relative, resolve, sep } from "node:path"
 import {
   Agent,
-  AgentContext,
   ClaudeCode,
+  Context,
   Harness,
   Op,
   Until,
@@ -74,7 +74,7 @@ const reviewer: SubagentProgram = {
   id: "reviewer",
   until: Until.stop,
   access: [{ binding: Project, write: false }],
-  context: (goal) => AgentContext.input({ operation: "review", goal, access: "read-only" })
+  context: (goal) => Context.empty.appendMessages({ role: "user", content: `审查：${goal}` })
 }
 
 const program = Effect.gen(function*() {
@@ -94,7 +94,7 @@ const program = Effect.gen(function*() {
   const observedClaude = Harness.withHooks(claude, DetailHook)
 
   const Reviewer = Agent
-    .define<string>((task) => AgentContext.input({ operation: "review-project", task, delegation: true }))
+    .define<string>()
     .returns(Until.schema(Review))
     .subagents(reviewer)
     .implementedBy(observedClaude)

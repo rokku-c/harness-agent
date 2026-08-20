@@ -4,7 +4,6 @@ import { readFile, stat } from "node:fs/promises"
 import { relative, resolve, sep } from "node:path"
 import {
   Agent,
-  AgentContext,
   ClaudeCode,
   Harness,
   Op,
@@ -111,12 +110,7 @@ const program = Effect.gen(function*() {
   const observedClaude = Harness.withHooks(claude, DetailHook)
 
   const ProjectReviewer = Agent
-    .define<string>((focus) => AgentContext.input({
-      operation: "review-project",
-      focus,
-      maxFilesRead,
-      evidenceRequired: true
-    }))
+    .define<string>()
     .returns(Until.schema(Review))
     .uses(Project)
     .implementedBy(observedClaude)

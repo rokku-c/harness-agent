@@ -1,5 +1,5 @@
 import { Effect, Ref, Schema } from "effect"
-import { Agent, AgentContext, ClaudeCode, Harness, Until } from "effect-agent"
+import { Agent, ClaudeCode, Harness, Until } from "effect-agent"
 import { DetailHook } from "./hooks/detailed-review.js"
 
 /**
@@ -116,28 +116,17 @@ const program = Effect.gen(function*() {
   const supervisor = Harness.withHooks(claude, DetailHook)
 
   const AgentA = Agent
-    .define<string>((blackboard) => AgentContext.input({
-      operation: "solve-pattern",
-      perspective: "numeric-pattern",
-      blackboard
-    }))
+    .define<string>()
     .returns(Until.schema(RoundOutput))
     .implementedBy(agentA)
 
   const AgentB = Agent
-    .define<string>((blackboard) => AgentContext.input({
-      operation: "solve-pattern",
-      perspective: "combinatorial",
-      blackboard
-    }))
+    .define<string>()
     .returns(Until.schema(RoundOutput))
     .implementedBy(agentB)
 
   const Supervisor = Agent
-    .define<string>((blackboard) => AgentContext.input({
-      operation: "evaluate-convergence",
-      blackboard
-    }))
+    .define<string>()
     .returns(Until.schema(SupervisorVerdict))
     .implementedBy(supervisor)
 

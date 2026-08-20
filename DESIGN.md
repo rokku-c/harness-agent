@@ -153,6 +153,7 @@ Cloudflare    → Durable Object + DO 间消息
 ## 当前实现状态
 
 - ✅ `Agent` 定义流（define/returns/stages/uses/implementedBy）
+- ✅ 核心无 prompt 概念：`Context.messages` 是归一化 `Message`（与 Anthropic/OpenAI 同义，可互相转换，支持多媒体）
 - ✅ `Stage`/`Until`/`Gate` 组合子 + 接入 Agent
 - ✅ `Resource` 抽象（注入/帧视图/租约/边界）在 packages/core
 - ✅ `Mgmt`（ResourceMgmt）在 packages/builtin/containers
@@ -160,3 +161,25 @@ Cloudflare    → Durable Object + DO 间消息
 - ✅ monorepo：core（抽象）/ builtin（实现）/ community（扩展）
 - 🔶 阶段推进引擎未实现（编排能表达、未真正驱动按阶段跑）
 - 🔶 `Connection` 接入远程的抽象待完善
+
+## Context —— 四维认知模型（无 prompt 概念）
+
+核心 harness 不出现 `prompt` 概念。`Context` 是 agent 运行时的唯一事实源，由投递填充、
+业务只读。四维：
+
+```
+Context
+  ├─ always    持久指令（身份/规则/护栏），可配置是否可变；不可变时禁止改变
+  ├─ messages  本 run 接收的消息序列（投递填充，业务不直接构造，只读）
+  ├─ until     期望输出（观察投影）
+  └─ details   内部过程（thinking/text/toolCall —— 驱动支持时填充）
+```
+
+- **`messages`** 是归一化 `Message`，与 Anthropic message API / OpenAI chat / responses 同义：
+  `{ role, content: string | Block[] }`，Block 覆盖 text / image（url | base64）/ tool_call / tool_result，
+  支持多媒体。`toAnthropic(message)` / `toOpenAI(message)` 双向转换。
+- **输入完全通过 Messenger Delivery 传输**，不保留 `Context.input`。
+- **渲染是驱动/适配职责**：驱动用 `render`/`renderSystem`（packages/builtin/src/render.ts）
+  把 `Context` 投影成具体 SDK 所需的 prompt 文本。核心不关心渲染。
+- `Agent.define<I>()` 只声明接收类型，不构造 Context；业务输入经 `toMessage` 归一化注入。
+

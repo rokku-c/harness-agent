@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { Harness, type HarnessEvent } from "effect-agent"
+import { Harness, textOf, type HarnessEvent } from "effect-agent"
 
 const started = performance.now()
 const toolStarted = new Map<string, number>()
@@ -44,8 +44,10 @@ export const DetailHook = Harness.hook("detail", (event: HarnessEvent) => Effect
     case "RunStarted":
       write(`run started: ${event.agent}`, {
         always: event.context.always.map((entry) => entry.text),
-        current: event.context.current.map((entry) =>
-          entry._tag === "Text" ? entry.text : `Object: ${preview(entry.value)}`),
+        messages: event.context.messages.map((message) =>
+          message.content && typeof message.content !== "string"
+            ? `Blocks: ${JSON.stringify(preview(message.content))}`
+            : textOf(message)),
         until: event.context.until?._tag ?? "Stop"
       })
       break

@@ -1,3 +1,4 @@
+import { render, renderSystem } from "../render.js"
 import { Effect, Runtime } from "effect"
 import { Output, generateText, jsonSchema, tool, type LanguageModel, type ToolSet } from "ai"
 import { AgentFailure, decode, type AgentError, type Driver, materialize, requireSubagents, requireUntil, schemaJson, toolName, type DriverContext, type DriverSession, type StepEvent } from "@effect-agent/core"
@@ -84,7 +85,7 @@ export const VercelAgent = {
             model: options.model,
             instructions: options.instructions,
             system: request.context.alwaysText,
-            ...(messages.length > 0 ? { messages } : { prompt: request.context.render() + (outputTool
+            ...(messages.length > 0 ? { messages } : { prompt: render(request.context) + (outputTool
               ? `\n\nYou MUST call ${ToolNaming.outputToolName} exactly once to return your final structured answer. Do NOT put the answer in text.`
               : "") }),
             tools,

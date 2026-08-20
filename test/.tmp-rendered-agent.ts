@@ -6,7 +6,7 @@
  * 直跑：bun run examples/generated/RenderedAgent.ts -- "<task>"
  */
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, ClaudeCode, ConsoleHook, Harness, Until, type Driver } from "effect-agent"
+import { Agent, ClaudeCode, ConsoleHook, Context, Harness, Until, type Driver } from "effect-agent"
 import { TOOLS } from "../lib/agent-spec.js"
 
 // 生成的输出 Schema（宿主从 spec.output 编译）。
@@ -16,7 +16,7 @@ export const GeneratedOutput = Schema.Struct({
 
 export const makeGeneratedAgent = (driver: Driver) => {
   let builder = Agent
-    .define<string>((input) => AgentContext.input(input))
+    .define<string>()
     .returns(Until.schema(GeneratedOutput))
 
   // 宿主工具注册表：execute 全部由宿主实现。

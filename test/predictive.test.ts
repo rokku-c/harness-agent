@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import {
-  AgentContext,
+  Context,
   Op,
   PredictionMemory,
   PredictiveHarness,
@@ -63,7 +63,7 @@ describe("PredictiveHarness", () => {
     const program = Effect.gen(function*() {
       const result = yield* runDriver(
         PredictiveHarness.withPrediction(base, { predict, assess }) as Driver,
-        AgentContext.current("run").withUntil(Until.stop).withAccess([{ binding, write: false }])
+        Context.with({ messages: [{ role: "user", content: "run" }] }).withUntil(Until.stop).withAccess([{ binding, write: false }])
       )
       const memory = yield* PredictionMemory
       return { result, entries: yield* memory.entries }

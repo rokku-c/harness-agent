@@ -1,3 +1,4 @@
+import { render, renderSystem } from "../render.js"
 import { Effect, Runtime, Schema } from "effect"
 import {
   createSdkMcpServer,
@@ -302,7 +303,7 @@ export const ClaudeCode = {
                 const messages: SDKMessage[] = []
                 const systemPrompt = request.context.alwaysText
                 for await (const message of runQuery({
-                  prompt: request.context.render(),
+                  prompt: render(request.context),
                   options: {
                     ...sdkOptions,
                     hooks: claudeCodeHooks,

@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Providers, Until } from "effect-agent"
+import { Agent, Providers, Until } from "effect-agent"
 
 const Proposal = Schema.Struct({
   approach: Schema.String,
@@ -11,7 +11,7 @@ const program = Effect.gen(function*() {
   const providers = yield* Providers
 
   const explorers = providers.names.map((provider) => Agent
-    .define<string>((task) => AgentContext.input({ operation: "independent-proposal", task }))
+    .define<string>()
     .returns(Until.schema(Proposal))
     .implementedBy(providers.agent(provider)))
 

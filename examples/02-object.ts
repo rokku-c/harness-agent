@@ -1,5 +1,5 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Providers, Until } from "effect-agent"
+import { Agent, Providers, Until } from "effect-agent"
 
 const Plan = Schema.Struct({
   goal: Schema.String,
@@ -14,7 +14,7 @@ const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const Planner = Agent
-    .define<string>((task) => AgentContext.input({ operation: "plan", task }))
+    .define<string>()
     .returns(Until.schema(Plan))
     .implementedBy(driver)
 

@@ -1,3 +1,4 @@
+import { render, renderSystem } from "../render.js"
 import { Config, Effect, Layer, Redacted } from "effect"
 import { FetchHttpClient } from "@effect/platform"
 import { LanguageModel } from "@effect/ai"
@@ -68,7 +69,7 @@ export const EffectAgent = {
         const makeStep = Effect.gen(function*() {
           const model = yield* LanguageModel.LanguageModel
           const response = yield* model.generateText({
-            prompt: request.context.render()
+            prompt: render(request.context)
           })
           return { _tag: "Result", value: response.text } as StepEvent
         }).pipe(Effect.provide(modelLayer))

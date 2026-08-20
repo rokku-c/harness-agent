@@ -1,7 +1,6 @@
 import { Data, Effect, Schema } from "effect"
 import {
   Agent,
-  AgentContext,
   Harness,
   ProjectEnvironment,
   Providers,
@@ -44,7 +43,7 @@ const program = Effect.gen(function*() {
   })
 
   const iteration = Agent
-    .define<{ readonly objective: string; readonly write: boolean }>(AgentContext.input)
+    .define<{ readonly objective: string; readonly write: boolean }>()
     .returns(Until.schema(Iteration))
 
   const runnable = write

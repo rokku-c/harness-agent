@@ -1,4 +1,5 @@
 import { Context as EffectContext, Data, Effect, Either, JSONSchema, Layer, Option, Ref, Schema } from "effect"
+import { toMessage, textOf, type Message } from "./message.js"
 import type { Gate, Stage } from "./orchestration.js"
 
 /** 内部协议：驱动投影时无显式 Always 的默认指令。框架契约，非可调默认值。 */
@@ -8,11 +9,6 @@ const DEFAULT_ALWAYS = "Act on the supplied context using only the available cap
 
 /** Persistent instructions — identity, rules, guardrails. Stable across the whole run. */
 export type Always = { readonly _tag: "Always"; readonly text: string }
-
-/** Current-turn state — task input and injected binding content. */
-export type Entry =
-  | { readonly _tag: "Text"; readonly text: string }
-  | { readonly _tag: "Object"; readonly value: unknown }
 
 /** Internally observed process — thinking, intermediate text, tool calls. Populated by drivers when supported. */
 export type Detail =
@@ -39,7 +35,8 @@ export const Op = {
 
 export interface Binding<A = never, E = never, R = never> {
   readonly uri: string
-  readonly read?: Effect.Effect<Entry, E, R>
+  /** 注入值：可以是 Message / string / 任意值，materialize 时归一化为 user 消息。 */
+  readonly read?: Effect.Effect<unknown, E, R>
   readonly typed?: Effect.Effect<A, E, R>
   /** Ops 的 R 与 Binding 的 R 关联，使 uses() 能收集「agent 作为工具」的依赖。 */
   readonly ops?: ReadonlyArray<Op<any, any, any, R>>
@@ -184,8 +181,9 @@ export const Until = {
 }
 
 export interface ContextInit {
-  readonly always: ReadonlyArray<Always>
-  readonly current: ReadonlyArray<Entry>
+  readonly always?: ReadonlyArray<Always>
+  /** 本 run 接收的消息序列（投递填充，业务不直接构造）。归一化 Message，与 Anthropic/OpenAI 同义。 */
+  readonly messages?: ReadonlyArray<Message>
   readonly until?: Until<any>
   readonly access?: ReadonlyArray<Access<any>>
   readonly subagents?: ReadonlyArray<SubagentProgram>
@@ -204,16 +202,14 @@ export interface ContextInit {
  * It is the single source of truth; drivers project it into their specific context.
  */
 export class Context {
-  static empty = new Context({ always: [], current: [] })
-  /** Persistent instruction, projected as the native system prompt when the driver supports one. */
-  static always(text: string) { return new Context({ always: [{ _tag: "Always", text }], current: [] }) }
-  /** Current-turn task input. */
-  static current(text: string) { return new Context({ always: [], current: [{ _tag: "Text", text }] }) }
-  /** Structured current-turn input. Drivers render it without requiring business prompt construction. */
-  static input(value: unknown) { return new Context({ always: [], current: [{ _tag: "Object", value }] }) }
-  constructor(readonly init: ContextInit) {}
-  get always() { return this.init.always }
-  get current() { return this.init.current }
+  /** 空上下文：运行时由投递填充，业务不直接构造。 */
+  static empty = new Context({})
+  /** 结构化初始化（驱动/测试/底层用）。业务不用 prompt 构造。 */
+  static with(init: ContextInit): Context { return new Context(init) }
+  constructor(readonly init: ContextInit = {}) {}
+  get always() { return this.init.always ?? [] }
+  /** 本 run 接收的消息序列（投递填充，只读）。 */
+  get messages() { return this.init.messages ?? [] }
   get until() { return this.init.until }
   get access() { return this.init.access ?? [] }
   get subagents() { return this.init.subagents ?? [] }
@@ -227,10 +223,19 @@ export class Context {
     return this.always.find((entry): entry is Always => entry._tag === "Always")?.text ?? DEFAULT_ALWAYS
   }
   get lastText() {
-    return this.current.findLast((entry): entry is Extract<Entry, { _tag: "Text" }> => entry._tag === "Text")?.text
+    for (const message of [...this.messages].reverse()) {
+      const text = textOf(message)
+      if (text.length > 0) return text
+    }
+    return undefined
   }
-  appendCurrent(...entries: ReadonlyArray<Entry>) {
-    return new Context({ ...this.init, current: [...this.current, ...entries] })
+  /** 追加接收消息（驱动/投递内部用，业务只读）。 */
+  appendMessages(...messages: ReadonlyArray<Message>) {
+    return new Context({ ...this.init, messages: [...this.messages, ...messages] })
+  }
+  /** 设置持久规则（Gate/驱动用，可配置是否可变）。 */
+  withAlways(always: ReadonlyArray<Always>) {
+    return new Context({ ...this.init, always })
   }
   withUntil(until: Until<any>) {
     return new Context({ ...this.init, until })
@@ -253,20 +258,9 @@ export class Context {
   withWorld(containers: ContainersService, connections: ConnectionsService) {
     return new Context({ ...this.init, containers, connections })
   }
-  /** Renders the persistent instructions (without current state), or empty when unset. */
-  renderSystem() {
-    const text = this.alwaysText
-    return text === undefined ? "" : `Always: ${text}`
-  }
-  render() {
-    return this.current
-      .map((entry) => entry._tag === "Text"
-        ? `Text: ${entry.text}`
-        : `Object: ${JSON.stringify(entry.value)}`).join("\n")
-  }
 }
 
-/** Backward-compatible alias. */
+/** Backward-compatible alias (read-only view; business code does not construct). */
 export const AgentContext = Context
 
 /* ────────────────────────── Capabilities ────────────────────────── */
@@ -396,12 +390,14 @@ export const runDriver = <O>(
 })
 
 /** Materialize binding reads into the context, preserving each read's error channel `E`.
- *  Callers (drivers) map `E` to `AgentFailure` as appropriate. */
+ *  Reads are normalized to user `Message`s (`toMessage`); callers (drivers) map `E` to `AgentFailure` as appropriate. */
 export const materialize = <E, R>(request: DriverContext): Effect.Effect<DriverContext, E, R> =>
   Effect.forEach(request.context.access, ({ binding }) =>
-    binding.read ? Effect.map(binding.read, (value): ReadonlyArray<Entry> => [value]) : Effect.succeed([] as ReadonlyArray<Entry>),
+    binding.read
+      ? Effect.map(binding.read, (value): ReadonlyArray<Message> => [toMessage(value)])
+      : Effect.succeed([] as ReadonlyArray<Message>),
   { concurrency: "unbounded" }).pipe(
-    Effect.map((nested) => ({ ...request, context: request.context.appendCurrent(...nested.flat()) }))
+    Effect.map((nested) => ({ ...request, context: request.context.appendMessages(...nested.flat()) }))
   )
 
 /* ────────────────────────── Agent program ────────────────────────── */

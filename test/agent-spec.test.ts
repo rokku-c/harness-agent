@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { resolve } from "node:path"
 import type { Driver } from "../src/index.js"
+import { render, renderSystem } from "../packages/builtin/src/render.js"
 import {
   compileSpec,
   decodeAgentSpec,
@@ -103,7 +104,7 @@ describe("compileSpec", () => {
       },
       start: (request) => Effect.sync(() => {
         // 与真实 driver（如 Codex）一致：system + current 拼成完整 prompt。
-        calls.push([request.context.renderSystem(), request.context.render()].filter(Boolean).join("\n\n"))
+        calls.push([renderSystem(request.context), render(request.context)].filter(Boolean).join("\n\n"))
         return {
           step: Effect.succeed({ _tag: "Result", value: { summary: "干净", verdict: "ok" } })
         }
@@ -113,7 +114,7 @@ describe("compileSpec", () => {
     const result = await Effect.runPromise(program.run("审查 src/core.ts") as never) as unknown as { output: unknown }
     expect(result.output).toEqual({ summary: "干净", verdict: "ok" })
     expect(calls[0]).toContain("Act on the supplied context")
-    expect(calls[0]).toContain('Object: "审查 src/core.ts"')
+    expect(calls[0]).toContain("审查 src/core.ts")
   })
 })
 
