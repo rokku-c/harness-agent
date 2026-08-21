@@ -6,6 +6,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "example": "bun examples/01-weather-record.ts"
+  },
   "dependencies": {
     "effect": "^3.22.1"
   }
