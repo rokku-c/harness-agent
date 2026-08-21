@@ -1,14 +1,14 @@
 import { Effect, Schema } from "effect"
-import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
+import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
 import { Control, type Agent, type ConnectionImpl, type Driver } from "../../src/index.js"
 
 /**
- * Claude Code driver —— IOECC 的具体 Driver。
+ * Claude Code driver —— IOECC 的具体 Driver（真实 SDK 实现）。
  *
  * Driver 就是 Agent（五维度）：ClaudeCode 是一个 Agent，声明：
  *   - connections  它连接的世界（provider / tools / skills）
  *   - controls     它声明的能力（RunClaude control，影响 provider/tools/skills）
- *   - run(prompt)  调真实 Claude Agent SDK（具体 driver 能力，非核心字段）
+ *   - run(prompt)  调真实 Claude Agent SDK（query 收集消息，取 result）
  *
  * connection 分类（哪个作为 provider 配置 / 注入为工具 / 注入为 skills）
  * 由 connection 自己的 use 标记声明，driver 只声明它连接了哪些世界。
@@ -40,12 +40,7 @@ export class RunClaude extends Control<string, string> {
 
 /* ── ClaudeCode driver ── */
 
-export interface ClaudeCodeOptions {
-  /** model 等 provider 配置（真实 SDK 用）。 */
-  readonly model?: string
-  readonly maxTurns?: number
-  readonly permissionMode?: "default" | "acceptEdits" | "plan" | "bypassPermissions"
-  readonly cwd?: string
+export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks"> {
   /** 注入为工具的 connection（use: "tool"）。 */
   readonly toolConnections?: ReadonlyArray<ClassifiedConnection>
   /** 注入为 skills 的 connection（use: "skill"）。 */
@@ -54,10 +49,16 @@ export interface ClaudeCodeOptions {
   readonly providerConnection?: ClassifiedConnection
 }
 
+/** 从 SDK 消息流提取最终 result 文本。 */
+const extractResult = (messages: ReadonlyArray<SDKMessage>): Effect.Effect<string, Error> => {
+  const result = messages.findLast((m) => m.type === "result")
+  if (!result || result.subtype !== "success")
+    return Effect.fail(new Error(result ? `Claude Code failed: ${result.subtype}` : "No result from Claude Code"))
+  return Effect.succeed(result.result)
+}
+
 /**
- * 构造一个 Claude Code driver（Agent）。
- * 它声明连接的 connection + 一个 RunClaude control；run 调真实 SDK。
- * 这里保留「声明如何设置」——不真的起 Claude Code，除非提供真实 provider。
+ * 构造一个 Claude Code driver（Agent）。run 调真实 Claude Agent SDK。
  */
 export const makeClaudeCodeDriver = (
   options: ClaudeCodeOptions = {}
@@ -73,12 +74,33 @@ export const makeClaudeCodeDriver = (
     ...(options.skillConnections ?? []),
   ]
 
+  // 从 SDK options 拆分出我们要透传的字段（去掉 outputFormat/hooks）。
+  const {
+    toolConnections: _tc,
+    skillConnections: _sc,
+    providerConnection: _pc,
+    ...sdkOptions
+  } = options
+
+  // 真实 SDK 调用：query 收集消息，取 result。
+  const runOnce = (prompt: string): Effect.Effect<string, Error> =>
+    Effect.tryPromise({
+      try: async () => {
+        const messages: SDKMessage[] = []
+        for await (const message of query({
+          prompt,
+          options: sdkOptions as Options,
+        })) messages.push(message)
+        return messages
+      },
+      catch: (cause) => new Error(cause instanceof Error ? cause.message : String(cause)),
+    }).pipe(Effect.flatMap(extractResult))
+
   // Claude Connection 实现：把 agent 的 "run" 意图路由到 SDK。
   const claudeImpl: ConnectionImpl = {
     handle: (op, args) => {
       if (op !== "run") return Effect.fail(new Error(`Claude can't ${op}`))
-      // 真实实现会调 SDK；这里占位（无真实 provider 时）。
-      return Effect.succeed(`[claude:${options.model ?? "default"}] ${String(args)}`)
+      return runOnce(String(args))
     },
   }
 
@@ -90,12 +112,7 @@ export const makeClaudeCodeDriver = (
     connections: ["Claude"],
     controls: [runControl],
     drivers: [],
-    run: (prompt) => {
-      // 真实实现：const messages: SDKMessage[] = []
-      // for await (const m of query({ prompt, options: { model: options.model } })) ...
-      // 这里占位（保留 SDK 导入以备真实实现）。
-      return claudeImpl.handle("run", prompt) as Effect.Effect<string, Error>
-    },
+    run: (prompt) => runOnce(prompt),
     classify,
     toImpl: () => claudeImpl,
   }

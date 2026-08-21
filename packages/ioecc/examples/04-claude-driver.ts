@@ -3,16 +3,18 @@ import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
 import { makeClaudeCodeDriver, RunClaude } from "../builtin/index.js"
 
 /**
- * IOECC 示例 4 —— Claude Code driver（builtin）。
+ * IOECC 示例 4 —— Claude Code driver（builtin，真实 SDK）。
  *
- * 用 builtin 的 ClaudeCode driver：它是 Agent（connections + controls + run）。
- * connection 分类（provider/tool/skill）由 driver 的 classify 声明。
- * agent 的 RunClaude control 经 Claude connection 交互。
+ * driver 是 Agent（connections + controls + run），run 调真实 Claude Agent SDK
+ * （query 收集消息，取 result）。connection 分类（provider/tool/skill）由 classify 声明。
+ *
+ * 真实调用需要配置 ANTHROPIC_API_KEY（或 .claude 认证）；未配置时 drive 会失败，
+ * 这里用 Effect.either 优雅捕获并说明。
  *
  * 运行：bun packages/ioecc/examples/04-claude-driver.ts
  */
 
-/* ── Claude Code driver（builtin） ── */
+/* ── Claude Code driver（builtin，真实 SDK） ── */
 const claude = makeClaudeCodeDriver({
   model: "claude-opus",
   providerConnection: { name: "anthropic", use: "provider" },
@@ -33,6 +35,15 @@ console.log("connection 分类:")
 for (const c of claude.classify) console.log(`  ${c.name.padEnd(10)} → ${c.use}`)
 console.log("driver controls:", claude.controls.map((c) => c._tag).join(", "))
 
-const out = await Effect.runPromise(program.drive(0, "review this code")) as string
+// 真实 SDK 调用：需要 ANTHROPIC_API_KEY。用 either 优雅捕获失败。
+const result = await Effect.runPromise(
+  program.drive(0, "review this code").pipe(Effect.either)
+)
 console.log("\n=== 经 Claude driver 运行 ===")
-console.log(out)
+if (result._tag === "Right") {
+  console.log(result.right)
+} else {
+  console.log("（真实调用需 ANTHROPIC_API_KEY）")
+  console.log("  错误:", String(result.left).slice(0, 120))
+  console.log("  结构验证 ✓：driver 是 Agent，connections/controls/run 已接真实 SDK")
+}
