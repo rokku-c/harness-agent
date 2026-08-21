@@ -49,31 +49,15 @@ export interface Control<
  */
 export class Connection extends Context.Tag("Connection")<Connection, Record<string, never>>() {}
 
-/* ── 解释器：把声明变成执行（运行时一侧，非五维度） ── */
-
-/** 解释 E：把 Effect 路由到它声明的 Connection，返回类型安全结果。 */
-export class EffectExecutor extends Context.Tag("EffectExecutor")<
-  EffectExecutor,
-  {
-    readonly execute: (effect: Effect<any, any, any>) => Effect.Effect<unknown, Error>
-  }
->() {}
-
-/** 解释 C：驱动一次控制（静态 Trigger 或动态干预），返回类型安全结果。 */
-export class ControlExecutor extends Context.Tag("ControlExecutor")<
-  ControlExecutor,
-  {
-    readonly control: (control: Control<any, any>) => Effect.Effect<unknown, Error>
-  }
->() {}
-
 /* ── Agent ── */
 
 /**
- * Agent —— 被动黑盒。
+ * Agent —— 被动黑盒（纯描述，无执行）。
  * 声明两个维度：
  *   effects    这个 Agent 会产生哪些 E（影响哪些 Connection）
  *   controls   静态触发器集合（接受什么输入 + 触发后的行为）
+ *
+ * 描述不执行；compile（见 compiler.ts）把描述变成可运行程序。
  */
 export interface Agent {
   readonly effects: ReadonlyArray<Effect<any, any, any>>

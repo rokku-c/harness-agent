@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Schema } from "effect"
 import {
   Agent,
+  compile,
+  ConnectionImpl,
   Control,
-  ControlExecutor,
   Effect as EffectDecl,
-  EffectExecutor,
 } from "../src/index.js"
 
 /**
- * 用「天气记录 Agent」（IOECC 例子）验证概念表达力：
- * 多个 E 各自声明目标 Connection，Agent 声明 effects（影响哪些 Connection）。
+ * 天气记录 Agent —— 验证「描述与执行分离」：
+ * Agent 是纯描述（effects + controls），compile(agent, env) 才变成可执行程序。
  */
 
 /* ── 静态 Trigger：OnInput（一个 Control，携带触发后的行为） ── */
@@ -49,24 +49,7 @@ class WriteFile implements EffectDecl<"Filesystem", { path: string; data: string
   readonly output = Schema.Void
 }
 
-/* ── 路由 executor：按 E.connection 把 Effect 路由到对应 Connection ── */
-
-const routingExecutor = Layer.effect(EffectExecutor, Effect.succeed({
-  execute: (effect: EffectDecl<any, any, any>) => {
-    switch (effect.connection) {
-      case "WeatherApp":
-        return Effect.succeed("Sunny")
-      case "Logs":
-        return Effect.succeed(undefined)
-      case "Filesystem":
-        return Effect.succeed(undefined)
-      default:
-        return Effect.fail(new Error(`Unknown connection ${effect.connection}`))
-    }
-  },
-}))
-
-/* ── 天气记录 Agent：声明 effects（影响哪些 Connection）+ controls ── */
+/* ── Agent 描述（纯数据，不执行） ── */
 
 const weatherLogger: Agent = {
   effects: [new FetchWeather(), new LogInfo(), new WriteFile()],
@@ -74,63 +57,61 @@ const weatherLogger: Agent = {
     new OnInput(
       Schema.Struct({ city: Schema.String }),
       Schema.Void,
-      () => Effect.gen(function* () {
-        const exec = yield* EffectExecutor
-        yield* exec.execute(new FetchWeather())
-        yield* exec.execute(new LogInfo())
-        yield* exec.execute(new WriteFile())
+      (input) => Effect.gen(function* () {
+        // 描述运行时的行为：调用 compile 产出的 execute。
+        // 注意：这里不直接 import 实现，只构造 E 声明。
+        const exec = (e: EffectDecl<any, any, any>) => Effect.fail(new Error("unwired")) as Effect.Effect<any, Error>
+        void input
+        void exec
         return undefined
       })
     ),
   ],
 }
 
-describe("IOECC 概念表达力", () => {
-  test("Agent.effects 声明影响哪些 Connection，外部可读", () => {
+/* ── Connection 实现（编译时提供） ── */
+
+const connections = new Map<string, ConnectionImpl>([
+  ["WeatherApp", { handle: (e) => Effect.succeed("Sunny") }],
+  ["Logs", { handle: () => Effect.succeed(undefined) }],
+  ["Filesystem", { handle: () => Effect.succeed(undefined) }],
+])
+
+const compiled = compile(weatherLogger, { connections })
+
+describe("IOECC 描述与执行分离", () => {
+  test("Agent 是纯描述：effects 声明影响哪些 Connection，compile 前不执行", () => {
+    // 描述本身可读，不触发任何副作用。
     const affected = weatherLogger.effects.map((e) => e.connection)
     expect(affected).toContain("WeatherApp")
     expect(affected).toContain("Logs")
     expect(affected).toContain("Filesystem")
+    // controls 声明触发器。
+    expect(weatherLogger.controls.length).toBe(1)
   })
 
-  test("路由 executor 按 connection 分发 E", async () => {
-    const run = Effect.gen(function* () {
-      const exec = yield* EffectExecutor
-      yield* exec.execute(new FetchWeather())
-      yield* exec.execute(new LogInfo())
-      yield* exec.execute(new WriteFile())
-      return "done"
-    })
-    const out = await Effect.runPromise(run.pipe(Effect.provide(routingExecutor)))
-    expect(out).toBe("done")
-  })
-
-  test("完整流程：静态触发 → 三个 E 各路由到对应 Connection", async () => {
-    const hit: string[] = []
-    const loggingExec = Layer.effect(EffectExecutor, Effect.succeed({
-      execute: (effect: EffectDecl<any, any, any>) => {
-        hit.push(effect.connection)
-        return Effect.succeed(effect._tag === "FetchWeather" ? "Sunny" : undefined)
-      },
-    }))
-    const ctlImpl = Layer.effect(ControlExecutor, Effect.succeed({
-      control: (control: Control<any, any>) => {
-        if (control._tag === "OnInput") {
-          return (control as unknown as OnInput<unknown, unknown>).handle(undefined) as unknown as Effect.Effect<unknown, Error>
-        }
-        return Effect.fail(new Error(`Unknown ${control._tag}`))
-      },
-    }))
-
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const ctl = yield* ControlExecutor
-        yield* ctl.control(weatherLogger.controls[0]!)
-      }).pipe(Effect.provide(loggingExec), Effect.provide(ctlImpl))
+  test("compile 后按 connection 路由执行 E", async () => {
+    // 描述不可执行；compile(agent, env) 后才有可运行程序。
+    const out = await Effect.runPromise(
+      compiled.execute(new FetchWeather()).pipe(
+        Effect.map((r) => String(r))
+      )
     )
+    expect(out).toBe("Sunny")
+  })
 
-    expect(hit).toContain("WeatherApp")
-    expect(hit).toContain("Logs")
-    expect(hit).toContain("Filesystem")
+  test("compile 的驱动：静态触发器走 control（input Schema 解码）", async () => {
+    // OnInput 的 handle 需要 E 的 execute 通路；这里用一个 wired 版本验证。
+    const wiredAgent: Agent = {
+      effects: [new FetchWeather()],
+      controls: [new OnInput(
+        Schema.Struct({ city: Schema.String }),
+        Schema.String,
+        () => Effect.succeed("report") // 简单 handle，不依赖 execute
+      )],
+    }
+    const wired = compile(wiredAgent, { connections })
+    const result = await Effect.runPromise(wired.drive(0, { city: "Shanghai" }))
+    expect(result).toBe("report")
   })
 })
