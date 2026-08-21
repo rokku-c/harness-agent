@@ -1,4 +1,4 @@
-import { Data, Effect, Schema, Stream } from "effect"
+import { Data, Effect, Schema } from "effect"
 import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
 import { Control, type Agent, type ConnectionImpl, type Driver } from "../../src/index.js"
 
@@ -21,19 +21,24 @@ export class ClaudeCodeError extends Data.TaggedError("ClaudeCodeError")<{
   readonly message?: string
 }> {}
 
-/** Claude SDK 消息流 → Stream（effect 原生，错误通道自动，无手写 try/catch）。
- *  `onMessage` 可选：每条消息流经时记录（暴露 detail 用）。 */
-export const claudeStream = (
+/** 收集 Claude SDK 消息（for-await 迭代 Query）。SDK Query 不是标准 AsyncIterable，
+ *  Stream.fromAsyncIterable 会提前关闭 channel，故用 for-await + Effect 包边界。 */
+export const collectClaude = (
   prompt: string,
   options: Options,
   onMessage?: (message: SDKMessage) => Effect.Effect<void>
-): Stream.Stream<SDKMessage, ClaudeCodeError> =>
-  Stream.fromAsyncIterable(
-    query({ prompt, options }),
-    (cause) => new ClaudeCodeError({ stage: "sdk", cause })
-  ).pipe(
-    onMessage ? Stream.tap(onMessage) : Stream.identity
-  )
+): Effect.Effect<ReadonlyArray<SDKMessage>, ClaudeCodeError> =>
+  Effect.tryPromise({
+    try: async () => {
+      const messages: SDKMessage[] = []
+      for await (const message of query({ prompt, options })) {
+        messages.push(message)
+        if (onMessage) await Effect.runPromise(onMessage(message).pipe(Effect.ignore))
+      }
+      return messages
+    },
+    catch: (cause) => new ClaudeCodeError({ stage: "sdk", cause }),
+  })
 
 /* ── Connection 分类：connection 自己带 use 标记 ── */
 
@@ -106,11 +111,10 @@ export const makeClaudeCodeDriver = (
     ...sdkOptions
   } = options
 
-  // 真实 SDK 调用：Stream 收集消息，取 result（无手写 try/catch）。
+  // 真实 SDK 调用：收集消息，取 result（for-await + Effect 包边界）。
   const runOnce = (prompt: string): Effect.Effect<string, ClaudeCodeError> =>
-    claudeStream(prompt, sdkOptions as Options, options.onMessage).pipe(
-      Stream.runCollect,
-      Effect.flatMap((chunk) => extractResult([...chunk]))
+    collectClaude(prompt, sdkOptions as Options, options.onMessage).pipe(
+      Effect.flatMap((messages) => extractResult(messages))
     )
 
   // Claude Connection 实现：把 agent 的 "run" 意图路由到 SDK。
@@ -134,3 +138,91 @@ export const makeClaudeCodeDriver = (
     toImpl: () => claudeImpl,
   }
 }
+
+/* ── configured：从 config.toml + .env 读 provider，构造 driver ── */
+
+/** 解析 `${ENV_VAR}` 引用（如 `${LLM_API_KEY}`）。 */
+const resolveEnv = (value: string, env: Readonly<Record<string, string | undefined>>): string =>
+  value.replace(/\$\{([A-Z_][A-Z0-9_]*)\}/g, (_m, key: string) => env[key] ?? "")
+
+/** 读 .env 文件（KEY=value 行），不覆盖已有 env。 */
+const loadDotEnv = async (envFile: string, env: Record<string, string | undefined>): Promise<Record<string, string | undefined>> => {
+  try {
+    const text = await Bun.file(envFile).text()
+    for (const line of text.split(/\r?\n/)) {
+      const raw = line.trim().replace(/^export\s+/, "")
+      if (!raw || raw.startsWith("#")) continue
+      const eq = raw.indexOf("=")
+      if (eq < 1) continue
+      const key = raw.slice(0, eq).trim()
+      let value = raw.slice(eq + 1).trim()
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
+        value = value.slice(1, -1)
+      if (!(key in env)) env[key] = value
+    }
+  } catch { /* .env 不存在则忽略 */ }
+  return env
+}
+
+export interface ClaudeConfiguredOptions {
+  readonly path?: string
+  /** .env 文件（默认 ".env"），提供 `${VAR}` 引用的值。 */
+  readonly envFile?: string
+  /** config.toml 里的 provider 名（默认 "claude"）。 */
+  readonly provider?: string
+  /** provider 分类（可选）。 */
+  readonly providerConnection?: ClassifiedConnection
+  readonly toolConnections?: ReadonlyArray<ClassifiedConnection>
+  readonly skillConnections?: ReadonlyArray<ClassifiedConnection>
+  /** 运行时 detail 记录。 */
+  readonly onMessage?: (message: SDKMessage) => Effect.Effect<void>
+}
+
+/**
+ * 从 config.toml + .env 读 provider（如 `[providers.claude]`），
+ * 构造一个已配置好 apiKey/baseURL/model 的 Claude Code driver。
+ */
+export const configuredClaudeCode = (options: ClaudeConfiguredOptions = {}) =>
+  Effect.gen(function* () {
+    const path = options.path ?? "config.toml"
+    const name = options.provider ?? "claude"
+    // 先读 .env 填充，再合并 process.env（process.env 优先）。
+    const env = yield* Effect.promise(() => loadDotEnv(options.envFile ?? ".env", { ...process.env }))
+
+    // 读 config.toml（Bun.TOML），取 provider。
+    const text = yield* Effect.tryPromise({
+      try: async () => await Bun.file(path).text(),
+      catch: (cause) => new ClaudeCodeError({ stage: "sdk", cause, message: `无法读取 ${path}` }),
+    })
+    const toml = Bun.TOML.parse(text) as {
+      providers?: Record<string, { api?: string; model?: string; apiKey?: string; baseURL?: string }>
+      insecureTls?: { enabled?: boolean }
+    }
+    const provider = toml.providers?.[name]
+    if (!provider)
+      return yield* Effect.fail(new ClaudeCodeError({ stage: "sdk", cause: `providers.${name} not in ${path}` }))
+    const insecureTls = toml.insecureTls?.enabled ?? false
+
+    const apiKey = provider.apiKey ? resolveEnv(provider.apiKey, env) : undefined
+    const baseURL = provider.baseURL ? provider.baseURL.replace(/\/v1\/?$/, "") : undefined
+
+    // 构造 driver：SDK options 用 env（ANTHROPIC_API_KEY / ANTHROPIC_BASE_URL）+ model。
+    return makeClaudeCodeDriver({
+      model: provider.model,
+      cwd: process.cwd(),
+      settingSources: [],
+      persistSession: false,
+      permissionMode: "default",
+      providerConnection: options.providerConnection ?? { name, use: "provider" },
+      toolConnections: options.toolConnections,
+      skillConnections: options.skillConnections,
+      onMessage: options.onMessage,
+      env: {
+        ...env,
+        CLAUDE_AGENT_SDK_CLIENT_APP: "effect-agent/0.0.0",
+        ...(apiKey ? { ANTHROPIC_API_KEY: apiKey, ANTHROPIC_AUTH_TOKEN: apiKey } : {}),
+        ...(baseURL ? { ANTHROPIC_BASE_URL: baseURL } : {}),
+        ...(insecureTls ? { NODE_TLS_REJECT_UNAUTHORIZED: "0" } : {}),
+      },
+    })
+  })

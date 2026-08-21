@@ -1,6 +1,6 @@
-import { Effect, Schema, Stream } from "effect"
+import { Effect, Schema } from "effect"
 import { type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
-import { ClaudeCodeError, claudeStream } from "./claude-code.js"
+import { ClaudeCodeError, collectClaude } from "./claude-code.js"
 
 /**
  * Until + fork —— 跑 Claude Code 直到某点，在那 fork。
@@ -65,9 +65,8 @@ export const runUntil = (
   opts: RunUntilOptions
 ): Effect.Effect<{ output: unknown; forked: boolean; matched: SDKMessage | undefined }, ClaudeCodeError> =>
   Effect.gen(function* () {
-    // Stream 收集：保留 until 边界的消息（takeUntil 含命中项）。
-    const chunk = yield* claudeStream(prompt, opts.options).pipe(Stream.runCollect)
-    const messages = [...chunk]
+    // 收集消息（for-await + Effect 包边界）。
+    const messages = yield* collectClaude(prompt, opts.options)
 
     // 找第一个满足 until 的消息（fork 点）。
     const matched = messages.find((m) => satisfies(until, m))
