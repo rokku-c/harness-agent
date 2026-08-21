@@ -21,11 +21,18 @@ export class ClaudeCodeError extends Data.TaggedError("ClaudeCodeError")<{
   readonly message?: string
 }> {}
 
-/** Claude SDK 消息流 → Stream（effect 原生，错误通道自动，无手写 try/catch）。 */
-export const claudeStream = (prompt: string, options: Options): Stream.Stream<SDKMessage, ClaudeCodeError> =>
+/** Claude SDK 消息流 → Stream（effect 原生，错误通道自动，无手写 try/catch）。
+ *  `onMessage` 可选：每条消息流经时记录（暴露 detail 用）。 */
+export const claudeStream = (
+  prompt: string,
+  options: Options,
+  onMessage?: (message: SDKMessage) => Effect.Effect<void>
+): Stream.Stream<SDKMessage, ClaudeCodeError> =>
   Stream.fromAsyncIterable(
     query({ prompt, options }),
     (cause) => new ClaudeCodeError({ stage: "sdk", cause })
+  ).pipe(
+    onMessage ? Stream.tap(onMessage) : Stream.identity
   )
 
 /* ── Connection 分类：connection 自己带 use 标记 ── */
@@ -61,6 +68,8 @@ export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks
   readonly skillConnections?: ReadonlyArray<ClassifiedConnection>
   /** provider connection（use: "provider"）。 */
   readonly providerConnection?: ClassifiedConnection
+  /** 可选：运行时把每条 SDK 消息的 detail 记录到外部（如 ClaudeDetail Connection）。 */
+  readonly onMessage?: (message: SDKMessage) => Effect.Effect<void>
 }
 
 /** 从 SDK 消息流提取最终 result 文本。 */
@@ -99,7 +108,7 @@ export const makeClaudeCodeDriver = (
 
   // 真实 SDK 调用：Stream 收集消息，取 result（无手写 try/catch）。
   const runOnce = (prompt: string): Effect.Effect<string, ClaudeCodeError> =>
-    claudeStream(prompt, sdkOptions as Options).pipe(
+    claudeStream(prompt, sdkOptions as Options, options.onMessage).pipe(
       Stream.runCollect,
       Effect.flatMap((chunk) => extractResult([...chunk]))
     )

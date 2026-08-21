@@ -1,7 +1,8 @@
 /**
  * @effect-agent/ioecc/builtin —— IOECC 内置实现。
  *
- * drivers/   具体 Driver（Claude Code 等）+ until/fork
+ * drivers/   具体 Driver（Claude Code 等）+ until/fork + detail 暴露
  */
 export * from "./drivers/claude-code.js"
 export * from "./drivers/until.js"
+export * from "./drivers/detail.js"
