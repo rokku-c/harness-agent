@@ -1,27 +1,47 @@
-import { Effect, Schema } from "effect"
+import { Context, Effect, Schema } from "effect"
 
 /**
- * IOECC —— 五个正交维度（纯抽象概念，无执行、无契约）。
+ * IOECC —— 五个正交维度（纯抽象概念，无执行、无契约），effect-ts 化。
  *
  *   I (Input)         Agent 接收的数据形状
  *   O (Output)        Agent 产出给下游的数据形状
- *   E (Effect)        对世界的影响声明：哪个 Connection 的外部受影响
- *   C (Connection)    世界：Agent 连接的环境/容器（抽象边界，非运行时实现）
- *   C (Control)       对自身的控制声明：静态 Trigger 或动态干预（Fork/Stop/Retry）
+ *   E (Intent)        对世界的一次交互意图：在哪个 Connection 上做什么
+ *   C (Connection)    世界：类型安全的服务接口（Context.Tag）
+ *   C (Control)       对自身的控制实现（用具体 driver 能力写逻辑）
  *
- * 这里的每个概念都是「描述」，不执行、不携带操作契约。
- * 具体契约（如何执行一个 Effect、如何驱动一个 Control）在 compile 时提供。
+ * 与 effect-ts 哲学对齐：
+ *   - Connection 是 Context.Tag（类型安全的世界），不是裸 { name }
+ *   - Agent 的 connections 声明它需要的世界（Requirement），运行时由 Effect 的 R 满足
+ *   - Intent 是「对哪个 Connection 的交互」，驱动靠 driver 声明的 Control
+ *   - 描述（Agent）与执行（Control.run）分离；Control.run 依赖走 Effect 环境
  */
 
-/* ── E (Effect)：对世界的影响声明 ── */
+/* ── E (Intent)：对世界的一次交互意图 ── */
 
 /**
- * 抽象的影响声明：只声明「对哪个 Connection 的外部产生了可观测的影响」。
- * 不携带操作契约（input/output）——那是具体操作的事；E 只是影响标记，后续可被访问/路由。
+ * 对世界的交互意图：声明「对哪个 Connection 产生了可观测影响」。
+ * `connection` 是 Connection Tag 的名字（必须被 Agent 声明过）。
+ * 不携带操作契约——只是影响标记，后续可被访问/路由。
  */
-export interface Effect<Connection extends string = string> {
+export interface Intent<Connection extends string = string> {
   readonly _tag: string
   readonly connection: Connection
+}
+
+/* ── C (Connection)：世界（类型安全的服务接口） ── */
+
+/**
+ * 世界：Agent 连接的环境/容器。类型安全的服务接口（Context.Tag）。
+ * 实现由外围 Layer 提供；Agent 只声明「我连接这个世界」。
+ * 具体世界的服务类型由 Layer 提供时确定。
+ */
+export class Connection extends Context.Tag("IOECC/Connection")<Connection, unknown>() {}
+
+/* ── 执行侧契约 ── */
+
+/** Connection 实现：解释一个连接操作（操作契约在编译侧）。 */
+export interface ConnectionImpl {
+  readonly handle: (op: string, args: unknown) => Effect.Effect<unknown, Error>
 }
 
 /* ── C (Control)：对自身的控制实现 ── */
@@ -29,88 +49,64 @@ export interface Effect<Connection extends string = string> {
 /**
  * 控制实现基类。用户继承它，写 constructor（构造）与 run（逻辑）。
  *
- *   class OnInput extends Control<I, O> {
- *     constructor(...) { super(...) }        // 构造
- *     run(I, O, E, Cn, Ct, d) {              // 用 driver 写逻辑
+ * 关键：Control 声明它执行后影响哪些 connection（`affects`）——
+ * 这是「声明影响」：执行这个 control 后，会对 affects 里的 connection 产生可观测影响，
+ * 执行后获得绑定的 connection，可传给其他 driver/agent。
+ *
+ *   class WriteFile extends Control<In, Out> {
+ *     constructor() { super("WriteFile", ["FileSystem"]) }  // 影响 FileSystem
+ *     run(i, o): Effect<Out, Error> {
  *       return Effect.gen(function* () {
- *         yield* d.run(...)
+ *         // 经 affects 声明的 FileSystem connection 读写
+ *         yield* ...
  *       })
  *     }
  *   }
  *
  * 静态 Trigger 与动态干预（Fork/Stop/Retry）都是 Control 的子类。
+ * 影响声明绑定在 control 上，不绑在整个 agent 上。
  */
-export class Control<I = unknown, O = unknown> {
+export class Control<I = unknown, O = unknown, R = never> {
   readonly _tag: string
-  constructor(_tag: string) { this._tag = _tag }
-  /** 用 driver 写逻辑：接收五维度 + driver，返回 Effect。子类可自由 override。 */
-  run(
-    _i: I,
-    _o: O,
-    _effects: ReadonlyArray<Effect<any>>,
-    _connections: ReadonlyArray<Connection>,
-    _controls: ReadonlyArray<Control>,
-    _d: Driver
-  ): Effect.Effect<O, Error> {
+  /** 执行这个 control 后影响哪些 connection（声明影响，供后续使用）。 */
+  readonly affects: ReadonlyArray<string>
+  constructor(_tag: string, affects: ReadonlyArray<string> = []) {
+    this._tag = _tag
+    this.affects = affects
+  }
+  /** 用 driver 能力写逻辑。执行后 affects 声明的 connection 经 impls 可访问。 */
+  run(_i: I, _o: O, _impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error, R> {
     return Effect.fail(new Error(`Control ${this._tag} run not implemented`))
   }
-}
-
-/* ── C (Connection)：世界 ── */
-
-/**
- * 世界：Agent 连接的环境/容器（抽象边界）。
- * 只声明「存在一个叫 name 的世界」；实现由外围提供。
- */
-export interface Connection {
-  readonly name: string
 }
 
 /* ── Agent ── */
 
 /**
  * Agent —— 被动黑盒（纯描述）。
- * 声明五个维度的形状：
- *   input        接收什么（I）
- *   output       产出什么（O）
- *   effects      影响哪些 Connection（E）
- *   connections  连接哪些世界（C）
- *   controls     哪些控制（C）
- *
- * 描述不执行；gen（gen.ts）注入 driver（可以有 n 个），驱动靠 driver 声明的 control。
+ * 声明五个维度的形状。不执行；gen 注入 drivers，驱动靠 driver 声明的 Control。
  *
  * Driver 就是 Agent（五维度）：任何 Agent 都可以当 driver，递归。
+ * `connections` 是 Agent 需要的世界的名字（Requirement 声明）；
+ * 影响声明（affects）绑定在 Control 上，不绑在 Agent 上。
  */
-export interface Agent<I = unknown, O = unknown> {
+export interface Agent<I = unknown, O = unknown, R = never> {
   readonly input: Schema.Schema<I>
   readonly output: Schema.Schema<O>
-  readonly effects: ReadonlyArray<Effect<any>>
-  readonly connections: ReadonlyArray<Connection>
-  readonly controls: ReadonlyArray<Control>
+  /** 需要的世界的名字（Requirement 声明）。 */
+  readonly connections: ReadonlyArray<string>
+  readonly controls: ReadonlyArray<Control<any, any, any>>
   /** Drivers：声明时就绑定（n 个）。驱动靠 driver 声明的 control。 */
-  readonly drivers: ReadonlyArray<Driver>
-}
-
-/* ── 执行侧契约类型（compile 时提供；放这里避免 gen/compiler 循环依赖） ── */
-
-/** Connection 实现：解释一个 Effect（操作契约在编译侧）。 */
-export interface ConnectionImpl {
-  readonly handle: (effect: Effect<any>) => Effect.Effect<unknown, Error>
+  readonly drivers: ReadonlyArray<Driver<any, any, any>>
 }
 
 /**
  * Driver —— 就是 Agent（五维度）。任何 Agent 都可以当 driver。
- *
- * 核心不定义 Driver 的任何方法（无 run/SetProvider/observe）。
- * 具体 driver（如 claude code driver）是一个 Agent，五维度填 provider 适配，
- * 它内部可能有很多方法（run/SetProvider 等），但那是具体 driver 自己的，非核心强制。
- *
- * 观测/额外功能：具体 driver 作为 Connection 提供（外部可访问）。
+ * 核心不定义 Driver 的任何方法；具体 driver 是 Agent 实例，可附加自己的方法。
  */
-export type Driver<I = unknown, O = unknown> = Agent<I, O>
+export type Driver<I = unknown, O = unknown, R = never> = Agent<I, O, R>
 
-/** 编译环境：Connection 实现。driver 已在 Agent 上绑定。 */
+/** 编译环境：Connection 实现。 */
 export interface CompileEnv {
-  /** Connection 实现：Agent 声明的每个 Effect 如何解释。 */
   readonly connections: ReadonlyMap<string, ConnectionImpl>
 }
