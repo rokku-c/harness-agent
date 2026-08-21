@@ -16,7 +16,7 @@ import { Control, type Agent, type ConnectionImpl, type Driver } from "../../src
 /* ── 类型安全错误 ── */
 
 export class ClaudeCodeError extends Data.TaggedError("ClaudeCodeError")<{
-  readonly stage: "sdk" | "extract"
+  readonly stage: "sdk" | "extract" | "fork"
   readonly cause: unknown
   readonly message?: string
 }> {}
