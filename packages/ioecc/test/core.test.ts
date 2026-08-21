@@ -2,132 +2,135 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
 import {
   Agent,
+  Control,
   ControlExecutor,
-  ControlIntent,
+  Effect as EffectDecl,
   EffectExecutor,
-  EffectIntent,
 } from "../src/index.js"
 
 /**
- * 端到端验证核心能支撑真实流程：
- * 一个「天气报告 agent」从声明到跑完 —— 静态触发 → 声明 E(查天气) → 声明动态 C(Fork 归档)
- * → Connection 执行 → 产出最终 O。
+ * 用「天气记录 Agent」（IOECC 例子）验证概念表达力：
+ * 多个 E 各自声明目标 Connection，Agent 声明 effects（影响哪些 Connection）。
  */
 
-/* ── 静态 Trigger：OnInput（携带触发后的行为） ── */
-class OnInput<I, O, R = never> implements ControlIntent<I, O> {
-  readonly _kind = "Control" as const
-  readonly _tag = "OnInput" as const
+/* ── 静态 Trigger：OnInput（一个 Control，携带触发后的行为） ── */
+class OnInput<I, O, R = never> implements Control<I, O> {
+  readonly _tag = "OnInput"
   constructor(
-    readonly payload: I,
-    readonly resultSchema: Schema.Schema<O>,
+    readonly input: Schema.Schema<I>,
+    readonly output: Schema.Schema<O>,
     readonly handle: (input: I) => Effect.Effect<O, Error, R>
   ) {}
 }
 
-/* ── 动态 Control：Fork 子 agent 归档结果 ── */
-class ForkArchiver implements ControlIntent<{ city: string }, string> {
-  readonly _kind = "Control" as const
-  readonly _tag = "ForkArchiver" as const
-  constructor(
-    readonly payload: { city: string },
-    readonly resultSchema: Schema.Schema<string> = Schema.String
-  ) {}
+/* ── E：三个，各自声明目标 Connection ── */
+
+/** 查天气 → WeatherApp。 */
+class FetchWeather implements EffectDecl<"WeatherApp", { city: string }, string> {
+  readonly _tag = "FetchWeather"
+  readonly connection = "WeatherApp"
+  readonly input = Schema.Struct({ city: Schema.String })
+  readonly output = Schema.String
 }
 
-/* ── E：查天气 ── */
-class FetchWeather implements EffectIntent<{ city: string }, string> {
-  readonly _kind = "Effect" as const
-  readonly _tag = "FetchWeather" as const
-  constructor(
-    readonly payload: { city: string },
-    readonly resultSchema: Schema.Schema<string> = Schema.String
-  ) {}
+/** 记录日志 → Logs。 */
+class LogInfo implements EffectDecl<"Logs", { msg: string }, void> {
+  readonly _tag = "LogInfo"
+  readonly connection = "Logs"
+  readonly input = Schema.Struct({ msg: Schema.String })
+  readonly output = Schema.Void
 }
 
-/* ── Connection：真实天气服务（解释 FetchWeather） ── */
-const weatherService = Layer.effect(EffectExecutor, Effect.succeed({
-  execute: <P, R>(intent: EffectIntent<P, R>) =>
-    intent._tag === "FetchWeather"
-      ? Effect.succeed(`Sunny ${(intent as unknown as FetchWeather).payload.city}`) as unknown as Effect.Effect<R, Error>
-      : Effect.fail(new Error(`Unknown effect ${intent._tag}`)),
-}))
-
-/* ── 天气报告 agent ── */
-const reportAgent: Agent = {
-  controls: [
-    new OnInput({ city: "Shanghai" }, Schema.String, () =>
-      Effect.gen(function* () {
-        const exec = yield* EffectExecutor
-        const ctl = yield* ControlExecutor
-        // 1. 声明 E：查天气
-        const weather = yield* exec.execute(new FetchWeather({ city: "Shanghai" }))
-        // 2. 声明动态 C：fork 一个归档子任务
-        yield* ctl.control(new ForkArchiver({ city: "Shanghai" }))
-        // 3. 产出 O
-        return `Report: ${weather}`
-      })),
-  ],
+/** 写文件 → Filesystem。 */
+class WriteFile implements EffectDecl<"Filesystem", { path: string; data: string }, void> {
+  readonly _tag = "WriteFile"
+  readonly connection = "Filesystem"
+  readonly input = Schema.Struct({ path: Schema.String, data: Schema.String })
+  readonly output = Schema.Void
 }
 
-/* ── Harness：解释静态触发 + 动态控制 ── */
-const harness = Layer.effect(ControlExecutor, Effect.succeed({
-  control: <P, R>(intent: ControlIntent<P, R>) => {
-    if (intent._tag === "OnInput") {
-      const t = intent as unknown as OnInput<unknown, unknown>
-      return t.handle(t.payload) as unknown as Effect.Effect<R, Error>
+/* ── 路由 executor：按 E.connection 把 Effect 路由到对应 Connection ── */
+
+const routingExecutor = Layer.effect(EffectExecutor, Effect.succeed({
+  execute: (effect: EffectDecl<any, any, any>) => {
+    switch (effect.connection) {
+      case "WeatherApp":
+        return Effect.succeed("Sunny")
+      case "Logs":
+        return Effect.succeed(undefined)
+      case "Filesystem":
+        return Effect.succeed(undefined)
+      default:
+        return Effect.fail(new Error(`Unknown connection ${effect.connection}`))
     }
-    if (intent._tag === "ForkArchiver") {
-      const f = intent as unknown as ForkArchiver
-      return Effect.succeed(`archived:${f.payload.city}`) as unknown as Effect.Effect<R, Error>
-    }
-    return Effect.fail(new Error(`Unknown control ${intent._tag}`))
   },
 }))
 
-describe("IOECC 端到端", () => {
-  test("天气 agent 完整运行：静态触发 → E → 动态 C → O", async () => {
-    const run = Effect.gen(function* () {
-      const ctl = yield* ControlExecutor
-      const trigger = reportAgent.controls[0]!
-      const report = yield* ctl.control(trigger)
-      return report
-    })
-    const out = await Effect.runPromise(
-      run.pipe(Effect.provide(weatherService), Effect.provide(harness))
-    )
-    expect(out).toBe("Report: Sunny Shanghai")
+/* ── 天气记录 Agent：声明 effects（影响哪些 Connection）+ controls ── */
+
+const weatherLogger: Agent = {
+  effects: [new FetchWeather(), new LogInfo(), new WriteFile()],
+  controls: [
+    new OnInput(
+      Schema.Struct({ city: Schema.String }),
+      Schema.Void,
+      () => Effect.gen(function* () {
+        const exec = yield* EffectExecutor
+        yield* exec.execute(new FetchWeather())
+        yield* exec.execute(new LogInfo())
+        yield* exec.execute(new WriteFile())
+        return undefined
+      })
+    ),
+  ],
+}
+
+describe("IOECC 概念表达力", () => {
+  test("Agent.effects 声明影响哪些 Connection，外部可读", () => {
+    const affected = weatherLogger.effects.map((e) => e.connection)
+    expect(affected).toContain("WeatherApp")
+    expect(affected).toContain("Logs")
+    expect(affected).toContain("Filesystem")
   })
 
-  test("E 被路由到 Connection，动态 C 也执行（都在一次运行内发生）", async () => {
-    // 通过可观测副作用验证：跑一次 agent，E 和 C 都发生了。
-    const executed: string[] = []
-    const loggingConn = Layer.effect(EffectExecutor, Effect.succeed({
-      execute: <P, R>(intent: EffectIntent<P, R>) => {
-        executed.push(`E:${intent._tag}`)
-        return Effect.succeed("Sunny") as unknown as Effect.Effect<R, Error>
+  test("路由 executor 按 connection 分发 E", async () => {
+    const run = Effect.gen(function* () {
+      const exec = yield* EffectExecutor
+      yield* exec.execute(new FetchWeather())
+      yield* exec.execute(new LogInfo())
+      yield* exec.execute(new WriteFile())
+      return "done"
+    })
+    const out = await Effect.runPromise(run.pipe(Effect.provide(routingExecutor)))
+    expect(out).toBe("done")
+  })
+
+  test("完整流程：静态触发 → 三个 E 各路由到对应 Connection", async () => {
+    const hit: string[] = []
+    const loggingExec = Layer.effect(EffectExecutor, Effect.succeed({
+      execute: (effect: EffectDecl<any, any, any>) => {
+        hit.push(effect.connection)
+        return Effect.succeed(effect._tag === "FetchWeather" ? "Sunny" : undefined)
       },
     }))
-    const loggingCtl = Layer.effect(ControlExecutor, Effect.succeed({
-      control: <P, R>(intent: ControlIntent<P, R>) => {
-        executed.push(`C:${intent._tag}`)
-        if (intent._tag === "OnInput") {
-          return (intent as unknown as OnInput<unknown, unknown>).handle(undefined) as unknown as Effect.Effect<R, Error>
+    const ctlImpl = Layer.effect(ControlExecutor, Effect.succeed({
+      control: (control: Control<any, any>) => {
+        if (control._tag === "OnInput") {
+          return (control as unknown as OnInput<unknown, unknown>).handle(undefined) as unknown as Effect.Effect<unknown, Error>
         }
-        return Effect.succeed("ok") as unknown as Effect.Effect<R, Error>
+        return Effect.fail(new Error(`Unknown ${control._tag}`))
       },
     }))
 
     await Effect.runPromise(
       Effect.gen(function* () {
         const ctl = yield* ControlExecutor
-        yield* ctl.control(reportAgent.controls[0]!)
-      }).pipe(Effect.provide(loggingConn), Effect.provide(loggingCtl))
+        yield* ctl.control(weatherLogger.controls[0]!)
+      }).pipe(Effect.provide(loggingExec), Effect.provide(ctlImpl))
     )
 
-    // 一次运行内：静态触发 OnInput、E(FetchWeather)、动态 C(ForkArchiver) 都发生了。
-    expect(executed).toContain("C:OnInput")
-    expect(executed).toContain("E:FetchWeather")
-    expect(executed).toContain("C:ForkArchiver")
+    expect(hit).toContain("WeatherApp")
+    expect(hit).toContain("Logs")
+    expect(hit).toContain("Filesystem")
   })
 })
