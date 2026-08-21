@@ -1,65 +1,66 @@
-import { Context, Effect, Schema } from "effect"
+import { Schema } from "effect"
 
 /**
- * IOECC —— 五个正交维度（纯概念，无执行）。
+ * IOECC —— 五个正交维度（纯抽象概念，无执行、无契约）。
  *
- *   I (Input)         Agent 接收的数据
- *   O (Output)        Agent 产出给下游的数据
- *   E (Effect)        对世界的一次交互：在某个 Connection 上做一个操作
- *   C (Connection)    世界：Agent 连接的环境/容器（Context.Tag，只声明不 import）
- *   C (Control)       对自身的一次控制：静态 Trigger 或动态干预（Fork/Stop/Retry）
+ *   I (Input)         Agent 接收的数据形状
+ *   O (Output)        Agent 产出给下游的数据形状
+ *   E (Effect)        对世界的影响声明：哪个 Connection 的外部受影响
+ *   C (Connection)    世界：Agent 连接的环境/容器（抽象边界，非运行时实现）
+ *   C (Control)       对自身的控制声明：静态 Trigger 或动态干预（Fork/Stop/Retry）
  *
- * E 和 C 是同一形状：都是「一个声明」。区别只在目标——
- * E 指向外部 Connection，C 指向自身运行。
- *
- * 核心不包含：具体 Trigger、Observability、Connection 实现（均由外围「长出来」）。
+ * 这里的每个概念都是「描述」，不执行、不携带操作契约。
+ * 具体契约（如何执行一个 Effect、如何驱动一个 Control）在 compile 时提供。
  */
 
-/* ── E (Effect)：对世界的一次交互 ── */
+/* ── E (Effect)：对世界的影响声明 ── */
 
-/** 在某个 Connection 上做一个操作。`connection` 声明目标，`input`/`output` 是该操作的契约。 */
-export interface Effect<
-  Connection extends string = string,
-  Input = unknown,
-  Output = unknown,
-> {
+/**
+ * 抽象的影响声明：只声明「对哪个 Connection 的外部产生了可观测的影响」。
+ * 不携带操作契约（input/output）——那是具体操作的事；E 只是影响标记，后续可被访问/路由。
+ */
+export interface Effect<Connection extends string = string> {
   readonly _tag: string
   readonly connection: Connection
-  readonly input: Schema.Schema<Input>
-  readonly output: Schema.Schema<Output>
 }
 
-/* ── C (Control)：对自身的一次控制 ── */
+/* ── C (Control)：对自身的控制声明 ── */
 
-/** 对自身的一次控制。静态 Trigger 与动态干预共用此形状。 */
-export interface Control<
-  Input = unknown,
-  Output = unknown,
-> {
+/**
+ * 抽象的控制声明：对自身运行的一次控制。
+ * 不携带操作契约；静态 Trigger 与动态干预（Fork/Stop/Retry）的区分由外围决定。
+ */
+export interface Control {
   readonly _tag: string
-  readonly input: Schema.Schema<Input>
-  readonly output: Schema.Schema<Output>
 }
 
 /* ── C (Connection)：世界 ── */
 
 /**
- * 世界：Agent 连接的环境/容器。任何外部依赖（文件系统/API/资源）都抽象为一个 Tag。
- * 实现由外围提供；Agent 只声明「我连接这个 Connection」。
+ * 世界：Agent 连接的环境/容器（抽象边界）。
+ * 只声明「存在一个叫 name 的世界」；实现由外围提供。
  */
-export class Connection extends Context.Tag("Connection")<Connection, Record<string, never>>() {}
+export interface Connection {
+  readonly name: string
+}
 
 /* ── Agent ── */
 
 /**
- * Agent —— 被动黑盒（纯描述，无执行）。
- * 声明两个维度：
- *   effects    这个 Agent 会产生哪些 E（影响哪些 Connection）
- *   controls   静态触发器集合（接受什么输入 + 触发后的行为）
+ * Agent —— 被动黑盒（纯描述）。
+ * 声明五个维度的形状：
+ *   input        接收什么（I）
+ *   output       产出什么（O）
+ *   effects      影响哪些 Connection（E）
+ *   connections  连接哪些世界（C）
+ *   controls     哪些控制（C）
  *
- * 描述不执行；compile（见 compiler.ts）把描述变成可运行程序。
+ * 描述不执行；compile（compiler.ts）把描述变成可运行程序。
  */
-export interface Agent {
-  readonly effects: ReadonlyArray<Effect<any, any, any>>
-  readonly controls: ReadonlyArray<Control<any, any>>
+export interface Agent<I = unknown, O = unknown> {
+  readonly input: Schema.Schema<I>
+  readonly output: Schema.Schema<O>
+  readonly effects: ReadonlyArray<Effect<any>>
+  readonly connections: ReadonlyArray<Connection>
+  readonly controls: ReadonlyArray<Control>
 }

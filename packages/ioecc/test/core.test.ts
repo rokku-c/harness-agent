@@ -3,115 +3,73 @@ import { Effect, Schema } from "effect"
 import {
   Agent,
   compile,
+  Connection,
   ConnectionImpl,
   Control,
   Effect as EffectDecl,
 } from "../src/index.js"
 
 /**
- * 天气记录 Agent —— 验证「描述与执行分离」：
- * Agent 是纯描述（effects + controls），compile(agent, env) 才变成可执行程序。
+ * 天气记录 Agent —— 验证「抽象概念」模型：
+ * Agent 声明五维度（input/output/effects/connections/controls），
+ * Effect 只声明哪个 Connection 受影响（无操作契约），compile 时提供契约。
  */
 
-/* ── 静态 Trigger：OnInput（一个 Control，携带触发后的行为） ── */
-class OnInput<I, O, R = never> implements Control<I, O> {
-  readonly _tag = "OnInput"
-  constructor(
-    readonly input: Schema.Schema<I>,
-    readonly output: Schema.Schema<O>,
-    readonly handle: (input: I) => Effect.Effect<O, Error, R>
-  ) {}
-}
+/* ── E：只声明哪个 Connection 受影响 ── */
+const fetchWeather = { _tag: "FetchWeather", connection: "WeatherApp" }
+const logInfo = { _tag: "LogInfo", connection: "Logs" }
+const writeFile = { _tag: "WriteFile", connection: "Filesystem" }
 
-/* ── E：三个，各自声明目标 Connection ── */
+/* ── C：控制声明（抽象，无契约） ── */
+const onInput: Control = { _tag: "OnInput" }
 
-/** 查天气 → WeatherApp。 */
-class FetchWeather implements EffectDecl<"WeatherApp", { city: string }, string> {
-  readonly _tag = "FetchWeather"
-  readonly connection = "WeatherApp"
-  readonly input = Schema.Struct({ city: Schema.String })
-  readonly output = Schema.String
-}
-
-/** 记录日志 → Logs。 */
-class LogInfo implements EffectDecl<"Logs", { msg: string }, void> {
-  readonly _tag = "LogInfo"
-  readonly connection = "Logs"
-  readonly input = Schema.Struct({ msg: Schema.String })
-  readonly output = Schema.Void
-}
-
-/** 写文件 → Filesystem。 */
-class WriteFile implements EffectDecl<"Filesystem", { path: string; data: string }, void> {
-  readonly _tag = "WriteFile"
-  readonly connection = "Filesystem"
-  readonly input = Schema.Struct({ path: Schema.String, data: Schema.String })
-  readonly output = Schema.Void
-}
-
-/* ── Agent 描述（纯数据，不执行） ── */
-
-const weatherLogger: Agent = {
-  effects: [new FetchWeather(), new LogInfo(), new WriteFile()],
-  controls: [
-    new OnInput(
-      Schema.Struct({ city: Schema.String }),
-      Schema.Void,
-      (input) => Effect.gen(function* () {
-        // 描述运行时的行为：调用 compile 产出的 execute。
-        // 注意：这里不直接 import 实现，只构造 E 声明。
-        const exec = (e: EffectDecl<any, any, any>) => Effect.fail(new Error("unwired")) as Effect.Effect<any, Error>
-        void input
-        void exec
-        return undefined
-      })
-    ),
+/* ── Agent 描述：五维度声明 ── */
+const weatherLogger: Agent<{ city: string }, void> = {
+  input: Schema.Struct({ city: Schema.String }),
+  output: Schema.Void,
+  effects: [fetchWeather, logInfo, writeFile],
+  connections: [
+    { name: "WeatherApp" },
+    { name: "Logs" },
+    { name: "Filesystem" },
   ],
+  controls: [onInput],
 }
 
-/* ── Connection 实现（编译时提供） ── */
-
-const connections = new Map<string, ConnectionImpl>([
-  ["WeatherApp", { handle: (e) => Effect.succeed("Sunny") }],
+/* ── compile 时提供契约：Connection 实现如何解释 Effect ── */
+const impls = new Map<string, ConnectionImpl>([
+  ["WeatherApp", { handle: () => Effect.succeed("Sunny") }],
   ["Logs", { handle: () => Effect.succeed(undefined) }],
   ["Filesystem", { handle: () => Effect.succeed(undefined) }],
 ])
 
-const compiled = compile(weatherLogger, { connections })
+describe("IOECC 抽象概念", () => {
+  test("Agent 声明五维度，Effect 只声明受影响 Connection（无操作契约）", () => {
+    // E 是抽象影响声明，不带 input/output。
+    expect(fetchWeather).toEqual({ _tag: "FetchWeather", connection: "WeatherApp" })
+    expect("input" in fetchWeather).toBe(false)
+    expect("output" in fetchWeather).toBe(false)
 
-describe("IOECC 描述与执行分离", () => {
-  test("Agent 是纯描述：effects 声明影响哪些 Connection，compile 前不执行", () => {
-    // 描述本身可读，不触发任何副作用。
-    const affected = weatherLogger.effects.map((e) => e.connection)
-    expect(affected).toContain("WeatherApp")
-    expect(affected).toContain("Logs")
-    expect(affected).toContain("Filesystem")
-    // controls 声明触发器。
-    expect(weatherLogger.controls.length).toBe(1)
-  })
-
-  test("compile 后按 connection 路由执行 E", async () => {
-    // 描述不可执行；compile(agent, env) 后才有可运行程序。
-    const out = await Effect.runPromise(
-      compiled.execute(new FetchWeather()).pipe(
-        Effect.map((r) => String(r))
-      )
+    // Agent 五个维度都在。
+    expect(weatherLogger.effects.map((e) => e.connection)).toEqual(
+      ["WeatherApp", "Logs", "Filesystem"]
     )
-    expect(out).toBe("Sunny")
+    expect(weatherLogger.connections.map((c) => c.name)).toEqual(
+      ["WeatherApp", "Logs", "Filesystem"]
+    )
+    expect(weatherLogger.controls.map((c) => c._tag)).toEqual(["OnInput"])
   })
 
-  test("compile 的驱动：静态触发器走 control（input Schema 解码）", async () => {
-    // OnInput 的 handle 需要 E 的 execute 通路；这里用一个 wired 版本验证。
-    const wiredAgent: Agent = {
-      effects: [new FetchWeather()],
-      controls: [new OnInput(
-        Schema.Struct({ city: Schema.String }),
-        Schema.String,
-        () => Effect.succeed("report") // 简单 handle，不依赖 execute
-      )],
-    }
-    const wired = compile(wiredAgent, { connections })
-    const result = await Effect.runPromise(wired.drive(0, { city: "Shanghai" }))
-    expect(result).toBe("report")
+  test("compile 才执行：按 connection 路由到实现", async () => {
+    const program = compile(weatherLogger, { connections: impls })
+    const out = await Effect.runPromise(program.execute(fetchWeather))
+    expect(String(out)).toBe("Sunny")
+  })
+
+  test("外部可访问 effects，知道这个 Agent 影响哪些 Connection", () => {
+    // 「后面可以访问」——读 effects 就知道这个 Agent 会碰哪些世界。
+    const affected = weatherLogger.effects.map((e) => e.connection)
+    expect(affected).toContain("Logs") // 知道对 Logs 有影响
+    expect(affected).toContain("Filesystem")
   })
 })
