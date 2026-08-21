@@ -1,134 +1,104 @@
 import { Effect, Schema } from "effect"
-import type { Agent, CompileEnv, Connection, Control, Effect as EffectDecl } from "./concept.js"
+import type { Agent, Connection, ConnectionImpl, Control, Driver, Effect as EffectDecl } from "./concept.js"
 
 /**
- * gen 引擎 —— 收集 Agent 描述（effect-ts style）。
+ * gen 引擎 —— 五维度 + driver 作入参，function* 写触发逻辑（gen 就是 compile）。
  *
- * 与 effect 的 `gen` 不同：yield 的是「描述操作」（agent-construction op），不是要运行的 effect。
- * `EffectAgent.gen(function*() { yield ... })` 收集成纯描述 Agent，compile 才执行。
+ * 不再 yield 描述操作；五维度（input/output/effects/connections/controls）和 driver
+ * 直接作为参数传入，function* 是「触发后的控制逻辑」（接收输入，产出输出）。
  *
- * 元编程形态（类型参数声明五维度）：
- *   EffectAgent.make<I, O, E, C, Ctl>({ input, output, effects, connections, controls })
- *   —— 泛型参数声明五维度，compile 时注入 Driver。
+ *   const program = EffectAgent.gen({
+ *     input: Schema.String,
+ *     output: Schema.String,
+ *     effects: [{ _tag: "Echo", connection: "Echo" }],
+ *     connections: [{ name: "Echo" }],
+ *     controls: [{ _tag: "OnInput" }],
+ *   }, driver, (input) => driver.run(input))
+ *
+ * 产出 Program：直接 drive/execute。driver 已绑定，connections 提供 Effect 实现。
  */
 
-/** 一个 gen 的 yield 值：描述操作。adapter 收集，不执行。 */
-export type AgentOp =
-  | { readonly _tag: "Input"; readonly schema: Schema.Schema<any> }
-  | { readonly _tag: "Output"; readonly schema: Schema.Schema<any> }
-  | { readonly _tag: "Effect"; readonly effect: EffectDecl<any> }
-  | { readonly _tag: "Connection"; readonly connection: Connection }
-  | { readonly _tag: "Control"; readonly control: Control }
-
-/** 生成器 DSL：yield AgentOp，返回 A。 */
-export type AgentGen<A> = Generator<AgentOp, A, never>
-
-/** 归约：把一个 op 应用进 Agent 描述。 */
-export type AgentFold = (agent: Agent<any, any>, op: AgentOp) => Agent<any, any>
-
-/** 默认归约。 */
-export const foldAgentOp: AgentFold = (agent, op) => {
-  switch (op._tag) {
-    case "Input": return { ...agent, input: op.schema }
-    case "Output": return { ...agent, output: op.schema }
-    case "Effect": return { ...agent, effects: [...agent.effects, op.effect] }
-    case "Connection": return { ...agent, connections: [...agent.connections, op.connection] }
-    case "Control": return { ...agent, controls: [...agent.controls, op.control] }
-  }
-}
-
-/** 初始 Agent 描述（缺省字段）。 */
-export const emptyAgent = (): Agent<any, any> => ({
-  input: Schema.Unknown,
-  output: Schema.Unknown,
-  effects: [],
-  connections: [],
-  controls: [],
-})
-
-/**
- * 收集器引擎：步进生成器，把 yield 的 AgentOp 折叠进描述，返回 [agent, 返回值]。
- */
-export const runGen = <A>(
-  f: () => AgentGen<A>,
-  fold: AgentFold = foldAgentOp,
-  start: Agent<any, any> = emptyAgent()
-): [Agent<any, any>, A] => {
-  let agent = start
-  const gen = f()
-  let step = gen.next()
-  while (!step.done) {
-    agent = fold(agent, step.value)
-    step = gen.next()
-  }
-  return [agent, step.value]
-}
-
-/** 编译后的可运行程序。 */
+/** 编译后的可运行程序（含描述，供外部查看/观测）。 */
 export interface Program {
+  /** 该程序的 Agent 描述（可读：effects/connections/controls）。 */
+  readonly agent: Agent<any, any>
   readonly drive: (index: number, input: unknown) => Effect.Effect<unknown, Error>
   readonly execute: (effect: EffectDecl<any>) => Effect.Effect<unknown, Error>
   readonly decode: (value: unknown) => Effect.Effect<unknown, Error>
 }
 
-/**
- * 元编程形态：类型参数声明五维度。
- *   I   输入 Schema 的类型
- *   O   输出 Schema 的类型
- *   E   effects 的类型联合（影响哪些 Connection）
- *   Cn  connections 的类型（连接哪些世界）
- *   Ct  controls 的类型联合（哪些控制）
- * 值（agent 描述）在 make/compile 时提供，类型参数强制五维度形状。
- */
-export interface EffectAgent<I, O, E, Cn, Ct> {
-  /** 输入 Schema（I 的运行时形状）。 */
+/** 五维度描述 + driver 的完整规格。 */
+export interface AgentSpec<I = unknown, O = unknown> {
   readonly input: Schema.Schema<I>
-  /** 输出 Schema（O 的运行时形状）。 */
   readonly output: Schema.Schema<O>
-  /** 影响哪些 Connection（E）。 */
-  readonly effects: ReadonlyArray<E>
-  /** 连接哪些世界（Cn）。 */
-  readonly connections: ReadonlyArray<Cn>
-  /** 哪些控制（Ct）。 */
-  readonly controls: ReadonlyArray<Ct>
-  /** 编译：把描述 + Driver + Connection 实现 → 可运行程序。 */
-  readonly compile: (env: CompileEnv) => Program
+  readonly effects: ReadonlyArray<EffectDecl<any>>
+  readonly connections: ReadonlyArray<Connection>
+  readonly controls: ReadonlyArray<Control>
 }
 
-/** 元编程构造：给定五维度值 + 类型参数，产出强类型 Agent。 */
+/** 解释一个 E：按 connection 找实现。观测 Connection 由 driver 提供。 */
+const execute = (agent: Agent<any, any>, connections: ReadonlyMap<string, ConnectionImpl>, effect: EffectDecl<any>) => {
+  const impl = connections.get(effect.connection) ?? agent.driver.observe?.get(effect.connection)
+  if (!impl) return Effect.fail(new Error(`Unknown connection ${effect.connection}`))
+  return impl.handle(effect)
+}
+
+/** 解释一个 C：驱动一次控制。经 Driver.run 执行（Driver 是执行者，绑定在 agent 上）。 */
+const drive = (agent: Agent<any, any>, ctrl: Control, input: unknown) =>
+  agent.driver.run(input).pipe(
+    Effect.mapError((cause) => new Error(`Driver failed on control ${ctrl._tag}: ${String(cause)}`))
+  )
+
+/** 把 AgentSpec 变成可运行程序。 */
+const toProgram = (spec: AgentSpec<any, any>, driver: Driver, connections: ReadonlyMap<string, ConnectionImpl>): Program => {
+  const agent: Agent<any, any> = { ...spec, driver }
+  return {
+    agent,
+    drive: (index, input) => {
+      const ctrl = agent.controls[index]
+      if (!ctrl) return Effect.fail(new Error(`No control at ${index}`))
+      return drive(agent, ctrl, input)
+    },
+    execute: (effect) => execute(agent, connections, effect),
+    decode: (value) => Schema.decodeUnknown(agent.output)(value),
+  }
+}
+
+/**
+ * gen —— 五维度 + driver 作入参，产出可运行程序。
+ * @param spec 五维度描述
+ * @param driver 执行者（绑定在 agent 上）
+ * @param impls Connection 实现（Effect 如何解释）
+ * @param logic 可选的触发逻辑（function*：接收输入 → 产出输出；缺省走 driver.run）
+ */
+export const gen = <I, O>(
+  spec: AgentSpec<I, O>,
+  driver: Driver,
+  impls: ReadonlyMap<string, ConnectionImpl> = new Map(),
+  logic?: (input: I) => Effect.Effect<O, Error>
+): Program => {
+  const program = toProgram(spec, driver, impls)
+  // 若有自定义触发逻辑，用它包一层 drive。
+  return logic
+    ? { ...program, drive: (index, input) => logic(input as I) as Effect.Effect<unknown, Error> }
+    : program
+}
+
+/** 元编程构造：五维度 + driver + connections → 可运行程序。 */
 export const make = <I, O, E extends EffectDecl<any>, Cn extends Connection, Ct extends Control>(
-  agent: {
+  spec: {
     readonly input: Schema.Schema<I>
     readonly output: Schema.Schema<O>
     readonly effects: ReadonlyArray<E>
     readonly connections: ReadonlyArray<Cn>
     readonly controls: ReadonlyArray<Ct>
   },
-  compile: (env: CompileEnv) => Program
-): EffectAgent<I, O, E, Cn, Ct> => ({ ...agent, compile })
+  driver: Driver,
+  impls: ReadonlyMap<string, ConnectionImpl> = new Map()
+): Program => toProgram(spec as AgentSpec<I, O>, driver, impls)
 
-/** gen 入口 + 构造操作（运行时收集形态）。compile 在 compiler.ts 挂载。 */
+/** EffectAgent 命名空间。 */
 export const EffectAgent = {
-  /** gen 入口：yield 描述操作，收集成纯描述 Agent。 */
-  gen: <A>(f: () => AgentGen<A>): Agent<any, any> => runGen(f, foldAgentOp)[0],
-
-  input: (schema: Schema.Schema<any>): AgentOp => ({ _tag: "Input", schema }),
-  output: (schema: Schema.Schema<any>): AgentOp => ({ _tag: "Output", schema }),
-  effect: (effect: EffectDecl<any>): AgentOp => ({ _tag: "Effect", effect }),
-  connection: (connection: Connection): AgentOp => ({ _tag: "Connection", connection }),
-  control: (control: Control): AgentOp => ({ _tag: "Control", control }),
-
-  /** 元编程形态：类型参数声明五维度，compile 时注入 Driver。 */
+  gen,
   make,
-  /** compile：挂载在 compiler.ts。 */
-  compile: () => { throw new Error("EffectAgent.compile not mounted") },
-} as {
-  gen: <A>(f: () => AgentGen<A>) => Agent<any, any>
-  input: (schema: Schema.Schema<any>) => AgentOp
-  output: (schema: Schema.Schema<any>) => AgentOp
-  effect: (effect: EffectDecl<any>) => AgentOp
-  connection: (connection: Connection) => AgentOp
-  control: (control: Control) => AgentOp
-  make: typeof make
-  compile: (agent: Agent<any, any>, env: CompileEnv) => Program
 }

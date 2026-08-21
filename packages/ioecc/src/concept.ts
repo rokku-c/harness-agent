@@ -67,6 +67,8 @@ export interface Agent<I = unknown, O = unknown> {
   readonly effects: ReadonlyArray<Effect<any>>
   readonly connections: ReadonlyArray<Connection>
   readonly controls: ReadonlyArray<Control>
+  /** Driver：声明时就绑定，gen 里可用 driver 的能力写控制逻辑。 */
+  readonly driver: Driver
 }
 
 /* ── 执行侧契约类型（compile 时提供；放这里避免 gen/compiler 循环依赖） ── */
@@ -91,10 +93,8 @@ export interface Driver {
   readonly observe?: ReadonlyMap<string, ConnectionImpl>
 }
 
-/** 编译环境：Driver + Connection 实现。 */
+/** 编译环境：Connection 实现。driver 已在 Agent 上绑定。 */
 export interface CompileEnv {
-  /** Driver：驱动这个 Agent。 */
-  readonly driver: Driver
   /** Connection 实现：Agent 声明的每个 Effect 如何解释。 */
   readonly connections: ReadonlyMap<string, ConnectionImpl>
 }
