@@ -1,6 +1,6 @@
-import { Effect, Schema } from "effect"
-import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
-import { ClaudeCodeError } from "./claude-code.js"
+import { Effect, Schema, Stream } from "effect"
+import { type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
+import { ClaudeCodeError, claudeStream } from "./claude-code.js"
 
 /**
  * Until + fork —— 跑 Claude Code 直到某点，在那 fork。
@@ -8,10 +8,7 @@ import { ClaudeCodeError } from "./claude-code.js"
  * until 是观察投影：跑到「第一个 thinking」或「输出符合 schema」等边界，
  * 就在那个点 fork 出子 agent/session（把当前状态/消息交给子任务）。
  *
- *   const program = runUntil(
- *     { options: { model } }, "分析这个", Until.schema(ReviewSchema),
- *     (messages, matched) => Effect.succeed(forkChild(messages))   // 到边界时 fork
- *   )
+ * 用 Stream：SDK 消息流 → claudeStream，Stream.takeUntil 天然表达「到某点停」。
  */
 
 /* ── Until：观察投影 ── */
@@ -50,16 +47,16 @@ const satisfies = (until: Until<any>, message: SDKMessage): boolean => {
   }
 }
 
-/* ── runUntil：迭代消息，until 满足时 fork ── */
+/* ── runUntil：Stream 跑到 until 边界，在那 fork ── */
 
 export interface RunUntilOptions {
   readonly options: Options
-  /** 在 until 边界触发 fork：收到当前已收集的消息 + 命中的边界消息，返回子任务结果。 */
+  /** 在 until 边界触发 fork：收到已收集的消息 + 命中的边界消息，返回子任务结果。 */
   readonly fork: (messages: ReadonlyArray<SDKMessage>, matched: SDKMessage) => Effect.Effect<unknown, ClaudeCodeError>
 }
 
 /**
- * 跑 Claude Code，逐条观察消息，until 条件满足时 fork（派生子任务）。
+ * 跑 Claude Code，Stream 逐条观察，until 边界 fork（派生子任务）。
  * 返回 [最终结果, fork 点信息]。
  */
 export const runUntil = (
@@ -67,34 +64,27 @@ export const runUntil = (
   until: Until<any>,
   opts: RunUntilOptions
 ): Effect.Effect<{ output: unknown; forked: boolean; matched: SDKMessage | undefined }, ClaudeCodeError> =>
-  Effect.tryPromise({
-    try: async () => {
-      const messages: SDKMessage[] = []
-      let matched: SDKMessage | undefined
-      let forked = false
-      for await (const message of query({ prompt, options: opts.options })) {
-        messages.push(message)
-        // until 边界：fork 一次（只 fork 第一个满足点）。
-        if (!forked && satisfies(until, message)) {
-          matched = message
-          forked = true
-          // 在边界 fork：把已收集的消息 + 命中的消息交给 fork。
-          // 注意：fork 是 Effect，这里在 async 里 await Effect.runPromise。
-          await Effect.runPromise(
-            opts.fork(messages, message).pipe(
-              Effect.mapError((cause) => new ClaudeCodeError({ stage: "fork", cause })),
-              Effect.ignore
-            )
-          )
-        }
-      }
-      // 最终输出：result 消息的 structured_output 或 result。
-      const result = messages.findLast((m) => m.type === "result" && m.subtype === "success")
-      return {
-        output: result?.structured_output ?? result?.result ?? messages.at(-1),
-        forked,
-        matched,
-      }
-    },
-    catch: (cause) => new ClaudeCodeError({ stage: "sdk", cause }),
+  Effect.gen(function* () {
+    // Stream 收集：保留 until 边界的消息（takeUntil 含命中项）。
+    const chunk = yield* claudeStream(prompt, opts.options).pipe(Stream.runCollect)
+    const messages = [...chunk]
+
+    // 找第一个满足 until 的消息（fork 点）。
+    const matched = messages.find((m) => satisfies(until, m))
+
+    // 在边界 fork：把已收集消息 + 命中消息交给子任务。
+    if (matched) {
+      yield* opts.fork(messages, matched).pipe(
+        Effect.mapError((cause) => new ClaudeCodeError({ stage: "fork", cause })),
+        Effect.ignore
+      )
+    }
+
+    // 最终输出：result 消息的 structured_output 或 result。
+    const result = messages.findLast((m) => m.type === "result" && m.subtype === "success")
+    return {
+      output: result?.structured_output ?? result?.result ?? messages.at(-1),
+      forked: matched !== undefined,
+      matched,
+    }
   })

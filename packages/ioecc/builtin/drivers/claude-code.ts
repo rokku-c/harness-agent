@@ -1,4 +1,4 @@
-import { Data, Effect, Schema } from "effect"
+import { Data, Effect, Schema, Stream } from "effect"
 import { query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
 import { Control, type Agent, type ConnectionImpl, type Driver } from "../../src/index.js"
 
@@ -10,7 +10,7 @@ import { Control, type Agent, type ConnectionImpl, type Driver } from "../../src
  *   - controls     它声明的能力（RunClaude control，影响 provider/tools/skills）
  *   - run(prompt)  调真实 Claude Agent SDK（query 收集消息，取 result）
  *
- * 错误用 effect-ts：Data.TaggedError（类型安全），Effect.tryPromise 包 async 边界。
+ * 错误用 effect-ts：Data.TaggedError（类型安全），SDK 迭代器转 Stream（错误通道自动）。
  */
 
 /* ── 类型安全错误 ── */
@@ -20,6 +20,13 @@ export class ClaudeCodeError extends Data.TaggedError("ClaudeCodeError")<{
   readonly cause: unknown
   readonly message?: string
 }> {}
+
+/** Claude SDK 消息流 → Stream（effect 原生，错误通道自动，无手写 try/catch）。 */
+export const claudeStream = (prompt: string, options: Options): Stream.Stream<SDKMessage, ClaudeCodeError> =>
+  Stream.fromAsyncIterable(
+    query({ prompt, options }),
+    (cause) => new ClaudeCodeError({ stage: "sdk", cause })
+  )
 
 /* ── Connection 分类：connection 自己带 use 标记 ── */
 
@@ -90,19 +97,12 @@ export const makeClaudeCodeDriver = (
     ...sdkOptions
   } = options
 
-  // 真实 SDK 调用：query 收集消息，取 result。async 边界用 tryPromise。
+  // 真实 SDK 调用：Stream 收集消息，取 result（无手写 try/catch）。
   const runOnce = (prompt: string): Effect.Effect<string, ClaudeCodeError> =>
-    Effect.tryPromise({
-      try: async () => {
-        const messages: SDKMessage[] = []
-        for await (const message of query({
-          prompt,
-          options: sdkOptions as Options,
-        })) messages.push(message)
-        return messages
-      },
-      catch: (cause) => new ClaudeCodeError({ stage: "sdk", cause }),
-    }).pipe(Effect.flatMap(extractResult))
+    claudeStream(prompt, sdkOptions as Options).pipe(
+      Stream.runCollect,
+      Effect.flatMap((chunk) => extractResult([...chunk]))
+    )
 
   // Claude Connection 实现：把 agent 的 "run" 意图路由到 SDK。
   const claudeImpl: ConnectionImpl = {
