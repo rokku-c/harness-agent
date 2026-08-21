@@ -92,13 +92,16 @@ export const EffectAgent = {
   make,
 }
 
-/** 便捷：构造一个最小 Control 实例。 */
+/** 便捷：构造一个最小 Control 实例（自带 I/O）。 */
 export const control = <I = unknown, O = unknown>(
   tag: string,
   affects: ReadonlyArray<string> = [],
-  run: (input: I, impls: ReadonlyMap<string, ConnectionImpl>) => Effect.Effect<O, Error>
+  run: (input: I, impls: ReadonlyMap<string, ConnectionImpl>) => Effect.Effect<O, Error>,
+  io?: { input?: Schema.Schema<I>; output?: Schema.Schema<O> }
 ): Control<I, O> =>
   new (class extends Control<I, O> {
+    readonly input: Schema.Schema<I> = (io?.input ?? Schema.Unknown) as Schema.Schema<I>
+    readonly output: Schema.Schema<O> = (io?.output ?? Schema.Unknown) as Schema.Schema<O>
     constructor() { super(tag, affects) }
     run(_i: I, _impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
       return run(_i, _impls)

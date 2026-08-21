@@ -57,9 +57,9 @@ export class Control<I = unknown, O = unknown, R = never> {
     this._tag = _tag
     this.affects = affects
   }
-  /** 这个 control 的输入形状（子类声明）。 */
+  /** 这个 control 的输入形状（子类声明或工厂赋值）。 */
   declare readonly input: Schema.Schema<I>
-  /** 这个 control 的输出形状（子类声明）。 */
+  /** 这个 control 的输出形状（子类声明或工厂赋值）。 */
   declare readonly output: Schema.Schema<O>
   /** 逻辑：接收输入，经 impls 访问影响的 connection。 */
   run(_i: I, _impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error, R> {
