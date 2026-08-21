@@ -40,14 +40,16 @@ const consumer = EffectAgent.gen(function* () {
   yield EffectAgent.control({ _tag: "OnInput" })
 })
 
-/* ── compile：同一个 Bus Connection 注入两个 Agent（拓扑长出来） ── */
+/* ── compile：注入 Driver + 同一个 Bus Connection（拓扑长出来） ── */
+const driver = { id: "fake-driver", run: (input: unknown) => Effect.succeed(input) }
 const sharedBus: ConnectionImpl = {
   handle: (e) => e._tag === "Publish"
     ? Effect.succeed("published")
     : Effect.succeed("consumed"),
 }
-const busProgram = compile(producer, { connections: new Map([["Bus", sharedBus]]) })
+const busProgram = compile(producer, { driver, connections: new Map([["Bus", sharedBus]]) })
 const consumerProgram = compile(consumer, {
+  driver,
   connections: new Map([["Bus", sharedBus], ["Logs", { handle: () => Effect.succeed(undefined) }]]),
 })
 

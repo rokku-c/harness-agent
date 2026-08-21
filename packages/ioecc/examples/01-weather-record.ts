@@ -32,13 +32,14 @@ const weatherLogger = EffectAgent.gen(function* () {
   yield EffectAgent.control({ _tag: "OnInput" })
 })
 
-/* ── compile：提供 Connection 实现（操作契约在编译侧） ── */
+/* ── compile：注入 Driver + Connection 实现（操作契约在编译侧） ── */
+const driver = { id: "fake-driver", run: (input: unknown) => Effect.succeed(input) }
 const impls = new Map<string, ConnectionImpl>([
   ["WeatherApp", { handle: (e) => Effect.succeed(`Sunny in ${(e as typeof fetchWeather).connection}`) }],
   ["Logs", { handle: () => Effect.succeed(undefined) }],
   ["Filesystem", { handle: () => Effect.succeed(undefined) }],
 ])
-const program = compile(weatherLogger, { connections: impls })
+const program = compile(weatherLogger, { driver, connections: impls })
 
 /* ── 跑：先看描述，再执行 ── */
 console.log("=== 天气记录 Agent 描述（gen 收集） ===")

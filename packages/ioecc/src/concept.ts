@@ -55,7 +55,11 @@ export interface Connection {
  *   connections  连接哪些世界（C）
  *   controls     哪些控制（C）
  *
- * 描述不执行；compile（compiler.ts）把描述变成可运行程序。
+ * 描述不执行；compile（compiler.ts）把描述变成可运行程序，并注入 Driver。
+ *
+ * Driver 也是 Agent 的形态：它遵循同一五维度（input/output 可 unknown，
+ * connection 是 provider 适配）。任意编译后的 agent 可包装成 Driver，
+ * 供其他 agent 使用（递归）。观测/额外功能 = Driver 提供的额外 Connection。
  */
 export interface Agent<I = unknown, O = unknown> {
   readonly input: Schema.Schema<I>
