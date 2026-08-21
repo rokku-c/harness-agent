@@ -2,21 +2,27 @@ import { Effect, Schema } from "effect"
 import type { Agent, Connection, ConnectionImpl, Control, Driver, Effect as EffectDecl } from "./concept.js"
 
 /**
- * gen 引擎 —— 五维度 + driver 作入参，function* 写触发逻辑（gen 就是 compile）。
+ * IOECC —— 声明 + 控制实现两步。
  *
- * 不再 yield 描述操作；五维度（input/output/effects/connections/controls）和 driver
- * 直接作为参数传入，function* 是「触发后的控制逻辑」（接收输入，产出输出）。
+ * 1. 声明：EffectAgent（五维度 + driver）—— 纯声明，不执行。
+ *    const agent = EffectAgent.gen({ input, output, effects, connections, controls }, driver)
  *
- *   const program = EffectAgent.gen({
- *     input: Schema.String,
- *     output: Schema.String,
- *     effects: [{ _tag: "Echo", connection: "Echo" }],
- *     connections: [{ name: "Echo" }],
- *     controls: [{ _tag: "OnInput" }],
- *   }, driver, (input) => driver.run(input))
+ * 2. 控制实现：Control.run(spec, driver) —— 用 driver 的能力写真实逻辑。
+ *    const program = Control.run(agent, driver)  // → Effect<A, E, R>
+ *      内：yield* d.SetProvider(...) / yield* d.run(...)
  *
- * 产出 Program：直接 drive/execute。driver 已绑定，connections 提供 Effect 实现。
+ * Control 是「用 driver 写的一段 Effect 逻辑」，不是标签。
+ * 声明（五维度）与实现（Control.run）分离：声明可序列化，实现才执行。
  */
+
+/** 五维度描述。 */
+export interface AgentSpec<I = unknown, O = unknown> {
+  readonly input: Schema.Schema<I>
+  readonly output: Schema.Schema<O>
+  readonly effects: ReadonlyArray<EffectDecl<any>>
+  readonly connections: ReadonlyArray<Connection>
+  readonly controls: ReadonlyArray<Control>
+}
 
 /** 编译后的可运行程序（含描述，供外部查看/观测）。 */
 export interface Program {
@@ -25,15 +31,6 @@ export interface Program {
   readonly drive: (index: number, input: unknown) => Effect.Effect<unknown, Error>
   readonly execute: (effect: EffectDecl<any>) => Effect.Effect<unknown, Error>
   readonly decode: (value: unknown) => Effect.Effect<unknown, Error>
-}
-
-/** 五维度描述 + driver 的完整规格。 */
-export interface AgentSpec<I = unknown, O = unknown> {
-  readonly input: Schema.Schema<I>
-  readonly output: Schema.Schema<O>
-  readonly effects: ReadonlyArray<EffectDecl<any>>
-  readonly connections: ReadonlyArray<Connection>
-  readonly controls: ReadonlyArray<Control>
 }
 
 /** 解释一个 E：按 connection 找实现。观测 Connection 由 driver 提供。 */
@@ -64,27 +61,18 @@ const toProgram = (spec: AgentSpec<any, any>, driver: Driver, connections: Reado
   }
 }
 
+/* ── 声明：EffectAgent ── */
+
 /**
- * gen —— 五维度 + driver 作入参，产出可运行程序。
- * @param spec 五维度描述
- * @param driver 执行者（绑定在 agent 上）
- * @param impls Connection 实现（Effect 如何解释）
- * @param logic 可选的触发逻辑（function*：接收输入 → 产出输出；缺省走 driver.run）
+ * gen —— 声明五维度 + driver。纯声明，不执行。
  */
 export const gen = <I, O>(
   spec: AgentSpec<I, O>,
   driver: Driver,
-  impls: ReadonlyMap<string, ConnectionImpl> = new Map(),
-  logic?: (input: I) => Effect.Effect<O, Error>
-): Program => {
-  const program = toProgram(spec, driver, impls)
-  // 若有自定义触发逻辑，用它包一层 drive。
-  return logic
-    ? { ...program, drive: (index, input) => logic(input as I) as Effect.Effect<unknown, Error> }
-    : program
-}
+  impls: ReadonlyMap<string, ConnectionImpl> = new Map()
+): Program => toProgram(spec, driver, impls)
 
-/** 元编程构造：五维度 + driver + connections → 可运行程序。 */
+/** 元编程构造：五维度 + driver → 可运行程序。 */
 export const make = <I, O, E extends EffectDecl<any>, Cn extends Connection, Ct extends Control>(
   spec: {
     readonly input: Schema.Schema<I>
@@ -97,7 +85,23 @@ export const make = <I, O, E extends EffectDecl<any>, Cn extends Connection, Ct 
   impls: ReadonlyMap<string, ConnectionImpl> = new Map()
 ): Program => toProgram(spec as AgentSpec<I, O>, driver, impls)
 
-/** EffectAgent 命名空间。 */
+/* ── 控制实现：Control.run（用 driver 写逻辑） ── */
+
+/**
+ * ControlImpl —— 控制实现。
+ * `run(program, d, logic)` 接收 gen 产出的 Program + driver + 逻辑生成器；
+ * 生成器内用 `yield* d.xxx()` 编排（SetProvider 配置 / run 驱动）。
+ * 用 Effect.gen 驱动生成器（yield* 解包 Effect）。
+ */
+export const ControlImpl = {
+  run: <A, E = Error, R = never>(
+    _program: Program,
+    _d: Driver,
+    logic: (d: Driver) => Effect.Effect<A, E, R>
+  ): Effect.Effect<A, E, R> => logic(_d),
+}
+
+/** EffectAgent 命名空间（声明）。 */
 export const EffectAgent = {
   gen,
   make,

@@ -81,12 +81,16 @@ export interface ConnectionImpl {
 /**
  * Driver —— 能驱动一个 Agent 的执行者。
  * 本身遵循五维度：input/output 可 unknown；connection 是 provider 适配。
- * `run` 把输入喂给被驱动 agent，跑它的 effects/controls，产出 output。
+ *
+ * 控制实现（Control.run）里用 `yield* d.<方法>(...)` 编排逻辑——
+ * d 提供 run（驱动）以及 SetProvider 等配置方法。
  */
 export interface Driver {
   readonly id: string
   /** 驱动：输入 → 输出。 */
   readonly run: (input: unknown) => Effect.Effect<unknown, Error>
+  /** 配置 Connection：设置 provider 的 baseUrl 等。 */
+  readonly SetProvider?: (config: unknown) => Effect.Effect<void, Error>
   /** Driver 提供的额外 Connection（观测/日志/thinking 等）。 */
   readonly provides?: ReadonlyArray<Connection>
   /** Driver 支持的观测 Connection 实现。 */
