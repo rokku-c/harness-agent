@@ -1,60 +1,48 @@
 import { Effect, Schema } from "effect"
-import { ConnectionImpl, Control, Driver, EffectAgent } from "../src/index.js"
+import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
 
 /**
  * IOECC 示例 1 —— 天气记录 Agent。
  *
- * driver 就是 Agent（五维度），声明自己的 control（能力）；gen 注入 drivers，
- * 驱动靠 driver 声明的 control。connections 注入 Effect 实现。
+ * 影响声明绑定在 Control 上（affects）：RunLogic 声明影响 WeatherApp/Logs/Filesystem。
+ * run 经 impls（affects 声明的 connection 实现）访问这些世界。
+ * 驱动 = 执行 control。
  *
  * 运行：bun packages/ioecc/examples/01-weather-record.ts
  */
 
-/* ── E：只声明哪个 Connection 受影响 ── */
-const fetchWeather = { _tag: "FetchWeather", connection: "WeatherApp" } as const
-const logInfo = { _tag: "LogInfo", connection: "Logs" } as const
-const writeFile = { _tag: "WriteFile", connection: "Filesystem" } as const
-
-/* ── 一个 Control 实现：用 driver 能力写逻辑 ── */
+/* ── 一个 Control：声明影响哪些 connection + run 逻辑 ── */
 class RunLogic<I, O> extends Control<I, O> {
-  constructor() { super("RunLogic") }
-  run(_i: I, _o: O, _e: ReadonlyArray<any>, _cn: ReadonlyArray<any>, _ct: ReadonlyArray<any>, d: Driver): Effect.Effect<O, Error> {
-    const concrete = d as unknown as { run: (i: I) => Effect.Effect<O, Error> }
-    return concrete.run(_i)
+  constructor() { super("RunLogic", ["WeatherApp", "Logs", "Filesystem"]) }
+  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+    const weather = impls.get("WeatherApp")!
+    const logs = impls.get("Logs")!
+    return Effect.gen(function* () {
+      const w = yield* weather.handle("get", _i)
+      yield* logs.handle("info", `fetched ${String(w)}`)
+      return w as O
+    })
   }
-}
-
-/* ── driver：是 Agent（五维度），声明自己的 control + 具体 run 方法 ── */
-const driver = {
-  input: Schema.Struct({ city: Schema.String }),
-  output: Schema.String,
-  effects: [],
-  connections: [],
-  controls: [new RunLogic<{ city: string }, string>()],
-  drivers: [],
-  run: (input: { city: string }) => Effect.succeed(`Sunny in ${input.city}`),
 }
 
 /* ── Connections 实现（操作契约在编译侧） ── */
 const impls = new Map<string, ConnectionImpl>([
-  ["WeatherApp", { handle: () => Effect.succeed("Sunny") }],
+  ["WeatherApp", { handle: (op, args) => Effect.succeed(`Sunny ${String(args)}`) }],
   ["Logs", { handle: () => Effect.succeed(undefined) }],
   ["Filesystem", { handle: () => Effect.succeed(undefined) }],
 ])
 
-/* ── gen：五维度 + drivers（n 个）作入参，直接产出可运行程序 ── */
+/* ── gen：五维度 + Control（影响声明在其上） ── */
 const program = EffectAgent.gen({
   input: Schema.Struct({ city: Schema.String }),
-  output: Schema.Void,
-  effects: [fetchWeather, logInfo, writeFile],
-  connections: [{ name: "WeatherApp" }, { name: "Logs" }, { name: "Filesystem" }],
-  controls: [], // 控制由 driver 声明（RunLogic）
-}, [driver], impls)
+  output: Schema.String,
+  connections: ["WeatherApp", "Logs", "Filesystem"],
+  controls: [new RunLogic<{ city: string }, string>()],
+}, [], impls)
 
-/* ── 跑：先看描述，再执行 ── */
-console.log("=== 天气记录 Agent 描述 ===")
-console.log(JSON.stringify(program.agent, null, 2))
+console.log("=== 天气记录 Agent ===")
+console.log("Control 声明影响:", program.agent.controls[0]!.affects.join(", "))
 
-console.log("\n=== 执行（driver 声明的 control） ===")
 const out = await Effect.runPromise(program.drive(0, { city: "Shanghai" }))
+console.log("\n=== 执行（control 经 impls 访问影响的世界） ===")
 console.log("查询天气 →", out)

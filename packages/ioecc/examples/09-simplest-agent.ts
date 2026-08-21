@@ -1,60 +1,41 @@
 import { Effect, Schema } from "effect"
-import { ConnectionImpl, Control, Driver, EffectAgent } from "../src/index.js"
+import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
 
 /**
- * IOECC 示例 1 —— 天气记录 Agent。
+ * IOECC 示例 9 —— 最小 Agent。
  *
- * driver 就是 Agent（五维度），声明自己的 control（能力）；gen 注入 drivers，
- * 驱动靠 driver 声明的 control。connections 注入 Effect 实现。
+ * 一个最小 Agent：单维度声明（input/output），一个 control 声明影响一个 connection，
+ * 经 impls 访问世界。展示新模型的最小骨架。
+ * 影响声明绑定在 Control 上（affects）：Echo 声明影响 World。
  *
- * 运行：bun packages/ioecc/examples/01-weather-record.ts
+ * 运行：bun packages/ioecc/examples/09-simplest-agent.ts
  */
 
-/* ── E：只声明哪个 Connection 受影响 ── */
-const fetchWeather = { _tag: "FetchWeather", connection: "WeatherApp" } as const
-const logInfo = { _tag: "LogInfo", connection: "Logs" } as const
-const writeFile = { _tag: "WriteFile", connection: "Filesystem" } as const
-
-/* ── 一个 Control 实现：用 driver 能力写逻辑 ── */
-class RunLogic<I, O> extends Control<I, O> {
-  constructor() { super("RunLogic") }
-  run(_i: I, _o: O, _e: ReadonlyArray<any>, _cn: ReadonlyArray<any>, _ct: ReadonlyArray<any>, d: Driver): Effect.Effect<O, Error> {
-    const concrete = d as unknown as { run: (i: I) => Effect.Effect<O, Error> }
-    return concrete.run(_i)
+/* ── 一个最小 Control：声明影响 + run 经 impls 访问连接 ── */
+class Echo<I, O> extends Control<I, O> {
+  constructor() { super("Echo", ["World"]) }
+  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+    const world = impls.get("World")!
+    return world.handle("echo", _i) as Effect.Effect<O, Error>
   }
 }
 
-/* ── driver：是 Agent（五维度），声明自己的 control + 具体 run 方法 ── */
-const driver = {
-  input: Schema.Struct({ city: Schema.String }),
-  output: Schema.String,
-  effects: [],
-  connections: [],
-  controls: [new RunLogic<{ city: string }, string>()],
-  drivers: [],
-  run: (input: { city: string }) => Effect.succeed(`Sunny in ${input.city}`),
-}
-
-/* ── Connections 实现（操作契约在编译侧） ── */
+/* ── World 连接实现（fake） ── */
 const impls = new Map<string, ConnectionImpl>([
-  ["WeatherApp", { handle: () => Effect.succeed("Sunny") }],
-  ["Logs", { handle: () => Effect.succeed(undefined) }],
-  ["Filesystem", { handle: () => Effect.succeed(undefined) }],
+  ["World", { handle: (op, args) => Effect.succeed(`${op}:${String(args)}`) }],
 ])
 
-/* ── gen：五维度 + drivers（n 个）作入参，直接产出可运行程序 ── */
+/* ── gen：最小五维度 + 一个 control ── */
 const program = EffectAgent.gen({
-  input: Schema.Struct({ city: Schema.String }),
-  output: Schema.Void,
-  effects: [fetchWeather, logInfo, writeFile],
-  connections: [{ name: "WeatherApp" }, { name: "Logs" }, { name: "Filesystem" }],
-  controls: [], // 控制由 driver 声明（RunLogic）
-}, [driver], impls)
+  input: Schema.String,
+  output: Schema.String,
+  connections: ["World"],
+  controls: [new Echo<string, string>()],
+}, [], impls)
 
-/* ── 跑：先看描述，再执行 ── */
-console.log("=== 天气记录 Agent 描述 ===")
-console.log(JSON.stringify(program.agent, null, 2))
+console.log("=== 最小 Agent ===")
+console.log("Control 声明影响:", program.agent.controls[0]!.affects.join(", "))
 
-console.log("\n=== 执行（driver 声明的 control） ===")
-const out = await Effect.runPromise(program.drive(0, { city: "Shanghai" }))
-console.log("查询天气 →", out)
+const out = await Effect.runPromise(program.drive(0, "hi")) as string
+console.log("\n=== 执行（Echo 经 impls 访问 World） ===")
+console.log(out)

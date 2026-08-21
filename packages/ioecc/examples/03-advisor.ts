@@ -1,54 +1,72 @@
 import { Effect, Schema } from "effect"
-import { ConnectionImpl, Control, Driver, EffectAgent } from "../src/index.js"
+import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
 
 /**
  * IOECC 示例 3 —— Advisor 架构。
  *
  * 主 agent 在关键决策点咨询顾问（更强的模型/agent）。顾问是一个 Agent（可当 driver），
- * 主 agent 通过一个 consult Connection 声明咨询请求，运行时路由到顾问。
+ * 主 agent 通过一个 consult —— 声明影响 Advisor Connection，运行时经 impls 路由到顾问。
+ * 影响声明绑定在 Control 上（affects）：Consult/Decide 都声明影响 Advisor。
  *
  * 运行：bun packages/ioecc/examples/03-advisor.ts
  */
 
-/* ── E：主 agent 声明咨询请求（对 Advisor Connection） ── */
-const consult = { _tag: "Consult", connection: "Advisor" } as const
+type Advice = { verdict: string; reason: string }
 
-/* ── 顾问 driver：一个 Agent，run = 顾问逻辑 ── */
-const advisor = {
-  input: Schema.Struct({ question: Schema.String }),
-  output: Schema.Struct({ verdict: Schema.String, reason: Schema.String }),
-  effects: [],
-  connections: [],
-  controls: [],
-  drivers: [],
-  // 具体 driver 能力：顾问给建议。
-  run: (input: { question: string }) => Effect.succeed({ verdict: "approve", reason: `advice on: ${input.question}` }),
-}
-
-/* ── 主 agent 的控制：Decide —— 咨询顾问后做决定 ── */
-class Decide extends Control<{ task: string }, { verdict: string; reason: string }> {
-  constructor() { super("Decide") }
-  run(_i: { task: string }, _o: { verdict: string; reason: string }, _e: ReadonlyArray<any>, _cn: ReadonlyArray<any>, _ct: ReadonlyArray<any>, d: Driver): Effect.Effect<{ verdict: string; reason: string }, Error> {
-    // d 是主 agent 的 driver（这里用顾问 driver），consult 通过 Advisor Connection 路由。
-    const concrete = d as unknown as { run: (i: { question: string }) => Effect.Effect<{ verdict: string; reason: string }, Error> }
-    return concrete.run({ question: `should I ${_i.task}?` })
+/* ── 顾问 driver：一个 Agent（五维度），Consult control 声明影响 Advisor ── */
+class Consult<I, O> extends Control<I, O> {
+  constructor() { super("Consult", ["Advisor"]) }
+  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+    const advisor = impls.get("Advisor")!
+    return advisor.handle("consult", _i) as Effect.Effect<O, Error>
   }
 }
 
-/* ── gen：主 agent，advisor 作为 driver ── */
+/* ── 顾问实际逻辑：注入为 Advisor ConnectionImpl ── */
+const advisorImpl: ConnectionImpl = {
+  handle: (op, args) => {
+    const q = (args as { question: string }).question
+    return Effect.succeed({ verdict: "approve", reason: `advice on: ${q}` })
+  },
+}
+
+const advisorDriver = {
+  input: Schema.Struct({ question: Schema.String }),
+  output: Schema.Struct({ verdict: Schema.String, reason: Schema.String }),
+  connections: ["Advisor"],
+  controls: [new Consult<{ question: string }, Advice>()],
+  drivers: [],
+}
+
+/* ── 主 agent 的控制：Decide —— 咨询顾问后做决定（声明影响 Advisor） ── */
+class Decide<I, O> extends Control<I, O> {
+  constructor() { super("Decide", ["Advisor"]) }
+  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+    const advisor = impls.get("Advisor")!
+    const task = (_i as { task: string }).task
+    return advisor.handle("consult", { question: `should I ${task}?` }) as Effect.Effect<O, Error>
+  }
+}
+
+/* ── gen：主 agent，advisor 作为 driver；两者都经 Advisor impl 访问顾问 ── */
 const program = EffectAgent.gen({
   input: Schema.Struct({ task: Schema.String }),
   output: Schema.Struct({ verdict: Schema.String, reason: Schema.String }),
-  effects: [consult],
-  connections: [{ name: "Advisor" }],
-  controls: [new Decide()],
-}, [advisor])
+  connections: ["Advisor"],
+  controls: [new Decide<{ task: string }, Advice>()],
+}, [advisorDriver], new Map([["Advisor", advisorImpl]]))
 
 console.log("=== Advisor 架构 ===")
-console.log("主 agent 影响:", program.agent.effects.map((e) => e.connection).join(", "))
-console.log("advisor 作为 driver，connections:", program.agent.drivers.length)
+console.log("主 agent 影响:", program.agent.controls[0]!.affects.join(", "))
+const advisorCtrl = (program.agent.drivers[0] as unknown as { controls: Array<{ affects: ReadonlyArray<string> }> }).controls[0]
+console.log("advisor 作为 driver（Consult 影响:", advisorCtrl ? advisorCtrl.affects.join(", ") : "-", ")")
 
-const out = await Effect.runPromise(program.drive(0, { task: "refactor auth module" })) as { verdict: string; reason: string }
-console.log("\n=== 主 agent 决定 ===")
+const out = await Effect.runPromise(program.drive(0, { task: "refactor auth module" })) as Advice
+console.log("\n=== 主 agent 决定（Decide control 经 impls 咨询 Advisor） ===")
 console.log("verdict:", out.verdict)
 console.log("reason:", out.reason)
+
+// 也可直接驱动 advisor driver 的 Consult control（index 1）。
+const consultOut = await Effect.runPromise(program.drive(1, { question: "should I add tests?" })) as Advice
+console.log("\n=== 直接驱动顾问 Consult control ===")
+console.log("顾问:", consultOut.verdict, "-", consultOut.reason)
