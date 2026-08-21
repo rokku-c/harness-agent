@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect"
+import { Cause, Effect, Schema } from "effect"
 import { Control } from "./concept.js"
 import type { Agent, ConnectionImpl, Driver } from "./concept.js"
 
@@ -35,7 +35,7 @@ const driveOne = (
       Effect.mapError((cause) => new Error(`Control ${ctrl._tag} input mismatch: ${cause}`))
     )
     return yield* (ctrl.run(decoded, impls) as Effect.Effect<unknown, Error, any>).pipe(
-      Effect.mapError((cause) => new Error(`Control ${ctrl._tag} failed: ${String(cause)}`))
+      Effect.mapError((cause) => new Error(`Control ${ctrl._tag} failed: ${Cause.pretty(Cause.fail(cause))}`))
     )
   }) as Effect.Effect<unknown, Error, never>
 
