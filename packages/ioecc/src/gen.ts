@@ -54,6 +54,12 @@ const drive = (agent: Agent<any, any>, ctrl: Control, input: unknown) =>
 /** 把 AgentSpec 变成可运行程序。 */
 const toProgram = (spec: AgentSpec<any, any>, drivers: ReadonlyArray<any>, connections: ReadonlyMap<string, ConnectionImpl>): Program => {
   const agent: Agent<any, any> = { ...spec, drivers }
+  // 声明一致性：每个 effect 指向的 connection 必须被声明过，否则报错。
+  const declaredConnections = new Set((spec.connections ?? []).map((c) => c.name))
+  for (const effect of spec.effects ?? []) {
+    if (!declaredConnections.has(effect.connection))
+      throw new Error(`Effect ${effect._tag} declares connection "${effect.connection}" but it's not in connections: [${[...declaredConnections].join(", ")}]`)
+  }
   // 所有 control：agent 自己声明的 + 各 driver 声明的（驱动靠 driver 的 control）。
   const allControls = [...(spec.controls ?? []), ...drivers.flatMap((d: any) => d.controls ?? [])]
   return {

@@ -13,7 +13,7 @@ import { Connection, ConnectionImpl, Control, Driver, EffectAgent } from "../src
  */
 
 /* ── E：agent 经 claude driver 声明交互 ── */
-const run = { _tag: "ClaudeRun", connection: "Claude" } as const
+const runRequest = { _tag: "ClaudeRun", connection: "Claude" } as const
 
 /* ── Connection 声明：三类注入映射 ── */
 const providerConn: Connection = { name: "provider" }       // provider 配置
@@ -28,7 +28,7 @@ const claudeCodeDriver = {
   // 五维度（Agent 形状）
   input: Schema.String,
   output: Schema.String,
-  effects: [run],
+  effects: [runRequest],
   connections: [providerConn, toolsConn, skillsConn],
   controls: [],
   drivers: [],
@@ -46,7 +46,7 @@ const claudeCodeDriver = {
 const program = EffectAgent.gen({
   input: Schema.String,
   output: Schema.String,
-  effects: [run],
+  effects: [runRequest],
   connections: [{ name: "Claude" }],
   controls: [new (class extends Control<string, string> {
     constructor() { super("RunClaude") }

@@ -78,12 +78,12 @@ describe("IOECC（driver 声明 control）", () => {
   })
 
   test("观测 = 具体 driver 作为 Connection", async () => {
-    // 观测 Connection 由外围注入（普通 Connection 实现）。
+    // 观测 Connection 声明 + 由外围注入实现。
     const agent = EffectAgent.gen({
       input: Schema.Void,
       output: Schema.Void,
       effects: [{ _tag: "ReadLogs", connection: "SelfLogs" }],
-      connections: [],
+      connections: [{ name: "SelfLogs" }],
       controls: [],
     }, [fakeDriver], new Map<string, ConnectionImpl>([
       ["SelfLogs", { handle: () => Effect.succeed("log-line-1\nlog-line-2") }],
@@ -91,5 +91,16 @@ describe("IOECC（driver 声明 control）", () => {
 
     const out = await Effect.runPromise(agent.execute({ _tag: "ReadLogs", connection: "SelfLogs" }))
     expect(String(out)).toContain("log-line-1")
+  })
+
+  test("声明一致性：effect 指向未声明的 connection 时报错", () => {
+    expect(() => EffectAgent.gen({
+      input: Schema.Void,
+      output: Schema.Void,
+      // effects 声明了 "WeatherApp"，但 connections 没声明它 → 应报错。
+      effects: [{ _tag: "FetchWeather", connection: "WeatherApp" }],
+      connections: [],
+      controls: [],
+    }, [fakeDriver])).toThrow(/not in connections/)
   })
 })
