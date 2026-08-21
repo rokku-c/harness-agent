@@ -2,7 +2,6 @@ import { Effect, Schema } from "effect"
 import {
   ConnectionImpl,
   EffectAgent,
-  compile,
 } from "../src/index.js"
 
 /**
@@ -39,7 +38,7 @@ const impls = new Map<string, ConnectionImpl>([
   ["Logs", { handle: () => Effect.succeed(undefined) }],
   ["Filesystem", { handle: () => Effect.succeed(undefined) }],
 ])
-const program = compile(weatherLogger, { driver, connections: impls })
+const program = EffectAgent.compile(weatherLogger, { driver, connections: impls })
 
 /* ── 跑：先看描述，再执行 ── */
 console.log("=== 天气记录 Agent 描述（gen 收集） ===")

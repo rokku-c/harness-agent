@@ -2,7 +2,6 @@ import { Effect, Schema } from "effect"
 import {
   ConnectionImpl,
   EffectAgent,
-  compile,
 } from "../src/index.js"
 
 /**
@@ -47,8 +46,8 @@ const sharedBus: ConnectionImpl = {
     ? Effect.succeed("published")
     : Effect.succeed("consumed"),
 }
-const busProgram = compile(producer, { driver, connections: new Map([["Bus", sharedBus]]) })
-const consumerProgram = compile(consumer, {
+const busProgram = EffectAgent.compile(producer, { driver, connections: new Map([["Bus", sharedBus]]) })
+const consumerProgram = EffectAgent.compile(consumer, {
   driver,
   connections: new Map([["Bus", sharedBus], ["Logs", { handle: () => Effect.succeed(undefined) }]]),
 })

@@ -5,8 +5,38 @@ import {
   Driver,
   EffectAgent,
   agentDriver,
-  compile,
 } from "../src/index.js"
+
+describe("IOECC（元编程 make）", () => {
+  test("EffectAgent.make 类型参数声明五维度，compile 注入 driver", async () => {
+    const fetchWeather = { _tag: "FetchWeather", connection: "WeatherApp" } as const
+    const onInput = { _tag: "OnInput" } as const
+
+    // 元编程形态：泛型参数 I/O/E/Cn/Ct 强制五维度形状。
+    const agent = EffectAgent.make<{ city: string }, void, typeof fetchWeather, { name: string }, typeof onInput>({
+      input: Schema.Struct({ city: Schema.String }),
+      output: Schema.Void,
+      effects: [fetchWeather],
+      connections: [{ name: "WeatherApp" }],
+      controls: [onInput],
+    }, (env) => ({
+      drive: (index, input) => env.driver.run(input),
+      execute: (e) => {
+        const impl = env.connections.get(e.connection)
+        if (!impl) return Effect.fail(new Error(`Unknown ${e.connection}`))
+        return impl.handle(e)
+      },
+      decode: (v) => Effect.succeed(v),
+    }))
+
+    const program = agent.compile({
+      driver: { id: "d", run: (i) => Effect.succeed(`driven:${String(i)}`) },
+      connections: new Map([["WeatherApp", { handle: () => Effect.succeed("Sunny") }]]),
+    })
+    const out = await Effect.runPromise(program.drive(0, { city: "Shanghai" }))
+    expect(out).toBe("driven:[object Object]")
+  })
+})
 
 describe("IOECC（Driver 统一执行者）", () => {
   test("compile 注入 driver：driver 驱动 agent", async () => {
@@ -26,7 +56,7 @@ describe("IOECC（Driver 统一执行者）", () => {
     const impls = new Map<string, ConnectionImpl>([
       ["WeatherApp", { handle: () => Effect.succeed("Sunny") }],
     ])
-    const program = compile(agent, { driver, connections: impls })
+    const program = EffectAgent.compile(agent, { driver, connections: impls })
 
     const out = await Effect.runPromise(program.drive(0, { city: "Shanghai" }))
     expect(out).toBe("driven:[object Object]")
@@ -44,7 +74,7 @@ describe("IOECC（Driver 统一执行者）", () => {
     const innerImpls = new Map<string, ConnectionImpl>([
       ["Inner", { handle: (e) => Effect.succeed(`echo:${String((e as { _tag: string })._tag)}`) }],
     ])
-    const innerCompiled = compile(inner, { driver: { id: "inner", run: (i) => Effect.succeed(`inner-ran:${String(i)}`) }, connections: innerImpls })
+    const innerCompiled = EffectAgent.compile(inner, { driver: { id: "inner", run: (i: unknown) => Effect.succeed(`inner-ran:${String(i)}`) }, connections: innerImpls })
 
     // 把编译后的内层 agent 包装成 driver，供外层用（递归：agent 当 driver）。
     const innerAsDriver = agentDriver(innerCompiled, { id: "inner-as-driver" })
@@ -56,7 +86,7 @@ describe("IOECC（Driver 统一执行者）", () => {
       yield EffectAgent.output(Schema.String)
       yield EffectAgent.control({ _tag: "OnInput" })
     })
-    const outerCompiled = compile(outer, { driver: innerAsDriver, connections: new Map() })
+    const outerCompiled = EffectAgent.compile(outer, { driver: innerAsDriver, connections: new Map() })
 
     const out = await Effect.runPromise(outerCompiled.drive(0, "hello"))
     // 外层 driver 是内层 agent：驱动外层 → 内层跑 → 内层结果返回。
@@ -81,7 +111,7 @@ describe("IOECC（Driver 统一执行者）", () => {
         ["SelfLogs", { handle: () => Effect.succeed("log-line-1\nlog-line-2") }],
       ]),
     }
-    const program = compile(agent, { driver, connections: new Map() })
+    const program = EffectAgent.compile(agent, { driver, connections: new Map() })
 
     const out = await Effect.runPromise(program.execute({ _tag: "ReadLogs", connection: "SelfLogs" }))
     expect(String(out)).toContain("log-line-1")

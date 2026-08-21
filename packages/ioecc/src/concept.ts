@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 /**
  * IOECC —— 五个正交维度（纯抽象概念，无执行、无契约）。
@@ -67,4 +67,34 @@ export interface Agent<I = unknown, O = unknown> {
   readonly effects: ReadonlyArray<Effect<any>>
   readonly connections: ReadonlyArray<Connection>
   readonly controls: ReadonlyArray<Control>
+}
+
+/* ── 执行侧契约类型（compile 时提供；放这里避免 gen/compiler 循环依赖） ── */
+
+/** Connection 实现：解释一个 Effect（操作契约在编译侧）。 */
+export interface ConnectionImpl {
+  readonly handle: (effect: Effect<any>) => Effect.Effect<unknown, Error>
+}
+
+/**
+ * Driver —— 能驱动一个 Agent 的执行者。
+ * 本身遵循五维度：input/output 可 unknown；connection 是 provider 适配。
+ * `run` 把输入喂给被驱动 agent，跑它的 effects/controls，产出 output。
+ */
+export interface Driver {
+  readonly id: string
+  /** 驱动：输入 → 输出。 */
+  readonly run: (input: unknown) => Effect.Effect<unknown, Error>
+  /** Driver 提供的额外 Connection（观测/日志/thinking 等）。 */
+  readonly provides?: ReadonlyArray<Connection>
+  /** Driver 支持的观测 Connection 实现。 */
+  readonly observe?: ReadonlyMap<string, ConnectionImpl>
+}
+
+/** 编译环境：Driver + Connection 实现。 */
+export interface CompileEnv {
+  /** Driver：驱动这个 Agent。 */
+  readonly driver: Driver
+  /** Connection 实现：Agent 声明的每个 Effect 如何解释。 */
+  readonly connections: ReadonlyMap<string, ConnectionImpl>
 }
