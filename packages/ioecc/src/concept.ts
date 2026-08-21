@@ -24,14 +24,36 @@ export interface Effect<Connection extends string = string> {
   readonly connection: Connection
 }
 
-/* ── C (Control)：对自身的控制声明 ── */
+/* ── C (Control)：对自身的控制实现 ── */
 
 /**
- * 抽象的控制声明：对自身运行的一次控制。
- * 不携带操作契约；静态 Trigger 与动态干预（Fork/Stop/Retry）的区分由外围决定。
+ * 控制实现基类。用户继承它，写 constructor（构造）与 run（逻辑）。
+ *
+ *   class OnInput extends Control<I, O> {
+ *     constructor(...) { super(...) }        // 构造
+ *     run(I, O, E, Cn, Ct, d) {              // 用 driver 写逻辑
+ *       return Effect.gen(function* () {
+ *         yield* d.run(...)
+ *       })
+ *     }
+ *   }
+ *
+ * 静态 Trigger 与动态干预（Fork/Stop/Retry）都是 Control 的子类。
  */
-export interface Control {
+export class Control<I = unknown, O = unknown> {
   readonly _tag: string
+  constructor(_tag: string) { this._tag = _tag }
+  /** 用 driver 写逻辑：接收五维度 + driver，返回 Effect。子类可自由 override。 */
+  run(
+    _i: I,
+    _o: O,
+    _effects: ReadonlyArray<Effect<any>>,
+    _connections: ReadonlyArray<Connection>,
+    _controls: ReadonlyArray<Control>,
+    _d: Driver
+  ): Effect.Effect<O, Error> {
+    return Effect.fail(new Error(`Control ${this._tag} run not implemented`))
+  }
 }
 
 /* ── C (Connection)：世界 ── */
@@ -55,11 +77,9 @@ export interface Connection {
  *   connections  连接哪些世界（C）
  *   controls     哪些控制（C）
  *
- * 描述不执行；compile（compiler.ts）把描述变成可运行程序，并注入 Driver。
+ * 描述不执行；gen（gen.ts）注入 driver（可以有 n 个），驱动靠 driver 声明的 control。
  *
- * Driver 也是 Agent 的形态：它遵循同一五维度（input/output 可 unknown，
- * connection 是 provider 适配）。任意编译后的 agent 可包装成 Driver，
- * 供其他 agent 使用（递归）。观测/额外功能 = Driver 提供的额外 Connection。
+ * Driver 就是 Agent（五维度）：任何 Agent 都可以当 driver，递归。
  */
 export interface Agent<I = unknown, O = unknown> {
   readonly input: Schema.Schema<I>
@@ -67,8 +87,8 @@ export interface Agent<I = unknown, O = unknown> {
   readonly effects: ReadonlyArray<Effect<any>>
   readonly connections: ReadonlyArray<Connection>
   readonly controls: ReadonlyArray<Control>
-  /** Driver：声明时就绑定，gen 里可用 driver 的能力写控制逻辑。 */
-  readonly driver: Driver
+  /** Drivers：声明时就绑定（n 个）。驱动靠 driver 声明的 control。 */
+  readonly drivers: ReadonlyArray<Driver>
 }
 
 /* ── 执行侧契约类型（compile 时提供；放这里避免 gen/compiler 循环依赖） ── */
@@ -79,23 +99,15 @@ export interface ConnectionImpl {
 }
 
 /**
- * Driver —— 能驱动一个 Agent 的执行者。
- * 本身遵循五维度：input/output 可 unknown；connection 是 provider 适配。
+ * Driver —— 就是 Agent（五维度）。任何 Agent 都可以当 driver。
  *
- * 控制实现（Control.run）里用 `yield* d.<方法>(...)` 编排逻辑——
- * d 提供 run（驱动）以及 SetProvider 等配置方法。
+ * 核心不定义 Driver 的任何方法（无 run/SetProvider/observe）。
+ * 具体 driver（如 claude code driver）是一个 Agent，五维度填 provider 适配，
+ * 它内部可能有很多方法（run/SetProvider 等），但那是具体 driver 自己的，非核心强制。
+ *
+ * 观测/额外功能：具体 driver 作为 Connection 提供（外部可访问）。
  */
-export interface Driver {
-  readonly id: string
-  /** 驱动：输入 → 输出。 */
-  readonly run: (input: unknown) => Effect.Effect<unknown, Error>
-  /** 配置 Connection：设置 provider 的 baseUrl 等。 */
-  readonly SetProvider?: (config: unknown) => Effect.Effect<void, Error>
-  /** Driver 提供的额外 Connection（观测/日志/thinking 等）。 */
-  readonly provides?: ReadonlyArray<Connection>
-  /** Driver 支持的观测 Connection 实现。 */
-  readonly observe?: ReadonlyMap<string, ConnectionImpl>
-}
+export type Driver<I = unknown, O = unknown> = Agent<I, O>
 
 /** 编译环境：Connection 实现。driver 已在 Agent 上绑定。 */
 export interface CompileEnv {

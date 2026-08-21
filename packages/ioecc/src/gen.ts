@@ -1,18 +1,16 @@
 import { Effect, Schema } from "effect"
-import type { Agent, Connection, ConnectionImpl, Control, Driver, Effect as EffectDecl } from "./concept.js"
+import { Control } from "./concept.js"
+import type { Agent, Connection, ConnectionImpl, Driver, Effect as EffectDecl } from "./concept.js"
 
 /**
- * IOECC —— 声明 + 控制实现两步。
+ * IOECC —— 声明（五维度）+ 驱动（driver 声明的 control）。
  *
- * 1. 声明：EffectAgent（五维度 + driver）—— 纯声明，不执行。
- *    const agent = EffectAgent.gen({ input, output, effects, connections, controls }, driver)
+ * driver 就是 Agent（五维度），可以有 n 个。驱动不靠 driver.run，
+ * 而靠 driver 声明的 controls（每个 control 是 Control 实现，用具体 driver 能力写逻辑）。
  *
- * 2. 控制实现：Control.run(spec, driver) —— 用 driver 的能力写真实逻辑。
- *    const program = Control.run(agent, driver)  // → Effect<A, E, R>
- *      内：yield* d.SetProvider(...) / yield* d.run(...)
- *
- * Control 是「用 driver 写的一段 Effect 逻辑」，不是标签。
- * 声明（五维度）与实现（Control.run）分离：声明可序列化，实现才执行。
+ *   const driver = { ...五维度..., controls: [myControl] }   // driver 声明 control
+ *   const agent = EffectAgent.gen({ ...五维度... }, driver)  // driver 作为 agent
+ *   const out = yield* agent.drive(0, input)                  // 驱动：执行 driver 的 control
  */
 
 /** 五维度描述。 */
@@ -33,26 +31,35 @@ export interface Program {
   readonly decode: (value: unknown) => Effect.Effect<unknown, Error>
 }
 
-/** 解释一个 E：按 connection 找实现。观测 Connection 由 driver 提供。 */
+/** 解释一个 E：按 connection 找实现。 */
 const execute = (agent: Agent<any, any>, connections: ReadonlyMap<string, ConnectionImpl>, effect: EffectDecl<any>) => {
-  const impl = connections.get(effect.connection) ?? agent.driver.observe?.get(effect.connection)
+  const impl = connections.get(effect.connection)
   if (!impl) return Effect.fail(new Error(`Unknown connection ${effect.connection}`))
   return impl.handle(effect)
 }
 
-/** 解释一个 C：驱动一次控制。经 Driver.run 执行（Driver 是执行者，绑定在 agent 上）。 */
+/** 解释一个 C：驱动一次控制。经 Control.run 执行（Control 实现用 driver 能力写逻辑）。 */
 const drive = (agent: Agent<any, any>, ctrl: Control, input: unknown) =>
-  agent.driver.run(input).pipe(
-    Effect.mapError((cause) => new Error(`Driver failed on control ${ctrl._tag}: ${String(cause)}`))
+  ctrl.run(
+    input,
+    agent.output as never,
+    agent.effects,
+    agent.connections,
+    agent.controls,
+    agent.drivers[0]!
+  ).pipe(
+    Effect.mapError((cause) => new Error(`Control ${ctrl._tag} failed: ${String(cause)}`))
   )
 
 /** 把 AgentSpec 变成可运行程序。 */
-const toProgram = (spec: AgentSpec<any, any>, driver: Driver, connections: ReadonlyMap<string, ConnectionImpl>): Program => {
-  const agent: Agent<any, any> = { ...spec, driver }
+const toProgram = (spec: AgentSpec<any, any>, drivers: ReadonlyArray<any>, connections: ReadonlyMap<string, ConnectionImpl>): Program => {
+  const agent: Agent<any, any> = { ...spec, drivers }
+  // 所有 control：agent 自己声明的 + 各 driver 声明的（驱动靠 driver 的 control）。
+  const allControls = [...(spec.controls ?? []), ...drivers.flatMap((d: any) => d.controls ?? [])]
   return {
     agent,
     drive: (index, input) => {
-      const ctrl = agent.controls[index]
+      const ctrl = allControls[index]
       if (!ctrl) return Effect.fail(new Error(`No control at ${index}`))
       return drive(agent, ctrl, input)
     },
@@ -61,18 +68,14 @@ const toProgram = (spec: AgentSpec<any, any>, driver: Driver, connections: Reado
   }
 }
 
-/* ── 声明：EffectAgent ── */
-
-/**
- * gen —— 声明五维度 + driver。纯声明，不执行。
- */
+/** 声明：五维度 + drivers（可以有 n 个）。 */
 export const gen = <I, O>(
   spec: AgentSpec<I, O>,
-  driver: Driver,
+  drivers: ReadonlyArray<any>,
   impls: ReadonlyMap<string, ConnectionImpl> = new Map()
-): Program => toProgram(spec, driver, impls)
+): Program => toProgram(spec, drivers, impls)
 
-/** 元编程构造：五维度 + driver → 可运行程序。 */
+/** 元编程构造。 */
 export const make = <I, O, E extends EffectDecl<any>, Cn extends Connection, Ct extends Control>(
   spec: {
     readonly input: Schema.Schema<I>
@@ -81,28 +84,24 @@ export const make = <I, O, E extends EffectDecl<any>, Cn extends Connection, Ct 
     readonly connections: ReadonlyArray<Cn>
     readonly controls: ReadonlyArray<Ct>
   },
-  driver: Driver,
+  drivers: ReadonlyArray<any>,
   impls: ReadonlyMap<string, ConnectionImpl> = new Map()
-): Program => toProgram(spec as AgentSpec<I, O>, driver, impls)
-
-/* ── 控制实现：Control.run（用 driver 写逻辑） ── */
-
-/**
- * ControlImpl —— 控制实现。
- * `run(program, d, logic)` 接收 gen 产出的 Program + driver + 逻辑生成器；
- * 生成器内用 `yield* d.xxx()` 编排（SetProvider 配置 / run 驱动）。
- * 用 Effect.gen 驱动生成器（yield* 解包 Effect）。
- */
-export const ControlImpl = {
-  run: <A, E = Error, R = never>(
-    _program: Program,
-    _d: Driver,
-    logic: (d: Driver) => Effect.Effect<A, E, R>
-  ): Effect.Effect<A, E, R> => logic(_d),
-}
+): Program => toProgram(spec as AgentSpec<I, O>, drivers, impls)
 
 /** EffectAgent 命名空间（声明）。 */
 export const EffectAgent = {
   gen,
   make,
 }
+
+/** 便捷：构造一个最小 Control 实例。逻辑由用户提供（d 是具体 driver，方法自选）。 */
+export const control = <I = unknown, O = unknown>(
+  tag: string,
+  logic?: (d: Driver<any, any>, input: I) => Effect.Effect<O, Error>
+): Control<I, O> =>
+  new (class extends Control<I, O> {
+    constructor() { super(tag) }
+    run(_i: I, _o: O, _e: ReadonlyArray<EffectDecl<any>>, _cn: ReadonlyArray<Connection>, _ct: ReadonlyArray<Control>, d: Driver) {
+      return logic ? logic(d, _i) : Effect.fail(new Error(`Control ${tag} has no logic`))
+    }
+  })()

@@ -1,38 +1,49 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import {
+  Connection,
   ConnectionImpl,
-  ControlImpl,
+  Control,
   Driver,
+  Effect as EffectDecl,
   EffectAgent,
-  agentDriver,
 } from "../src/index.js"
 
-/** 一个假 driver：run + SetProvider。 */
-const fakeDriver: Driver = {
-  id: "fake-driver",
-  run: (input) => Effect.succeed(`driven:${String(input)}`),
-  SetProvider: (config) => Effect.succeed(undefined),
+/* ── 一个 Control 实现：用 driver 能力写逻辑 ── */
+class RunLogic<I, O> extends Control<I, O> {
+  constructor() { super("RunLogic") }
+  run(_i: I, _o: O, _e: ReadonlyArray<EffectDecl<any>>, _cn: ReadonlyArray<Connection>, _ct: ReadonlyArray<Control>, d: Driver): Effect.Effect<O, Error> {
+    // d 是具体 driver（Agent），其能力由具体实现提供。这里 cast 到有 run 的假 driver。
+    const concrete = d as unknown as { run: (i: I) => Effect.Effect<O, Error> }
+    return concrete.run(_i)
+  }
 }
 
-describe("IOECC（声明 + 控制实现）", () => {
-  test("gen 声明五维度 + driver，ControlImpl.run 用 driver 写逻辑", async () => {
-    // 1. 声明：五维度 + driver。
+/* ── 一个假 driver：是 Agent（五维度），声明自己的 control（能力） + 具体方法 run ── */
+const fakeDriver = {
+  input: Schema.String,
+  output: Schema.String,
+  effects: [],
+  connections: [],
+  controls: [new RunLogic<string, string>()],
+  drivers: [],
+  // 具体 driver 的实现能力（Agent 之外的具体方法）。
+  run: (input: string) => Effect.succeed(`driven:${String(input)}`),
+}
+
+describe("IOECC（driver 声明 control）", () => {
+  test("driver 是 Agent（五维度 + 自己声明的 control），gen 注入 n 个 driver", async () => {
+    // driver 声明 control（RunLogic）；gen 注入 drivers。
     const agent = EffectAgent.gen({
       input: Schema.String,
       output: Schema.String,
       effects: [],
       connections: [],
-      controls: [{ _tag: "OnInput" }],
-    }, fakeDriver)
+      controls: [],
+    }, [fakeDriver])
 
-    // 2. 控制实现：用 driver 的能力写逻辑（Effect.gen 内 yield* d.xxx()）。
-    const program = ControlImpl.run(agent, fakeDriver, (d) => Effect.gen(function* () {
-      yield* d.SetProvider!({ baseUrl: "https://api.example.com" }) // 配置 Connection
-      return yield* d.run("hello")                                  // 驱动
-    }))
-
-    const out = await Effect.runPromise(program)
+    // 驱动：执行 driver 声明的 control（RunLogic → d.run）。
+    const out = await Effect.runPromise(agent.drive(0, "hello"))
     expect(out).toBe("driven:hello")
   })
 
@@ -42,8 +53,8 @@ describe("IOECC（声明 + 控制实现）", () => {
       output: Schema.Void,
       effects: [{ _tag: "FetchWeather", connection: "WeatherApp" }],
       connections: [{ name: "WeatherApp" }],
-      controls: [{ _tag: "OnInput" }],
-    }, fakeDriver, new Map<string, ConnectionImpl>([
+      controls: [],
+    }, [fakeDriver], new Map<string, ConnectionImpl>([
       ["WeatherApp", { handle: () => Effect.succeed("Sunny") }],
     ]))
 
@@ -51,46 +62,32 @@ describe("IOECC（声明 + 控制实现）", () => {
     expect(String(out)).toBe("Sunny")
   })
 
-  test("任意 Agent 作 Driver（递归）：agentDriver 包装 Program", async () => {
-    const inner = EffectAgent.gen({
+  test("多个 driver：drivers 数组", async () => {
+    const driverA = { ...fakeDriver, run: (i: string) => Effect.succeed(`A:${i}`) }
+    const driverB = { ...fakeDriver, run: (i: string) => Effect.succeed(`B:${i}`) }
+
+    const agent = EffectAgent.gen({
       input: Schema.String,
       output: Schema.String,
       effects: [],
       connections: [],
-      controls: [{ _tag: "OnInput" }],
-    }, { id: "inner", run: (i: unknown) => Effect.succeed(`inner-ran:${String(i)}`) })
+      controls: [],
+    }, [driverA, driverB])
 
-    const innerAsDriver = agentDriver(inner, { id: "inner-as-driver" })
-    expect(innerAsDriver.id).toBe("inner-as-driver")
-
-    // 外层用 innerAsDriver 当 driver。
-    const outer = EffectAgent.gen({
-      input: Schema.String,
-      output: Schema.String,
-      effects: [],
-      connections: [],
-      controls: [{ _tag: "OnInput" }],
-    }, innerAsDriver)
-
-    const out = await Effect.runPromise(outer.drive(0, "hello"))
-    expect(out).toBe("inner-ran:hello")
+    expect(agent.agent.drivers.length).toBe(2)
   })
 
-  test("观测 = driver 提供的额外 Connection", async () => {
-    const observableDriver: Driver = {
-      id: "observable-driver",
-      run: (input) => Effect.succeed(input),
-      observe: new Map<string, ConnectionImpl>([
-        ["SelfLogs", { handle: () => Effect.succeed("log-line-1\nlog-line-2") }],
-      ]),
-    }
+  test("观测 = 具体 driver 作为 Connection", async () => {
+    // 观测 Connection 由外围注入（普通 Connection 实现）。
     const agent = EffectAgent.gen({
       input: Schema.Void,
       output: Schema.Void,
       effects: [{ _tag: "ReadLogs", connection: "SelfLogs" }],
       connections: [],
-      controls: [{ _tag: "OnInput" }],
-    }, observableDriver)
+      controls: [],
+    }, [fakeDriver], new Map<string, ConnectionImpl>([
+      ["SelfLogs", { handle: () => Effect.succeed("log-line-1\nlog-line-2") }],
+    ]))
 
     const out = await Effect.runPromise(agent.execute({ _tag: "ReadLogs", connection: "SelfLogs" }))
     expect(String(out)).toContain("log-line-1")

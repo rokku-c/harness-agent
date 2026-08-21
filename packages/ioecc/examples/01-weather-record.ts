@@ -1,11 +1,11 @@
 import { Effect, Schema } from "effect"
-import { ConnectionImpl, Driver, EffectAgent } from "../src/index.js"
+import { ConnectionImpl, Control, Driver, EffectAgent } from "../src/index.js"
 
 /**
- * IOECC 示例 1 —— 天气记录 Agent（五维度作入参，gen 就是 compile）。
+ * IOECC 示例 1 —— 天气记录 Agent。
  *
- * 五维度（input/output/effects/connections/controls）+ driver 直接作为 gen 入参，
- * 不再 yield 描述操作；function* 只在需要自定义触发逻辑时用。
+ * driver 就是 Agent（五维度），声明自己的 control（能力）；gen 注入 drivers，
+ * 驱动靠 driver 声明的 control。connections 注入 Effect 实现。
  *
  * 运行：bun packages/ioecc/examples/01-weather-record.ts
  */
@@ -15,10 +15,24 @@ const fetchWeather = { _tag: "FetchWeather", connection: "WeatherApp" } as const
 const logInfo = { _tag: "LogInfo", connection: "Logs" } as const
 const writeFile = { _tag: "WriteFile", connection: "Filesystem" } as const
 
-/* ── Driver：能跑这个 agent 的执行者 ── */
-const driver: Driver = {
-  id: "fake-driver",
-  run: (input) => Effect.succeed(input),
+/* ── 一个 Control 实现：用 driver 能力写逻辑 ── */
+class RunLogic<I, O> extends Control<I, O> {
+  constructor() { super("RunLogic") }
+  run(_i: I, _o: O, _e: ReadonlyArray<any>, _cn: ReadonlyArray<any>, _ct: ReadonlyArray<any>, d: Driver): Effect.Effect<O, Error> {
+    const concrete = d as unknown as { run: (i: I) => Effect.Effect<O, Error> }
+    return concrete.run(_i)
+  }
+}
+
+/* ── driver：是 Agent（五维度），声明自己的 control + 具体 run 方法 ── */
+const driver = {
+  input: Schema.Struct({ city: Schema.String }),
+  output: Schema.String,
+  effects: [],
+  connections: [],
+  controls: [new RunLogic<{ city: string }, string>()],
+  drivers: [],
+  run: (input: { city: string }) => Effect.succeed(`Sunny in ${input.city}`),
 }
 
 /* ── Connections 实现（操作契约在编译侧） ── */
@@ -28,19 +42,19 @@ const impls = new Map<string, ConnectionImpl>([
   ["Filesystem", { handle: () => Effect.succeed(undefined) }],
 ])
 
-/* ── gen：五维度 + driver 作入参，直接产出可运行程序 ── */
+/* ── gen：五维度 + drivers（n 个）作入参，直接产出可运行程序 ── */
 const program = EffectAgent.gen({
   input: Schema.Struct({ city: Schema.String }),
   output: Schema.Void,
   effects: [fetchWeather, logInfo, writeFile],
   connections: [{ name: "WeatherApp" }, { name: "Logs" }, { name: "Filesystem" }],
-  controls: [{ _tag: "OnInput" }],
-}, driver, impls)
+  controls: [], // 控制由 driver 声明（RunLogic）
+}, [driver], impls)
 
 /* ── 跑：先看描述，再执行 ── */
 console.log("=== 天气记录 Agent 描述 ===")
 console.log(JSON.stringify(program.agent, null, 2))
 
-console.log("\n=== 执行 ===")
-const out = await Effect.runPromise(program.execute(fetchWeather))
+console.log("\n=== 执行（driver 声明的 control） ===")
+const out = await Effect.runPromise(program.drive(0, { city: "Shanghai" }))
 console.log("查询天气 →", out)

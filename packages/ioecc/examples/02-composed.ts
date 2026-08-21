@@ -1,11 +1,11 @@
 import { Effect, Schema } from "effect"
-import { ConnectionImpl, Driver, EffectAgent } from "../src/index.js"
+import { ConnectionImpl, Control, Driver, EffectAgent } from "../src/index.js"
 
 /**
  * IOECC 示例 2 —— 组合：两个 Agent 经共享 Connection 协作。
  *
  * Agent 之间不直接调用，共享同一个 Connection（如共享黑板 / 消息总线）。
- * 每个 Agent 用 EffectAgent.gen（五维度作入参）声明；同一个 Connection 实现注入两者，
+ * 每个 Agent 用 EffectAgent.gen（五维度 + drivers）声明；同一个 Connection 实现注入两者，
  * 证明「拓扑由 Connection 长出来，不是核心概念」。
  *
  * 运行：bun packages/ioecc/examples/02-composed.ts
@@ -16,8 +16,25 @@ const publish = { _tag: "Publish", connection: "Bus" } as const
 const consume = { _tag: "Consume", connection: "Bus" } as const
 const announce = { _tag: "Announce", connection: "Logs" } as const
 
-/* ── Driver ── */
-const driver: Driver = { id: "fake-driver", run: (input) => Effect.succeed(input) }
+/* ── 一个 Control 实现：经具体 driver 的 run 驱动 ── */
+class RunLogic<I, O> extends Control<I, O> {
+  constructor() { super("RunLogic") }
+  run(_i: I, _o: O, _e: ReadonlyArray<any>, _cn: ReadonlyArray<any>, _ct: ReadonlyArray<any>, d: Driver): Effect.Effect<O, Error> {
+    const concrete = d as unknown as { run: (i: I) => Effect.Effect<O, Error> }
+    return concrete.run(_i)
+  }
+}
+
+/* ── driver（Agent 五维度，声明 RunLogic control） ── */
+const driver = {
+  input: Schema.Unknown,
+  output: Schema.Unknown,
+  effects: [],
+  connections: [],
+  controls: [new RunLogic<unknown, unknown>()],
+  drivers: [],
+  run: (input: unknown) => Effect.succeed(input),
+}
 
 /* ── 共享 Bus Connection（拓扑长出来） ── */
 const sharedBus: ConnectionImpl = {
@@ -32,8 +49,8 @@ const producer = EffectAgent.gen({
   output: Schema.Void,
   effects: [publish],
   connections: [{ name: "Bus" }],
-  controls: [{ _tag: "OnCron" }],
-}, driver, new Map([["Bus", sharedBus]]))
+  controls: [],
+}, [driver], new Map([["Bus", sharedBus]]))
 
 /* ── Agent B：消费者（从 Bus 消费，通告到 Logs） ── */
 const consumer = EffectAgent.gen({
@@ -41,8 +58,8 @@ const consumer = EffectAgent.gen({
   output: Schema.Void,
   effects: [consume, announce],
   connections: [{ name: "Bus" }, { name: "Logs" }],
-  controls: [{ _tag: "OnInput" }],
-}, driver, new Map([["Bus", sharedBus], ["Logs", { handle: () => Effect.succeed(undefined) }]]))
+  controls: [],
+}, [driver], new Map([["Bus", sharedBus], ["Logs", { handle: () => Effect.succeed(undefined) }]]))
 
 console.log("=== 组合拓扑（两 Agent 共享 Bus） ===")
 console.log("Producer 影响:", producer.agent.effects.map((e) => e.connection).join(", "))
