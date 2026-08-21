@@ -6,54 +6,53 @@ import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
  *
  * 主 agent 在关键决策点咨询顾问（更强的模型/agent）。顾问是一个 Agent（可当 driver），
  * 主 agent 通过一个 consult —— 声明影响 Advisor Connection，运行时经 impls 路由到顾问。
- * 影响声明绑定在 Control 上（affects）：Consult/Decide 都声明影响 Advisor。
+ * I/O + 影响声明绑定在 Control 上：Consult/Decide 自带 I/O，都声明影响 Advisor。
  *
  * 运行：bun packages/ioecc/examples/03-advisor.ts
  */
 
 type Advice = { verdict: string; reason: string }
 
-/* ── 顾问 driver：一个 Agent（五维度），Consult control 声明影响 Advisor ── */
-class Consult<I, O> extends Control<I, O> {
+/* ── 顾问 driver：一个 Agent（connections + controls），Consult control 自带 I/O、声明影响 Advisor ── */
+class Consult extends Control<{ question: string }, Advice> {
+  readonly input = Schema.Struct({ question: Schema.String })
+  readonly output = Schema.Struct({ verdict: Schema.String, reason: Schema.String })
   constructor() { super("Consult", ["Advisor"]) }
-  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+  run(i: { question: string }, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<Advice, Error> {
     const advisor = impls.get("Advisor")!
-    return advisor.handle("consult", _i) as Effect.Effect<O, Error>
+    return advisor.handle("consult", i) as Effect.Effect<Advice, Error>
   }
 }
 
 /* ── 顾问实际逻辑：注入为 Advisor ConnectionImpl ── */
 const advisorImpl: ConnectionImpl = {
-  handle: (op, args) => {
+  handle: (_op, args) => {
     const q = (args as { question: string }).question
     return Effect.succeed({ verdict: "approve", reason: `advice on: ${q}` })
   },
 }
 
 const advisorDriver = {
-  input: Schema.Struct({ question: Schema.String }),
-  output: Schema.Struct({ verdict: Schema.String, reason: Schema.String }),
   connections: ["Advisor"],
-  controls: [new Consult<{ question: string }, Advice>()],
+  controls: [new Consult()],
   drivers: [],
 }
 
-/* ── 主 agent 的控制：Decide —— 咨询顾问后做决定（声明影响 Advisor） ── */
-class Decide<I, O> extends Control<I, O> {
+/* ── 主 agent 的控制：Decide —— 咨询顾问后做决定（自带 I/O，声明影响 Advisor） ── */
+class Decide extends Control<{ task: string }, Advice> {
+  readonly input = Schema.Struct({ task: Schema.String })
+  readonly output = Schema.Struct({ verdict: Schema.String, reason: Schema.String })
   constructor() { super("Decide", ["Advisor"]) }
-  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+  run(i: { task: string }, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<Advice, Error> {
     const advisor = impls.get("Advisor")!
-    const task = (_i as { task: string }).task
-    return advisor.handle("consult", { question: `should I ${task}?` }) as Effect.Effect<O, Error>
+    return advisor.handle("consult", { question: `should I ${i.task}?` }) as Effect.Effect<Advice, Error>
   }
 }
 
 /* ── gen：主 agent，advisor 作为 driver；两者都经 Advisor impl 访问顾问 ── */
 const program = EffectAgent.gen({
-  input: Schema.Struct({ task: Schema.String }),
-  output: Schema.Struct({ verdict: Schema.String, reason: Schema.String }),
   connections: ["Advisor"],
-  controls: [new Decide<{ task: string }, Advice>()],
+  controls: [new Decide()],
 }, [advisorDriver], new Map([["Advisor", advisorImpl]]))
 
 console.log("=== Advisor 架构 ===")

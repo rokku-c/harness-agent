@@ -5,31 +5,35 @@ import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
  * IOECC 示例 2 —— 组合：两个 Agent 经共享 Connection 协作。
  *
  * Agent 之间不直接调用，共享同一个 Connection（如共享黑板 / 消息总线）。
- * 每个 Agent 用 EffectAgent.gen（五维度）声明；同一个 Connection 实现注入两者，
+ * 每个 Agent 用 EffectAgent.gen（connections + controls）声明；同一个 Connection 实现注入两者，
  * 证明「拓扑由 Connection 长出来，不是核心概念」。
- * 影响声明绑定在 Control 上（affects）：Producer/Consumer 分别声明影响 Bus/Logs。
+ * I/O + 影响声明绑定在 Control 上：Publish/ConsumeAndAnnounce 自带 I/O，并分别声明影响 Bus/Logs。
  *
  * 运行：bun packages/ioecc/examples/02-composed.ts
  */
 
-/* ── 一个 Control：声明影响哪些 connection + run 逻辑 ── */
-class Publish<I, O> extends Control<I, O> {
+/* ── 一个 Control：自带 I/O + 声明影响哪些 connection + run 逻辑 ── */
+class Publish extends Control<string, string> {
+  readonly input = Schema.String
+  readonly output = Schema.String
   constructor() { super("Publish", ["Bus"]) }          // Producer：影响 Bus
-  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+  run(i: string, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<string, Error> {
     const bus = impls.get("Bus")!
-    return bus.handle("publish", _i) as Effect.Effect<O, Error>
+    return bus.handle("publish", i) as Effect.Effect<string, Error>
   }
 }
 
-class ConsumeAndAnnounce<I, O> extends Control<I, O> {
+class ConsumeAndAnnounce extends Control<string, string> {
+  readonly input = Schema.String
+  readonly output = Schema.String
   constructor() { super("ConsumeAndAnnounce", ["Bus", "Logs"]) }  // Consumer：影响 Bus + Logs
-  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+  run(i: string, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<string, Error> {
     const bus = impls.get("Bus")!
     const logs = impls.get("Logs")!
     return Effect.gen(function* () {
-      const msg = yield* bus.handle("consume", _i)
+      const msg = yield* bus.handle("consume", i) as Effect.Effect<string, Error>
       yield* logs.handle("info", `consumed ${String(msg)}`)
-      return msg as O
+      return msg
     })
   }
 }
@@ -41,19 +45,15 @@ const sharedBus: ConnectionImpl = {
 
 /* ── Agent A：生产者（发布到 Bus） ── */
 const producer = EffectAgent.gen({
-  input: Schema.String,
-  output: Schema.String,
   connections: ["Bus"],
-  controls: [new Publish<string, string>()],
+  controls: [new Publish()],
 }, [], new Map([["Bus", sharedBus]]))
 
 /* ── Agent B：消费者（从 Bus 消费，通告到 Logs） ── */
 const consumer = EffectAgent.gen({
-  input: Schema.String,
-  output: Schema.String,
   connections: ["Bus", "Logs"],
-  controls: [new ConsumeAndAnnounce<string, string>()],
-}, [], new Map([["Bus", sharedBus], ["Logs", { handle: () => Effect.succeed(undefined) }]]))
+  controls: [new ConsumeAndAnnounce()],
+}, [], new Map([["Bus", sharedBus], ["Logs", { handle: () => Effect.succeed(undefined as unknown) }]]))
 
 console.log("=== 组合拓扑（两 Agent 共享 Bus） ===")
 console.log("Producer 影响:", producer.agent.controls[0]!.affects.join(", "))

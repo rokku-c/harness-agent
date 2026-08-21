@@ -4,19 +4,21 @@ import { ConnectionImpl, Control, EffectAgent } from "../src/index.js"
 /**
  * IOECC 示例 9 —— 最小 Agent。
  *
- * 一个最小 Agent：单维度声明（input/output），一个 control 声明影响一个 connection，
- * 经 impls 访问世界。展示新模型的最小骨架。
- * 影响声明绑定在 Control 上（affects）：Echo 声明影响 World。
+ * 一个最小 Agent：Control 自带 I/O，声明影响一个 connection，经 impls 访问世界。
+ * Agent 无全局 I/O，只声明 connections + controls；驱动 = drive(index, input)。
+ * 展示新模型的最小骨架。
  *
  * 运行：bun packages/ioecc/examples/09-simplest-agent.ts
  */
 
-/* ── 一个最小 Control：声明影响 + run 经 impls 访问连接 ── */
-class Echo<I, O> extends Control<I, O> {
+/* ── 一个最小 Control：自带 I/O + 声明影响 + run 经 impls 访问连接 ── */
+class Echo extends Control<string, string> {
+  readonly input = Schema.String
+  readonly output = Schema.String
   constructor() { super("Echo", ["World"]) }
-  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+  run(i: string, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<string, Error> {
     const world = impls.get("World")!
-    return world.handle("echo", _i) as Effect.Effect<O, Error>
+    return world.handle("echo", i) as Effect.Effect<string, Error>
   }
 }
 
@@ -25,12 +27,10 @@ const impls = new Map<string, ConnectionImpl>([
   ["World", { handle: (op, args) => Effect.succeed(`${op}:${String(args)}`) }],
 ])
 
-/* ── gen：最小五维度 + 一个 control ── */
+/* ── gen：Agent 无全局 I/O，只有 connections + controls ── */
 const program = EffectAgent.gen({
-  input: Schema.String,
-  output: Schema.String,
   connections: ["World"],
-  controls: [new Echo<string, string>()],
+  controls: [new Echo()],
 }, [], impls)
 
 console.log("=== 最小 Agent ===")
