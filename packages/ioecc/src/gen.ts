@@ -3,42 +3,45 @@ import { Control } from "./concept.js"
 import type { Agent, ConnectionImpl, Driver } from "./concept.js"
 
 /**
- * IOECC —— 声明（五维度）+ 驱动（driver 声明的 control）。
+ * IOECC —— 声明（connections + controls）+ 驱动（control 的 run）。
  *
- * 影响声明绑定在 Control 上（`affects`），不绑在 Agent 上。
- * 执行一个 control 后，run 拿到经 affects 声明的 connection（可传给其他 driver/agent）。
+ * I/O 和影响声明都在 Control 上；Agent 只是 connections + controls 的组合。
+ * 驱动一个 control = 用它的 input Schema 解码输入，跑 run，经 impls 访问影响的世界。
  */
 
-/** 五维度描述。 */
-export interface AgentSpec<I = unknown, O = unknown, R = never> {
-  readonly input: Schema.Schema<I>
-  readonly output: Schema.Schema<O>
+/** Agent 描述。 */
+export interface AgentSpec<R = never> {
   readonly connections: ReadonlyArray<string>
   readonly controls: ReadonlyArray<Control<any, any, any>>
 }
 
 /** 编译后的可运行程序（含描述，供外部查看/观测）。 */
 export interface Program {
-  readonly agent: Agent<any, any, any>
-  /** 驱动第 index 个 control（执行后 affects 声明的 connection 可访问）。 */
+  readonly agent: Agent<any>
+  /** 驱动第 index 个 control：输入经它的 input Schema 解码，run 经 impls 访问影响的世界。 */
   readonly drive: (index: number, input: unknown) => Effect.Effect<unknown, Error>
-  readonly decode: (value: unknown) => Effect.Effect<unknown, Error>
+  /** 解码第 index 个 control 的输出。 */
+  readonly decode: (index: number, value: unknown) => Effect.Effect<unknown, Error>
 }
 
-/** 驱动一个 control：把 affects 声明的 connection 实现组装后传给 run。 */
-const drive = (
-  agent: Agent<any, any, any>,
+/** 驱动一个 control：解码输入，跑 run。 */
+const driveOne = (
   impls: ReadonlyMap<string, ConnectionImpl>,
   ctrl: Control<any, any, any>,
   input: unknown
 ): Effect.Effect<unknown, Error> =>
-  (ctrl.run(input, agent.output as never, impls) as Effect.Effect<unknown, Error, any>).pipe(
-    Effect.mapError((cause) => new Error(`Control ${ctrl._tag} failed: ${String(cause)}`))
-  ) as Effect.Effect<unknown, Error, never>
+  Effect.gen(function* () {
+    const decoded = yield* Schema.decodeUnknown(ctrl.input)(input).pipe(
+      Effect.mapError((cause) => new Error(`Control ${ctrl._tag} input mismatch: ${cause}`))
+    )
+    return yield* (ctrl.run(decoded, impls) as Effect.Effect<unknown, Error, any>).pipe(
+      Effect.mapError((cause) => new Error(`Control ${ctrl._tag} failed: ${String(cause)}`))
+    )
+  }) as Effect.Effect<unknown, Error, never>
 
 /** 把 AgentSpec 变成可运行程序。 */
-const toProgram = (spec: AgentSpec<any, any, any>, drivers: ReadonlyArray<any>, impls: ReadonlyMap<string, ConnectionImpl>): Program => {
-  const agent: Agent<any, any, any> = { ...spec, drivers }
+const toProgram = (spec: AgentSpec<any>, drivers: ReadonlyArray<any>, impls: ReadonlyMap<string, ConnectionImpl>): Program => {
+  const agent: Agent<any> = { ...spec, drivers }
   // 声明一致性：每个 control 的 affects 声明的 connection 必须被 agent 声明过。
   const declared = new Set(spec.connections ?? [])
   for (const ctrl of spec.controls ?? []) {
@@ -54,30 +57,34 @@ const toProgram = (spec: AgentSpec<any, any, any>, drivers: ReadonlyArray<any>, 
     drive: (index, input) => {
       const ctrl = allControls[index]
       if (!ctrl) return Effect.fail(new Error(`No control at ${index}`))
-      return drive(agent, impls, ctrl, input)
+      return driveOne(impls, ctrl, input)
     },
-    decode: (value) => Schema.decodeUnknown(agent.output)(value),
+    decode: (index, value) => {
+      const ctrl = allControls[index]
+      if (!ctrl) return Effect.fail(new Error(`No control at ${index}`))
+      return Schema.decodeUnknown(ctrl.output)(value).pipe(
+        Effect.mapError((cause) => new Error(`Control ${ctrl._tag} output mismatch: ${String(cause)}`))
+      ) as Effect.Effect<unknown, Error, never>
+    },
   }
 }
 
-/** 声明：五维度 + drivers + Connection 实现。 */
-export const gen = <I, O, R>(
-  spec: AgentSpec<I, O, R>,
+/** 声明：connections + controls + drivers + Connection 实现。 */
+export const gen = <R>(
+  spec: AgentSpec<R>,
   drivers: ReadonlyArray<any> = [],
   impls: ReadonlyMap<string, ConnectionImpl> = new Map()
 ): Program => toProgram(spec, drivers, impls)
 
 /** 元编程构造。 */
-export const make = <I, O, R, Cn extends string, Ct extends Control<any, any, any>>(
+export const make = <R, Cn extends string, Ct extends Control<any, any, any>>(
   spec: {
-    readonly input: Schema.Schema<I>
-    readonly output: Schema.Schema<O>
     readonly connections: ReadonlyArray<Cn>
     readonly controls: ReadonlyArray<Ct>
   },
   drivers: ReadonlyArray<any> = [],
   impls: ReadonlyMap<string, ConnectionImpl> = new Map()
-): Program => toProgram(spec as AgentSpec<I, O, R>, drivers, impls)
+): Program => toProgram(spec as AgentSpec<R>, drivers, impls)
 
 /** EffectAgent 命名空间（声明）。 */
 export const EffectAgent = {
@@ -89,11 +96,11 @@ export const EffectAgent = {
 export const control = <I = unknown, O = unknown>(
   tag: string,
   affects: ReadonlyArray<string> = [],
-  logic?: (input: I, impls: ReadonlyMap<string, ConnectionImpl>) => Effect.Effect<O, Error>
+  run: (input: I, impls: ReadonlyMap<string, ConnectionImpl>) => Effect.Effect<O, Error>
 ): Control<I, O> =>
   new (class extends Control<I, O> {
     constructor() { super(tag, affects) }
-    run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
-      return logic ? logic(_i, impls) : Effect.fail(new Error(`Control ${tag} has no logic`))
+    run(_i: I, _impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
+      return run(_i, _impls)
     }
   })()

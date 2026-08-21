@@ -6,63 +6,66 @@ import {
   EffectAgent,
 } from "../src/index.js"
 
-/* ── 一个 Control：声明影响（affects）+ run 逻辑 ── */
-class RunLogic<I, O> extends Control<I, O> {
-  constructor() { super("RunLogic", ["World"]) }  // 声明影响 World
-  run(_i: I, _o: O, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<O, Error> {
-    // 经 affects 声明的 connection 实现。
+/* ── 一个 Control：自带 I/O + affects + run ── */
+class RunLogic extends Control<{ task: string }, string> {
+  readonly input = Schema.Struct({ task: Schema.String })
+  readonly output = Schema.String
+  constructor() { super("RunLogic", ["World"]) }  // 影响 World
+  run(i: { task: string }, impls: ReadonlyMap<string, ConnectionImpl>): Effect.Effect<string, Error> {
     const world = impls.get("World")
     if (!world) return Effect.fail(new Error("World not provided"))
-    return world.handle("run", _i) as Effect.Effect<O, Error>
+    return world.handle("run", i.task) as Effect.Effect<string, Error>
   }
 }
 
-describe("IOECC（影响绑定在 Control 上）", () => {
-  test("Control 声明 affects（影响哪些 connection），run 经 impls 访问", async () => {
+describe("IOECC（I/O 和 affects 在 Control 上）", () => {
+  test("Control 自带 I/O + affects，drive 解码输入并 run", async () => {
     const agent = EffectAgent.gen({
-      input: Schema.String,
-      output: Schema.String,
       connections: ["World"],
-      controls: [new RunLogic<string, string>()],
+      controls: [new RunLogic()],
     }, [], new Map<string, ConnectionImpl>([
-      ["World", { handle: (op, args) => Effect.succeed(`world:${String(op)}:${String(args)}`) }],
+      ["World", { handle: (op, args) => Effect.succeed(`world:${String(args)}`) }],
     ]))
 
-    // Control 声明影响 World。
-    expect(agent.agent.controls[0]!.affects).toContain("World")
+    const ctrl = agent.agent.controls[0]!
+    expect(ctrl.affects).toContain("World")
+    expect(ctrl.input).toBeDefined()
+    expect(ctrl.output).toBeDefined()
 
-    const out = await Effect.runPromise(agent.drive(0, "hello"))
-    expect(out).toBe("world:run:hello")
+    const out = await Effect.runPromise(agent.drive(0, { task: "hello" }))
+    expect(out).toBe("world:hello")
+  })
+
+  test("agent 无全局 I/O：是 connections + controls 的组合", () => {
+    const agent = EffectAgent.gen({
+      connections: ["World"],
+      controls: [new RunLogic()],
+    })
+    expect(agent.agent.connections).toEqual(["World"])
+    expect(agent.agent.controls.length).toBe(1)
+    expect("input" in agent.agent).toBe(false)  // Agent 无全局 input
   })
 
   test("驱动经 driver 声明的 control", async () => {
-    // 一个带 control 的 driver。
     const driver = {
-      input: Schema.String,
-      output: Schema.String,
       connections: ["World"],
-      controls: [new RunLogic<string, string>()],
-      drivers: [],
+      controls: [new RunLogic()],
     }
     const agent = EffectAgent.gen({
-      input: Schema.String,
-      output: Schema.String,
       connections: ["World"],
       controls: [],
     }, [driver], new Map<string, ConnectionImpl>([
       ["World", { handle: (op, args) => Effect.succeed(`driven:${String(args)}`) }],
     ]))
 
-    const out = await Effect.runPromise(agent.drive(0, "hello"))
+    const out = await Effect.runPromise(agent.drive(0, { task: "hello" }))
     expect(out).toBe("driven:hello")
   })
 
   test("声明一致性：control 的 affects 声明的 connection 必须被 agent 声明", () => {
     expect(() => EffectAgent.gen({
-      input: Schema.Void,
-      output: Schema.Void,
       connections: [],                        // 没声明 World
-      controls: [new RunLogic<void, void>()],  // 但 control 声明影响 World
+      controls: [new RunLogic()],             // 但 control 影响 World
     })).toThrow(/affects/)
   })
 })
