@@ -56,5 +56,9 @@ if (answer._tag === "Right") {
 } else {
   console.log("Claude 运行失败:", String(answer.left).slice(0, 100))
 }
-const ds = details as ReadonlyArray<{ _tag: string }>
-console.log("\n读 detail agent 拿到", ds.length, "条:", ds.map((d) => d._tag).join(", "))
+const ds = details as ReadonlyArray<{ _tag: string; text?: string }>
+console.log("\n读 detail agent 拿到", ds.length, "条:")
+for (const d of ds) {
+  const t = d.text ? `: ${String(d.text).slice(0, 60)}` : ""
+  console.log(`  ${d._tag}${t}`)
+}

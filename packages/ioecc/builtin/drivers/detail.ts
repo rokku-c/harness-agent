@@ -42,7 +42,10 @@ export const detailOf = (message: SDKMessage): ReadonlyArray<ClaudeDetail> => {
         ? [{ _tag: "Result" as const, text: message.result }]
         : []
     case "system":
-      return [{ _tag: "Status" as const, status: message.subtype }]
+      // thinking_tokens 是高频 token 计数（非思考内容），不记录；其余 system 状态留作 Status。
+      return message.subtype === "thinking_tokens"
+        ? []
+        : [{ _tag: "Status" as const, status: message.subtype }]
     default:
       return []
   }
