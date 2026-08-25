@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect"
+import { Effect, JSONSchema, Schema } from "effect"
 import { type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
 import { ClaudeCodeError, collectClaude } from "./claude-code.js"
 
@@ -65,8 +65,13 @@ export const runUntil = (
   opts: RunUntilOptions
 ): Effect.Effect<{ output: unknown; forked: boolean; matched: SDKMessage | undefined }, ClaudeCodeError> =>
   Effect.gen(function* () {
+    // until 是 schema 时，给 SDK 注入 outputFormat（json_schema），让它产出 structured_output。
+    const options: Options = until.kind === "schema"
+      ? { ...opts.options, outputFormat: { type: "json_schema", schema: JSONSchema.make(until.schema) as unknown as Record<string, unknown> } }
+      : opts.options
+
     // 收集消息（for-await + Effect 包边界）。
-    const messages = yield* collectClaude(prompt, opts.options)
+    const messages = yield* collectClaude(prompt, options)
 
     // 找第一个满足 until 的消息（fork 点）。
     const matched = messages.find((m) => satisfies(until, m))

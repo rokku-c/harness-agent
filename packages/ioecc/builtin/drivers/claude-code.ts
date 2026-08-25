@@ -94,6 +94,7 @@ export const makeClaudeCodeDriver = (
 ): Driver & {
   readonly run: (prompt: string) => Effect.Effect<string, ClaudeCodeError>
   readonly classify: ReadonlyArray<ClassifiedConnection>
+  readonly sdkOptions: Options
   readonly toImpl: () => ConnectionImpl
 } => {
   // 连接的 connection 分类。
@@ -135,6 +136,7 @@ export const makeClaudeCodeDriver = (
     drivers: [],
     run: (prompt) => runOnce(prompt),
     classify,
+    sdkOptions: sdkOptions as Options,
     toImpl: () => claudeImpl,
   }
 }
