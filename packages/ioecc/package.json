@@ -7,7 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "example": "bun examples/01-weather-record.ts"
+    "example": "bun examples/run.ts"
   },
   "dependencies": {
     "effect": "^3.22.1"
