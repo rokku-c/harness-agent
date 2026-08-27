@@ -12,11 +12,72 @@
         "@openai/codex-sdk": "^0.147.0",
         "ai": "^7.0.65",
         "effect": "^3.22.1",
+        "yaml": "^2.8.1",
         "zod": "^4.3.6",
       },
       "devDependencies": {
         "@types/bun": "latest",
         "typescript": "^5.9.2",
+      },
+    },
+    "packages/builtin": {
+      "name": "@effect-agent/builtin",
+      "version": "0.0.0",
+      "dependencies": {
+        "@anthropic-ai/claude-agent-sdk": "^0.3.232",
+        "@effect-agent/core": "workspace:*",
+        "@modelcontextprotocol/sdk": "^1.30.0",
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/community": {
+      "name": "@effect-agent/community",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/core": "workspace:*",
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/core": {
+      "name": "@effect-agent/core",
+      "version": "0.0.0",
+      "dependencies": {
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/repr": {
+      "name": "@effect-agent/repr",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/builtin": "workspace:*",
+        "@effect-agent/core": "workspace:*",
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/tui": {
+      "name": "@effect-agent/tui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/repr": "workspace:*",
+        "@effect-agent/ui": "workspace:*",
+        "effect": "^3.22.1",
+      },
+    },
+    "packages/ui": {
+      "name": "@effect-agent/ui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/repr": "workspace:*",
+        "yoga-layout": "^3.2.1",
+      },
+    },
+    "packages/webui": {
+      "name": "@effect-agent/webui",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/repr": "workspace:*",
+        "@effect-agent/ui": "workspace:*",
+        "effect": "^3.22.1",
       },
     },
   },
@@ -92,6 +153,20 @@
     "@babel/runtime": ["@babel/runtime@7.29.7", "https://registry.npmmirror.com/@babel/runtime/-/runtime-7.29.7.tgz", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
 
     "@borewit/text-codec": ["@borewit/text-codec@0.2.2", "https://registry.npmmirror.com/@borewit/text-codec/-/text-codec-0.2.2.tgz", {}, "sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ=="],
+
+    "@effect-agent/builtin": ["@effect-agent/builtin@workspace:packages/builtin"],
+
+    "@effect-agent/community": ["@effect-agent/community@workspace:packages/community"],
+
+    "@effect-agent/core": ["@effect-agent/core@workspace:packages/core"],
+
+    "@effect-agent/repr": ["@effect-agent/repr@workspace:packages/repr"],
+
+    "@effect-agent/tui": ["@effect-agent/tui@workspace:packages/tui"],
+
+    "@effect-agent/ui": ["@effect-agent/ui@workspace:packages/ui"],
+
+    "@effect-agent/webui": ["@effect-agent/webui@workspace:packages/webui"],
 
     "@google/genai": ["@google/genai@1.52.0", "https://registry.npmmirror.com/@google/genai/-/genai-1.52.0.tgz", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-gwSvbpiN/17O9TbsqSsE/OzZcpv5Fo4RQjdngGgogtuB9RsyJ8ZHhX5KjHj1bp5N9snN2eK8LDGXSaWW2hof8Q=="],
 
@@ -614,6 +689,8 @@
     "yargs-parser": ["yargs-parser@20.2.9", "https://registry.npmmirror.com/yargs-parser/-/yargs-parser-20.2.9.tgz", {}, "sha512-y11nGElTIV+CT3Zv9t7VKl+Q3hTQoT9a1Qzezhhl6Rp21gJ/IVTW7Z3y9EWXhuUBC2Shnf+DX0antecpAwSP8w=="],
 
     "yauzl": ["yauzl@2.10.0", "https://registry.npmmirror.com/yauzl/-/yauzl-2.10.0.tgz", { "dependencies": { "buffer-crc32": "~0.2.3", "fd-slicer": "~1.1.0" } }, "sha512-p4a9I6X6nu6IhoGmBqAcbJy1mlC4j27vEPZX9F4L4/vZT3Lyq1VkFHw/V/PUcB9Buo+DG3iHkT0x3Qya58zc3g=="],
+
+    "yoga-layout": ["yoga-layout@3.2.1", "https://registry.npmmirror.com/yoga-layout/-/yoga-layout-3.2.1.tgz", {}, "sha512-0LPOt3AxKqMdFBZA3HBAt/t/8vIKq7VaQYbuA8WxCgung+p9TVyKRYdpvCb80HcdTN2NkbIKbhNwKUfm3tQywQ=="],
 
     "zod": ["zod@4.4.3", "https://registry.npmmirror.com/zod/-/zod-4.4.3.tgz", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 

@@ -1,0 +1,10 @@
+{
+  "name": "@effect-agent/ui",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@effect-agent/repr": "workspace:*",
+    "yoga-layout": "^3.2.1"
+  }
+}

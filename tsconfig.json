@@ -4,9 +4,22 @@
     "lib": ["ES2023", "DOM"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@effect-agent/core": ["packages/core/src/index.ts"],
+      "@effect-agent/builtin": ["packages/builtin/src/index.ts"],
+      "@effect-agent/builtin/mcp/node": ["packages/builtin/src/mcp-node.ts"],
+      "@effect-agent/builtin/claude-code/node": ["packages/builtin/src/claude-code-node.ts"],
+      "@effect-agent/community": ["packages/community/src/index.ts"],
+      "@effect-agent/repr": ["packages/repr/src/index.ts"],
+      "@effect-agent/ui": ["packages/ui/src/index.ts"],
+      "@effect-agent/tui": ["packages/tui/src/index.ts"],
+      "@effect-agent/tui/node": ["packages/tui/src/node.ts"],
+      "@effect-agent/webui": ["packages/webui/src/index.ts"]
+    },
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "examples/**/*.ts", "test/**/*.ts"]
+  "include": ["src/**/*.ts", "packages/**/*.ts", "examples/**/*.ts", "test/**/*.ts"]
 }

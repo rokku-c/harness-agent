@@ -2,13 +2,26 @@
   "name": "effect-agent",
   "version": "0.0.0",
   "private": true,
+  "workspaces": ["packages/*"],
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./core": "./packages/core/src/index.ts",
+    "./builtin": "./packages/builtin/src/index.ts",
+    "./builtin/mcp/node": "./packages/builtin/src/mcp-node.ts",
+    "./builtin/claude-code/node": "./packages/builtin/src/claude-code-node.ts",
+    "./community": "./packages/community/src/index.ts",
+    "./repr": "./packages/repr/src/index.ts",
+    "./ui": "./packages/ui/src/index.ts",
+    "./tui": "./packages/tui/src/index.ts",
+    "./tui/node": "./packages/tui/src/node.ts",
+    "./webui": "./packages/webui/src/index.ts"
   },
   "packageManager": "bun@1.3.4",
   "scripts": {
     "example": "bun examples/run.ts",
+    "tui": "bun examples/tui.ts",
+    "webui": "bun examples/webui/server.ts",
     "schema": "bun src/schema-example.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
@@ -21,6 +34,7 @@
     "@openai/codex-sdk": "^0.147.0",
     "ai": "^7.0.65",
     "effect": "^3.22.1",
+    "yaml": "^2.8.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

@@ -1,0 +1,14 @@
+{
+  "name": "@effect-agent/tui",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "dependencies": {
+    "@effect-agent/repr": "workspace:*",
+    "@effect-agent/ui": "workspace:*",
+    "effect": "^3.22.1"
+  }
+}
