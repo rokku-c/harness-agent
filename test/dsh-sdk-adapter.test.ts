@@ -314,7 +314,10 @@ describe.skipIf(!smokeGated)("dsh real-runtime smoke (DSH_ROOT + DEEPSEEK_API_KE
     for (const artifact of [runtimeBin, cordis, sdkLib]) {
       if (!existsSync(artifact)) throw new Error("[dsh smoke] preflight artifact missing: " + artifact)
     }
-    const sdk = await import("@deepseek-ai/dsh-sdk-client")
+    // The SDK client cannot be installed into this repo (its workspace-protocol
+    // deps only resolve inside deepseek-harness, F1), so import the built lib by
+    // absolute path — the same artifact the preflight above verified.
+    const sdk = await import(sdkLib)
     const harness = new sdk.DeepSeekHarness({ launch: { command: "node", args: [runtimeBin, cordis] } })
     const runtime = await Effect.runPromise(ConnectionRuntime.make({
       specs: [dshConnectionSpec({ id: "dsh-smoke", adapters: [{ kind }] })],

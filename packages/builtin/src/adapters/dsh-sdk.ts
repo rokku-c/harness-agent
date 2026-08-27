@@ -172,7 +172,14 @@ const loadDshSdk = (
         ...(config.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {})
       })
     },
-    catch: (cause) => connectionError("dsh adapter: failed to load @deepseek-ai/dsh-sdk-client: " + messageOf(cause), cause)
+    catch: (cause) => connectionError(
+      "dsh adapter: failed to load @deepseek-ai/dsh-sdk-client: " + messageOf(cause)
+        + ". The client depends on 5 workspace peers of the deepseek-harness monorepo"
+        + " (@deepseek-ai/cordis and friends, workspace:^ protocol) and cannot be installed"
+        + " outside that checkout: inject a client via dshSdkAdapter({ client }), or clone"
+        + " deepseek-harness and point DSH_ROOT at it.",
+      cause
+    )
   })
 
 const acquireClient = (
@@ -238,6 +245,15 @@ const invokeClient = (
     case DshCapabilities.agentRun: {
       const input = isEnvelope(raw) ? raw.input : raw
       const record = recordOf(input)
+      // Fail loud on undeclared keys (schema declares additionalProperties: false).
+      // Envelope keys (input/agent) are exempt because they were unwrapped above.
+      const extra = Object.keys(record).filter((key) => key !== "prompt" && key !== "sessionId")
+      if (extra.length > 0)
+        return Effect.fail(new DshConnectionError({
+          message: "dsh adapter: dsh.agent.run input carries undeclared keys: " + extra.join(", ")
+            + " (schema declares only prompt, sessionId; envelope keys input/agent are unwrapped)",
+          capability
+        }))
       const prompt = record.prompt
       if (typeof prompt !== "string")
         return Effect.fail(new DshConnectionError({
@@ -330,7 +346,10 @@ const agentRunCapability: CapabilitySpec = {
     additionalProperties: false
   },
   mode: "control",
-  description: "Run one prompt on a DeepSeek Harness runtime session and return the final response."
+  description: "Run one prompt on a DeepSeek Harness runtime session and return the final response. "
+    + "finalResponse is the last root-session assistant text in the interval: on a fresh session "
+    + "this equals prompt-to-response, but when reusing sessionId it may have no causal relation "
+    + "to the prompt."
 }
 
 /** ConnectionSpec helper carrying the complete dsh.agent.run capability contract. */

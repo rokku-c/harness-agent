@@ -26,6 +26,13 @@ export type Granularity = "event" | "turn" | "run"
 export type ToolInjection = "native" | "mcp" | "none"
 export type StructuredOutput = "native" | "tool" | "text" | "none"
 
+/**
+ * Declared driver capabilities. cancel/pause/resume/fork are capability-level
+ * declarations: the kernel exposes no runtime surface for them (no abort/pause/
+ * fork control) until the P1 event/pause protocol lands. Driver options may
+ * partially back them (e.g. codex/claude-code resume pass through make()-time
+ * options); that passthrough is not a kernel surface and must not be read as one.
+ */
 export interface Capabilities {
   readonly provider:
     | { readonly _tag: "Configurable" }

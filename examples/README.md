@@ -11,6 +11,9 @@ Run any example with `bun run example <name>` from the repository root; the
 runner auto-discovers `NN-name.ts` files. The Chinese notes below document each
 example in detail.
 
+First run: copy `config.toml.example` to `config.toml` and fill in API keys.
+首次运行：将 `config.toml.example` 复制为 `config.toml` 并填入 API keys。
+
 所有示例默认读取仓库根目录的 `config.toml` 和 `.env`，应从仓库根目录运行。
 
 ```sh

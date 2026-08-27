@@ -27,6 +27,17 @@ const review = Agent.define("review", (input: string) =>
 - `chan/` — the other direction: effect-agent as a dsh plugin.
 - `test/` — unit/integration tests plus the gated real-runtime dsh smoke test.
 
+## Status
+
+Pre-release, private, and Bun-only. This is not a publishable package: consume it by
+cloning the repository and wiring the `tsconfig` `paths` aliases (`@effect-agent/core`,
+`@effect-agent/builtin`) rather than installing a tarball. `ClaudeCode.make()` requires a
+locally authenticated Claude Code CLI. On `Until`: `Until.stop` runs the agent to
+completion and returns the final text. `Until.text` and `Until.stop` are
+observational aliases under run-to-completion semantics (text is a hint that only text
+is needed, never a pause-at-hit); the negotiation matrix in
+`test/capability-matrix.test.ts` pins this.
+
 ## Docs
 
 Start with **ARCHITECTURE.md** (English spine). `DRAFT.md` is the detailed vision/spec

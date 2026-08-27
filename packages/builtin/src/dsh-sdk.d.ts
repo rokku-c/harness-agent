@@ -27,6 +27,12 @@ declare module "@deepseek-ai/dsh-sdk-client" {
   export interface DshSdkRunResult {
     readonly sessionId: string
     readonly finalResponse: string
+    /**
+     * Best-effort replay of the session activity in this interval. The real
+     * surface is @deepseek-ai/dsh-session's SessionEvent[] (dsh source
+     * packages/sdk/client/src/types.ts:68); the adapter passes events through
+     * opaquely (unknown here) and never interprets their shape.
+     */
     readonly events: ReadonlyArray<unknown>
     readonly notifications: ReadonlyArray<unknown>
   }

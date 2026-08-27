@@ -299,8 +299,19 @@ export const ClaudeCode = {
         composedAgents?: Record<string, ClaudeCodeTomlConfig>
         insecureTls?: InsecureTlsConfig
       }
-      const config = root.composedAgents?.[name] ?? {}
-      if (!config || typeof config !== "object")
+      const composed = root.composedAgents
+      if (!composed)
+        throw new ProviderConfigError({
+          path: options.path ?? "config.toml",
+          message: `composedAgents table is missing from ${options.path ?? "config.toml"} (add [composedAgents.${name}])`
+        })
+      const config = composed[name]
+      if (!config)
+        throw new ProviderConfigError({
+          path: options.path ?? "config.toml",
+          message: `composedAgents.${name} does not exist in ${options.path ?? "config.toml"}`
+        })
+      if (typeof config !== "object")
         throw new ProviderConfigError({ path: options.path ?? "config.toml", message: `composedAgents.${name} must be a table` })
       const programGlobal = typeof options.insecureTls === "object"
         ? options.insecureTls?.enabled

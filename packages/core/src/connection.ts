@@ -89,12 +89,21 @@ const requiredCapabilities = (spec: ConnectionSpec) => new Set([
 
 const candidates = (spec: ConnectionSpec, adapters: ReadonlyMap<string, ConnectionAdapter>) => {
   const required = requiredCapabilities(spec)
-  return [...spec.adapters]
-    .sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0))
-    .filter((ref) => {
-      const adapter = adapters.get(ref.kind)
-      return !adapter || [...required].every((capability) => adapter.capabilities.has(capability))
-    })
+  const refs: Array<AdapterRef> = []
+  const skipped: Array<{ readonly adapter: string; readonly capability: string }> = []
+  for (const ref of [...spec.adapters].sort((left, right) => (left.priority ?? 0) - (right.priority ?? 0))) {
+    const adapter = adapters.get(ref.kind)
+    if (!adapter) { refs.push(ref); continue }
+    const missing = [...required].filter((capability) => !adapter.capabilities.has(capability))
+    if (missing.length > 0) {
+      // Capability-missing adapters are recorded (not silently dropped) so an
+      // empty attempt list is never zero-information.
+      for (const capability of missing) skipped.push({ adapter: ref.kind, capability })
+      continue
+    }
+    refs.push(ref)
+  }
+  return { refs, skipped }
 }
 
 /** Browser-safe runtime: Effect Ref + pure declarations, with no platform imports. */
@@ -126,12 +135,23 @@ export class ConnectionRuntime {
     return Effect.gen(function* () {
       const state = yield* Ref.get(self.state)
       const selected = [...state.sessions.values()].filter(predicate)
-      yield* Effect.forEach(selected, (session) => session.close, { concurrency: "unbounded", discard: true })
-      yield* Effect.forEach(selected, (session) => self.emit({
-        connectionId: session.connectionId,
-        adapter: session.adapter,
-        kind: "connection.closed"
-      }), { concurrency: "unbounded", discard: true })
+      // A per-session close failure must neither abort the sweep nor go silent:
+      // catch it, surface connection.failed with the cause, and keep closing the
+      // rest. Successful closes still emit connection.closed.
+      yield* Effect.forEach(selected, (session) =>
+        session.close.pipe(
+          Effect.tap(() => self.emit({
+            connectionId: session.connectionId,
+            adapter: session.adapter,
+            kind: "connection.closed"
+          })),
+          Effect.catchAll((cause) => self.emit({
+            connectionId: session.connectionId,
+            adapter: session.adapter,
+            kind: "connection.failed",
+            payload: { operation: "close", cause }
+          }))
+        ), { concurrency: "unbounded", discard: true })
       yield* Ref.update(self.state, (current) => ({
         ...current,
         sessions: new Map([...current.sessions].filter(([, session]) => !predicate(session)))
@@ -189,7 +209,9 @@ export class ConnectionRuntime {
       const spec = state.specs.get(id)
       if (!spec) return yield* Effect.fail(new ConnectionNotFound({ id }))
       const attempts: Array<{ adapter: string; cause: unknown }> = []
-      const refs = candidates(spec, state.adapters)
+      const { refs, skipped } = candidates(spec, state.adapters)
+      for (const skip of skipped)
+        attempts.push({ adapter: skip.adapter, cause: new ConnectionCapabilityUnavailable({ id, capability: skip.capability, adapter: skip.adapter }) })
 
       const attempt = (index: number): Effect.Effect<ConnectionSession, Error> => {
         const ref = refs[index]

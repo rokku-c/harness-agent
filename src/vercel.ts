@@ -55,6 +55,9 @@ export const VercelAgent = {
           case "Text": return result.text as A
           case "Thinking": return (result.finalStep.reasoningText ?? "") as A
           case "ToolCall": {
+            // P1: enable once the unified event/pause protocol lands. Until then
+            // requireUntil rejects Until.toolCall (toolCalls: "observe"), so this
+            // branch is unreachable through negotiation and must not be advertised.
             const call = result.toolCalls[0]
             if (!call) return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })
             return { _tag: "ToolCall", id: call.toolCallId, name: call.toolName, input: call.input } as A

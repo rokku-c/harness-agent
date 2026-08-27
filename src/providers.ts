@@ -120,7 +120,12 @@ export const loadToml = (options: LoadProvidersOptions = {}) => Effect.tryPromis
   },
   catch: (cause) => cause instanceof ProviderConfigError
     ? cause
-    : new ProviderConfigError({ path: options.path ?? "agents.toml", message: String(cause) })
+    : new ProviderConfigError({
+        path: options.path ?? "agents.toml",
+        message: (cause instanceof Error && (cause as { code?: string }).code === "ENOENT")
+          ? `file not found: copy config.toml.example to ${options.path ?? "agents.toml"} and fill in API keys`
+          : String(cause)
+      })
 })
 
 export const loadProviders = (options: LoadProvidersOptions = {}) => loadToml(options).pipe(

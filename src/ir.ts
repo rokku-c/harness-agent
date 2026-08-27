@@ -104,8 +104,16 @@ export interface CompileEnvironment extends BehaviorEnvironment {
 /** Compile a declarative BehaviorSpec. The spec never contains executable functions. */
 export const compileBehavior = (spec: BehaviorSpec, environment: CompileEnvironment): Effect.Effect<AgentProgram<any, any>, Error> =>
   Effect.gen(function* () {
+    // resources access is not wired: fail early instead of silently ignoring
+    // a declared resource dependency (ResourceRef/Resolver are planned).
+    if ((spec.resources ?? []).length > 0)
+      return yield* Effect.fail(new Error(
+        "BehaviorSpec.resources is declared but resource access is not wired yet "
+        + "(planned with ResourceRef/Resolver): remove the resources field or declare "
+        + "the dependency via connections instead"
+      ))
     const connectionState = yield* environment.connections.snapshot()
-    for (const ref of [...(spec.connections ?? []), ...(spec.resources ?? []).map((resource) => resource.ref)]) {
+    for (const ref of spec.connections ?? []) {
       if (!connectionState.specs.has(ref))
         return yield* Effect.fail(new Error(`Connection not registered: ${ref}`))
     }
