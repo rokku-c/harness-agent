@@ -53,7 +53,7 @@ export const VercelAgent = {
         switch (request.until._tag) {
           case "Stop": return result.text as A
           case "Text": return result.text as A
-          case "Thinking": return result.finalStep.reasoningText as A
+          case "Thinking": return (result.finalStep.reasoningText ?? "") as A
           case "ToolCall": {
             const call = result.toolCalls[0]
             if (!call) return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })

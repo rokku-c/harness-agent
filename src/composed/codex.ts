@@ -14,7 +14,10 @@ export const CodexAgent = {
     const driver: Driver = {
       id: "codex",
       capabilities: {
-        provider: { _tag: "Fixed", api: "openai.codex" }, granularity: "turn", thinking: true,
+        // Honest declaration: the Codex SDK is turn-granular with no token/thinking
+        // event stream, so the driver cannot expose Thinking (P1 candidate: extract
+        // reasoning items from the Responses API, summary level only).
+        provider: { _tag: "Fixed", api: "openai.codex" }, granularity: "turn", thinking: false,
         cancel: true, pause: false, resume: true, fork: "none",
         tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"
       },
@@ -38,6 +41,9 @@ export const CodexAgent = {
           }
           return yield* decode(request.until.schema, value)
         }
+        // P1 candidate (p0.md 5.6-1): extract reasoning-summary from Codex
+        // Responses API reasoning items when thinking:true returns. Until then the
+        // final response is the only observation level this driver exposes.
         return result.finalResponse as A
       })
     }

@@ -156,12 +156,17 @@ export const requireUntil = <A>(id: string, capabilities: Capabilities, until: U
   const reject = (required: string, actual: string) =>
     Effect.fail(new UnsupportedCapability({ agent: id, required, actual }))
   switch (until._tag) {
-    case "Text": return capabilities.pause
+    // DRAFT 12.1: Until.text returns the next Text segment; pausing at the hit
+    // is only required when the caller wants to stop there. Observational
+    // (run-to-completion) semantics need only the Text event, which every
+    // driver's final response satisfies, so no pause capability is required.
+    case "Text": return Effect.void
+    // DRAFT 12.2: Until.thinking requires the agent to expose Thinking.
+    case "Thinking": return capabilities.thinking
       ? Effect.void
-      : reject("pause at next text", `${capabilities.granularity}, pause=false`)
-    case "Thinking": return capabilities.thinking && capabilities.pause
-      ? Effect.void
-      : reject("pause at next thinking", capabilities.thinking ? "pause=false" : "not exposed")
+      : reject("thinking event", "not exposed")
+    // DRAFT 12.3: Until.toolCall must guarantee the call is not executed yet;
+    // observe-mode tool calls are post-execution reports and do not qualify.
     case "ToolCall": return capabilities.toolCalls === "intercept"
       ? Effect.void
       : reject("pre-execution tool call", capabilities.toolCalls)

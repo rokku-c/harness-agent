@@ -137,7 +137,7 @@ describe("dsh connection adapter", () => {
     await Effect.runPromise(runtime.close("dsh"))
   })
 
-  test("compiles through the AgentProgram graph with envelope unwrapping", async () => {
+  test("compiles through the GraphProgram graph with envelope unwrapping", async () => {
     const harness = fakeHarness()
     const runtime = await Effect.runPromise(runtimeOf(harness))
     const ir: AgentIR = {

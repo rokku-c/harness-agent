@@ -263,6 +263,9 @@ export const ClaudeCode = {
           const thinking = blocks.find((block) => block.type === "thinking")
           return (thinking && "thinking" in thinking ? thinking.thinking : "") as A
         }
+        // P1: enable once the unified event/pause protocol lands. Until then
+        // requireUntil rejects Until.toolCall (toolCalls: "observe"), so this
+        // branch is unreachable through negotiation and must not be advertised.
         const call = blocks.find((block) => block.type === "tool_use")
         if (!call || !("id" in call) || !("name" in call))
           return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })

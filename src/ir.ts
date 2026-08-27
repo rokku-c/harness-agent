@@ -18,7 +18,7 @@ export interface JsonSchema {
   readonly items?: JsonSchema
 }
 
-export interface AgentIR {
+export interface BehaviorSpec {
   readonly id: string
   readonly output: OutputSpec
   readonly behavior: string
@@ -33,7 +33,7 @@ export interface BehaviorEnvironment {
 
 export interface BehaviorExtension {
   readonly ref: string
-  readonly create: (ir: AgentIR, env: BehaviorEnvironment) => Effect.Effect<Driver, Error>
+  readonly create: (spec: BehaviorSpec, env: BehaviorEnvironment) => Effect.Effect<Driver, Error>
 }
 
 export class BehaviorRegistry {
@@ -83,6 +83,10 @@ const schemaOf = (json: JsonSchema): Schema.Schema<any> => {
   }
 }
 
+// Under run-to-completion (observational) semantics Until.text and Until.stop
+// alias: both return the final text and text never pauses (DRAFT 12.1; the
+// negotiation matrix in test/capability-matrix.test.ts pins this). Until.text is
+// a hint that the caller only needs text, not a pause-at-hit request.
 const untilOf = (output: OutputSpec) => {
   switch (output.kind) {
     case "stop": return Until.stop
@@ -97,29 +101,29 @@ export interface CompileEnvironment extends BehaviorEnvironment {
   readonly behaviors: BehaviorRegistry
 }
 
-/** Compile declarative IR. The IR never contains executable functions. */
-export const compileAgent = (ir: AgentIR, environment: CompileEnvironment): Effect.Effect<AgentProgram<any, any>, Error> =>
+/** Compile a declarative BehaviorSpec. The spec never contains executable functions. */
+export const compileBehavior = (spec: BehaviorSpec, environment: CompileEnvironment): Effect.Effect<AgentProgram<any, any>, Error> =>
   Effect.gen(function* () {
     const connectionState = yield* environment.connections.snapshot()
-    for (const ref of [...(ir.connections ?? []), ...(ir.resources ?? []).map((resource) => resource.ref)]) {
+    for (const ref of [...(spec.connections ?? []), ...(spec.resources ?? []).map((resource) => resource.ref)]) {
       if (!connectionState.specs.has(ref))
         return yield* Effect.fail(new Error(`Connection not registered: ${ref}`))
     }
-    const behavior = yield* environment.behaviors.resolve(ir.behavior)
-    const driver = yield* behavior.create(ir, environment)
-    const builder = Agent.define<any>(ir.id, (input) => AgentContext.text(typeof input === "string" ? input : JSON.stringify(input)))
-      .returns(untilOf(ir.output))
+    const behavior = yield* environment.behaviors.resolve(spec.behavior)
+    const driver = yield* behavior.create(spec, environment)
+    const builder = Agent.define<any>(spec.id, (input) => AgentContext.text(typeof input === "string" ? input : JSON.stringify(input)))
+      .returns(untilOf(spec.output))
     return builder.implementedBy(driver)
   })
 
 /** Layer-driven compiler entry point; declarations remain independent of services. */
-export const compileAgentProvided = (ir: AgentIR) => Effect.gen(function* () {
+export const compileBehaviorProvided = (spec: BehaviorSpec) => Effect.gen(function* () {
   const connections = yield* Connections
   const behaviors = yield* Behaviors
-  return yield* compileAgent(ir, { connections, behaviors })
+  return yield* compileBehavior(spec, { connections, behaviors })
 })
 
-export const parseAgent = (format: "json" | "yaml" | "toml", source: string): AgentIR => {
+export const parseBehaviorSpec = (format: "json" | "yaml" | "toml", source: string): BehaviorSpec => {
   const value = format === "json"
     ? JSON.parse(source)
     : format === "yaml"
@@ -127,5 +131,5 @@ export const parseAgent = (format: "json" | "yaml" | "toml", source: string): Ag
       : Bun.TOML.parse(source)
   if (!value || typeof value !== "object" || typeof value.id !== "string" || typeof value.behavior !== "string" || !value.output)
     throw new Error("Agent description requires id, behavior and output")
-  return value as AgentIR
+  return value as BehaviorSpec
 }

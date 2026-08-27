@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { BehaviorRegistry, compileAgent, parseAgent } from "../src/ir.js"
+import { BehaviorRegistry, compileBehavior, parseBehaviorSpec } from "../src/ir.js"
 import { ConnectionRuntime, connectionAdapter } from "@effect-agent/core"
 import { ConnectionRegistry, mcpConnection } from "../src/connections.js"
 import type { Driver } from "../src/core.js"
@@ -15,11 +15,11 @@ const driver: Driver = {
   run: <A, R>() => Effect.succeed("ok" as A)
 }
 
-describe("declarative AgentIR", () => {
+describe("declarative BehaviorSpec", () => {
   test("parses JSON and compiles behavior through injection", async () => {
-    const ir = parseAgent("json", JSON.stringify({ id: "demo", behavior: "fake", output: { kind: "stop" } }))
+    const spec = parseBehaviorSpec("json", JSON.stringify({ id: "demo", behavior: "fake", output: { kind: "stop" } }))
     const connections = await Effect.runPromise(ConnectionRuntime.make())
-    const program = await Effect.runPromise(compileAgent(ir, {
+    const program = await Effect.runPromise(compileBehavior(spec, {
       connections,
       behaviors: BehaviorRegistry.make([{ ref: "fake", create: () => Effect.succeed(driver) }])
     }))

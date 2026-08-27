@@ -119,9 +119,19 @@ ClaudeCode.make({
 当前 adapter 状态：
 
 - Claude Code：stop、原生 object、隔离 Claude Home、cwd、Skill 注入和 Binding Ops → 进程内 SDK MCP 已接；默认隐藏全部内置工具。细粒度暂停尚未接，因此如实声明 `tools: mcp, pause: false`。
-- Codex：文本、原生 object、resume、sandbox/approval/thread 配置已接；MCP 只能由调用方通过 Codex 配置提供，Binding Ops 不会伪装成已注入。
+- Codex：文本、原生 object、resume、sandbox/approval/thread 配置已接；**thinking 未接（SDK 仅 turn 粒度，无 token/thinking 事件流）**——reasoning-summary 提取（Responses API reasoning items）列为 P1 候选；MCP 只能由调用方通过 Codex 配置提供，Binding Ops 不会伪装成已注入。
 - Pi：stop、Binding custom tools、typed output tool 已接；细粒度暂停尚未接，硬沙盒仍为 `none`。
 - Vercel：`generateText` tool loop、Effect Schema → JSON Schema、Binding tools、`Output.object` 已接。当前采用完整 run，所以 tool call 只可观察、不可安全暂停。
+
+P0(b) 后协商矩阵（DRAFT §12 修正：text/thinking 为观察级语义，不再要求 pause；toolCall 在统一事件/暂停协议前保持 REJECT；与 `test/capability-matrix.test.ts` 断言一致）：
+
+| Until | vercel | claude-code | codex | pi |
+|---|---|---|---|---|
+| text | OK | OK | OK | OK |
+| thinking | OK | OK | REJECT | OK |
+| toolCall | REJECT | REJECT | REJECT | REJECT |
+| stop | OK | OK | OK | OK |
+| schema | OK | OK | OK | OK |
 
 下一层接入会集中在统一的事件/暂停协议：Vercel 改用 `streamText` + approval boundary，Claude 生成 in-process SDK MCP，Pi 用 pre-tool extension hook。完成前 `Until.toolCall` 会通过 `UnsupportedCapability` 提前失败，而不是在工具已经执行后假装暂停。
 
