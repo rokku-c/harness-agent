@@ -23,7 +23,7 @@ describe("Claude Code isolation", () => {
       output: Schema.String,
       execute: ({ query }) => Effect.succeed(query)
     })
-    const Docs: Binding = { uri: "ea://test/service/docs", ops: [Lookup] }
+    const Docs: Binding<any> = { uri: "ea://test/service/docs", ops: [Lookup] }
 
     const driver = Harness.withHooks(ClaudeCode.make({
       query: fakeQuery,

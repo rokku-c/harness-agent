@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect"
 import { createAgentSession, type CreateAgentSessionOptions, type ToolDefinition } from "@mariozechner/pi-coding-agent"
-import { AgentFailure, decodeJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, commitSchemaResult, decodeJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
 
 export interface PiOptions extends CreateAgentSessionOptions {
   readonly createSession?: typeof createAgentSession
@@ -59,9 +59,13 @@ export const PiAgent = {
           try: () => session.prompt(request.context.render() + (outputTool ? `\nFinish by calling ${outputName}.` : "")),
           catch: (cause) => new AgentFailure({ agent: driver.id, cause })
         })
-        if (request.until._tag === "Schema") return yield* object === undefined
-          ? new AgentFailure({ agent: driver.id, cause: "Structured output tool was not called" })
-          : decodeJson(request.until.schema, JSON.stringify(object))
+        if (request.until._tag === "Schema") {
+          if (object === undefined)
+            return yield* new AgentFailure({ agent: driver.id, cause: "Structured output tool was not called" })
+          const output = yield* decodeJson(request.until.schema, JSON.stringify(object))
+          yield* commitSchemaResult(request, output, driver.id)
+          return output
+        }
         const assistant = session.messages.findLast((message: any) => message.role === "assistant") as any
         if (request.until._tag === "Thinking") {
           return (assistant?.content?.find((part: any) => part.type === "thinking")?.thinking ?? "") as A

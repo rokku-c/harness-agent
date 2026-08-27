@@ -9,7 +9,7 @@ const Weather = Op.read({
   execute: ({ city }) => Effect.succeed({ city, temperature: 24, condition: "晴" })
 })
 
-const WeatherService: Binding = {
+const WeatherService: Binding<any> = {
   uri: Uri.make("local", "service", "weather"),
   ops: [Weather]
 }

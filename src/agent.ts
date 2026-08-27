@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { Access, AgentProgram, AgentContext, AgentError, Binding, Driver, Until } from "./core.js"
+import type { Access, AgentProgram, AgentContext, AgentError, Binding, Driver, Until, WritableBinding } from "./core.js"
 
 export interface Definition<I, O, R> {
   readonly id: string
@@ -16,7 +16,9 @@ export class AgentBuilder<I, O, R = never> {
     return new AgentBuilder<I, O, R | R2>({ ...this.definition, access })
   }
 
-  writes<R2>(binding: Binding<any, any, R2>): AgentBuilder<I, O, R | R2> {
+  // Only a WritableBinding can be declared as a write target: passing a plain
+  // Binding fails at compile time (docs/writable.md D2).
+  writes<R2>(binding: WritableBinding<any, any, R2>): AgentBuilder<I, O, R | R2> {
     const access = [...this.definition.access, { binding, write: true }] as ReadonlyArray<Access<R | R2>>
     return new AgentBuilder<I, O, R | R2>({ ...this.definition, access })
   }

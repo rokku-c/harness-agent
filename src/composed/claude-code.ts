@@ -10,7 +10,7 @@ import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import * as z from "zod"
-import { AgentFailure, decode, type Driver, materialize, report, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, commitSchemaResult, decode, type Driver, materialize, report, requireUntil, schemaJson, type RunRequest } from "../core.js"
 import { loadToml, ProviderConfigError, type LoadProvidersOptions } from "../providers.js"
 
 export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks"> {
@@ -189,11 +189,20 @@ export const ClaudeCode = {
           CLAUDE_AGENT_SDK_CLIENT_APP: "effect-agent/0.0.0",
           ...(insecureTls ? { NODE_TLS_REJECT_UNAUTHORIZED: "0" } : {})
         }
+        // D4 mount gate (docs/writable.md): the SDK PermissionMode union has no
+        // "readOnly" member (verified: sdk.d.ts PermissionMode = 'default' |
+        // 'acceptEdits' | 'bypassPermissions' | 'plan' | 'dontAsk' | 'auto'), so the
+        // no-declared-write -> readOnly default cannot be expressed. Equivalent
+        // safety is already structural: built-in tools default to hidden and
+        // injected ops are filtered by access; declaredWrites is reported below
+        // for observability (deviation reported in the delivery notes).
+        const declaredWrites = request.access.filter(({ write }) => write).length
         yield* report(request, {
           _tag: "DriverPrepared",
           agent: driver.id,
           runtime: "claude-agent-sdk",
           details: {
+            declaredWrites,
             cwd: sdkOptions.cwd ?? process.cwd(),
             claudeHome: home.path,
             temporaryClaudeHome: home.temporary,
@@ -255,7 +264,11 @@ export const ClaudeCode = {
         const result = messages.findLast((message) => message.type === "result")
         if (!result || result.subtype !== "success")
           return yield* new AgentFailure({ agent: driver.id, cause: result ?? "No result" })
-        if (request.until._tag === "Schema") return yield* decode(request.until.schema, result.structured_output)
+        if (request.until._tag === "Schema") {
+          const output = yield* decode(request.until.schema, result.structured_output)
+          yield* commitSchemaResult(request, output, driver.id)
+          return output
+        }
         if (request.until._tag === "Stop" || request.until._tag === "Text") return result.result as A
         const assistant = messages.findLast((message) => message.type === "assistant")
         const blocks = assistant?.message.content ?? []

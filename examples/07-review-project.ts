@@ -66,7 +66,7 @@ const ReadFile = Op.read({
   })
 })
 
-const Project: Binding = {
+const Project: Binding<any> = {
   uri: Uri.make("local", "filesystem", "current-project"),
   ops: [ListFiles, ReadFile]
 }

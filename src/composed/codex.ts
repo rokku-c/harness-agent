@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { Codex, type CodexOptions, type ThreadOptions } from "@openai/codex-sdk"
-import { AgentFailure, decode, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, commitSchemaResult, decode, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
 
 export interface CodexAgentOptions {
   readonly client?: Codex
@@ -39,7 +39,9 @@ export const CodexAgent = {
           try { value = JSON.parse(result.finalResponse) } catch (cause) {
             return yield* new AgentFailure({ agent: driver.id, cause })
           }
-          return yield* decode(request.until.schema, value)
+          const output = yield* decode(request.until.schema, value)
+          yield* commitSchemaResult(request, output, driver.id)
+          return output
         }
         // P1 candidate (p0.md 5.6-1): extract reasoning-summary from Codex
         // Responses API reasoning items when thinking:true returns. Until then the

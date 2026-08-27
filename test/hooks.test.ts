@@ -13,7 +13,7 @@ describe("HarnessHook", () => {
       output: Schema.String,
       execute: ({ text }) => Effect.succeed(text)
     })
-    const binding: Binding = { uri: "ea://test/service/echo", ops: [Echo] }
+    const binding: Binding<any> = { uri: "ea://test/service/echo", ops: [Echo] }
     const driver: Driver = {
       id: "fake",
       capabilities: {

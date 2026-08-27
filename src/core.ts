@@ -90,6 +90,12 @@ export interface Binding<A = never, E = never, R = never> {
   readonly read?: Effect.Effect<Content, E, R>
   readonly typed?: Effect.Effect<A, E, R>
   readonly ops?: ReadonlyArray<Op<any, any, any, any>>
+  readonly write?: (value: A) => Effect.Effect<void, E, R>
+}
+
+/** A Binding that can commit a deterministic value (DRAFT 6.4). */
+export interface WritableBinding<A = never, E = never, R = never> extends Binding<A, E, R> {
+  readonly write: (value: A) => Effect.Effect<void, E, R>
 }
 
 export class Container {
@@ -139,6 +145,24 @@ export const materialize = <A, R>(request: RunRequest<A, R>) => Effect.gen(funct
   { concurrency: "unbounded" })
   return { ...request, context: request.context.append(...content.flat()) }
 })
+
+/**
+ * Commit a deterministic Schema result to every declared-write binding
+ * (DRAFT 6.4 / docs/writable.md D3). Each write:true access receives the same
+ * decoded output; the first failure fails the run wrapped as AgentFailure.
+ * Text/stop outputs have no deterministic structure and are never committed
+ * (P1 candidate: text-output commit).
+ */
+export const commitSchemaResult = <A, R>(request: RunRequest<A, R>, value: A, agent: string): Effect.Effect<void, AgentError, R> =>
+  Effect.forEach(
+    request.access
+      .filter(({ write, binding }) => write && typeof binding.write === "function")
+      .map(({ binding }) => binding.write as (value: A) => Effect.Effect<void, unknown, R>),
+    (write) => write(value)
+  ).pipe(
+    Effect.mapError((cause) => new AgentFailure({ agent, cause })),
+    Effect.asVoid
+  )
 
 export interface AgentProgram<I, O, E = AgentError, R = never> {
   readonly id: string

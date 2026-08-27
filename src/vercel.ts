@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect"
 import { Output, generateText, jsonSchema, tool, type LanguageModel, type ToolSet } from "ai"
-import { AgentFailure, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
+import { AgentFailure, commitSchemaResult, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
 
 export interface VercelOptions {
   readonly model: LanguageModel
@@ -59,7 +59,11 @@ export const VercelAgent = {
             if (!call) return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })
             return { _tag: "ToolCall", id: call.toolCallId, name: call.toolName, input: call.input } as A
           }
-          case "Schema": return result.output as A
+          case "Schema": {
+            const output = result.output as A
+            yield* commitSchemaResult(request, output, driver.id)
+            return output
+          }
         }
       }).pipe(Effect.scoped)
     }
