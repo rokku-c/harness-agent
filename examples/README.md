@@ -1,5 +1,16 @@
 # Examples
 
+This directory contains runnable examples that exercise the library end to end
+against real models. Each file is an independent program named `NN-name.ts`:
+`01-text` plain text, `02-object` schema-validated object output, `03-tool`
+Effect Ops as tools, `04-multi-agent` one agent per provider, `05-composed-agents`
+the same business definition harnessed across Claude Code, Codex and Pi,
+`06-claude-code-object` a full Claude Code Agent returning a structured object,
+and `07-review-project` a Claude Code repository review with an injected Skill.
+Run any example with `bun run example <name>` from the repository root; the
+runner auto-discovers `NN-name.ts` files. The Chinese notes below document each
+example in detail.
+
 所有示例默认读取仓库根目录的 `config.toml` 和 `.env`，应从仓库根目录运行。
 
 ```sh

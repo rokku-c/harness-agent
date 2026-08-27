@@ -5,10 +5,10 @@
   Pure declarations and runtime. Browser-safe; depends only on Effect.
 
 @effect-agent/builtin
-  Maintained contracts, adapters and transports:
+  Maintained contracts, adapters and node-only entries:
     contracts/   stable protocols such as effect-agent.core/v1
-    adapters/    direct Core, remote Core, MCP, storage, model adapters
-    transports/  stdio, Streamable HTTP, WebSocket and browser channels
+    adapters/    direct Core, remote Core, MCP, Streamable HTTP, dsh
+    node-only    stdio MCP, Claude Code, provider, notation
 
 @effect-agent/community
   Optional third-party adapters and integrations. Core never depends on it.
@@ -28,14 +28,42 @@
   Compact DOM projection of Repr. No knowledge of Core or transports.
 ```
 
+## Builtin package contents
+
+All sources live in `packages/builtin/src`:
+
+- `adapters/direct-core.ts` — turns a local `CoreEndpoint` (or `"self"`) into a
+  regular Connection over direct memory.
+- `adapters/remote-core.ts` — transport-agnostic remote Core/UI bridge; the
+  injected `connect` callback decides the actual channel (stdio, HTTP, ...).
+- `adapters/mcp-sdk.ts` — official MCP SDK adapter with transport injection
+  (`mcpSdkAdapter({ createTransport })`).
+- `adapters/mcp-streamable-http.ts` — browser-safe Streamable HTTP MCP transport
+  (`mcpStreamableHttpAdapter`).
+- `adapters/dsh-sdk.ts` — DeepSeek Harness as a Connection (`dshSdkAdapter`,
+  `dshConnectionSpec`, `DshConnectionError`).
+- `contracts/core.ts` — the effect-agent.core/v1 capability contract
+  (`CoreCapabilities`) shared by the direct and remote Core adapters.
+- `index.ts` — browser-safe entry re-exporting contracts and adapters.
+- `dsh-sdk.d.ts` — ambient declarations for the lazy-loaded dsh SDK client.
+- Node-only entries (never imported by the browser entry):
+  - `mcp-node.ts` — stdio MCP transport (`mcpStdioAdapter`).
+  - `claude-code-node.ts` — Claude Code as a Connection (SDK-backed; run,
+    control, inspect and sessions capabilities).
+  - `provider-node.ts` — provider catalog connection (`providerAdapter`).
+  - `notation.ts` — inversion-of-control metadata service (`notationAdapter`,
+    `annotateConnectionSpec`).
+
+Planned: WebSocket/browser remote-Core transports.
+
 ## Connection directions
 
 External UI to Core and Core to Core share `effect-agent.core/v1`:
 
 ```text
-UI ──stdio/http/websocket── CoreEndpoint
+UI ──stdio/http── CoreEndpoint
 Core ──direct memory─────── CoreEndpoint
-Core ──stdio/http/websocket── remote CoreEndpoint
+Core ──stdio/http── remote CoreEndpoint
 ```
 
 `CoreEndpoint` exposes sanitized connection descriptions, invocation and lifecycle

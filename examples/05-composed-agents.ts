@@ -15,7 +15,8 @@ const Review = Schema.Struct({
   findings: Schema.Array(Schema.String)
 })
 
-// 业务 Agent 只描述输入和输出，不知道底层是哪个完整外部 Agent。
+// The business Agent only describes input and output; it does not know which
+// complete external Agent sits underneath.
 const PRReview = (driver: Driver) => Agent
   .define<string>("PRReview", (diff) => AgentContext.text(`Review this diff:\n${diff}`))
   .returns(Until.schema(Review))
@@ -27,7 +28,7 @@ const builtins = [
   { name: "pi", driver: PiAgent.make() }
 ]
 
-// 同一个 PRReview 定义可以 harness 三种 runtime。
+// The same PRReview definition can harness three runtimes.
 const reviewers = builtins.map(({ name, driver }) => ({
   name,
   agent: PRReview(driver)

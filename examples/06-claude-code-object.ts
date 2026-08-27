@@ -11,8 +11,9 @@ const Plan = Schema.Struct({
 })
 
 const program = Effect.gen(function*() {
-  // Claude Code 是完整的外部 Agent，不使用 config.toml 中的
-  // anthropic.messages provider。认证由 Claude Agent SDK 自己读取。
+  // Claude Code is a complete external Agent and does not use the
+  // anthropic.messages provider from config.toml. Authentication is read
+  // directly by the Claude Agent SDK.
   const driver = yield* ClaudeCode.configured({
     path: "config.toml",
     provider: "claude",
