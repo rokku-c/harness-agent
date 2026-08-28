@@ -85,6 +85,12 @@ export interface Op<I, O, E = never, R = never> {
   readonly output: Schema.Schema<O, any, never>
   readonly access: "read" | "write"
   readonly execute: (input: I) => Effect.Effect<O, E, R>
+  /**
+   * B3b escape hatch: "retry" (default) turns an execute failure into a
+   * model-visible structured tool error; "fail" propagates it so the run fails
+   * as an AgentFailure instead. Absent means "retry".
+   */
+  readonly onError?: "retry" | "fail"
 }
 
 export const Op = {
@@ -206,6 +212,17 @@ export const requireUntil = <A>(id: string, capabilities: Capabilities, until: U
       : reject("structured output", "none")
     default: return Effect.void
   }
+}
+
+/**
+ * Structured, model-visible tool error payload (B3b). Tool failures are returned
+ * to the model as a normal tool result so the turn can retry instead of
+ * exploding; the JSON is stable so every driver renders the same shape. Message
+ * is truncated to ~2000 chars and never carries a stack trace.
+ */
+export const toolErrorJson = (cause: unknown, retryable = true): string => {
+  const message = cause instanceof Error ? cause.message : String(cause)
+  return JSON.stringify({ error: message.length > 2000 ? message.slice(0, 2000) : message, retryable })
 }
 
 export const schemaJson = <A>(schema: Schema.Schema<A, any, never>) => JSONSchema.make(schema)

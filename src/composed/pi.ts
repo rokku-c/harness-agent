@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect"
 import { createAgentSession, type CreateAgentSessionOptions, type ToolDefinition } from "@mariozechner/pi-coding-agent"
-import { AgentFailure, commitSchemaResult, decodeJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, commitSchemaResult, decodeJson, toolErrorJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
 
 export interface PiOptions extends CreateAgentSessionOptions {
   readonly createSession?: typeof createAgentSession
@@ -42,10 +42,19 @@ export const PiAgent = {
             label: op.name,
             description: op.description,
             parameters: schemaJson(op.input) as any,
-            execute: async (_id, input) => ({
-              content: [{ type: "text", text: JSON.stringify(await Runtime.runPromise(runtime)(op.execute(input))) }],
-              details: undefined
-            })
+            // B3b: a failing op becomes a structured tool result instead of
+            // rejecting the prompt call and aborting the run. With onError: "fail"
+            // the error propagates so the run fails as an AgentFailure instead.
+            execute: async (_id, input) => {
+              let text: string
+              try {
+                text = JSON.stringify(await Runtime.runPromise(runtime)(op.execute(input)))
+              } catch (cause) {
+                if (op.onError === "fail") throw cause
+                text = toolErrorJson(cause)
+              }
+              return { content: [{ type: "text", text }], details: undefined }
+            }
           })))
         const { session } = yield* Effect.tryPromise({
           try: () => createSession({

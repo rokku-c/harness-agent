@@ -6,6 +6,9 @@ export type HarnessEvent =
   | DriverEvent
   | { readonly _tag: "ToolStarted"; readonly agent: string; readonly callId: string; readonly tool: string; readonly input: unknown }
   | { readonly _tag: "ToolCompleted"; readonly agent: string; readonly callId: string; readonly tool: string; readonly output: unknown }
+  // Named after the future protocol tag tool.failed; emitted when an op throws,
+  // keeping ToolStarted/ToolFailed/ToolCompleted balanced for consumers.
+  | { readonly _tag: "ToolFailed"; readonly agent: string; readonly callId: string; readonly tool: string; readonly error: unknown }
   | { readonly _tag: "Output"; readonly agent: string; readonly output: unknown }
   | { readonly _tag: "RunFailed"; readonly agent: string; readonly error: AgentError }
   | { readonly _tag: "RunCompleted"; readonly agent: string }
@@ -44,7 +47,13 @@ const instrument = <A, R, E, RH>(
           Effect.flatMap(() => op.execute(input)),
           Effect.tap((output) => emit(hooks, {
             _tag: "ToolCompleted", agent: driver.id, callId, tool: op.name, output
-          }))
+          })),
+          // B3b: a failing op still surfaces to hooks as ToolFailed and the
+          // failure propagates (the driver layer converts it to a structured
+          // tool result); without this the run would lose the completion event.
+          Effect.catchAll((error) => emit(hooks, {
+            _tag: "ToolFailed", agent: driver.id, callId, tool: op.name, error
+          }).pipe(Effect.zipRight(Effect.fail(error))))
           )
         }
       }))

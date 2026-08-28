@@ -10,7 +10,7 @@ import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import * as z from "zod"
-import { AgentFailure, commitSchemaResult, decode, type Driver, materialize, report, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, commitSchemaResult, decode, toolErrorJson, type Driver, materialize, report, requireUntil, schemaJson, type RunRequest } from "../core.js"
 import { loadToml, ProviderConfigError, type LoadProvidersOptions } from "../providers.js"
 
 export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks"> {
@@ -79,7 +79,7 @@ const zodFromJson = (schema: any): z.ZodType => {
   }
 }
 
-const mcpTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>) =>
+export const mcpTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>) =>
   request.access.flatMap(({ binding, write }) => (binding.ops ?? [])
     .filter((op) => op.access === "read" || write)
     .map((op) => {
@@ -92,9 +92,17 @@ const mcpTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>) 
         name,
         allowedName: `mcp__effect_agent__${name}`,
         definition: sdkTool(name, op.description, shape, async (input) => {
-          const decoded = await Runtime.runPromise(runtime)(Schema.decodeUnknown(op.input)(input))
-          const output = await Runtime.runPromise(runtime)(op.execute(decoded))
-          return { content: [{ type: "text" as const, text: JSON.stringify(output) }] }
+          try {
+            const decoded = await Runtime.runPromise(runtime)(Schema.decodeUnknown(op.input)(input))
+            const output = await Runtime.runPromise(runtime)(op.execute(decoded))
+            return { content: [{ type: "text" as const, text: JSON.stringify(output) }] }
+          } catch (cause) {
+            // B3b: a failing op becomes a text tool result the model can see and
+            // retry instead of an MCP execution error. With onError: "fail" the
+            // error propagates so the run fails as an AgentFailure instead.
+            if (op.onError === "fail") throw cause
+            return { content: [{ type: "text" as const, text: toolErrorJson(cause) }] }
+          }
         })
       }
     }))

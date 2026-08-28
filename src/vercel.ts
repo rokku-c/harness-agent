@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect"
 import { Output, generateText, jsonSchema, tool, type LanguageModel, type ToolSet } from "ai"
-import { AgentFailure, commitSchemaResult, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
+import { AgentFailure, commitSchemaResult, toolErrorJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
 
 export interface VercelOptions {
   readonly model: LanguageModel
@@ -11,12 +11,28 @@ export interface VercelOptions {
   readonly maxOutputTokens?: number
 }
 
-const makeTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>): ToolSet =>
+const makeTools = (request: RunRequest<any, any>, runtime: Runtime.Runtime<any>, onFatal?: (cause: unknown) => void): ToolSet =>
   Object.fromEntries(request.access.flatMap(({ binding, write }) =>
     (binding.ops ?? []).filter((op) => op.access === "read" || write).map((op) => [op.name, tool({
       description: op.description,
       inputSchema: jsonSchema(schemaJson(op.input) as any),
-      execute: async (input: unknown) => Runtime.runPromise(runtime)(op.execute(input))
+      // B3b: a failing op becomes a structured tool result the model can see and
+      // retry - never a thrown execute that kills the turn. With onError: "fail"
+      // the error propagates so the run fails as an AgentFailure instead.
+      execute: async (input: unknown) => {
+        try {
+          return await Runtime.runPromise(runtime)(op.execute(input))
+        } catch (cause) {
+          if (op.onError === "fail") {
+            // The ai SDK swallows a throwing execute and hands the model an
+            // error-text part, so the run records the failure and turns it into
+            // an AgentFailure after generateText settles.
+            onFatal?.(cause)
+            throw cause
+          }
+          return toolErrorJson(cause)
+        }
+      }
     })])))
 
 export const VercelAgent = {
@@ -35,7 +51,8 @@ export const VercelAgent = {
         yield* requireUntil(driver.id, driver.capabilities, request.until)
         request = yield* materialize(request)
         const runtime = yield* Effect.runtime<any>()
-        const tools = makeTools(request, runtime)
+        let fatal: unknown
+        const tools = makeTools(request, runtime, (cause) => { fatal = cause })
         const result = yield* Effect.tryPromise({
           try: () => generateText({
             model: options.model,
@@ -50,6 +67,10 @@ export const VercelAgent = {
           }),
           catch: (cause) => new AgentFailure({ agent: driver.id, cause })
         })
+        // onError: "fail" escape hatch: the op failure must fail the run even
+        // though the ai SDK turned the thrown execute into a tool-error part.
+        if (fatal !== undefined)
+          return yield* new AgentFailure({ agent: driver.id, cause: fatal })
         switch (request.until._tag) {
           case "Stop": return result.text as A
           case "Text": return result.text as A
