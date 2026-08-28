@@ -26,6 +26,10 @@ import { PiAgent } from "../src/composed/pi.js"
  * - usage (B4): vercel (generateText aggregate usage) and codex (turn.usage)
  *   emit UsageReported; pi and claude-code expose no clean usage surface in
  *   their SDKs (documented in their drivers) - support ✓ ✓ ✗ ✗.
+ * - declarative untilOf (B2): OutputSpec kinds map to the same Until universe
+ *   (stop/text/thinking -> string, toolCall -> ToolCall content, schema ->
+ *   decoded) - the declarative path mirrors this negotiation matrix; OutputOf
+ *   is its compile-time twin (test/ir.test.ts pins the mapping).
  */
 
 const untils: ReadonlyArray<readonly [string, Until<any>]> = [

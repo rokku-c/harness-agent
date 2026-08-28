@@ -31,7 +31,9 @@ const review = Agent.define("review", (input: string) =>
 
 Pre-release, private, and Bun-only. This is not a publishable package: consume it by
 cloning the repository and wiring the `tsconfig` `paths` aliases (`@effect-agent/core`,
-`@effect-agent/builtin`) rather than installing a tarball. `ClaudeCode.make()` requires a
+`@effect-agent/builtin`) rather than installing a tarball. The declarative
+`BehaviorSpec` path (via `compileBehavior`) is untyped today: its output mapping is
+declared (`OutputOf`) but schema specs must be caller-annotated — see ARCHITECTURE 6. `ClaudeCode.make()` requires a
 locally authenticated Claude Code CLI. On `Until`: `Until.stop` runs the agent to
 completion and returns the final text. `Until.text` and `Until.stop` are
 observational aliases under run-to-completion semantics (text is a hint that only text

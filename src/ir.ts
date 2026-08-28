@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect"
 import YAML from "yaml"
 import { Agent } from "./agent.js"
-import { AgentContext, Until, type AgentProgram, type Driver } from "./core.js"
+import { AgentContext, Until, type AgentProgram, type Content, type Driver } from "./core.js"
 import { Connections, type ConnectionRuntime } from "@effect-agent/core"
 
 export type OutputSpec =
@@ -80,8 +80,22 @@ const schemaOf = (json: JsonSchema): Schema.Schema<any> => {
       }))
       return Schema.Struct(fields)
     }
+    default: throw new Error(
+      `BehaviorSpec schema type "${String(json.type)}" is unsupported (expected string|number|integer|boolean|array|object)`
+    )
   }
 }
+
+// Compile-time twin of untilOf: the output type the declarative path produces
+// per OutputSpec kind. stop/text/thinking are the final text (string), toolCall
+// is the pre-execution ToolCall content, schema is unknown today - the honest
+// seam where typed lowering (B2/P2) plugs Schema.Type in. Callers recover the
+// output type by annotating compileBehavior<S, MyOutput>; the type only
+// sharpens for a narrow literal spec (a wide BehaviorSpec collapses to unknown).
+export type OutputOf<S extends BehaviorSpec> =
+  S["output"] extends { readonly kind: "schema" } ? unknown
+  : S["output"] extends { readonly kind: "toolCall" } ? Extract<Content, { _tag: "ToolCall" }>
+  : string
 
 // Under run-to-completion (observational) semantics Until.text and Until.stop
 // alias: both return the final text and text never pauses (DRAFT 12.1; the
@@ -94,6 +108,9 @@ const untilOf = (output: OutputSpec) => {
     case "thinking": return Until.thinking
     case "toolCall": return Until.toolCall
     case "schema": return Until.schema(schemaOf(output.schema))
+    default: throw new Error(
+      `BehaviorSpec output.kind "${String((output as { kind?: unknown }).kind)}" is unsupported (expected stop|text|thinking|toolCall|schema)`
+    )
   }
 }
 
@@ -101,8 +118,21 @@ export interface CompileEnvironment extends BehaviorEnvironment {
   readonly behaviors: BehaviorRegistry
 }
 
-/** Compile a declarative BehaviorSpec. The spec never contains executable functions. */
-export const compileBehavior = (spec: BehaviorSpec, environment: CompileEnvironment): Effect.Effect<AgentProgram<any, any>, Error> =>
+/**
+ * Compile a declarative BehaviorSpec. The spec never contains executable functions.
+ *
+ * The declarative path is untyped today: Output is inferred from the spec via
+ * OutputOf (stop/text/thinking -> string, toolCall -> ToolCall content, schema
+ * -> unknown). Recover a concrete output type by annotating
+ * compileBehavior<MySpec, MyOutput> - pass both type parameters explicitly
+ * when overriding, since a wide spec type collapses OutputOf to unknown.
+ * Input stays unknown (the raw context text). Full typed lowering (schema ->
+ * Schema.Type, input schema -> typed I) is a B2/P2 candidate.
+ */
+export const compileBehavior = <S extends BehaviorSpec, Output = OutputOf<S>>(
+  spec: S,
+  environment: CompileEnvironment
+): Effect.Effect<AgentProgram<unknown, Output>, Error> =>
   Effect.gen(function* () {
     // resources access is not wired: fail early instead of silently ignoring
     // a declared resource dependency (ResourceRef/Resolver are planned).

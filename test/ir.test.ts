@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { BehaviorRegistry, compileBehavior, parseBehaviorSpec } from "../src/ir.js"
+import { BehaviorRegistry, compileBehavior, parseBehaviorSpec, type OutputOf } from "../src/ir.js"
 import { ConnectionRuntime, connectionAdapter } from "@effect-agent/core"
 import { ConnectionRegistry, mcpConnection } from "../src/connections.js"
 import type { Driver } from "../src/core.js"
@@ -25,6 +25,23 @@ describe("declarative BehaviorSpec", () => {
     }))
     expect(await Effect.runPromise(program.run("hello"))).toBe("ok")
   })
+
+  test("an invalid output.kind fails compile with a directed error", async () => {
+    const spec = parseBehaviorSpec("json", JSON.stringify({ id: "bad", behavior: "fake", output: { kind: "bogus" } }))
+    const connections = await Effect.runPromise(ConnectionRuntime.make())
+    const program = compileBehavior(spec, {
+      connections,
+      behaviors: BehaviorRegistry.make([{ ref: "fake", create: () => Effect.succeed(driver) }])
+    })
+    await expect(Effect.runPromise(program)).rejects.toThrow(/output.kind "bogus" is unsupported/)
+  })
+
+  // Type-level pin (enforced by tsc): OutputOf mirrors untilOf's output universe.
+  const _textOut: OutputOf<{ id: "t"; output: { kind: "text" }; behavior: "b" }> = "final text"
+  const _stopOut: OutputOf<{ id: "s"; output: { kind: "stop" }; behavior: "b" }> = "final text"
+  const _thinkOut: OutputOf<{ id: "h"; output: { kind: "thinking" }; behavior: "b" }> = "final text"
+  const _toolOut: OutputOf<{ id: "c"; output: { kind: "toolCall" }; behavior: "b" }> = { _tag: "ToolCall", id: "1", name: "n", input: {} }
+  const _schemaOut: OutputOf<{ id: "sc"; output: { kind: "schema"; schema: { type: "object" } }; behavior: "b" }> = { any: "unknown today" }
 
   test("MCP connections can be hot-plugged and removed", async () => {
     const closed: string[] = []
