@@ -58,16 +58,41 @@ export interface ShapeTool {
 export type ConnectionSpec = Record<string, ConnectionDecl>
 
 /** Mode 1 - any: accepts any injected connection under a fixed prefix (MCP-like). */
-export const any = (prefix = "mcp__"): ConnectionDecl => ({ _tag: "Any", prefix })
+export const any = <const P extends string>(prefix?: P): { _tag: "Any"; prefix: P } =>
+  ({ _tag: "Any", prefix: (prefix ?? "mcp__") as P & string })
 /** Mode 2 - named: accepts only these connection names; the name is the prefix. */
-export const named = (...names: string[]): ConnectionDecl => ({ _tag: "Named", names })
+export const named = <const N extends ReadonlyArray<string>>(...names: N): { _tag: "Named"; names: N } =>
+  ({ _tag: "Named", names })
 /** Mode 4 - shaped: accepts a connection whose tools match the shape (schemas verified). */
-export const shaped = (shape: ReadonlyArray<ShapeTool>): ConnectionDecl => ({ _tag: "Shaped", shape })
+export const shaped = <const S extends ReadonlyArray<ShapeTool>>(shape: S): { _tag: "Shaped"; shape: S } =>
+  ({ _tag: "Shaped", shape })
 /** Mode 5 - named + shaped: both constraints. */
-export const namedShaped = (names: string[], shape: ReadonlyArray<ShapeTool>): ConnectionDecl =>
-  ({ _tag: "NamedShaped", names, shape })
+export const namedShaped = <const N extends ReadonlyArray<string>, const S extends ReadonlyArray<ShapeTool>>(
+  names: N,
+  shape: S
+): { _tag: "NamedShaped"; names: N; shape: S } => ({ _tag: "NamedShaped", names, shape })
 /** Mode 3 - cascade: accepts a connection tree; members flatten to prefixed tools. */
 export const cascade = (members: ReadonlyArray<ConnectionDecl>): ConnectionDecl => ({ _tag: "Cascade", members })
+
+// ---------------------------------------------------------------------------
+// Type-level derivation: the tool names an agent's connection spec yields.
+// shaped slots derive exact tool names; named/any slots are dynamic surfaces
+// (a named slot without a shape exposes `${name}__${string}`; any exposes
+// `${prefix}${string}`). Declarations preserve their literals via const
+// type parameters, so this composes at compile time.
+// ---------------------------------------------------------------------------
+export type ToolNamesOf<S extends ConnectionSpec> = {
+  [K in keyof S & string]: S[K] extends { _tag: "Any"; prefix: infer P extends string }
+    ? `${P}${string}`
+    : S[K] extends { _tag: "Named"; names: infer N extends ReadonlyArray<string> }
+      ? `${N[number]}__${string}`
+      : S[K] extends { _tag: "Shaped"; shape: infer SH extends ReadonlyArray<ShapeTool> }
+        ? `${K}__${SH[number]["name"]}`
+        : S[K] extends { _tag: "NamedShaped"; shape: infer NSH extends ReadonlyArray<ShapeTool> }
+          ? `${K}__${NSH[number]["name"]}`
+          : S[K] extends { _tag: "Cascade" } ? `${K}__${string}__${string}`
+          : never
+}[keyof S & string]
 
 /**
  * Mode 6 - notated: the injected connection must carry a notation store; its

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { any, bind, cascade, connection, memoryNotationStore, named, namedShaped, notated, shaped } from "../src/index.ts"
+import { any, bind, cascade, connection, memoryNotationStore, named, namedShaped, notated, shaped, type ToolNamesOf } from "../src/index.ts"
 import type { Connection } from "../src/index.ts"
 
 const grafana = connection("grafana", [
@@ -67,4 +67,22 @@ describe("connection declarations", () => {
   test("notated: fails loud when the connection carries no store", () => {
     expect(() => bind(notated(), weather)).toThrow(/carries no notation store/)
   })
+
+describe("type-level tool names", () => {
+  test("ToolNamesOf composes literal prefixes from the spec", () => {
+    const spec = {
+      dashboards: named("grafana"),
+      monitoring: any("mcp__"),
+      db: shaped([{ name: "query", input: { type: "object" }, output: { type: "object" } }]),
+      ns: namedShaped(["docs"], [{ name: "search", input: { type: "object" }, output: { type: "object" } }]),
+      stack: cascade([])
+    }
+    // per-slot assertions: each slot's contribution is derived at the type level
+    const a1: "db__query" extends ToolNamesOf<typeof spec> ? true : false = true
+    const a2: "grafana__list_dashboards" extends ToolNamesOf<Pick<typeof spec, "dashboards">> ? true : false = true
+    const a3: "ns__search" extends ToolNamesOf<Pick<typeof spec, "ns">> ? true : false = true
+    const a4: "mcp__anything" extends ToolNamesOf<Pick<typeof spec, "monitoring">> ? true : false = true
+    void a1; void a2; void a3; void a4
+  })
+})
 })
