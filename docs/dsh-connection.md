@@ -208,7 +208,7 @@ live 通知以 `ConnectionEvent { connectionId, adapter, kind: "dsh.<method>", p
 
 - **概念注记**：`dsh.agent.run` 语义上是"外部完整 Agent"（DRAFT §11 ComposedAgent），本阶段以
   connection 层最小可用形态承载；`DshHarnessLike` 设计为可被将来 ComposedAgent 形态复用。
-- **真实联动示例** `examples/08-dsh-connection.ts`：依赖接线完成后补，**标注所用 IR**（不抢先固化
+- **真实联动示例** `examples/09-dsh-connection.ts`（尚未编写——08 已被 `08-chain.ts` 占用，B1-A）：依赖接线完成后补，**标注所用 IR**（不抢先固化
   P0 的 canonical IR）。
 - **phase 2（B7 后收窄）**：`session(id)` 语义冒烟后决定是否暴露会话 capability；实时事件已落地
   （live onNotification，见 dsh.* 命名空间节）；剩余：ACP 第二条 wire（命名与 failover 语义是开放决策）、
