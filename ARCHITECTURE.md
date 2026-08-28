@@ -74,10 +74,10 @@ the dsh connection adapter end-to-end (`dsh.agent.run`, events, failover); the d
 observability shell (repr/ui/tui/webui).
 
 Boundary (B2): **typed = imperative** (`Agent.define` hand-written); **declarative =
-untyped today**. `compileBehavior`'s `Output` parameter is a half-step: the output
-mapping is declared (`OutputOf`: stop/text/thinking -> string, toolCall -> ToolCall
-content, schema -> unknown) but must be caller-annotated for schema specs, and the
-declarative path has zero examples yet. Full typed lowering (schema -> `Schema.Type`,
+untyped today**. `compileBehavior`'s `Output` parameter declares the output mapping
+(`OutputOf`: stop/text/thinking -> string, toolCall -> ToolCall content, schema ->
+unknown) but the caller must cast or validate the value — and the declarative path
+has zero examples yet (Known). Full typed lowering (schema -> `Schema.Type`,
 input schema -> typed I) is a B2/P2 candidate.
 
 Next: **P1** unified event/pause protocol (streamText + approval boundaries, in-process Claude
