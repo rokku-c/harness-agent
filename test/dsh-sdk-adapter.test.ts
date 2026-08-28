@@ -40,9 +40,25 @@ const fakeHarness = (overrides: Partial<DshHarnessLike> = {}): FakeHarness => {
     start: async () => { state.starts.count++ },
     run: async (input, options) => {
       state.runs.push({ input, sessionId: options?.sessionId })
+      // B7: scripted live notifications in wire order - the SDK calls
+      // onNotification during the run, before the result resolves.
+      const sessionId = options?.sessionId ?? "fake-session"
+      options?.onNotification?.({
+        method: "session.event",
+        params: { sessionId, event: { type: "assistant/message" } }
+      })
+      options?.onNotification?.({
+        method: "session.status",
+        params: { sessionId, status: "idle" }
+      })
+      options?.onNotification?.({
+        method: "subagent.started",
+        params: { parentSessionId: sessionId, childSessionId: "fake-child" }
+      })
       return {
-        sessionId: options?.sessionId ?? "fake-session",
+        sessionId,
         finalResponse: "echo: " + input,
+        // kept on the result type for compat (DshRunResultLike); must NOT be replayed
         events: [{
           type: "assistant/message",
           data: { message: { content: [{ type: "text", text: "echo: " + input }] } }
@@ -152,7 +168,7 @@ describe("dsh connection adapter", () => {
     expect(harness.runs).toEqual([{ input: "你好", sessionId: "s1" }])
   })
 
-  test("RunResult.events are forwarded as ConnectionEvents", async () => {
+  test("live notifications are forwarded with dsh.* method kinds", async () => {
     const harness = fakeHarness()
     const runtime = await Effect.runPromise(runtimeOf(harness))
     const session = await Effect.runPromise(runtime.open("dsh"))
@@ -164,6 +180,10 @@ describe("dsh connection adapter", () => {
       const collector = yield* Effect.fork(
         Stream.runForEach(session.events!, (event) => Effect.sync(() => { collected.push(event) }))
       )
+      // Stream.fromPubSub subscribes lazily; the fake emits notifications in the
+      // synchronous prefix of its async run, so let the subscription settle
+      // before invoking (a real SDK emits during the async run, after subscribe).
+      yield* Effect.sleep("1 millis")
       result = yield* runtime.invoke("dsh", DshCapabilities.agentRun, { prompt: "hello" })
       // let the collector fiber drain the published events before the stream is shut down
       yield* Effect.sleep("10 millis")
@@ -171,14 +191,64 @@ describe("dsh connection adapter", () => {
       yield* Fiber.join(collector)
     }))
     expect(result).toEqual({ sessionId: "fake-session", finalResponse: "echo: hello" })
-    expect(collected).toHaveLength(1)
-    expect(collected[0].kind).toBe("dsh.agent.event")
-    expect(collected[0].connectionId).toBe("dsh")
-    expect(collected[0].adapter).toBe(kind)
-    expect(collected[0].payload).toEqual({
-      type: "assistant/message",
-      data: { message: { content: [{ type: "text", text: "echo: hello" }] } }
+    // wire order preserved: session.event -> session.status -> subagent.started
+    expect(collected.map((event) => event.kind)).toEqual([
+      "dsh.session.event",
+      "dsh.session.status",
+      "dsh.subagent.started"
+    ])
+    expect(collected.every((event) => event.connectionId === "dsh" && event.adapter === kind)).toBe(true)
+    // payload passthrough (1:1, no normalization)
+    expect(collected[0].payload).toEqual({ sessionId: "fake-session", event: { type: "assistant/message" } })
+    expect(collected[1].payload).toEqual({ sessionId: "fake-session", status: "idle" })
+    expect(collected[2].payload).toEqual({ parentSessionId: "fake-session", childSessionId: "fake-child" })
+  })
+
+  test("a throwing onNotification callback never kills the run", async () => {
+    // The adapter wraps the SDK callback in try/catch (best-effort observation).
+    // The fake mimics the SDK: if the adapter's callback threw, the run promise
+    // would reject and invoke would fail - so this passing means the callback
+    // stayed non-throwing and the run returned its result.
+    const harness = fakeHarness({
+      run: async (input, options) => {
+        if (options?.onNotification) {
+          try { options.onNotification({ method: "session.status", params: { status: "idle" } }) }
+          catch (cause) { throw new Error("SDK: onNotification threw: " + String(cause)) }
+        }
+        return { sessionId: "fake-session", finalResponse: "echo: " + input }
+      }
     })
+    const runtime = await Effect.runPromise(runtimeOf(harness))
+    const result = await Effect.runPromise(runtime.invoke("dsh", DshCapabilities.agentRun, { prompt: "hi" }))
+    expect(result).toEqual({ sessionId: "fake-session", finalResponse: "echo: hi" })
+  })
+
+  test("RunResult.events are not replayed (single live event source)", async () => {
+    const harness = fakeHarness()
+    const runtime = await Effect.runPromise(runtimeOf(harness))
+    const session = await Effect.runPromise(runtime.open("dsh"))
+    const collected: ConnectionEvent[] = []
+    let result: unknown
+    await Effect.runPromise(Effect.gen(function* () {
+      const collector = yield* Effect.fork(
+        Stream.runForEach(session.events!, (event) => Effect.sync(() => { collected.push(event) }))
+      )
+      yield* Effect.sleep("1 millis")
+      result = yield* runtime.invoke("dsh", DshCapabilities.agentRun, { prompt: "hello" })
+      yield* Effect.sleep("10 millis")
+      yield* runtime.close("dsh")
+      yield* Fiber.join(collector)
+    }))
+    expect(result).toEqual({ sessionId: "fake-session", finalResponse: "echo: hello" })
+    // fakeHarness.run still returns an events array (result-type compat), but the
+    // adapter must not replay it: only the 3 live notifications appear and the
+    // old dsh.agent.event replay kind is gone.
+    expect(collected.map((event) => event.kind)).toEqual([
+      "dsh.session.event",
+      "dsh.session.status",
+      "dsh.subagent.started"
+    ])
+    expect(collected.some((event) => event.kind === "dsh.agent.event")).toBe(false)
   })
 
   test("a subscribed events stream terminates on close instead of hanging", async () => {

@@ -15,7 +15,7 @@
 - dsh 官方 TS 客户端 `@deepseek-ai/dsh-sdk-client`（0.1.1-rc.2，
   `/Volumes/CaseSensitive/macOS/repos/deepseek-harness/packages/sdk/client`）：
   `DeepSeekHarness({ launch, provider, model, maxTokens })` 懒启动、`start()` 显式握手（memoize）、
-  `run(input, {sessionId?})` → `RunResult { sessionId, finalResponse, events, notifications }`、
+  `run(input, {sessionId?, onNotification?})` → `RunResult { sessionId, finalResponse, events, notifications }`、
   `session(id)`、`close()` 必须调用以回收子进程；低层 `HarnessClient`（start/prompt/subscribe/close）。
 - 该包 peerDependencies 指向 dsh 仓库内 workspace 包，npm 可用性**未验证**；tsconfig 覆盖
   `examples/**`，不能引入无法解析的依赖。
@@ -46,12 +46,16 @@
    （JSON-RPC code/data、exitCode、stderr 尾）。
 5. **懒加载器**：`packages/builtin/src/dsh-sdk.d.ts` 最小 ambient 声明 +
    `loadDshSdk()` 动态 import，SDK 未安装时抛清晰错误。
-6. **事件流 phase 1 就透传，语义如实声明**：
-   - `client.run` 的 `RunResult.events` 发布为 `ConnectionEvent`（kind `"dsh.agent.event"`，payload 透传），
-     `session.events` = 内部 PubSub + `Stream.fromPubSub`；fake 可验证。
-   - **语义声明**：phase 1 的 events 是 run 完成后的**整段回放**（SDK 一次返回全部），不是实时流；
-     实时观察依赖 phase 2 的 `onNotification`/subscribe。events 是**尽力而为的观测流**
-     （PubSub 无订阅者时 publish 即丢弃；订阅者滞后时队列无界——阶段一不引入丢弃语义，文档声明即可）。
+6. **事件流：live onNotification 单一事件源（B7）**：
+   - `client.run(prompt, { sessionId?, onNotification })`——adapter **始终**传 options，SDK 在 run 期间
+     每次通知回调 `onNotification`；回调把通知发布为 `ConnectionEvent`（kind `"dsh." + method`，payload 透传
+     `params`），`session.events` = 内部 PubSub + `Stream.fromPubSub`；fake 可验证。
+   - **语义声明**：通知是 run 期间的**实时流**（wire order 严格 FIFO）；`RunResult.events` 回放已移除
+     （B7），结果类型上保留 `events` 字段仅为兼容，不再发布。
+   - **观测性不变量**：`onNotification` 回调**绝不抛错**——内部 `Effect.runSync(publish)` 包 try/catch
+     （`runSync` 同步执行保证 FIFO；一个未捕获的抛错会 reject SDK run promise、杀死 run）。
+   - events 是**尽力而为的观测流**：PubSub 无订阅者时 publish 即丢弃；订阅者滞后时队列无界——
+     不引入丢弃语义，文档声明即可。
 7. **单 connection = 单串行 agent 进程 + 一条会话线**：内核 per-spec 单例 session，并发 invoke 串行
    排队（SDK run 队列到 idle）。此语义写入文档，不做并发池。
 8. **依赖接线是显式验收项**：实际尝试 `bun add --no-save @deepseek-ai/dsh-sdk-client@0.1.1-rc.2`
@@ -125,7 +129,9 @@ export const dshConnectionSpec = (options: {
      键，所以出现 `input` 键只能是 `compile` 的信封（`{ input, agent }`）；直接 `runtime.invoke`
      传裸入参。将来若加含 `input` 字段的 capability，此启发式不可复用，需要换显式信封标记。
   2. 校验 `{ prompt: string, sessionId? }`（用 `dshConnectionSpec` 里的 CapabilitySpec 形状）。
-  3. `client.run(prompt, { sessionId })` → 把 `events` 发布为 `ConnectionEvent` → 返回 `{ sessionId, finalResponse }`。
+  3. `client.run(prompt, { ...(sessionId ? { sessionId } : {}), onNotification })` → run 期间每次
+     SDK 通知经 `onNotification` 实时发布为 `ConnectionEvent`（`dsh.<method>`）→ 返回
+     `{ sessionId, finalResponse }`（`RunResult.events` 不再回放，B7）。
 - 未知 capability → `DshConnectionError`；所有 invoke 走 `Effect.tryPromise`，错误保留 cause 与结构化字段。
 
 ## 5. 验收标准
@@ -134,7 +140,9 @@ export const dshConnectionSpec = (options: {
    - connect 时 eager start 失败 → 连接失败（可被 `ConnectionOpenError` 聚合、参与 failover）；
    - `dsh.agent.run` 从 fake 取 finalResponse 并返回 `{sessionId, finalResponse}`；
    - **经 `compile` 的 AgentProgram 图 invoke 是必过项**（信封解包正确；单测绿、集成红是本次最大风险点）；
-   - `RunResult.events` 透传为 `ConnectionEvent`（订阅 `session.events` 可收到）；
+   - live 通知经 `onNotification` 发布为 `ConnectionEvent`（`dsh.session.event`/`dsh.session.status`/
+     `dsh.subagent.started`，payload 透传、wire order FIFO；订阅 `session.events` 可收到）；
+   - `RunResult.events` 不回放（单一 live 事件源）；onNotification 抛错不杀 run；
    - **close 后已订阅的 events 流正常终止、不悬挂**（PubSub.shutdown 生效）；
    - 未知 capability 失败；close 幂等（重复调用不抛）；
    - 错误保留结构化字段（cause / code / exitCode / stderr 尾）；
@@ -150,20 +158,51 @@ export const dshConnectionSpec = (options: {
   invoke 同一 spec 会各起一个 dsh 子进程，后写者覆盖 map、败者 client 不被 close（子进程泄漏）。
   eager start + 重量级子进程放大该风险。**本任务不改内核**；P2 候选：内核 `open()` 改
   Ref-modify 单飞（CAS 或 connecting map）。测试只记录行为。
-- **events 是尽力而为**：无订阅者即丢弃；订阅者滞后时队列无界；phase 1 是 run 完成后回放，非实时。
+- **events 是尽力而为**：无订阅者即丢弃；订阅者滞后时队列无界（live 通知无界队列背压——文档声明，
+  不引入丢弃语义）。
 - **单 connection 串行**：一个 dsh connection = 一个串行 agent 进程 + 一条会话线，无并发池。
 
-## 6. 概念定位与后续
+## 6. dsh.* 事件命名空间（B7）
+
+live 通知以 `ConnectionEvent { connectionId, adapter, kind: "dsh.<method>", payload }` 发布，
+`method`/`payload` 与 SDK 通知 **1:1 透传、不归一化**（稳定性契约：这是设计决策——观测方按 SDK
+语义消费；归一化留给上层语义层）。已验证 kind：
+
+| kind | payload（SDK params 透传） | 含义 |
+| --- | --- | --- |
+| `dsh.session.event` | `{ sessionId, event }` | 会话内的一个事件（assistant/message 等） |
+| `dsh.session.status` | `{ sessionId, status }` | 会话状态迁移（`idle` 等） |
+| `dsh.subagent.started` | `{ parentSessionId, childSessionId }` | 子 agent 会话建立 |
+| `dsh.<method>`（通配） | 任意 | 其它 SDK 通知方法，同样 1:1 透传 |
+
+- **48 种事件类型**：`event` 载荷的类型全集由 `@deepseek-ai/dsh-session` 的 `SessionEventMap` 定义
+  （不在此复制 48 行——以该包为唯一事实源）。
+- **wire order**：`onNotification` 回调内 `Effect.runSync(publish)` 同步执行，通知按 SDK 发出顺序
+  严格 FIFO 入流；同批次（lossless 收集）的定界方式是**按 `session.status` 的 `idle` 收口**——
+  `receipt`（invoke 受理）到 `idle` 之间的通知即该次 run 的完整批次。
+- **断流语义（诚实）**：SDK run 断流（进程退出/JSON-RPC 中断）→ `invoke` 以 `DshConnectionError`
+  失败传播（含结构化 cause/exitCode/stderr 尾）；已入流的部分通知保留，不伪造补齐。
+- **背压**：PubSub 无界队列，滞后订阅者不阻塞 run（文档声明，不引入丢弃语义）。
+- **血缘层边界**：委托在 runtime 内（dsh 自己管理子 agent 树）；`dsh.subagent.*` 事件暴露子会话
+  建立，但**上层扇出血缘需要 P12 的 run/session id**（本层不伪造全局 id）。
+- **并发语义**：单串行 runtime 进程、常驻形态按 run 观测；C 窗口 = `receipt → idle` 对齐 SDK
+  活动区间，**pre-receipt 与 run 间事件不流式**（非债——它们是上一个 run 的尾部或下一个的前奏）；
+  未来连续观测 = B 式持久订阅，opt-in。
+- **events.md**：`docs/events.md` 的 kernel 事件表保持 5 kind；本命名空间是 dsh adapter 的
+  ConnectionEvent 扩展，指向本节。
+
+## 7. 概念定位与后续
 
 - **概念注记**：`dsh.agent.run` 语义上是"外部完整 Agent"（DRAFT §11 ComposedAgent），本阶段以
   connection 层最小可用形态承载；`DshHarnessLike` 设计为可被将来 ComposedAgent 形态复用。
 - **真实联动示例** `examples/08-dsh-connection.ts`：依赖接线完成后补，**标注所用 IR**（不抢先固化
   P0 的 canonical IR）。
-- **phase 2**：`session(id)` 语义冒烟后决定是否暴露会话 capability；`onNotification`/subscribe 实时事件；
-  ACP 第二条 wire（命名与 failover 语义是开放决策）；方向 A（effect-agent 作为 dsh 插件）依赖 P0 后单独设计。
+- **phase 2（B7 后收窄）**：`session(id)` 语义冒烟后决定是否暴露会话 capability；实时事件已落地
+  （live onNotification，见 dsh.* 命名空间节）；剩余：ACP 第二条 wire（命名与 failover 语义是开放决策）、
+  方向 A（effect-agent 作为 dsh 插件）依赖 P0 后单独设计。
 - **P2 内核候选**：`open()` 单飞修复（并发首次 invoke 竞态）。
 
-## 7. 与整体路线的关系
+## 8. 与整体路线的关系
 
 - 工作在 connection 层，**不依赖 P0 统一 IR**；示例的 IR 选择属于 P0 决策，不得在示例里悄悄拍板。
 - 事件流消费方依赖 P0(b)（修 Until 语义）；修好之前 dsh connection 对业务程序是"黑盒 run 一次"，已知且接受。

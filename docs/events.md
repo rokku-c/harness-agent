@@ -56,6 +56,11 @@ limitation, planned with the unified event protocol.
 | `connection.invoking` | `{ capability }` | an invoke started |
 | `connection.invoked` | `{ capability, output }` | an invoke returned |
 
+Adapters may extend the kernel set with adapter-scoped kinds: the **dsh** adapter streams live
+runtime notifications as `dsh.*` kinds (`dsh.session.event`, `dsh.session.status`,
+`dsh.subagent.started`, ...) — see docs/dsh-connection.md §6 for the namespace contract
+(1:1 passthrough, wire order, lossless batch bounds, lineage boundaries).
+
 ## Content kinds (`AgentContext` entries)
 
 `Text`, `Thinking`, `ToolCall`, `ToolResult`, `Object` — the `Content`

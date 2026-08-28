@@ -18,9 +18,10 @@ import type {
  *   both run connect() and each spawns a dsh runtime; the later one wins the
  *   session map and the loser's client is never closed (subprocess leak). The
  *   kernel is not changed here; tests only record the behavior.
- * - events are best-effort: publish is dropped with no subscriber, the queue is
- *   unbounded for lagging subscribers, and phase 1 replays the whole run after
- *   completion (SDK returns events once) rather than streaming live.
+ * - events are best-effort: publish is dropped with no subscriber and the queue
+ *   is unbounded for lagging subscribers. Notifications stream LIVE during the
+ *   run via the SDK's onNotification callback (single event source); the phase-1
+ *   RunResult.events replay was removed in B7.
  * - One connection = one serial agent process and one session line; no pool.
  */
 
@@ -39,7 +40,11 @@ export interface DshRunResultLike {
 export interface DshHarnessLike {
   /** Eager handshake with the runtime; must be idempotent and repeatable (the SDK memoizes it). */
   readonly start: () => Promise<void>
-  readonly run: (input: string, options?: { readonly sessionId?: string }) => Promise<DshRunResultLike>
+  readonly run: (input: string, options?: {
+    readonly sessionId?: string
+    /** Live observation channel: the SDK calls this for each runtime notification during the run. */
+    readonly onNotification?: (notification: unknown) => void
+  }) => Promise<DshRunResultLike>
   /** Reap the runtime subprocess; idempotent and terminal. */
   readonly close: () => Promise<void>
 }
@@ -223,15 +228,23 @@ const startClient = (client: DshHarnessLike): Effect.Effect<void, DshConnectionE
 const isEnvelope = (value: unknown): value is { input: unknown } =>
   typeof value === "object" && value !== null && "input" in value
 
-const publishEvents = (
+const publishNotification = (
   eventBus: PubSub.PubSub<ConnectionEvent>,
   connectionId: string,
   adapter: string,
-  events: ReadonlyArray<unknown>
-): Effect.Effect<void, never> =>
-  Effect.forEach(events, (event) =>
-    PubSub.publish(eventBus, { connectionId, adapter, kind: "dsh.agent.event", payload: event })
-  ).pipe(Effect.asVoid, Effect.ignore)
+  notification: unknown
+): Effect.Effect<void, never> => {
+  const record = recordOf(notification)
+  const method = typeof record.method === "string" ? record.method : "unknown"
+  // dsh.* method kinds mirror the SDK's notification method names 1:1
+  // (session.event, session.status, subagent.started, ...) - see docs/dsh-connection.md.
+  return PubSub.publish(eventBus, {
+    connectionId,
+    adapter,
+    kind: "dsh." + method,
+    payload: record.params
+  })
+}
 
 const invokeClient = (
   client: DshHarnessLike,
@@ -261,8 +274,20 @@ const invokeClient = (
           capability
         }))
       const sessionId = typeof record.sessionId === "string" ? record.sessionId : undefined
+      // Always pass options: sessionId when present plus the live observation
+      // callback. The callback must never throw - an uncaught throw would reject
+      // the SDK run promise and kill the run (violating the observationality
+      // invariant), so publish runs under runSync (strict FIFO wire order) inside
+      // try/catch, and a publish failure is swallowed best-effort.
+      const options = {
+        ...(sessionId === undefined ? {} : { sessionId }),
+        onNotification: (notification: unknown) => {
+          try { Effect.runSync(publishNotification(eventBus, connectionId, adapter, notification)) }
+          catch { /* best-effort: observation must never kill the run */ }
+        }
+      }
       return Effect.tryPromise({
-        try: () => client.run(prompt, sessionId === undefined ? undefined : { sessionId }),
+        try: () => client.run(prompt, options),
         catch: (cause) => connectionError("dsh adapter: dsh.agent.run failed: " + messageOf(cause), cause, capability)
       }).pipe(Effect.flatMap((result) => {
         if (typeof result?.sessionId !== "string" || typeof result?.finalResponse !== "string")
@@ -271,8 +296,10 @@ const invokeClient = (
             capability,
             cause: result
           }))
+        // Single event source: live onNotification stream. RunResult.events is
+        // kept on the result type for compat but is never replayed (B7).
         const output = { sessionId: result.sessionId, finalResponse: result.finalResponse }
-        return publishEvents(eventBus, connectionId, adapter, result.events ?? []).pipe(Effect.as(output))
+        return Effect.succeed(output)
       }))
     }
     default:
