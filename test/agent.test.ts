@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 import { any, connection, defineAgent, memoryNotationStore, named, type Llm, type LlmResult } from "../src/index.ts"
 
 /** A scripted Llm: queued results, records every call. */
@@ -6,12 +7,12 @@ const scriptedLlm = (queue: Array<(calls: { prompts: string[]; tools: string[] }
   const seen: { prompts: string[]; tools: string[] } = { prompts: [], tools: [] }
   return {
     llm: {
-      generate: async (_prompt: string, _messages: unknown, tools: ReadonlyArray<{ name: string }>) => {
-        seen.prompts.push(_prompt)
+      generate: (prompt: string, _messages: unknown, tools: ReadonlyArray<{ name: string }>) => {
+        seen.prompts.push(prompt)
         seen.tools = tools.map((tool) => tool.name)
         const next = queue.shift()
         if (next === undefined) throw new Error("scripted llm exhausted")
-        return next(seen)
+        return Effect.succeed(next(seen))
       }
     } as Llm,
     seen
@@ -22,7 +23,7 @@ describe("agent", () => {
   test("definition order: connections first, then the loop runs tool calls to a reply", async () => {
     const store = memoryNotationStore([{ target: "assistant/prompt", instructions: ["You are terse."] }])
     const tools = connection("grafana", [
-      { name: "list_dashboards", input: { type: "object" }, output: { type: "array" }, execute: async () => ["one"] }
+      { name: "list_dashboards", input: { type: "object" }, output: { type: "array" }, execute: () => Effect.succeed(["one"]) }
     ])
     const { llm, seen } = scriptedLlm([
       () => ({ text: "checking", toolCalls: [{ id: "1", name: "grafana__list_dashboards", input: {} }] }),
@@ -34,7 +35,7 @@ describe("agent", () => {
       prompt: { store, target: "assistant/prompt" }
     }, llm)
     agent.applyTools([tools])
-    const reply = await agent.invokeMessage("how many dashboards?")
+    const reply = await Effect.runPromise(agent.invokeMessage("how many dashboards?"))
     expect(reply).toBe("one dashboard exists")
     // the tool ran and its result entered the log
     expect(agent.listMessages().some((m) => m.role === "tool" && m.content.includes("one"))).toBe(true)
@@ -43,7 +44,7 @@ describe("agent", () => {
     expect(seen.prompts[0]).toBe("You are terse.")
   })
 
-  test("applyTools re-binds in real time", async () => {
+  test("applyTools re-binds in real time", () => {
     const store = memoryNotationStore([{ target: "p", instructions: ["go"] }])
     const { llm } = scriptedLlm([() => ({ text: "done", toolCalls: [] })])
     const agent = defineAgent({ name: "a", connections: { mcp: any() }, prompt: { store, target: "p" } }, llm)
@@ -67,7 +68,7 @@ describe("agent", () => {
       () => ({ text: "asking", toolCalls: [{ id: "1", name: "reviewer__invokeMessage", input: { message: "review this" } }] }),
       () => ({ text: "child said: looks good", toolCalls: [] })
     ]).llm)
-    const reply = await parent.invokeMessage("run the review")
+    const reply = await Effect.runPromise(parent.invokeMessage("run the review"))
     expect(reply).toBe("child said: looks good")
     // the child received its own invocation through the connection surface
     expect(child.listMessages()[0]).toEqual({ role: "user", content: "review this" })

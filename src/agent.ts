@@ -1,13 +1,18 @@
 /**
- * The agent abstraction.
+ * The agent abstraction - Effect-native.
  *
  * An agent is defined in this order: first its dependent CONNECTIONS (the six
  * declaration modes), then its SHAPE (prompt, loop bound). Agents depend on
  * agents through the same mechanism, because an Agent is itself a Connection -
  * its model-facing surface is invokeMessage (plus the log inspectors). The
  * base agent is the LLM: we never define a model, we adapt one in via the Llm
- * port (dsh-style: the message log is the truth, turns are its slices).
+ * port. The session log is the truth; turns are its slices.
+ *
+ * Effect is the composition substrate: a dependent agent's invokeMessage is an
+ * Effect, so parent agents compose child agents (and their R channels) without
+ * glue - the connection surface and the program surface are one.
  */
+import { Effect } from "effect"
 import type { Connection, ConnectionDecl, ConnectionSpec, Tool } from "./connection.ts"
 import { bind } from "./connection.ts"
 import { resolveNotation, type NotationStore, type NotationText } from "./notation.ts"
@@ -18,13 +23,19 @@ import { resolveNotation, type NotationStore, type NotationText } from "./notati
 export type Message =
   | { readonly role: "user"; readonly content: string }
   | { readonly role: "assistant"; readonly content: string }
-  | { readonly role: "tool"; readonly name: string; readonly content: string }
+  /** The tool result correlates to its call by id (real protocols require it). */
+  | { readonly role: "tool"; readonly id: string; readonly name: string; readonly content: string }
 
 export interface Turn {
   readonly index: number
   readonly messages: ReadonlyArray<Message>
   readonly status: "complete" | "max-steps"
 }
+
+/** A failed run: the loop bound was hit, or the model call failed. */
+export type AgentError =
+  | { readonly _tag: "MaxStepsExceeded"; readonly agent: string; readonly steps: number }
+  | { readonly _tag: "LlmFailed"; readonly agent: string; readonly cause: unknown }
 
 // ---------------------------------------------------------------------------
 // The Llm port: we do not define the model. A runtime adapts into this.
@@ -42,7 +53,11 @@ export interface LlmResult {
 
 export interface Llm {
   /** One model call: the system prompt, the full message log, the tool surface. */
-  generate(systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<Tool>): Promise<LlmResult>
+  readonly generate: (
+    systemPrompt: string,
+    messages: ReadonlyArray<Message>,
+    tools: ReadonlyArray<Tool>
+  ) => Effect.Effect<LlmResult, unknown>
 }
 
 // ---------------------------------------------------------------------------
@@ -52,15 +67,15 @@ export interface Llm {
 // ---------------------------------------------------------------------------
 export interface AgentShape {
   /** Apply tools: bind connections now - and re-bind any time (real-time). */
-  applyTools(connections: ReadonlyArray<Connection>): void
+  readonly applyTools: (connections: ReadonlyArray<Connection>) => void
   /** Update the system prompt (notation-injected text). */
-  updateSystemPrompt(prompt: NotationText): void
+  readonly updateSystemPrompt: (prompt: NotationText) => void
   /** Invoke: append a user message and run the loop to an assistant reply. */
-  invokeMessage(content: string): Promise<string>
+  readonly invokeMessage: (content: string) => Effect.Effect<string, AgentError>
   /** The turn log. */
-  listTurns(): ReadonlyArray<Turn>
+  readonly listTurns: () => ReadonlyArray<Turn>
   /** The flat message log. */
-  listMessages(): ReadonlyArray<Message>
+  readonly listMessages: () => ReadonlyArray<Message>
 }
 
 export interface Agent extends AgentShape {
@@ -117,6 +132,7 @@ export const defineAgent = (def: AgentDef, llm: Llm): Agent => {
   }
   let agentBound = agentTools()
   let bound: BoundTools = agentBound
+
   const rebind = (connections: ReadonlyArray<Connection>): void => {
     const specs = Object.entries(def.connections)
     const tools: Tool[] = []
@@ -148,44 +164,47 @@ export const defineAgent = (def: AgentDef, llm: Llm): Agent => {
     bound = { tools: [...tools, ...agentBound.tools], names: new Map([...names, ...agentBound.names]) }
   }
 
-  const runLoop = async (): Promise<string> => {
-    const turnStart = messages.length
-    let steps = 0
-    for (;;) {
-      if (steps++ >= maxSteps) {
-        turns.push({ index: turns.length, messages: [...messages.slice(turnStart)], status: "max-steps" })
-        throw new Error(`agent "${def.name}" exceeded maxSteps (${maxSteps})`)
-      }
-      const result = await llm.generate(systemPrompt, messages, bound.tools)
-      if (result.toolCalls.length > 0) {
-        messages.push({ role: "assistant", content: result.text })
-        for (const call of result.toolCalls) {
-          const tool = bound.names.get(call.name)
-          if (tool === undefined) {
-            messages.push({ role: "tool", name: call.name, content: JSON.stringify({ error: `unknown tool "${call.name}"` }) })
-            continue
-          }
-          const output = await tool.execute(call.input)
-          messages.push({ role: "tool", name: call.name, content: JSON.stringify(output ?? null) })
-        }
-        continue
-      }
-      messages.push({ role: "assistant", content: result.text })
-      turns.push({ index: turns.length, messages: [...messages.slice(turnStart)], status: "complete" })
-      return result.text
+  // one model step: call the model, run its tool calls into the log, or land
+  // the assistant reply and close the turn. A tool failure is fed back to the
+  // model as a tool result (the retry path), never silently swallowed.
+  const step = (turnStart: number, n: number): Effect.Effect<string, AgentError> => {
+    if (n >= maxSteps) {
+      const turn: Turn = { index: turns.length, messages: [...messages.slice(turnStart)], status: "max-steps" }
+      return Effect.sync(() => turns.push(turn)).pipe(
+        Effect.andThen(Effect.fail<AgentError>({ _tag: "MaxStepsExceeded", agent: def.name, steps: maxSteps }))
+      )
     }
+    return llm.generate(systemPrompt, messages, bound.tools).pipe(
+      Effect.catchAll((cause) => Effect.fail<AgentError>({ _tag: "LlmFailed", agent: def.name, cause })),
+      Effect.flatMap((result) => {
+        if (result.toolCalls.length === 0) {
+          messages.push({ role: "assistant", content: result.text })
+          turns.push({ index: turns.length, messages: [...messages.slice(turnStart)], status: "complete" })
+          return Effect.succeed(result.text)
+        }
+        messages.push({ role: "assistant", content: result.text })
+        return Effect.forEach(result.toolCalls, (call) => {
+          const tool = bound.names.get(call.name)
+          const run = tool !== undefined
+            ? tool.execute(call.input)
+            : Effect.fail(`unknown tool "${call.name}"`)
+          return run.pipe(
+            Effect.map((output) => messages.push({ role: "tool", id: call.id, name: call.name, content: JSON.stringify(output ?? null) })),
+            Effect.catchAll((cause) =>
+              Effect.sync(() => messages.push({ role: "tool", id: call.id, name: call.name, content: JSON.stringify({ error: cause }) }))
+            )
+          )
+        }).pipe(Effect.andThen(step(turnStart, n + 1)))
+      })
+    )
   }
 
-  // agent-as-connection: the model-facing surface a parent binds (mode 4/5
-  // consumers shape it); listTurns/listMessages stay programmatic inspection
   const agent: Agent = {
     name: def.name,
     applyTools: rebind,
     updateSystemPrompt: (prompt) => { systemPrompt = prompt },
-    invokeMessage: async (content) => {
-      messages.push({ role: "user", content })
-      return runLoop()
-    },
+    invokeMessage: (content) =>
+      Effect.sync(() => messages.push({ role: "user", content })).pipe(Effect.andThen(step(messages.length - 1, 0))),
     listTurns: () => turns,
     listMessages: () => messages,
     asConnection: {

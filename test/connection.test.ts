@@ -1,12 +1,13 @@
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 import { any, bind, cascade, connection, memoryNotationStore, named, namedShaped, notated, shaped } from "../src/index.ts"
 import type { Connection } from "../src/index.ts"
 
 const grafana = connection("grafana", [
-  { name: "list_dashboards", input: { type: "object" }, output: { type: "array" }, execute: async () => [] }
+  { name: "list_dashboards", input: { type: "object" }, output: { type: "array" }, execute: () => Effect.succeed([]) }
 ])
 const weather = connection("weather", [
-  { name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: async () => ({}) }
+  { name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }
 ])
 
 describe("connection declarations", () => {
@@ -58,7 +59,7 @@ describe("connection declarations", () => {
 
   test("notated: descriptions resolve from the connection's notation store", () => {
     const store = memoryNotationStore([{ target: "tool:lookup", instructions: ["Look up current weather."] }])
-    const conn = connection("weather", [{ name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: async () => ({}) }], store)
+    const conn = connection("weather", [{ name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }], store)
     const bound = bind(notated(), conn)
     expect(String(bound[0]?.description)).toBe("Look up current weather.")
   })

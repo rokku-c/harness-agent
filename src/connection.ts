@@ -7,6 +7,7 @@
  * shapes at injection time. An Agent is itself a Connection (see agent.ts) -
  * that is the layer that lets agents compose like tools.
  */
+import { Effect } from "effect"
 import { resolveNotation, type NotationStore, type NotationText } from "./notation.ts"
 
 /** JSON Schema object (the MCP-native tool schema form). */
@@ -18,7 +19,7 @@ export interface Tool {
   readonly description?: NotationText
   readonly input: JsonSchema
   readonly output: JsonSchema
-  readonly execute: (input: unknown) => Promise<unknown>
+  readonly execute: (input: unknown) => Effect.Effect<unknown, unknown>
 }
 
 /**

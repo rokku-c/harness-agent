@@ -1,12 +1,14 @@
 /**
- * The ideal agent definition, per the owner's sketch:
+ * The ideal agent definition, per the owner's sketch - Effect-native:
  *   1. connections declared FIRST (six modes: any/named/shaped/named+shaped/cascade/notated)
  *   2. then the agent shape (prompt from notation, loop bound)
- *   3. agent dependencies - agents compose agents (an Agent is a Connection)
+ *   3. agent dependencies - agents compose agents (an Agent is a Connection);
+ *      child invokeMessage is an Effect, so composition is Effect composition
  * The base agent is the LLM: we never define a model, we adapt one in.
  *
  * Run: bun run examples/01-connections.ts
  */
+import { Effect } from "effect"
 import {
   any,
   cascade,
@@ -26,20 +28,20 @@ const store: NotationStore = memoryNotationStore([
   { target: "reviewer/prompt", instructions: ["You review changes carefully."] }
 ])
 
-// ── connections: the injectable units ──────────────────────────────────────
+// ── connections: the injectable units (execute returns an Effect) ──────────
 const grafana = connection("grafana", [
   {
     name: "list_dashboards",
     input: { type: "object", properties: {} },
     output: { type: "array" },
-    execute: async () => ["latency", "errors"]
+    execute: () => Effect.succeed(["latency", "errors"])
   }
 ])
 const stack = connection("stack", []) as Connection & { members?: Connection[] }
 stack.members = [
   grafana,
   connection("prometheus", [
-    { name: "query", input: { type: "object" }, output: { type: "string" }, execute: async () => "up" }
+    { name: "query", input: { type: "object" }, output: { type: "string" }, execute: () => Effect.succeed("up") }
   ])
 ]
 const github = connection("github", [
@@ -47,7 +49,7 @@ const github = connection("github", [
     name: "list_prs",
     input: { type: "object", properties: {} },
     output: { type: "array" },
-    execute: async () => ["#1", "#2"]
+    execute: () => Effect.succeed(["#1", "#2"])
   }
 ])
 
@@ -79,9 +81,13 @@ const opsLead = defineAgent({
 opsLead.applyTools([stack, grafana, github])
 console.log(resolveNotation(store, "ops-lead/prompt"))
 
-const reply = await opsLead.invokeMessage("how are the dashboards?")
-console.log("reply:", reply)
-console.log("lead turns:", opsLead.listTurns().length, "| child messages:", reviewer.listMessages().length)
+const program = Effect.flatMap(opsLead.invokeMessage("how are the dashboards?"), (reply) =>
+  Effect.sync(() => {
+    console.log("reply:", reply)
+    console.log("lead turns:", opsLead.listTurns().length, "| child messages:", reviewer.listMessages().length)
+  }))
+
+await Effect.runPromise(program)
 
 // ── the scripted LLM (stand-in for a real model adapter) ───────────────────
 function scriptedLlm(
@@ -90,10 +96,10 @@ function scriptedLlm(
 ): Llm {
   const queue = [...replies]
   return {
-    generate: async () => {
+    generate: () => {
       const next = queue.shift()
       if (next === undefined) throw new Error(`scripted llm "${name}" exhausted`)
-      return typeof next === "string" ? { text: next, toolCalls: [] } : next
+      return Effect.succeed(typeof next === "string" ? { text: next, toolCalls: [] } : next)
     }
   }
 }

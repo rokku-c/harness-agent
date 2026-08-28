@@ -1,6 +1,9 @@
 # effect-agent
 
-Agents compose from connections; agents are connections. Plain TypeScript.
+Agents compose from connections; agents are connections. Effect-native:
+the Llm port, tool execution, and agent invocation are all Effects - so
+agent composition is Effect composition, and the connection surface and
+the program surface are one.
 
 ## The two abstractions
 
