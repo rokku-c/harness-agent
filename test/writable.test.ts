@@ -70,7 +70,7 @@ describe("schema commit integration", () => {
       }
     })
     const driver = VercelAgent.make({ model })
-    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+    const program = Agent.define<string>("s", (s) => AgentContext.raw(s))
       .returns(Until.schema(Schema.Struct({ ok: Schema.Boolean })))
       .writes(binding)
       .implementedBy(driver)
@@ -85,7 +85,7 @@ describe("schema commit integration", () => {
     const thread = { run: async () => ({ sessionId: "s", finalResponse: JSON.stringify({ ok: true }) }) }
     const client = { startThread: () => thread } as any
     const driver = CodexAgent.make({ client })
-    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+    const program = Agent.define<string>("s", (s) => AgentContext.raw(s))
       .returns(Until.schema(Schema.Struct({ ok: Schema.Boolean })))
       .writes(binding)
       .implementedBy(driver)
@@ -103,7 +103,7 @@ describe("schema commit integration", () => {
       return { session: { prompt: async () => {}, messages: [], abort: async () => {} } }
     }) as any
     const driver = PiAgent.make({ createSession })
-    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+    const program = Agent.define<string>("s", (s) => AgentContext.raw(s))
       .returns(Until.schema(Schema.Struct({ ok: Schema.Boolean })))
       .writes(binding)
       .implementedBy(driver)
@@ -119,7 +119,7 @@ describe("schema commit integration", () => {
       yield { type: "result", subtype: "success", structured_output: { ok: true }, result: "" }
     }) as any
     const driver = ClaudeCode.make({ query: fakeQuery })
-    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+    const program = Agent.define<string>("s", (s) => AgentContext.raw(s))
       .returns(Until.schema(Schema.Struct({ ok: Schema.Boolean })))
       .writes(binding)
       .implementedBy(driver)
@@ -139,7 +139,7 @@ describe("claude-code mount gate (SDK readOnly unsupported)", () => {
     const driver = ClaudeCode.make({ query: fakeQuery })
     const readOnly: Binding<any> = { uri: "ea://ro", ops: [] }
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("hello"),
+      context: AgentContext.raw("hello"),
       until: Until.stop,
       access: [{ binding: readOnly, write: false }],
       report: (event) => Effect.sync(() => { prepared.push(event) })
@@ -154,7 +154,7 @@ describe("claude-code mount gate (SDK readOnly unsupported)", () => {
     const writable: WritableBinding<any> = { uri: "ea://out", write: () => Effect.void }
     const driver = ClaudeCode.make({ query: fakeQuery, permissionMode: "acceptEdits" })
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("hello"),
+      context: AgentContext.raw("hello"),
       until: Until.stop,
       access: [{ binding: writable, write: true }],
       report: (event) => Effect.sync(() => { prepared.push(event) })
@@ -185,7 +185,7 @@ describe("access filter regression", () => {
     }) as any
     const driver = PiAgent.make({ createSession })
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"),
+      context: AgentContext.raw("x"),
       until: Until.stop,
       access: [{ binding, write: false }]
     }))
@@ -199,7 +199,7 @@ describe("access filter regression", () => {
 // binding at compile time. bun test does not type-check; these lines are
 // validated by `bun run typecheck` (tsc --noEmit) via @ts-expect-error.
 // @ts-expect-error writes() requires a WritableBinding
-Agent.define<string>("neg", (s) => AgentContext.text(s)).returns(Until.stop).writes({ uri: "ea://test/plain" })
+Agent.define<string>("neg", (s) => AgentContext.raw(s)).returns(Until.stop).writes({ uri: "ea://test/plain" })
 
 // Positive companion: a WritableBinding compiles.
-Agent.define<string>("pos", (s) => AgentContext.text(s)).returns(Until.stop).writes({ uri: "ea://test/w", write: () => Effect.void })
+Agent.define<string>("pos", (s) => AgentContext.raw(s)).returns(Until.stop).writes({ uri: "ea://test/w", write: () => Effect.void })

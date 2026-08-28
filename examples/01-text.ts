@@ -1,11 +1,17 @@
 import { Effect } from "effect"
-import { Agent, AgentContext, Providers, Until } from "../src/index.js"
+import { Agent, AgentContext, memoryNotationStore, Providers, Until, withNotation } from "../src/index.js"
+
+// The prompt prose lives in notation (versioned, injectable through the
+// notation adapter) - the definition references targets, never embeddings.
+const notation = memoryNotationStore([
+  { target: "assistant/prompt", instructions: ["Answer the question in three sentences.", "Question: {input}"] }
+])
 
 const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const Assistant = Agent
-    .define<string>("Assistant", AgentContext.text)
+    .define<string>("Assistant", withNotation(notation, (input, nl) => AgentContext.text(nl("assistant/prompt", { input }))))
     .returns(Until.stop)
     .implementedBy(driver)
 

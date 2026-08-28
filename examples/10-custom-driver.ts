@@ -51,7 +51,8 @@ const reported: DriverEvent[] = []
 
 // Driver-author test surface: run the driver directly with a report sink.
 const output = await Effect.runPromise(driver.run({
-  context: AgentContext.text("is the skeleton in charge?"),
+  // mechanical fixture (driver-author test surface), not definition prose
+  context: AgentContext.raw("is the skeleton in charge?"),
   until: Until.schema(Schema.Struct({ ok: Schema.Boolean })),
   access: [],
   report: (event) => Effect.sync(() => reported.push(event))

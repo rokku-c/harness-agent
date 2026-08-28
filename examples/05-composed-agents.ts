@@ -4,10 +4,16 @@ import {
   AgentContext,
   ClaudeCode,
   CodexAgent,
+  memoryNotationStore,
   PiAgent,
   Until,
+  withNotation,
   type Driver
 } from "../src/index.js"
+
+const notation = memoryNotationStore([
+  { target: "pr-review/prompt", instructions: ["Review this diff:", "{diff}"] }
+])
 
 const Review = Schema.Struct({
   summary: Schema.String,
@@ -18,7 +24,7 @@ const Review = Schema.Struct({
 // The business Agent only describes input and output; it does not know which
 // complete external Agent sits underneath.
 const PRReview = (driver: Driver) => Agent
-  .define<string>("PRReview", (diff) => AgentContext.text(`Review this diff:\n${diff}`))
+  .define<string>("PRReview", withNotation(notation, (diff, nl) => AgentContext.text(nl("pr-review/prompt", { diff }))))
   .returns(Until.schema(Review))
   .implementedBy(driver)
 

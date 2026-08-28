@@ -1,5 +1,9 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Providers, Until } from "../src/index.js"
+import { Agent, AgentContext, memoryNotationStore, Providers, Until, withNotation } from "../src/index.js"
+
+const notation = memoryNotationStore([
+  { target: "planner/prompt", instructions: ["Draft an execution plan for this task: {task}"] }
+])
 
 const Plan = Schema.Struct({
   goal: Schema.String,
@@ -14,7 +18,7 @@ const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const Planner = Agent
-    .define<string>("Planner", (task) => AgentContext.text(`为这个任务制定执行计划：${task}`))
+    .define<string>("Planner", withNotation(notation, (task, nl) => AgentContext.text(nl("planner/prompt", { task }))))
     .returns(Until.schema(Plan))
     .implementedBy(driver)
 

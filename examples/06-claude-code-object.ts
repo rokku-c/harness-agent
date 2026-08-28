@@ -1,5 +1,16 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, ClaudeCode, Until } from "../src/index.js"
+import { Agent, AgentContext, ClaudeCode, memoryNotationStore, Until, withNotation } from "../src/index.js"
+
+const notation = memoryNotationStore([
+  {
+    target: "planner/prompt",
+    instructions: [
+      "Analyze the task and draft a plan (respond in Simplified Chinese). Do not modify any files.",
+      "",
+      "{task}"
+    ]
+  }
+])
 
 const Plan = Schema.Struct({
   goal: Schema.String,
@@ -28,9 +39,7 @@ const program = Effect.gen(function*() {
   })
 
   const Planner = Agent
-    .define<string>("ClaudeCodePlanner", (task) => AgentContext.text(
-      `只分析任务并制定计划（设置语言：简体中文），不要修改任何文件：\n\n${task}`
-    ))
+    .define<string>("ClaudeCodePlanner", withNotation(notation, (task, nl) => AgentContext.text(nl("planner/prompt", { task }))))
     .returns(Until.schema(Plan))
     .implementedBy(driver)
 

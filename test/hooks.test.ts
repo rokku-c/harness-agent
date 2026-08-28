@@ -25,7 +25,7 @@ describe("HarnessHook", () => {
     }
 
     const output = await Effect.runPromise(Harness.withHooks(driver, hook).run({
-      context: AgentContext.text("hello"), until: Until.stop, access: [{ binding, write: false }]
+      context: AgentContext.raw("hello"), until: Until.stop, access: [{ binding, write: false }]
     }))
 
     expect(output).toBe("ok")

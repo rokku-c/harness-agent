@@ -17,7 +17,7 @@ describe("Vercel agent settings", () => {
   test("defaults maxOutputTokens to 8192", async () => {
     const model = new MockLanguageModelV4({ doGenerate: result })
     await Effect.runPromise(VercelAgent.make({ model }).run({
-      context: AgentContext.text("hello"), until: Until.stop, access: []
+      context: AgentContext.raw("hello"), until: Until.stop, access: []
     }))
     expect(model.doGenerateCalls[0]?.maxOutputTokens).toBe(8192)
   })
@@ -38,7 +38,7 @@ describe("Vercel agent settings", () => {
       }
     })
     const output = await Effect.runPromise(VercelAgent.make({ model }).run({
-      context: AgentContext.text("hello"), until: Until.thinking, access: []
+      context: AgentContext.raw("hello"), until: Until.thinking, access: []
     }))
     expect(output).toBe("let me think")
   })
@@ -46,7 +46,7 @@ describe("Vercel agent settings", () => {
   test("allows maxOutputTokens override", async () => {
     const model = new MockLanguageModelV4({ doGenerate: result })
     await Effect.runPromise(VercelAgent.make({ model, maxOutputTokens: 16384 }).run({
-      context: AgentContext.text("hello"), until: Until.stop, access: []
+      context: AgentContext.raw("hello"), until: Until.stop, access: []
     }))
     expect(model.doGenerateCalls[0]?.maxOutputTokens).toBe(16384)
   })

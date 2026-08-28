@@ -34,7 +34,7 @@ describe("Claude Code isolation", () => {
       if (event._tag === "DriverPrepared") prepared = event.details
     })))
     const answer = await Effect.runPromise(driver.run({
-      context: AgentContext.text("hello"),
+      context: AgentContext.raw("hello"),
       until: Until.stop,
       access: [{ binding: Docs, write: false }]
     }))
@@ -72,7 +72,7 @@ describe("Claude Code global insecureTls", () => {
         overrides: { query: fakeQuery }
       }))
       await Effect.runPromise(driver.run({
-        context: AgentContext.text("hello"),
+        context: AgentContext.raw("hello"),
         until: Until.stop,
         access: []
       }))

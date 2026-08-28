@@ -5,7 +5,7 @@ import { AgentContext, CodexAgent, Until } from "../src/index.js"
 describe("capability negotiation", () => {
   test("Codex refuses a pre-execution tool-call boundary", async () => {
     const exit = await Effect.runPromiseExit(CodexAgent.make().run({
-      context: AgentContext.text("test"),
+      context: AgentContext.raw("test"),
       until: Until.toolCall,
       access: []
     }))

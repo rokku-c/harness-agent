@@ -1,4 +1,5 @@
 import { Data, Effect, Either, JSONSchema, Schema } from "effect"
+import type { NotationText } from "./notation.js"
 
 export type Content =
   | { readonly _tag: "Text"; readonly text: string }
@@ -9,7 +10,15 @@ export type Content =
 
 export class AgentContext {
   static empty = new AgentContext([])
-  static text(text: string) { return new AgentContext([{ _tag: "Text", text }]) }
+  /**
+   * Notation-injected text: the natural language that reaches a model comes
+   * from a notation store via the resolver (withNotation), never from string
+   * literals in definitions. For mechanical non-prose fixtures (tests,
+   * protocol scaffolding) use raw - the deviation is visible in review.
+   */
+  static text(text: NotationText) { return new AgentContext([{ _tag: "Text", text }]) }
+  /** Mechanical escape for non-prose fixtures - the honest, reviewable counterpart to text. */
+  static raw(text: string) { return new AgentContext([{ _tag: "Text", text }]) }
   constructor(readonly entries: ReadonlyArray<Content>) {}
   append(...entries: ReadonlyArray<Content>) { return new AgentContext([...this.entries, ...entries]) }
   get lastText() {

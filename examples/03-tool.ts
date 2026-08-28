@@ -1,9 +1,15 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Op, Providers, Until, Uri, type Binding } from "../src/index.js"
+import { Agent, AgentContext, memoryNotationStore, Op, Providers, resolveNotation, Until, Uri, withNotation, type Binding } from "../src/index.js"
+
+// Tool descriptions are model-facing prose too: resolve them from notation.
+const notation = memoryNotationStore([
+  { target: "weather-assistant/prompt", instructions: ["{input}"] },
+  { target: "ops/lookup-weather", instructions: ["Look up the current weather for a city."] }
+])
 
 const Weather = Op.read({
   name: "lookup_weather",
-  description: "查询指定城市的当前天气",
+  description: resolveNotation(notation, "ops/lookup-weather"),
   input: Schema.Struct({ city: Schema.String }),
   output: Schema.Struct({ city: Schema.String, temperature: Schema.Number, condition: Schema.String }),
   execute: ({ city }) => Effect.succeed({ city, temperature: 24, condition: "晴" })
@@ -18,7 +24,7 @@ const program = Effect.gen(function*() {
   const driver = yield* Providers.agent()
 
   const Assistant = Agent
-    .define<string>("WeatherAssistant", AgentContext.text)
+    .define<string>("WeatherAssistant", withNotation(notation, (input, nl) => AgentContext.text(nl("weather-assistant/prompt", { input }))))
     .returns(Until.stop)
     .uses(WeatherService)
     .implementedBy(driver)

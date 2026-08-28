@@ -1,5 +1,17 @@
 import { Effect, Schema } from "effect"
-import { Agent, AgentContext, Providers, Until } from "../src/index.js"
+import { Agent, AgentContext, memoryNotationStore, Providers, Until, withNotation } from "../src/index.js"
+
+const notation = memoryNotationStore([
+  {
+    target: "explorer/prompt",
+    instructions: [
+      "Think independently and propose one approach for the question below.",
+      "Do not assume the other agents' conclusions.",
+      "",
+      "{task}"
+    ]
+  }
+])
 
 const Proposal = Schema.Struct({
   approach: Schema.String,
@@ -11,9 +23,7 @@ const program = Effect.gen(function*() {
   const providers = yield* Providers
 
   const explorers = providers.names.map((provider) => Agent
-    .define<string>(`Explorer:${provider}`, (task) => AgentContext.text(
-      `独立思考并为下面的问题提出一个方案。不要假设其他 Agent 的结论。\n\n${task}`
-    ))
+    .define<string>(`Explorer:${provider}`, withNotation(notation, (task, nl) => AgentContext.text(nl("explorer/prompt", { task }))))
     .returns(Until.schema(Proposal))
     .implementedBy(providers.agent(provider)))
 

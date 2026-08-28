@@ -49,7 +49,7 @@ describe("usage metering (B4)", () => {
       events.push(event._tag === "UsageReported" ? { tag: event._tag, usage: event.usage } : { tag: event._tag })
     }))
     const output = await Effect.runPromise(Harness.withHooks(VercelAgent.make({ model }), hook).run({
-      context: AgentContext.text("x"), until: Until.stop, access: []
+      context: AgentContext.raw("x"), until: Until.stop, access: []
     }))
     expect(output).toBe("ok")
     // Two model steps: the tool call runs through the tool pipeline and the
@@ -72,7 +72,7 @@ describe("usage metering (B4)", () => {
     const driver = CodexAgent.make({ client })
     const reported: DriverEvent[] = []
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access: [],
+      context: AgentContext.raw("x"), until: Until.stop, access: [],
       report: (event) => Effect.sync(() => reported.push(event))
     }))
     const usageEvent = reported.find((e) => e._tag === "UsageReported") as { usage: UsageReport } | undefined
@@ -88,7 +88,7 @@ describe("usage metering (B4)", () => {
     const driver = CodexAgent.make({ client })
     const reported: DriverEvent[] = []
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access: [],
+      context: AgentContext.raw("x"), until: Until.stop, access: [],
       report: (event) => Effect.sync(() => reported.push(event))
     }))
     const usageEvent = reported.find((e) => e._tag === "UsageReported") as { usage: UsageReport } | undefined
@@ -104,7 +104,7 @@ describe("usage metering (B4)", () => {
     const driver = CodexAgent.make({ client })
     const reported: DriverEvent[] = []
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access: [],
+      context: AgentContext.raw("x"), until: Until.stop, access: [],
       report: (event) => Effect.sync(() => reported.push(event))
     }))
     const usageEvent = reported.find((e) => e._tag === "UsageReported") as { usage: UsageReport } | undefined
@@ -115,7 +115,7 @@ describe("usage metering (B4)", () => {
     const model = new MockLanguageModelV4({ doGenerate: textResult })
     const driver = VercelAgent.make({ model })
     const output = await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access: [],
+      context: AgentContext.raw("x"), until: Until.stop, access: [],
       report: () => Effect.die(new Error("usage hook boom"))
     }))
     expect(output).toBe("ok")

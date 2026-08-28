@@ -30,7 +30,7 @@ describe("codex behavior matrix (B8 migration gate)", () => {
     const driver = CodexAgent.make({ client })
     const { reported, report } = reportedEvents()
     const output = await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access: [], report
+      context: AgentContext.raw("x"), until: Until.stop, access: [], report
     }))
     expect(output).toBe("ok")
     const usages = usageEvents(reported)
@@ -45,7 +45,7 @@ describe("codex behavior matrix (B8 migration gate)", () => {
     const driver = CodexAgent.make({ client })
     const { reported, report } = reportedEvents()
     const failure = await Effect.runPromise(Effect.flip(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access: [], report
+      context: AgentContext.raw("x"), until: Until.stop, access: [], report
     })))
     expect((failure as { _tag?: string })._tag).toBe("AgentFailure")
     expect(usageEvents(reported)).toHaveLength(0)
@@ -60,7 +60,7 @@ describe("codex behavior matrix (B8 migration gate)", () => {
     const driver = CodexAgent.make({ client })
     const { reported, report } = reportedEvents()
     const failure = await Effect.runPromise(Effect.flip(driver.run({
-      context: AgentContext.text("x"),
+      context: AgentContext.raw("x"),
       until: Until.schema(Schema.Struct({ ok: Schema.Boolean })),
       access: [],
       report
@@ -82,7 +82,7 @@ describe("codex behavior matrix (B8 migration gate)", () => {
     const driver = CodexAgent.make({ client })
     const { reported, report } = reportedEvents()
     const failure = await Effect.runPromise(Effect.flip(driver.run({
-      context: AgentContext.text("x"),
+      context: AgentContext.raw("x"),
       until: Until.schema(Schema.Struct({ ok: Schema.Boolean })),
       access: [],
       report
@@ -100,7 +100,7 @@ describe("codex behavior matrix (B8 migration gate)", () => {
     const driver = CodexAgent.make({ client })
     const { reported, report } = reportedEvents()
     const output = await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"),
+      context: AgentContext.raw("x"),
       until: Until.schema(Schema.Struct({ ok: Schema.Boolean })),
       access: [],
       report
@@ -117,7 +117,7 @@ describe("codex behavior matrix (B8 migration gate)", () => {
     } as any
     const driver = CodexAgent.make({ client })
     const output = await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"),
+      context: AgentContext.raw("x"),
       until: Until.stop,
       access: [],
       report: () => Effect.die("defective usage hook")

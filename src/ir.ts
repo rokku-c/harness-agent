@@ -149,7 +149,8 @@ export const compileBehavior = <S extends BehaviorSpec, Output = OutputOf<S>>(
     }
     const behavior = yield* environment.behaviors.resolve(spec.behavior)
     const driver = yield* behavior.create(spec, environment)
-    const builder = Agent.define<any>(spec.id, (input) => AgentContext.text(typeof input === "string" ? input : JSON.stringify(input)))
+    // mechanical passthrough of runtime data (not definition prose): raw, not notation
+    const builder = Agent.define<any>(spec.id, (input) => AgentContext.raw(typeof input === "string" ? input : JSON.stringify(input)))
       .returns(untilOf(spec.output))
     return builder.implementedBy(driver)
   })

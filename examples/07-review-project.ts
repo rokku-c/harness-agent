@@ -7,9 +7,12 @@ import {
   AgentContext,
   ClaudeCode,
   Harness,
+  memoryNotationStore,
   Op,
+  resolveNotation,
   Until,
   Uri,
+  withNotation,
   type Binding
 } from "../src/index.js"
 import { DetailedReviewHook } from "./hooks/detailed-review.js"
@@ -19,6 +22,23 @@ const ignored = new Set([".git", "node_modules", "dist", "build", "coverage"])
 const maxFilesRead = 24
 let filesRead = 0
 
+// Model-facing prose (the review charter, the tool descriptions) lives in
+// notation - the definition and the ops reference targets, never embeddings.
+const notation = memoryNotationStore([
+  {
+    target: "project-reviewer/prompt",
+    instructions: [
+      "Review the current TypeScript project. You may only read the project through the injected project.listFiles and project.readFile tools; never modify files or execute commands.",
+      "",
+      "Review focus: {focus}",
+      "",
+      "First inspect the project structure, then read key implementation, config, test and example files. Read at most {maxFilesRead} files; do not try to exhaust the repository - follow one complete execution path in depth. Stop calling tools and return the structured review as soon as the read budget is reached or the evidence is sufficient. Only report findings backed by explicit file evidence; never guess."
+    ]
+  },
+  { target: "ops/project-list-files", instructions: ["List the source and config files of the current project. The optional glob parameter narrows the scope."] },
+  { target: "ops/project-read-file", instructions: ["Read one file from the current project and return its content."] }
+])
+
 const insideRoot = (path: string) => {
   const target = resolve(root, path)
   if (target !== root && !target.startsWith(root + sep)) throw new Error(`Path escapes project: ${path}`)
@@ -27,7 +47,7 @@ const insideRoot = (path: string) => {
 
 const ListFiles = Op.read({
   name: "project.listFiles",
-  description: "列出当前项目中的源代码和配置文件。可以用 glob 参数缩小范围。",
+  description: resolveNotation(notation, "ops/project-list-files"),
   input: Schema.Struct({
     pattern: Schema.optionalWith(Schema.String, { default: () => "**/*" })
   }),
@@ -48,7 +68,7 @@ const ListFiles = Op.read({
 
 const ReadFile = Op.read({
   name: "project.readFile",
-  description: `读取当前项目中的一个 UTF-8 文本文件。只能读取项目目录内、最大 256 KiB 的文件；本次审查最多读取 ${maxFilesRead} 个文件。`,
+  description: resolveNotation(notation, "ops/project-read-file"),
   input: Schema.Struct({ path: Schema.String }),
   output: Schema.String,
   execute: ({ path }) => Effect.tryPromise({
@@ -111,13 +131,7 @@ const program = Effect.gen(function*() {
   const observedClaude = Harness.withHooks(claude, DetailedReviewHook)
 
   const ProjectReviewer = Agent
-    .define<string>("ProjectReviewer", (focus) => AgentContext.text(`
-审查当前 TypeScript 项目。你只能使用注入的 project.listFiles 和 project.readFile 工具读取项目，不能修改文件或执行命令。
-
-审查重点：${focus}
-
-先查看项目结构，再选择关键实现、配置、测试和示例阅读。最多读取 ${maxFilesRead} 个文件，不要尝试穷举仓库；优先沿一条完整执行路径深入验证。达到读取预算或已经获得足够证据时，必须停止调用工具并立即返回结构化审查结果。只报告有明确文件证据的问题；没有证据时不要猜测。
-`.trim()))
+    .define<string>("ProjectReviewer", withNotation(notation, (focus, nl) => AgentContext.text(nl("project-reviewer/prompt", { focus, maxFilesRead }))))
     .returns(Until.schema(Review))
     .uses(Project)
     .implementedBy(observedClaude)

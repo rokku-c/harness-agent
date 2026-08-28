@@ -60,7 +60,7 @@ describe("tool error channel (B3b)", () => {
         }
       ]
     })
-    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+    const program = Agent.define<string>("s", (s) => AgentContext.raw(s))
       .returns(Until.stop)
       .uses(binding)
       .implementedBy(VercelAgent.make({ model }))
@@ -84,7 +84,7 @@ describe("tool error channel (B3b)", () => {
     }
     const driver = PiAgent.make({ createSession: createSession as any })
     await Effect.runPromise(driver.run({
-      context: AgentContext.text("x"), until: Until.stop, access
+      context: AgentContext.raw("x"), until: Until.stop, access
     }))
     const flaky = tools.find((t) => t.name === "flaky")
     expect(flaky).toBeDefined()
@@ -96,7 +96,7 @@ describe("tool error channel (B3b)", () => {
     const runtime = await Effect.runPromise(
       Effect.gen(function* () { return yield* Effect.runtime<any>() }) as Effect.Effect<Runtime.Runtime<any>, never, never>
     )
-    const tools = mcpTools({ context: AgentContext.text("x"), until: Until.stop, access }, runtime)
+    const tools = mcpTools({ context: AgentContext.raw("x"), until: Until.stop, access }, runtime)
     const def = tools[0]!.definition
     const result = await def.handler({}, undefined)
     expect((result.content[0] as { type: string; text: string }).text).toBe(JSON.stringify({ error: "boom", retryable: true }))
@@ -119,7 +119,7 @@ describe("tool error channel (B3b)", () => {
       ) as any
     }
     const output = await Effect.runPromise(Harness.withHooks(driver, hook).run({
-      context: AgentContext.text("x"), until: Until.stop, access
+      context: AgentContext.raw("x"), until: Until.stop, access
     }))
     expect(output).toBe(JSON.stringify({ error: "boom", retryable: true }))
     expect(events).toEqual(["RunStarted", "ToolStarted", "ToolFailed", "Output", "RunCompleted"])
@@ -153,7 +153,7 @@ describe("tool error channel (B3b)", () => {
     })
     const events: string[] = []
     const hook = Harness.hook("capture", (event) => Effect.sync(() => events.push(event._tag)))
-    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+    const program = Agent.define<string>("s", (s) => AgentContext.raw(s))
       .returns(Until.stop)
       .uses(failBinding)
       .implementedBy(Harness.withHooks(VercelAgent.make({ model }), hook))

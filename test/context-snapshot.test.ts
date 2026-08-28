@@ -17,7 +17,7 @@ describe("context snapshot", () => {
   })
 
   test("projection is immutable: the snapshot array is a slice, not a view", () => {
-    const context = AgentContext.text("x")
+    const context = AgentContext.raw("x")
     const snapshot = snapshotContext(context)
     expect(snapshot.entries).not.toBe(context.entries)
     expect(snapshot.entries.length).toBe(1)
