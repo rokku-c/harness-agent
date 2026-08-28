@@ -1,0 +1,58 @@
+import { describe, expect, test } from "bun:test"
+import { any, bind, cascade, connection, named, namedShaped, shaped } from "../src/index.ts"
+import type { Connection } from "../src/index.ts"
+
+const grafana = connection("grafana", [
+  { name: "list_dashboards", input: { type: "object" }, output: { type: "array" }, execute: async () => [] }
+])
+const weather = connection("weather", [
+  { name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: async () => ({}) }
+])
+
+describe("connection declarations", () => {
+  test("any: accepts any connection under the fixed prefix", () => {
+    const bound = bind(any("mcp__"), grafana)
+    expect(bound.map((tool) => tool.boundName)).toEqual(["mcp__list_dashboards"])
+  })
+
+  test("any: default prefix is mcp__", () => {
+    expect(bind(any(), weather).map((tool) => tool.boundName)).toEqual(["mcp__lookup"])
+  })
+
+  test("named: accepts the declared name, prefixes with it", () => {
+    const bound = bind(named("grafana"), grafana)
+    expect(bound.map((tool) => tool.boundName)).toEqual(["grafana__list_dashboards"])
+  })
+
+  test("named: rejects an unlisted connection name", () => {
+    expect(() => bind(named("grafana"), weather)).toThrow(/not accepted/)
+  })
+
+  test("shaped: verifies the tool schemas match", () => {
+    const bound = bind(shaped([{ name: "lookup", input: { type: "object" }, output: { type: "object" } }]), weather)
+    expect(bound).toHaveLength(1)
+  })
+
+  test("shaped: fails loud on a missing tool or schema mismatch", () => {
+    expect(() => bind(shaped([{ name: "nope", input: {}, output: {} }]), weather)).toThrow(/missing tool/)
+    expect(() => bind(shaped([{ name: "lookup", input: { type: "string" }, output: { type: "object" } }]), weather))
+      .toThrow(/does not match/)
+  })
+
+  test("named+shaped: both constraints apply", () => {
+    expect(bind(namedShaped(["grafana"], [{ name: "list_dashboards", input: { type: "object" }, output: { type: "array" } }]), grafana))
+      .toHaveLength(1)
+    expect(() => bind(namedShaped(["weather"], [{ name: "lookup", input: { type: "object" }, output: { type: "object" } }]), grafana))
+      .toThrow(/not accepted/)
+  })
+
+  test("cascade: a connection tree flattens to member-prefixed tools", () => {
+    const stack = connection("stack", [], undefined) as Connection & { members?: ReadonlyArray<Connection> }
+    stack.members = [grafana, weather]
+    const bound = bind(cascade([]), stack)
+    expect(bound.map((tool) => tool.boundName)).toEqual([
+      "stack__grafana__list_dashboards",
+      "stack__weather__lookup"
+    ])
+  })
+})
