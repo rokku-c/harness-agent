@@ -189,6 +189,19 @@ live 通知以 `ConnectionEvent { connectionId, adapter, kind: "dsh.<method>", p
 
 - **48 种事件类型**：`event` 载荷的类型全集由 `@deepseek-ai/dsh-session` 的 `SessionEventMap` 定义
   （不在此复制 48 行——以该包为唯一事实源）。
+- **分类参考（消费者过滤的起点，非架构特性）**：架构只提供流（本节的透传机制）；步骤图/trace 视图
+  是消费侧（渲染）事务，由消费方自建。以下是便于消费方起步的参考分类（核心事件集，插件面按同法扩展）：
+  - message：`user/message`、`assistant/message`、`assistant/chunk`（流式分片——合并成一条消息是消费侧折叠）；
+  - tool：`tool/call` + `tool/result`（按 `callId` 配对成一次工具步；`tool/result.error` 存在即失败——消费侧判定）；
+  - step 边界：`step/start`、`step/end`（`turn/start`、`turn/end` 是书签事件——turn 号已含在各事件载荷内，不必独立成步）；
+  - subagent：`dsh.subagent.started`、`dsh.subagent.finished`；
+  - 纯日志控制面（不产生消息、通常不进 trace）：`todo/write`、`request/header`、`request/context`、
+    `session/end-seed` 及 approval/compaction/plan 等——归 P12 Signal 候选；
+  - 未知/插件事件：消费方自定（建议不丢——unclassified 兜底）。
+- **runId 语义（Known）**：runId 分组取 `sessionId`——仅在每次 invoke 用新建 session 的默认流下成立
+  （invoke ↔ session 1:1）；`sessionId` 复用（resume）时多 run 共享同一 runId，消费方无法按 run 分离
+  （trace 串台）——如实限制；按 run 定界可借用 C 窗口（receipt → idle）；per-invoke run id 机制不在
+  本层设计（YAGNI，真需求出现时再定）。
 - **wire order**：`onNotification` 回调内 `Effect.runSync(publish)` 同步执行，通知按 SDK 发出顺序
   严格 FIFO 入流；同批次（lossless 收集）的定界方式是**按 `session.status` 的 `idle` 收口**——
   `receipt`（invoke 受理）到 `idle` 之间的通知即该次 run 的完整批次。
