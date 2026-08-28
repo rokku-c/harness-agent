@@ -1,6 +1,6 @@
 import { Effect, Runtime } from "effect"
 import { Output, generateText, jsonSchema, tool, type LanguageModel, type ToolSet } from "ai"
-import { AgentFailure, commitSchemaResult, toolErrorJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
+import { AgentFailure, commitSchemaResult, report, toolErrorJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
 
 export interface VercelOptions {
   readonly model: LanguageModel
@@ -71,6 +71,21 @@ export const VercelAgent = {
         // though the ai SDK turned the thrown execute into a tool-error part.
         if (fatal !== undefined)
           return yield* new AgentFailure({ agent: driver.id, cause: fatal })
+        // B4: report flat raw usage (ai 7.0.65 runtime already aggregates
+        // generateText usage into { inputTokens, outputTokens, totalTokens } -
+        // never read .total). A failing usage hook must never kill the run.
+        yield* report(request, {
+          _tag: "UsageReported", agent: driver.id,
+          usage: {
+            inputTokens: result.usage?.inputTokens ?? null,
+            outputTokens: result.usage?.outputTokens ?? null,
+            // LanguageModel is a string literal union or a v2-v4 object with a
+            // modelId; both carry the model identity.
+            model: typeof options.model === "string" ? options.model : options.model?.modelId ?? null
+          }
+        // catchAllCause (not Effect.ignore, which only swallows the E layer):
+        // even a defective usage hook must never kill the run.
+        }).pipe(Effect.catchAllCause(() => Effect.void))
         switch (request.until._tag) {
           case "Stop": return result.text as A
           case "Text": return result.text as A

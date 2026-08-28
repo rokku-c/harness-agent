@@ -23,6 +23,9 @@ import { PiAgent } from "../src/composed/pi.js"
  *   marks its branch P1-only). No driver declares intercept without a branch.
  * - schema: vercel/claude-code/codex structuredOutput native, pi tool; every
  *   driver's run has a Schema branch - declarations match.
+ * - usage (B4): vercel (generateText aggregate usage) and codex (turn.usage)
+ *   emit UsageReported; pi and claude-code expose no clean usage surface in
+ *   their SDKs (documented in their drivers) - support ✓ ✓ ✗ ✗.
  */
 
 const untils: ReadonlyArray<readonly [string, Until<any>]> = [

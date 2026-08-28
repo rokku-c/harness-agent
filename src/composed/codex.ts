@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { Codex, type CodexOptions, type ThreadOptions } from "@openai/codex-sdk"
-import { AgentFailure, commitSchemaResult, decode, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, commitSchemaResult, decode, type Driver, materialize, requireUntil, report, schemaJson, type RunRequest, type UsageReport } from "../core.js"
 
 export interface CodexAgentOptions {
   readonly client?: Codex
@@ -47,6 +47,22 @@ export const CodexAgent = {
             : undefined),
           catch: (cause) => new AgentFailure({ agent: driver.id, cause })
         })
+        // B4: report raw usage after a successful turn. codex usage is snake_case
+        // and includes cache totals (same semantics as the ai-sdk totals); a null
+        // usage is reported honestly as nulls instead of skipped. A failing usage
+        // hook must never kill the run.
+        // == null covers both null and undefined (SDK declares Usage | null;
+        // stubs may omit the field entirely).
+        const usage: UsageReport = result.usage == null
+          ? { inputTokens: null, outputTokens: null, model: null }
+          : {
+            inputTokens: result.usage.input_tokens ?? null,
+            outputTokens: result.usage.output_tokens ?? null,
+            model: null
+          }
+        // catchAllCause (not Effect.ignore, which only swallows the E layer):
+        // even a defective usage hook must never kill the run.
+        yield* report(request, { _tag: "UsageReported", agent: driver.id, usage }).pipe(Effect.catchAllCause(() => Effect.void))
         if (request.until._tag === "Schema") {
           let value: unknown
           try { value = JSON.parse(result.finalResponse) } catch (cause) {

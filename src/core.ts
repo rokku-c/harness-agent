@@ -142,14 +142,31 @@ export interface RunRequest<A, R = never> {
   readonly report?: (event: DriverEvent) => Effect.Effect<void, AgentError, R>
 }
 
-export type DriverEvent = {
-  readonly _tag: "DriverPrepared"
-  readonly agent: string
-  readonly runtime: string
-  readonly details: Readonly<Record<string, unknown>>
+/**
+ * Raw token counts reported by a driver after a successful turn. Cost
+ * conversion belongs to the caller; cache/reasoning breakdowns are future
+ * extensions and must not churn consumers. null means honestly absent, not 0.
+ */
+export interface UsageReport {
+  readonly inputTokens: number | null
+  readonly outputTokens: number | null
+  readonly model?: string | null
 }
 
-export const report = <A, R>(request: RunRequest<A, R>, event: DriverEvent) =>
+export type DriverEvent =
+  | {
+    readonly _tag: "DriverPrepared"
+    readonly agent: string
+    readonly runtime: string
+    readonly details: Readonly<Record<string, unknown>>
+  }
+  | {
+    readonly _tag: "UsageReported"
+    readonly agent: string
+    readonly usage: UsageReport
+  }
+
+export const report = <A, R>(request: RunRequest<A, R>, event: DriverEvent): Effect.Effect<void, AgentError, R> =>
   request.report?.(event) ?? Effect.void
 
 export const materialize = <A, R>(request: RunRequest<A, R>) => Effect.gen(function*() {
