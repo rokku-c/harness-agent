@@ -111,11 +111,20 @@ export const dshConnectionSpec = (options: {
 
 - `capabilities = new Set(["dsh.agent.run"])`。
 - `connect(spec, ref)`：
-  1. 读 `ref.config`（JsonValue）：`{ launch?, provider?, model?, maxTokens? }`；`launch` 缺省时支持
-     `DSH_ROOT` 环境解析（ref.config 优先，缺省走 env），runtime 的 cordis.yml 经 `DSH_CORDIS_CONFIG`
-     环境通道提供（bin 自身通道，env 优先于 argv；也可在 ref.config.launch 显式给出）；
+  1. 读 `ref.config`（JsonValue）：`{ launch?, env?, requestTimeoutMs?, provider?, model?, maxTokens? }`；
+     `launch` 缺省时支持 `DSH_ROOT` 环境解析（ref.config 优先，缺省走 env），runtime 的 cordis.yml 经
+     `DSH_CORDIS_CONFIG` 环境通道提供（bin 自身通道，env 优先于 argv；也可在 ref.config.launch 显式给出）；
      malformed 的 `ref.config.launch` **fail-loud**（抛 `DshConnectionError`），不回退到 options/env；
      `provider/model/maxTokens` 允许缺省（交给 runtime 默认）。
+   - **env（B7.5）**：per-key 覆盖宿主 env（config 优先于 options；`{ ...宿主 env, ...覆盖 }` **合并**，
+     不是整表替换——SDK 把传入 env 当整表替换会丢 PATH/HOME，合并放 resolveConfig 内）；覆盖值
+     **必须 string**（JSON config 混入 number/bool → fail-loud `DshConnectionError`）；env **不参与
+     launch 解析**（`DSH_ROOT` 仍只做 launch 回退）；`DSH_CORDIS_CONFIG` 保持显式 per-connection 通道；
+     密钥类值**不进事件/日志**（env 只进入子进程环境，不随 ConnectionEvent payload 或错误消息泄漏）。
+   - **requestTimeoutMs（B7.5）**：run 粒度**总预算**（prompt → idle）；config 优先于 options；
+     **缺省 none**（零行为变化）。超时是**客户端放弃、无 wire cancel**——runtime 继续跑，
+     超时后 `onNotification` 仍可能发布该 run 的事件（C 流按 sessionId 如实到达）；
+     同 session 超时交叠：下一 invoke 的批次可能含被放弃 run 的尾部，wire order 如实（不裁剪、不伪造）。
   2. client 来源：注入 `options.client()` → 否则 `loadDshSdk()` 构造 `DeepSeekHarness`。
   3. **eager `start()`**（`Effect.tryPromise`；失败 → 关闭半开 client 并失败，由内核聚合
      `ConnectionOpenError`、参与 failover）。
@@ -132,6 +141,9 @@ export const dshConnectionSpec = (options: {
   3. `client.run(prompt, { ...(sessionId ? { sessionId } : {}), onNotification })` → run 期间每次
      SDK 通知经 `onNotification` 实时发布为 `ConnectionEvent`（`dsh.<method>`）→ 返回
      `{ sessionId, finalResponse }`（`RunResult.events` 不再回放，B7）。
+  4. **超时预算（B7.5）**：`requestTimeoutMs` 有定义时套 `Effect.timeoutFail`——invoke 在窗口内以
+     `code: "TIMEOUT"` 的 `DshConnectionError` 失败；无 wire cancel，SDK promise 继续运行、
+     `onNotification` 继续发布（C 流天然，无需额外代码）。
 - 未知 capability → `DshConnectionError`；所有 invoke 走 `Effect.tryPromise`，错误保留 cause 与结构化字段。
 
 ## 5. 验收标准
@@ -187,7 +199,8 @@ live 通知以 `ConnectionEvent { connectionId, adapter, kind: "dsh.<method>", p
   建立，但**上层扇出血缘需要 P12 的 run/session id**（本层不伪造全局 id）。
 - **并发语义**：单串行 runtime 进程、常驻形态按 run 观测；C 窗口 = `receipt → idle` 对齐 SDK
   活动区间，**pre-receipt 与 run 间事件不流式**（非债——它们是上一个 run 的尾部或下一个的前奏）；
-  未来连续观测 = B 式持久订阅，opt-in。
+  超时交叠：`requestTimeoutMs` 放弃的 run 仍在服务端跑，下一 invoke（同 session）的批次可能
+  混入其尾部事件，wire order 如实；未来连续观测 = B 式持久订阅，opt-in。
 - **events.md**：`docs/events.md` 的 kernel 事件表保持 5 kind；本命名空间是 dsh adapter 的
   ConnectionEvent 扩展，指向本节。
 

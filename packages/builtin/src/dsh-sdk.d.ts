@@ -11,6 +11,8 @@ declare module "@deepseek-ai/dsh-sdk-client" {
     readonly command: string
     readonly args?: string[]
     readonly cwd?: string
+    /** Merged subprocess env (host + per-key overrides); the SDK replaces process.env wholesale when set. */
+    readonly env?: Readonly<Record<string, string>>
     readonly requestTimeoutMs?: number
   }
 

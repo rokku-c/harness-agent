@@ -1,4 +1,4 @@
-import { Data, Effect, PubSub, Stream } from "effect"
+import { Data, Duration, Effect, PubSub, Stream } from "effect"
 import type {
   AdapterRef,
   AdapterSelection,
@@ -58,6 +58,10 @@ export interface DshSdkAdapterOptions {
   readonly client?: () => DshHarnessLike
   /** Launch defaults; AdapterRef.config.launch takes priority, then DSH_ROOT. */
   readonly launch?: { readonly command: string; readonly args: string[] }
+  /** Per-key process-env overrides for the runtime subprocess (merged with the host env, see resolveConfig). */
+  readonly env?: Readonly<Record<string, string>>
+  /** Per-run total budget (prompt -> idle); absent = no timeout, zero behavior change. */
+  readonly requestTimeoutMs?: number
   readonly provider?: string
   readonly model?: string
   readonly maxTokens?: number
@@ -72,7 +76,7 @@ export class DshConnectionError extends Data.TaggedError("DshConnectionError")<{
   readonly message: string
   readonly capability?: string
   readonly cause?: unknown
-  readonly code?: number
+  readonly code?: number | "TIMEOUT"
   readonly data?: unknown
   readonly exitCode?: number
   readonly stderrTail?: string
@@ -80,6 +84,10 @@ export class DshConnectionError extends Data.TaggedError("DshConnectionError")<{
 
 interface ResolvedConfig {
   readonly launch?: { readonly command: string; readonly args: string[] }
+  /** Merged subprocess env: host env + per-key overrides (never a whole-table replacement). */
+  readonly env?: Readonly<Record<string, string>>
+  /** Per-run total budget (prompt -> idle); absent = no timeout. */
+  readonly requestTimeoutMs?: number
   readonly provider?: string
   readonly model?: string
   readonly maxTokens?: number
@@ -140,7 +148,7 @@ const launchFromEnv = (): { readonly command: string; readonly args: string[] } 
     : { command: "node", args: [runtimeBin, cordis] }
 }
 
-const resolveConfig = (options: DshSdkAdapterOptions, ref: AdapterRef): ResolvedConfig => {
+export const resolveConfig = (options: DshSdkAdapterOptions, ref: AdapterRef): ResolvedConfig => {
   const record = recordOf(ref.config)
   // Fail loud on a malformed ref.config.launch instead of silently falling back
   // to options/env: a typo in the config must surface, not be masked.
@@ -149,11 +157,56 @@ const resolveConfig = (options: DshSdkAdapterOptions, ref: AdapterRef): Resolved
     throw new DshConnectionError({
       message: "dsh adapter: ref.config.launch is malformed (expected { command: string, args: string[] })"
     })
+  // env overrides: config wins over options; every override value must be a
+  // string (a JSON config could smuggle in a number/bool - fail loud).
+  const overridesOf = (value: unknown): Readonly<Record<string, string>> | undefined => {
+    const entries = Object.entries(recordOf(value))
+    if (entries.length === 0) return undefined
+    const env: Record<string, string> = {}
+    for (const [key, val] of entries) {
+      if (typeof val !== "string")
+        throw new DshConnectionError({
+          message: `dsh adapter: env override "${key}" must be a string (got ${typeof val})`
+        })
+      env[key] = val
+    }
+    return env
+  }
+  const overrides = overridesOf(record.env) ?? options.env
+  // Merge per-key over the host env: the SDK treats a passed env as a
+  // whole-table replacement (env ?? process.env), which would drop PATH/HOME -
+  // so the merge happens here and ResolvedConfig.env is the merged result.
+  const hostEnv: Record<string, string> = {}
+  for (const [key, val] of Object.entries(processEnv() ?? {})) {
+    if (typeof val === "string") hostEnv[key] = val
+  }
+  const env = overrides ? { ...hostEnv, ...overrides } : undefined
   return {
     launch: configLaunch ?? options.launch ?? launchFromEnv(),
+    ...(env ? { env } : {}),
+    requestTimeoutMs: typeof record.requestTimeoutMs === "number" ? record.requestTimeoutMs : options.requestTimeoutMs,
     provider: typeof record.provider === "string" ? record.provider : options.provider,
     model: typeof record.model === "string" ? record.model : options.model,
     maxTokens: typeof record.maxTokens === "number" ? record.maxTokens : options.maxTokens
+  }
+}
+
+/**
+ * Pure launch shape for the SDK subprocess: strict { command, args } plus
+ * env/requestTimeoutMs when present. Kept pure and exported for unit tests.
+ */
+export const sdkLaunchOf = (config: ResolvedConfig): {
+  readonly command: string
+  readonly args: string[]
+  readonly env?: Readonly<Record<string, string>>
+  readonly requestTimeoutMs?: number
+} => {
+  if (!config.launch) throw new Error("dsh adapter: sdkLaunchOf requires a resolved launch")
+  return {
+    command: config.launch.command,
+    args: config.launch.args,
+    ...(config.env ? { env: config.env } : {}),
+    ...(config.requestTimeoutMs !== undefined ? { requestTimeoutMs: config.requestTimeoutMs } : {})
   }
 }
 
@@ -163,15 +216,12 @@ const resolveConfig = (options: DshSdkAdapterOptions, ref: AdapterRef): Resolved
  * dependency; when missing the import fails here with a clear dsh-adapter
  * error instead of a module-resolution crash.
  */
-const loadDshSdk = (
-  launch: { readonly command: string; readonly args: string[] },
-  config: ResolvedConfig
-): Effect.Effect<DshHarnessLike, DshConnectionError> =>
+const loadDshSdk = (config: ResolvedConfig): Effect.Effect<DshHarnessLike, DshConnectionError> =>
   Effect.tryPromise({
     try: async () => {
       const sdk = await import("@deepseek-ai/dsh-sdk-client")
       return new sdk.DeepSeekHarness({
-        launch: { command: launch.command, args: launch.args },
+        launch: sdkLaunchOf(config),
         ...(config.provider ? { provider: config.provider } : {}),
         ...(config.model ? { model: config.model } : {}),
         ...(config.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {})
@@ -197,7 +247,7 @@ const acquireClient = (
         catch: (cause) => connectionError("dsh adapter: client factory failed: " + messageOf(cause), cause)
       })
     : config.launch
-      ? loadDshSdk(config.launch, config)
+      ? loadDshSdk(config)
       : Effect.fail(new DshConnectionError({
           message: "dsh adapter: no launch config provided (inject a client, set ref.config.launch, or point DSH_ROOT at a DeepSeek Harness checkout)"
         }))
@@ -251,6 +301,7 @@ const invokeClient = (
   eventBus: PubSub.PubSub<ConnectionEvent>,
   connectionId: string,
   adapter: string,
+  config: ResolvedConfig,
   capability: string,
   raw: unknown
 ): Effect.Effect<unknown, DshConnectionError> => {
@@ -286,10 +337,27 @@ const invokeClient = (
           catch { /* best-effort: observation must never kill the run */ }
         }
       }
-      return Effect.tryPromise({
+      const runEffect = Effect.tryPromise({
         try: () => client.run(prompt, options),
         catch: (cause) => connectionError("dsh adapter: dsh.agent.run failed: " + messageOf(cause), cause, capability)
-      }).pipe(Effect.flatMap((result) => {
+      })
+      // Per-run total budget (prompt -> idle) when configured; absent = no
+      // timeout, zero behavior change. There is no wire cancel: the runtime
+      // keeps running past the timeout, so onNotification keeps publishing and
+      // events for the abandoned run may still arrive (the C window is
+      // receipt -> idle and stays honest per sessionId).
+      const budgeted = config.requestTimeoutMs !== undefined
+        ? runEffect.pipe(Effect.timeoutFail({
+            duration: Duration.millis(config.requestTimeoutMs),
+            onTimeout: () => new DshConnectionError({
+              message: "dsh adapter: dsh.agent.run timed out after " + config.requestTimeoutMs
+                + "ms (no wire cancel: the runtime keeps running; events for the abandoned run may still arrive)",
+              capability,
+              code: "TIMEOUT"
+            })
+          }))
+        : runEffect
+      return budgeted.pipe(Effect.flatMap((result) => {
         if (typeof result?.sessionId !== "string" || typeof result?.finalResponse !== "string")
           return Effect.fail(new DshConnectionError({
             message: "dsh adapter: dsh.agent.run returned an invalid result (expected { sessionId, finalResponse })",
@@ -350,7 +418,7 @@ export const dshSdkAdapter = (options: DshSdkAdapterOptions = {}): ConnectionAda
         connectionId: spec.id,
         adapter: kind,
         capabilities: sessionCapabilities,
-        invoke: (capability, input) => invokeClient(client, eventBus, spec.id, kind, capability, input),
+        invoke: (capability, input) => invokeClient(client, eventBus, spec.id, kind, config, capability, input),
         events: Stream.fromPubSub(eventBus),
         close: Effect.tryPromise(() => client.close()).pipe(Effect.ignore).pipe(Effect.zipRight(PubSub.shutdown(eventBus)))
       } satisfies ConnectionSession
