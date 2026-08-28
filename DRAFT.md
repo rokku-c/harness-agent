@@ -271,7 +271,8 @@ const WriteFile = Op.write(
 - 输入 Schema；
 - 输出 Schema；
 - read/write 副作用等级；
-- Effect 实现接口。
+- Effect 实现接口；
+- 失败语义 [onError]：["retry"]（默认）——执行失败转为结构化工具结果 [{ error, retryable }] 返回给模型重试；["fail"]——失败直接传播为 run 级 [AgentFailure]（控制面工具逃生阀）。失败消息截断约 2000 字符、不含堆栈；[tool.failed] 是未来事件协议中的对应表示。
 
 ## 8. Container
 

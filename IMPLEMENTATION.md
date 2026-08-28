@@ -88,7 +88,7 @@ effect-agent 的 `HarnessHook` 与外部 Agent 的原生 Hook 是两个不同概
 const observed = Harness.withHooks(claude, ConsoleHook)
 ```
 
-`HarnessHook` 跨所有 Agent/ComposedAgent 工作，观察 effect-agent 管理的 `RunStarted`、`ToolStarted`、`ToolCompleted`、`Output`、`RunFailed` 和 `RunCompleted`。Hook 本身是 Effect，可以依赖日志、telemetry、存储等服务；Hook 失败会以 effect-agent 的 `AgentFailure` 终止对应流程。
+`HarnessHook` 跨所有 Agent/ComposedAgent 工作，观察 effect-agent 管理的 `RunStarted`、`ToolStarted`、`ToolCompleted`、`ToolFailed`、`Output`、`RunFailed` 和 `RunCompleted`。工具执行失败会发 `ToolFailed`（对齐未来协议 tag `tool.failed`），`ToolStarted`/`ToolFailed`/`ToolCompleted` 保持平衡。Hook 本身是 Effect，可以依赖日志、telemetry、存储等服务；Hook 失败会以 effect-agent 的 `AgentFailure` 终止对应流程。
 
 Claude Agent SDK 原生 Hook 通过专属名称传入：
 
