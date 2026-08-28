@@ -153,6 +153,9 @@ export const ClaudeCode = {
     const driver: Driver = {
       id: "claude-code",
       capabilities: {
+        // usage: the SDK exposes per-model usage records (SDKResultSuccess
+        // .modelUsage) but no flat aggregate, and accumulation across subagents/
+        // compaction is undefined - this driver never emits UsageReported (B4).
         provider: { _tag: "Fixed", api: "anthropic.agent-sdk" }, granularity: "event", thinking: true,
         cancel: true, pause: false, resume: true, fork: "node",
         tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"

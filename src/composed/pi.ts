@@ -15,6 +15,8 @@ export const PiAgent = {
     const driver: Driver = {
       id: "pi",
       capabilities: {
+        // usage: pi-coding-agent exposes no token-usage surface on its session
+        // prompt results, so this driver never emits UsageReported (B4).
         provider: { _tag: "Configurable" }, granularity: "event", thinking: true,
         cancel: true, pause: false, resume: true, fork: "node",
         tools: "native", toolCalls: "observe", structuredOutput: "tool", sandbox: "none"
