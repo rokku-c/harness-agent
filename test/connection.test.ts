@@ -57,6 +57,18 @@ describe("connection declarations", () => {
     ])
   })
 
+  test("cascade: nested cascades deepen the prefix (the tree flattens fully)", () => {
+    const inner = connection("inner", [], undefined) as Connection & { members?: ReadonlyArray<Connection> }
+    inner.members = [weather]
+    const outer = connection("outer", [], undefined) as Connection & { members?: ReadonlyArray<Connection> }
+    outer.members = [grafana, inner]
+    const bound = bind(cascade([]), outer)
+    expect(bound.map((tool) => tool.boundName)).toEqual([
+      "outer__grafana__list_dashboards",
+      "outer__inner__weather__lookup"
+    ])
+  })
+
   test("notated: descriptions resolve from the connection's notation store", () => {
     const store = memoryNotationStore([{ target: "tool:lookup", instructions: ["Look up current weather."] }])
     const conn = connection("weather", [{ name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }], store)

@@ -130,14 +130,20 @@ const shapeMatches = (shape: ReadonlyArray<ShapeTool>, tools: ReadonlyArray<Tool
   }
 }
 
-/** Flatten a cascade tree: member connections become prefixed tools. */
+/** Flatten a cascade tree (recursively): member connections become prefixed tools. */
 export const flattenCascade = (conn: Connection & { members?: ReadonlyArray<Connection> }, prefix: string): BoundTool[] => {
   const members = (conn as { members?: ReadonlyArray<Connection> }).members
   if (members === undefined) throw new Error(`cascade connection "${conn.name}" exposes no members`)
   const bound: BoundTool[] = []
-  for (const member of members)
+  for (const member of members) {
+    // a nested cascade deepens the prefix - the tree flattens fully
+    if ((member as { members?: ReadonlyArray<Connection> }).members !== undefined) {
+      bound.push(...flattenCascade(member as Connection & { members?: ReadonlyArray<Connection> }, `${prefix}${member.name}__`))
+      continue
+    }
     for (const tool of member.tools)
       bound.push({ ...tool, boundName: `${prefix}${member.name}__${tool.name}`, source: `${conn.name}/${member.name}` })
+  }
   return bound
 }
 
