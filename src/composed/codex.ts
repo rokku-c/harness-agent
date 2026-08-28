@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import { Codex, type CodexOptions, type ThreadOptions } from "@openai/codex-sdk"
-import { AgentFailure, commitSchemaResult, decode, type Driver, materialize, requireUntil, report, schemaJson, type RunRequest, type UsageReport } from "../core.js"
+import { AgentFailure, report, schemaJson, type Driver, type RunRequest, type UsageReport } from "../core.js"
+import { runToCompletion } from "../driver.js"
 
 export interface CodexAgentOptions {
   readonly client?: Codex
@@ -23,59 +24,63 @@ export const CodexAgent = {
         cancel: true, pause: false, resume: true, fork: "none",
         tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"
       },
-      run: <A, R>(request: RunRequest<A, R>) => Effect.gen(function*() {
-        yield* requireUntil(driver.id, driver.capabilities, request.until)
-        request = yield* materialize(request)
-        // binding.ops are not wired by this driver: @openai/codex-sdk exposes no
-        // function-tools channel (TurnOptions is outputSchema/signal only; MCP is
-        // CLI-config driven). Fail loud instead of silently dropping the tools.
-        const wiredOps = request.access.flatMap(({ binding }) => binding.ops ?? [])
-        if (wiredOps.length > 0)
-          return yield* new AgentFailure({
-            agent: driver.id,
-            cause: "binding.ops are not wired by the codex driver: this codex-sdk version "
-              + "exposes no function-tools channel (MCP config only). Remove uses(binding) "
-              + "or switch to a driver that injects tools (vercel/pi/claude-code)."
+      run: <A, R>(request: RunRequest<A, R>) => runToCompletion(request, {
+        id: driver.id,
+        capabilities: driver.capabilities,
+        generate: (materialized) => Effect.gen(function*() {
+          // binding.ops are not wired by this driver: @openai/codex-sdk exposes no
+          // function-tools channel (TurnOptions is outputSchema/signal only; MCP is
+          // CLI-config driven). Fail loud instead of silently dropping the tools.
+          const wiredOps = materialized.access.flatMap(({ binding }) => binding.ops ?? [])
+          if (wiredOps.length > 0)
+            return yield* new AgentFailure({
+              agent: driver.id,
+              cause: "binding.ops are not wired by the codex driver: this codex-sdk version "
+                + "exposes no function-tools channel (MCP config only). Remove uses(binding) "
+                + "or switch to a driver that injects tools (vercel/pi/claude-code)."
+            })
+          const client = options.client ?? new Codex(options.clientOptions)
+          const thread = options.resume
+            ? client.resumeThread(options.resume, options.thread)
+            : client.startThread(options.thread)
+          const result = yield* Effect.tryPromise({
+            try: () => thread.run(materialized.context.render(), materialized.until._tag === "Schema"
+              ? { outputSchema: schemaJson(materialized.until.schema) as unknown as Record<string, unknown> }
+              : undefined),
+            catch: (cause) => new AgentFailure({ agent: driver.id, cause })
           })
-        const client = options.client ?? new Codex(options.clientOptions)
-        const thread = options.resume
-          ? client.resumeThread(options.resume, options.thread)
-          : client.startThread(options.thread)
-        const result = yield* Effect.tryPromise({
-          try: () => thread.run(request.context.render(), request.until._tag === "Schema"
-            ? { outputSchema: schemaJson(request.until.schema) as unknown as Record<string, unknown> }
-            : undefined),
-          catch: (cause) => new AgentFailure({ agent: driver.id, cause })
+          // B4: report raw usage after a successful turn. codex usage is snake_case
+          // and includes cache totals (same semantics as the ai-sdk totals); a null
+          // usage is reported honestly as nulls instead of skipped. A failing usage
+          // hook must never kill the run.
+          // == null covers both null and undefined (SDK declares Usage | null;
+          // stubs may omit the field entirely).
+          // Reported HERE (not via the skeleton's post-generate hook): the report
+          // must precede the Schema post-processing, so a turn whose finalResponse
+          // fails to parse still reports the tokens it spent.
+          const usage: UsageReport = result.usage == null
+            ? { inputTokens: null, outputTokens: null, model: null }
+            : {
+              inputTokens: result.usage.input_tokens ?? null,
+              outputTokens: result.usage.output_tokens ?? null,
+              model: null
+            }
+          // catchAllCause (not Effect.ignore, which only swallows the E layer):
+          // even a defective usage hook must never kill the run.
+          yield* report(materialized, { _tag: "UsageReported", agent: driver.id, usage }).pipe(Effect.catchAllCause(() => Effect.void))
+          if (materialized.until._tag === "Schema") {
+            let value: unknown
+            try { value = JSON.parse(result.finalResponse) } catch (cause) {
+              return yield* new AgentFailure({ agent: driver.id, cause })
+            }
+            // the skeleton decodes + commits uniformly
+            return { raw: value }
+          }
+          // P1 candidate (p0.md 5.6-1): extract reasoning-summary from Codex
+          // Responses API reasoning items when thinking:true returns. Until then the
+          // final response is the only observation level this driver exposes.
+          return { raw: result.finalResponse }
         })
-        // B4: report raw usage after a successful turn. codex usage is snake_case
-        // and includes cache totals (same semantics as the ai-sdk totals); a null
-        // usage is reported honestly as nulls instead of skipped. A failing usage
-        // hook must never kill the run.
-        // == null covers both null and undefined (SDK declares Usage | null;
-        // stubs may omit the field entirely).
-        const usage: UsageReport = result.usage == null
-          ? { inputTokens: null, outputTokens: null, model: null }
-          : {
-            inputTokens: result.usage.input_tokens ?? null,
-            outputTokens: result.usage.output_tokens ?? null,
-            model: null
-          }
-        // catchAllCause (not Effect.ignore, which only swallows the E layer):
-        // even a defective usage hook must never kill the run.
-        yield* report(request, { _tag: "UsageReported", agent: driver.id, usage }).pipe(Effect.catchAllCause(() => Effect.void))
-        if (request.until._tag === "Schema") {
-          let value: unknown
-          try { value = JSON.parse(result.finalResponse) } catch (cause) {
-            return yield* new AgentFailure({ agent: driver.id, cause })
-          }
-          const output = yield* decode(request.until.schema, value)
-          yield* commitSchemaResult(request, output, driver.id)
-          return output
-        }
-        // P1 candidate (p0.md 5.6-1): extract reasoning-summary from Codex
-        // Responses API reasoning items when thinking:true returns. Until then the
-        // final response is the only observation level this driver exposes.
-        return result.finalResponse as A
       })
     }
     return driver

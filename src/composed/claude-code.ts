@@ -10,7 +10,8 @@ import { cp, mkdir, mkdtemp, rm, stat } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { basename, dirname, join, resolve } from "node:path"
 import * as z from "zod"
-import { AgentFailure, commitSchemaResult, decode, toolErrorJson, type Driver, materialize, report, requireUntil, schemaJson, type RunRequest } from "../core.js"
+import { AgentFailure, toolErrorJson, type Driver, report, schemaJson, type RunRequest } from "../core.js"
+import { runToCompletion } from "../driver.js"
 import { loadToml, ProviderConfigError, type LoadProvidersOptions } from "../providers.js"
 
 export interface ClaudeCodeOptions extends Omit<Options, "outputFormat" | "hooks"> {
@@ -160,13 +161,14 @@ export const ClaudeCode = {
         cancel: true, pause: false, resume: true, fork: "node",
         tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"
       },
-      run: <A, R>(request: RunRequest<A, R>) => Effect.gen(function*() {
-        yield* requireUntil(driver.id, driver.capabilities, request.until)
-        request = yield* materialize(request)
+      run: <A, R>(request: RunRequest<A, R>) => runToCompletion(request, {
+        id: driver.id,
+        capabilities: driver.capabilities,
+        generate: (materialized) => Effect.gen(function*() {
         const runtime = yield* Effect.runtime<any>()
         const home = yield* acquireClaudeHome(options.claudeHome)
         yield* injectSkills(home.path, options.skillPaths ?? [])
-        const injected = mcpTools(request, runtime)
+        const injected = mcpTools(materialized, runtime)
         const runQuery = options.query ?? query
         const {
           query: _query,
@@ -176,8 +178,8 @@ export const ClaudeCode = {
           insecureTls,
           ...sdkOptions
         } = options
-        const outputFormat = request.until._tag === "Schema"
-          ? { type: "json_schema" as const, schema: schemaJson(request.until.schema) as unknown as Record<string, unknown> }
+        const outputFormat = materialized.until._tag === "Schema"
+          ? { type: "json_schema" as const, schema: schemaJson(materialized.until.schema) as unknown as Record<string, unknown> }
           : undefined
         const effectiveTools = sdkOptions.tools ?? []
         const effectiveSkills = sdkOptions.skills ?? ((options.skillPaths?.length ?? 0) > 0 ? "all" : undefined)
@@ -207,8 +209,8 @@ export const ClaudeCode = {
         // safety is already structural: built-in tools default to hidden and
         // injected ops are filtered by access; declaredWrites is reported below
         // for observability (deviation reported in the delivery notes).
-        const declaredWrites = request.access.filter(({ write }) => write).length
-        yield* report(request, {
+        const declaredWrites = materialized.access.filter(({ write }) => write).length
+        yield* report(materialized, {
           _tag: "DriverPrepared",
           agent: driver.id,
           runtime: "claude-agent-sdk",
@@ -237,7 +239,7 @@ export const ClaudeCode = {
             strictMcpConfig: sdkOptions.strictMcpConfig ?? false,
             insecureTls: insecureTls ?? false,
             nativeHookEvents: Object.keys(claudeCodeHooks ?? {}),
-            output: request.until._tag,
+            output: materialized.until._tag,
             structuredOutput: outputFormat?.type,
             executable: sdkOptions.pathToClaudeCodeExecutable ?? sdkOptions.executable ?? "<sdk-default>",
             authentication: {
@@ -251,7 +253,7 @@ export const ClaudeCode = {
           try: async () => {
             const all: SDKMessage[] = []
             for await (const message of runQuery({
-              prompt: request.context.render(),
+              prompt: materialized.context.render(),
               options: {
                 ...sdkOptions,
                 hooks: claudeCodeHooks,
@@ -275,25 +277,30 @@ export const ClaudeCode = {
         const result = messages.findLast((message) => message.type === "result")
         if (!result || result.subtype !== "success")
           return yield* new AgentFailure({ agent: driver.id, cause: result ?? "No result" })
-        if (request.until._tag === "Schema") {
-          const output = yield* decode(request.until.schema, result.structured_output)
-          yield* commitSchemaResult(request, output, driver.id)
-          return output
+        if (materialized.until._tag === "Schema") {
+          // the skeleton decodes + commits uniformly
+          return { raw: result.structured_output }
         }
-        if (request.until._tag === "Stop" || request.until._tag === "Text") return result.result as A
+        if (materialized.until._tag === "Stop" || materialized.until._tag === "Text") return { raw: result.result }
         const assistant = messages.findLast((message) => message.type === "assistant")
         const blocks = assistant?.message.content ?? []
-        if (request.until._tag === "Thinking") {
+        if (materialized.until._tag === "Thinking") {
           const thinking = blocks.find((block) => block.type === "thinking")
-          return (thinking && "thinking" in thinking ? thinking.thinking : "") as A
+          return { raw: result.result, reasoningText: thinking && "thinking" in thinking ? thinking.thinking : "" }
         }
         // P1: enable once the unified event/pause protocol lands. Until then
         // requireUntil rejects Until.toolCall (toolCalls: "observe"), so this
         // branch is unreachable through negotiation and must not be advertised.
-        const call = blocks.find((block) => block.type === "tool_use")
-        if (!call || !("id" in call) || !("name" in call))
-          return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })
-        return { _tag: "ToolCall", id: call.id, name: call.name, input: call.input } as A
+        {
+          const call = blocks.find((block) => block.type === "tool_use")
+          return {
+            raw: result.result,
+            toolCall: call && "id" in call && "name" in call
+              ? { _tag: "ToolCall", id: call.id, name: call.name, input: call.input }
+              : undefined
+          }
+        }
+        })
       }).pipe(Effect.scoped)
     }
     return driver

@@ -1,6 +1,7 @@
 import { Effect, Runtime } from "effect"
 import { Output, generateText, jsonSchema, tool, type LanguageModel, type ToolSet } from "ai"
-import { AgentFailure, commitSchemaResult, report, toolErrorJson, type Driver, materialize, requireUntil, schemaJson, type RunRequest } from "./core.js"
+import { AgentFailure, toolErrorJson, type Driver, schemaJson, type RunRequest } from "./core.js"
+import { runToCompletion } from "./driver.js"
 
 export interface VercelOptions {
   readonly model: LanguageModel
@@ -47,63 +48,65 @@ export const VercelAgent = {
         cancel: true, pause: false, resume: false, fork: "node",
         tools: "native", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"
       },
-      run: <A, R>(request: RunRequest<A, R>) => Effect.gen(function*() {
-        yield* requireUntil(driver.id, driver.capabilities, request.until)
-        request = yield* materialize(request)
-        const runtime = yield* Effect.runtime<any>()
-        let fatal: unknown
-        const tools = makeTools(request, runtime, (cause) => { fatal = cause })
-        const result = yield* Effect.tryPromise({
-          try: () => generateText({
-            model: options.model,
-            instructions: options.instructions,
-            prompt: request.context.render(),
-            tools,
-            maxOutputTokens: options.maxOutputTokens ?? 8192,
-            stopWhen: ({ steps }) => steps.length >= (options.maxSteps ?? 32),
-            ...(request.until._tag === "Schema" ? {
-              output: Output.object({ schema: jsonSchema(schemaJson(request.until.schema) as any) })
-            } : {})
-          }),
-          catch: (cause) => new AgentFailure({ agent: driver.id, cause })
-        })
-        // onError: "fail" escape hatch: the op failure must fail the run even
-        // though the ai SDK turned the thrown execute into a tool-error part.
-        if (fatal !== undefined)
-          return yield* new AgentFailure({ agent: driver.id, cause: fatal })
-        // B4: report flat raw usage (ai 7.0.65 runtime already aggregates
-        // generateText usage into { inputTokens, outputTokens, totalTokens } -
-        // never read .total). A failing usage hook must never kill the run.
-        yield* report(request, {
-          _tag: "UsageReported", agent: driver.id,
-          usage: {
+      run: <A, R>(request: RunRequest<A, R>) => runToCompletion(request, {
+        id: driver.id,
+        capabilities: driver.capabilities,
+        generate: (materialized) => Effect.gen(function*() {
+          const runtime = yield* Effect.runtime<any>()
+          let fatal: unknown
+          const tools = makeTools(materialized, runtime, (cause) => { fatal = cause })
+          const result = yield* Effect.tryPromise({
+            try: () => generateText({
+              model: options.model,
+              instructions: options.instructions,
+              prompt: materialized.context.render(),
+              tools,
+              maxOutputTokens: options.maxOutputTokens ?? 8192,
+              stopWhen: ({ steps }) => steps.length >= (options.maxSteps ?? 32),
+              ...(materialized.until._tag === "Schema" ? {
+                output: Output.object({ schema: jsonSchema(schemaJson(materialized.until.schema) as any) })
+              } : {})
+            }),
+            catch: (cause) => new AgentFailure({ agent: driver.id, cause })
+          })
+          // onError: "fail" escape hatch: the op failure must fail the run even
+          // though the ai SDK turned the thrown execute into a tool-error part.
+          if (fatal !== undefined)
+            return yield* new AgentFailure({ agent: driver.id, cause: fatal })
+          // B4: the skeleton reports the usage carried on the result exactly
+          // once (ai 7.0.65 runtime already aggregates generateText usage into
+          // { inputTokens, outputTokens, totalTokens } - never read .total).
+          const usage = {
             inputTokens: result.usage?.inputTokens ?? null,
             outputTokens: result.usage?.outputTokens ?? null,
             // LanguageModel is a string literal union or a v2-v4 object with a
             // modelId; both carry the model identity.
             model: typeof options.model === "string" ? options.model : options.model?.modelId ?? null
           }
-        // catchAllCause (not Effect.ignore, which only swallows the E layer):
-        // even a defective usage hook must never kill the run.
-        }).pipe(Effect.catchAllCause(() => Effect.void))
-        switch (request.until._tag) {
-          case "Stop": return result.text as A
-          case "Text": return result.text as A
-          case "Thinking": return (result.finalStep.reasoningText ?? "") as A
-          case "ToolCall": {
-            // P1: enable once the unified event/pause protocol lands. Until then
-            // requireUntil rejects Until.toolCall (toolCalls: "observe"), so this
-            // branch is unreachable through negotiation and must not be advertised.
-            const call = result.toolCalls[0]
-            if (!call) return yield* new AgentFailure({ agent: driver.id, cause: "No tool call produced" })
-            return { _tag: "ToolCall", id: call.toolCallId, name: call.toolName, input: call.input } as A
+          switch (materialized.until._tag) {
+            case "Thinking":
+              return { raw: result.text, reasoningText: result.finalStep.reasoningText ?? "" }
+            case "ToolCall":
+              // P1: enable once the unified event/pause protocol lands. Until then
+              // requireUntil rejects Until.toolCall (toolCalls: "observe"), so this
+              // branch is unreachable through negotiation and must not be advertised.
+              {
+                const call = result.toolCalls[0]
+                return {
+                  raw: result.text,
+                  toolCall: call
+                    ? { _tag: "ToolCall", id: call.toolCallId, name: call.toolName, input: call.input }
+                    : undefined
+                }
+              }
+            case "Schema":
+              // Output.object already decoded; the skeleton re-decodes (idempotent
+              // for the plain value) and commits uniformly.
+              return { raw: result.output, usage }
+            default:
+              return { raw: result.text, usage }
           }
-          case "Schema": {
-            const output = result.output as A
-            yield* commitSchemaResult(request, output, driver.id)
-            return output
-          }
-        }
+        })
       }).pipe(Effect.scoped)
     }
     return driver
