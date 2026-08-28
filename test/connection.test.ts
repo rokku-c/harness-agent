@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { any, bind, cascade, connection, named, namedShaped, shaped } from "../src/index.ts"
+import { any, bind, cascade, connection, memoryNotationStore, named, namedShaped, notated, shaped } from "../src/index.ts"
 import type { Connection } from "../src/index.ts"
 
 const grafana = connection("grafana", [
@@ -54,5 +54,16 @@ describe("connection declarations", () => {
       "stack__grafana__list_dashboards",
       "stack__weather__lookup"
     ])
+  })
+
+  test("notated: descriptions resolve from the connection's notation store", () => {
+    const store = memoryNotationStore([{ target: "tool:lookup", instructions: ["Look up current weather."] }])
+    const conn = connection("weather", [{ name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: async () => ({}) }], store)
+    const bound = bind(notated(), conn)
+    expect(String(bound[0]?.description)).toBe("Look up current weather.")
+  })
+
+  test("notated: fails loud when the connection carries no store", () => {
+    expect(() => bind(notated(), weather)).toThrow(/carries no notation store/)
   })
 })

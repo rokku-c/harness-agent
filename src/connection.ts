@@ -7,13 +7,15 @@
  * shapes at injection time. An Agent is itself a Connection (see agent.ts) -
  * that is the layer that lets agents compose like tools.
  */
-import type { NotationStore } from "./notation.ts"
+import { resolveNotation, type NotationStore, type NotationText } from "./notation.ts"
 
 /** JSON Schema object (the MCP-native tool schema form). */
 export type JsonSchema = Record<string, unknown>
 
 export interface Tool {
   readonly name: string
+  /** Model-facing prose - notation-injected when the connection carries a store. */
+  readonly description?: NotationText
   readonly input: JsonSchema
   readonly output: JsonSchema
   readonly execute: (input: unknown) => Promise<unknown>
@@ -43,6 +45,7 @@ export type ConnectionDecl =
   | { readonly _tag: "Shaped"; readonly shape: ReadonlyArray<ShapeTool> }
   | { readonly _tag: "NamedShaped"; readonly names: ReadonlyArray<string>; readonly shape: ReadonlyArray<ShapeTool> }
   | { readonly _tag: "Cascade"; readonly members: ReadonlyArray<ConnectionDecl> }
+  | { readonly _tag: "Notated" }
 
 /** A shaped declaration describes the tools a connection must expose. */
 export interface ShapeTool {
@@ -64,6 +67,18 @@ export const namedShaped = (names: string[], shape: ReadonlyArray<ShapeTool>): C
   ({ _tag: "NamedShaped", names, shape })
 /** Mode 3 - cascade: accepts a connection tree; members flatten to prefixed tools. */
 export const cascade = (members: ReadonlyArray<ConnectionDecl>): ConnectionDecl => ({ _tag: "Cascade", members })
+
+/**
+ * Mode 6 - notated: the injected connection must carry a notation store; its
+ * tools' descriptions resolve from targets "tool:<name>" at bind time.
+ */
+export const notated = (): ConnectionDecl => ({ _tag: "Notated" })
+
+/** Resolve a tool's model-facing description from the connection's notation. */
+export const notatedTool = (tool: Tool, notation: NotationStore): Tool => ({
+  ...tool,
+  description: resolveNotation(notation, `tool:${tool.name}`)
+})
 
 // ---------------------------------------------------------------------------
 // Injection: match a connection against a declaration, producing the agent's
@@ -122,5 +137,12 @@ export const bind = (decl: ConnectionDecl, conn: Connection): BoundTool[] => {
       return conn.tools.map((tool) => ({ ...tool, boundName: `${conn.name}__${tool.name}`, source: conn.name }))
     case "Cascade":
       return flattenCascade(conn as Connection & { members?: ReadonlyArray<Connection> }, `${conn.name}__`)
+    case "Notated":
+      if (conn.notation === undefined)
+        throw new Error(`connection "${conn.name}" carries no notation store (declared notated)`)
+      return conn.tools.map((tool) => {
+        const described = notatedTool(tool, conn.notation!)
+        return { ...described, boundName: `${conn.name}__${tool.name}`, source: conn.name }
+      })
   }
 }
