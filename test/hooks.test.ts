@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { AgentContext, Harness, Op, Until, type Binding, type Driver } from "../src/index.js"
+import { fixtureNotation } from "./fixture-notation.js"
+
+const nl = fixtureNotation([{ target: "ops/echo", instructions: ["echo"] }])
 
 describe("HarnessHook", () => {
   test("observes framework lifecycle and instrumented Binding Ops", async () => {
@@ -8,7 +11,7 @@ describe("HarnessHook", () => {
     const hook = Harness.hook("capture", (event) => Effect.sync(() => events.push(event._tag)))
     const Echo = Op.read({
       name: "echo",
-      description: "echo",
+      description: nl("ops/echo"),
       input: Schema.Struct({ text: Schema.String }),
       output: Schema.String,
       execute: ({ text }) => Effect.succeed(text)

@@ -14,6 +14,7 @@ import {
   type Binding,
   type Driver
 } from "../src/index.js"
+import { fixtureNotation } from "./fixture-notation.js"
 import { mcpTools } from "../src/composed/claude-code.js"
 
 const usage = {
@@ -21,9 +22,14 @@ const usage = {
   outputTokens: { total: 1, text: 1, reasoning: undefined }
 }
 
+const nl = fixtureNotation([
+  { target: "ops/flaky", instructions: ["a tool that always fails"] },
+  { target: "ops/boom", instructions: ["a tool that must fail the run"] }
+])
+
 const Flaky = Op.read({
   name: "flaky",
-  description: "a tool that always fails",
+  description: nl("ops/flaky"),
   input: Schema.Struct({}),
   output: Schema.String,
   execute: () => Effect.fail(new Error("boom"))
@@ -128,7 +134,7 @@ describe("tool error channel (B3b)", () => {
   test("vercel: an op with onError: 'fail' fails the run as AgentFailure while hooks still see ToolFailed", async () => {
     const FailOp = Op.read({
       name: "boom",
-      description: "a tool that must fail the run",
+      description: nl("ops/boom"),
       input: Schema.Struct({}),
       output: Schema.String,
       onError: "fail" as const,

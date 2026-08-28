@@ -89,7 +89,8 @@ export type AgentError = UnsupportedCapability | AgentFailure
 
 export interface Op<I, O, E = never, R = never> {
   readonly name: string
-  readonly description: string
+  /** Model-facing prose (tool selection) - notation-injected like agent prompts. */
+  readonly description: NotationText
   readonly input: Schema.Schema<I, any, never>
   readonly output: Schema.Schema<O, any, never>
   readonly access: "read" | "write"

@@ -37,6 +37,9 @@ const Planner = Agent
 
 - Runtime data (the caller's input) flows through `{var}` interpolation - it
   is data, not definition prose.
+- `Op.description` is restricted the same way (`NotationText`) - tool
+  descriptions are model-facing prose (tool selection); test fixtures use the
+  `fixtureNotation` helper (`test/fixture-notation.ts`).
 - Driver-level protocol scaffolding (e.g. the structured-output finish
   instruction a driver must send for its SDK to work) is driver mechanics, not
   agent definition - it stays in the driver for now; moving it behind notation

@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { existsSync } from "node:fs"
 import { AgentContext, ClaudeCode, Harness, Op, Until, type Binding } from "../src/index.js"
+import { fixtureNotation } from "./fixture-notation.js"
+
+const nl = fixtureNotation([{ target: "ops/docs-lookup", instructions: ["Lookup docs"] }])
 
 describe("Claude Code isolation", () => {
   test("uses a temporary home, disables builtins, injects ops and skills", async () => {
@@ -18,7 +21,7 @@ describe("Claude Code isolation", () => {
 
     const Lookup = Op.read({
       name: "docs.lookup",
-      description: "Lookup docs",
+      description: nl("ops/docs-lookup"),
       input: Schema.Struct({ query: Schema.String }),
       output: Schema.String,
       execute: ({ query }) => Effect.succeed(query)

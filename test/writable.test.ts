@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { MockLanguageModelV4 } from "ai/test"
+import { fixtureNotation } from "./fixture-notation.js"
 import {
   Agent,
   AgentContext,
@@ -167,13 +168,17 @@ describe("claude-code mount gate (SDK readOnly unsupported)", () => {
 
 describe("access filter regression", () => {
   test("pi injects only ops whose access is declared (read-only binding exposes no write ops)", async () => {
+    const nl = fixtureNotation([
+      { target: "ops/svc-read", instructions: ["read"] },
+      { target: "ops/svc-write", instructions: ["write"] }
+    ])
     const readOp = Op.read({
-      name: "svc.read", description: "read",
+      name: "svc.read", description: nl("ops/svc-read"),
       input: Schema.String, output: Schema.String,
       execute: () => Effect.succeed("ok")
     })
     const writeOp = Op.write({
-      name: "svc.write", description: "write",
+      name: "svc.write", description: nl("ops/svc-write"),
       input: Schema.String, output: Schema.String,
       execute: () => Effect.succeed("ok")
     })

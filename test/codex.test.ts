@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { Agent, AgentContext, AgentFailure, CodexAgent, Until } from "../src/index.js"
+import { fixtureNotation } from "./fixture-notation.js"
+
+const nl = fixtureNotation([{ target: "ops/f", instructions: ["a tool"] }])
 
 describe("codex failure branches", () => {
   test("a thread.run rejection fails the run as AgentFailure keeping the cause", async () => {
@@ -52,7 +55,7 @@ describe("codex failure branches", () => {
       uri: "example://tool",
       ops: [{
         name: "f",
-        description: "a tool",
+        description: nl("ops/f"),
         input: Schema.Struct({}),
         output: Schema.String,
         access: "read" as const,
