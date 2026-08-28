@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Layer, PubSub, Ref, Stream } from "effect"
+import { Context, Data, Deferred, Effect, Exit, Layer, PubSub, Ref, Stream } from "effect"
 import type { JsonSchema, JsonValue } from "./schema.js"
 
 export interface CapabilitySpec {
@@ -76,10 +76,17 @@ export class ConnectionOpenError extends Data.TaggedError("ConnectionOpenError")
   readonly attempts: ReadonlyArray<{ readonly adapter: string; readonly cause: unknown }>
 }> {}
 
+type OpenOutcome =
+  | { readonly _tag: "done"; readonly session: ConnectionSession }
+  | { readonly _tag: "waiting"; readonly deferred: Deferred.Deferred<ConnectionSession, Error> }
+  | { readonly _tag: "owner"; readonly deferred: Deferred.Deferred<ConnectionSession, Error> }
+
 interface RuntimeState {
   readonly specs: ReadonlyMap<string, ConnectionSpec>
   readonly adapters: ReadonlyMap<string, ConnectionAdapter>
   readonly sessions: ReadonlyMap<string, ConnectionSession>
+  /** In-flight single-flight opens: the owner completes this for every waiter. */
+  readonly pending: ReadonlyMap<string, Deferred.Deferred<ConnectionSession, Error>>
 }
 
 const requiredCapabilities = (spec: ConnectionSpec) => new Set([
@@ -121,7 +128,8 @@ export class ConnectionRuntime {
       const state = yield* Ref.make<RuntimeState>({
         specs: new Map((options.specs ?? []).map((spec) => [spec.id, spec])),
         adapters: new Map((options.adapters ?? []).map((adapter) => [adapter.kind, adapter])),
-        sessions: new Map()
+        sessions: new Map(),
+        pending: new Map()
       })
       const eventBus = yield* PubSub.unbounded<ConnectionEvent>()
       return new ConnectionRuntime(state, eventBus)
@@ -130,6 +138,10 @@ export class ConnectionRuntime {
 
   private emit(event: ConnectionEvent) { return PubSub.publish(this.eventBus, event).pipe(Effect.asVoid) }
 
+  // Boundary (recorded, not fixed): registerAdapter / spec replacement racing
+  // an in-flight open can let connect() complete afterwards and register a
+  // "resurrected" session - this predates single-flight and is unchanged. The
+  // pending cleanup in close() closes the hang, not that race.
   private closeSessions(predicate: (session: ConnectionSession) => boolean) {
     const self = this
     return Effect.gen(function* () {
@@ -203,11 +215,33 @@ export class ConnectionRuntime {
   open(id: string): Effect.Effect<ConnectionSession, Error> {
     const self = this
     return Effect.gen(function* () {
+      // Spec check first: missing spec fails fast with ConnectionNotFound.
       const state = yield* Ref.get(self.state)
-      const existing = state.sessions.get(id)
-      if (existing) return existing
       const spec = state.specs.get(id)
       if (!spec) return yield* Effect.fail(new ConnectionNotFound({ id }))
+      // Single-flight CAS: one Ref.modify decides owner vs waiter vs cached.
+      // Never a Ref.get + update two-step for the sessions/pending decision.
+      const deferred = yield* Deferred.make<ConnectionSession, Error>()
+      const outcome = yield* Ref.modify(
+        self.state,
+        (current): readonly [OpenOutcome, RuntimeState] => {
+          const existing = current.sessions.get(id)
+          if (existing) return [{ _tag: "done", session: existing }, current]
+          const waiting = current.pending.get(id)
+          if (waiting) return [{ _tag: "waiting", deferred: waiting }, current]
+          return [{ _tag: "owner", deferred }, {
+            ...current,
+            pending: new Map(current.pending).set(id, deferred)
+          }]
+        }
+      )
+      if (outcome._tag === "done") return outcome.session
+      if (outcome._tag === "waiting") return yield* Deferred.await(outcome.deferred)
+
+      // Owner: run the existing failover chain; waiters share this Deferred, and
+      // the attempts array is captured in this closure so every waiter receives
+      // the same ConnectionOpenError. connection.opened is emitted once, by the
+      // owner only.
       const attempts: Array<{ adapter: string; cause: unknown }> = []
       const { refs, skipped } = candidates(spec, state.adapters)
       for (const skip of skipped)
@@ -227,13 +261,38 @@ export class ConnectionRuntime {
         }))
       }
 
-      const session = yield* attempt(0)
-      yield* Ref.update(self.state, (current) => ({
-        ...current,
-        sessions: new Map(current.sessions).set(id, session)
-      }))
-      yield* self.emit({ connectionId: id, adapter: session.adapter, kind: "connection.opened" })
-      return session
+      return yield* attempt(0).pipe(
+        Effect.either,
+        Effect.flatMap((either) => Ref.update(self.state, (current) => {
+          // One update registers the session and drops the pending marker;
+          // waiters are released through the Deferred, not the state map.
+          const pending = new Map(current.pending)
+          pending.delete(id)
+          if (either._tag === "Right")
+            return { ...current, pending, sessions: new Map(current.sessions).set(id, either.right) }
+          return { ...current, pending }
+        }).pipe(Effect.as(either))),
+        Effect.flatMap((either) => {
+          if (either._tag === "Right") {
+            return self.emit({ connectionId: id, adapter: either.right.adapter, kind: "connection.opened" })
+              .pipe(Effect.zipRight(Deferred.succeed(deferred, either.right)), Effect.as(either.right))
+          }
+          return Deferred.fail(deferred, either.left).pipe(Effect.zipRight(Effect.fail(either.left)))
+        }),
+        Effect.onExit((exit) => Effect.gen(function* () {
+          // Idempotent cleanup on any exit (success, failure, or interrupt):
+          // drop the pending marker and complete the Deferred if it is still
+          // open. Success/failure paths already completed it (a second complete
+          // is a safe no-op); an interrupt would otherwise leave waiters
+          // hanging on an owner that will never connect.
+          yield* Ref.update(self.state, (current) => {
+            const pending = new Map(current.pending)
+            pending.delete(id)
+            return { ...current, pending }
+          })
+          if (Exit.isFailure(exit)) yield* Deferred.failCause(deferred, exit.cause)
+        }))
+      )
     })
   }
 
@@ -255,7 +314,19 @@ export class ConnectionRuntime {
   }
 
   close(id: string) {
-    return this.closeSessions((session) => session.connectionId === id)
+    const self = this
+    return Effect.gen(function* () {
+      yield* self.closeSessions((session) => session.connectionId === id)
+      // Also cancel an in-flight open: drop the pending marker and fail its
+      // waiters, so a closed connection cannot resurrect afterwards.
+      const waiting = yield* Ref.modify(self.state, (current) => {
+        const pending = new Map(current.pending)
+        const deferred = pending.get(id) ?? null
+        if (deferred) pending.delete(id)
+        return [deferred, { ...current, pending }]
+      })
+      if (waiting) yield* Deferred.fail(waiting, new ConnectionNotFound({ id }))
+    })
   }
 
   snapshot() { return Ref.get(this.state) }

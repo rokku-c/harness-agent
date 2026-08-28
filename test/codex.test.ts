@@ -44,4 +44,27 @@ describe("codex failure branches", () => {
     const output = await Effect.runPromise(program.run("hello"))
     expect(output).toBe("hello back")
   })
+
+  test("binding.ops fail loud instead of silently dropping the tools", async () => {
+    const client = { startThread: () => ({ run: async () => ({ sessionId: "s", finalResponse: "ok" }) }) } as any
+    const driver = CodexAgent.make({ client })
+    const binding: import("../src/core.js").Binding<string, never, never> = {
+      uri: "example://tool",
+      ops: [{
+        name: "f",
+        description: "a tool",
+        input: Schema.Struct({}),
+        output: Schema.String,
+        access: "read" as const,
+        execute: () => Effect.succeed("ok")
+      }]
+    }
+    const program = Agent.define<string>("s", (s) => AgentContext.text(s))
+      .returns(Until.stop)
+      .uses(binding)
+      .implementedBy(driver)
+    const failure = await Effect.runPromise(Effect.flip(program.run("hello")))
+    expect(failure).toBeInstanceOf(AgentFailure)
+    expect(String((failure as AgentFailure).cause)).toContain("not wired by the codex driver")
+  })
 })

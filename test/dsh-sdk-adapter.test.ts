@@ -275,10 +275,11 @@ describe("dsh connection adapter", () => {
     expect(String((attempts[0].cause as Error).message)).toContain("dsh adapter: no launch config provided")
   })
 
-  test("concurrent first invokes both succeed (kernel race recorded, not fixed)", async () => {
+  test("concurrent first invokes single-flight the open: exactly one client is constructed", async () => {
+    let constructs = 0
     const runtime = await Effect.runPromise(ConnectionRuntime.make({
       specs: [specOf()],
-      adapters: [dshSdkAdapter({ client: () => fakeHarness() })]
+      adapters: [dshSdkAdapter({ client: () => { constructs++; return fakeHarness() } })]
     }))
     const [a, b] = await Promise.all([
       Effect.runPromise(runtime.invoke("dsh", DshCapabilities.agentRun, { prompt: "a" })),
@@ -286,8 +287,9 @@ describe("dsh connection adapter", () => {
     ])
     expect((a as { finalResponse: string }).finalResponse).toBe("echo: a")
     expect((b as { finalResponse: string }).finalResponse).toBe("echo: b")
-    // Known limitation (docs/dsh-connection.md): concurrent cold opens may each
-    // construct a client; the kernel keeps only one session and the loser leaks.
+    // Single-flight open (P8): the loser of the CAS waits on the owner's
+    // Deferred instead of constructing a second client.
+    expect(constructs).toBe(1)
   })
 })
 

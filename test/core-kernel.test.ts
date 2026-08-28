@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Effect, Fiber, Stream } from "effect"
+import { Chunk, Effect, Exit, Fiber, Option, Stream } from "effect"
 import {
   ConnectionOpenError,
   ConnectionRuntime,
@@ -7,6 +7,7 @@ import {
   connectionAdapter,
   type AgentIR,
   type ConnectionEvent,
+  type ConnectionSession,
   type ConnectionSpec
 } from "@effect-agent/core"
 
@@ -177,5 +178,135 @@ describe("open attempt recording", () => {
       expect(cause.capability).toBe("agent.teleport")
       expect(["offline", "browser"]).toContain(cause.adapter ?? "")
     }
+  })
+})
+describe("open single-flight", () => {
+  const sfAdapter = (gate: { connects: number }) => connectionAdapter({
+    kind: "sf-browser",
+    capabilities: new Set(["agent.run"]),
+    connect: (connection) => Effect.sync(() => { gate.connects++ }).pipe(Effect.as({
+      connectionId: connection.id,
+      adapter: "sf-browser",
+      capabilities: new Set(["agent.run"]),
+      invoke: () => Effect.succeed("ok"),
+      close: Effect.void
+    }))
+  })
+
+  test("N concurrent opens of the same id connect once and share one session", async () => {
+    const gate = { connects: 0 }
+    const runtime = await Effect.runPromise(ConnectionRuntime.make({
+      specs: [{ ...spec, id: "sf", adapters: [{ kind: "sf-browser" }] }],
+      adapters: [sfAdapter(gate)]
+    }))
+    const sessions = await Promise.all([
+      Effect.runPromise(runtime.open("sf")),
+      Effect.runPromise(runtime.open("sf")),
+      Effect.runPromise(runtime.open("sf"))
+    ])
+    expect(gate.connects).toBe(1)
+    expect(sessions[0]).toBe(sessions[1])
+    expect(sessions[1]).toBe(sessions[2])
+    const state = await Effect.runPromise(runtime.snapshot())
+    expect(state.sessions.size).toBe(1)
+    expect(state.pending.size).toBe(0)
+  })
+
+  test("concurrent opens emit exactly one connection.opened", async () => {
+    const gate = { connects: 0 }
+    const runtime = await Effect.runPromise(ConnectionRuntime.make({
+      specs: [{ ...spec, id: "sf2", adapters: [{ kind: "sf-browser" }] }],
+      adapters: [sfAdapter(gate)]
+    }))
+    const result = await Effect.runPromise(Effect.gen(function* () {
+      const collector = yield* Stream.runCollect(Stream.take(runtime.events(), 1)).pipe(Effect.fork)
+      yield* Effect.sleep(5)
+      yield* Effect.fork(runtime.open("sf2"))
+      yield* Effect.fork(runtime.open("sf2"))
+      const session = yield* runtime.open("sf2")
+      const chunk = yield* Fiber.join(collector)
+      // Wait a window afterwards: a second connection.opened would have shown up.
+      yield* Effect.sleep(50)
+      const extra = yield* Stream.runCollect(Stream.take(runtime.events(), 1)).pipe(Effect.timeoutOption(20))
+      return { session, opened: [...chunk].map((event) => event.kind), extra }
+    }) as Effect.Effect<{ session: ConnectionSession; opened: string[]; extra: Option.Option<Chunk.Chunk<ConnectionEvent>> }, Error, never>)
+    expect(result.opened).toEqual(["connection.opened"])
+    expect(result.extra._tag).toBe("None")
+    expect(result.session.adapter).toBe("sf-browser")
+    expect(gate.connects).toBe(1)
+  })
+
+  test("a failed first open lets a later open retry the whole chain", async () => {
+    const gate = { connects: 0 }
+    const adapter = connectionAdapter({
+      kind: "browser",
+      capabilities: new Set(["agent.run"]),
+      connect: (connection) => Effect.sync(() => { gate.connects++ }).pipe(
+        Effect.flatMap(() => gate.connects === 1
+          ? Effect.fail(new Error("first attempt boom"))
+          : Effect.succeed({ connectionId: connection.id, adapter: "browser", capabilities: new Set(["agent.run"]), invoke: () => Effect.succeed("ok"), close: Effect.void })))
+    })
+    const runtime = await Effect.runPromise(ConnectionRuntime.make({
+      specs: [{ ...spec, id: "retry", adapters: [{ kind: "browser" }] }],
+      adapters: [adapter]
+    }))
+    const failure = await Effect.runPromise(Effect.flip(runtime.open("retry")))
+    expect(failure).toBeInstanceOf(ConnectionOpenError)
+    const session = await Effect.runPromise(runtime.open("retry"))
+    expect(session.adapter).toBe("browser")
+    expect(gate.connects).toBe(2)
+    const state = await Effect.runPromise(runtime.snapshot())
+    expect(state.pending.size).toBe(0)
+  })
+
+  test("interrupting the owner fails the waiter and clears pending for a later retry", async () => {
+    let connectStarted = false
+    let releaseConnect: (() => void) | undefined
+    const gate = new Promise<void>((resolve) => { releaseConnect = resolve })
+    let connects = 0
+    const adapter = connectionAdapter({
+      kind: "browser",
+      capabilities: new Set(["agent.run"]),
+      connect: (connection) => Effect.gen(function* () {
+        connects++
+        connectStarted = true
+        yield* Effect.async<void>((resume) => { void gate.then(() => resume(Effect.succeed(undefined))) })
+        return { connectionId: connection.id, adapter: "browser", capabilities: new Set(["agent.run"]), invoke: () => Effect.succeed("ok"), close: Effect.void }
+      })
+    })
+    const runtime = await Effect.runPromise(ConnectionRuntime.make({
+      specs: [{ ...spec, id: "int", adapters: [{ kind: "browser" }] }],
+      adapters: [adapter]
+    }))
+    // Fork + interrupt + join must live in one effect: a forked fiber is not a
+    // daemon, so exiting the forking fiber interrupts it before connect() runs.
+    const result = await Effect.runPromise(Effect.gen(function* () {
+      const owner = yield* Effect.fork(runtime.open("int"))
+      while (!connectStarted) yield* Effect.sleep(5)
+      const waiter = yield* Effect.fork(runtime.open("int"))
+      yield* Effect.sleep(10)
+      yield* Fiber.interrupt(owner)
+      const waiterExit = yield* waiter.await
+      let state = yield* runtime.snapshot()
+      const pendingAfterInterrupt = state.pending.size
+      // A later open retries the chain and succeeds once the gate is released.
+      releaseConnect?.()
+      const session = yield* runtime.open("int")
+      state = yield* runtime.snapshot()
+      return {
+        waiterFailed: Exit.isFailure(waiterExit),
+        pendingAfterInterrupt,
+        adapter: session.adapter,
+        connects,
+        sessionsSize: state.sessions.size,
+        pendingAfterRetry: state.pending.size
+      }
+    }) as Effect.Effect<{ waiterFailed: boolean; pendingAfterInterrupt: number; adapter: string; connects: number; sessionsSize: number; pendingAfterRetry: number }, Error, never>)
+    expect(result.waiterFailed).toBe(true)
+    expect(result.pendingAfterInterrupt).toBe(0)
+    expect(result.adapter).toBe("browser")
+    expect(result.connects).toBe(2)
+    expect(result.sessionsSize).toBe(1)
+    expect(result.pendingAfterRetry).toBe(0)
   })
 })

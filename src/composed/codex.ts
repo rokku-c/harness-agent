@@ -17,6 +17,8 @@ export const CodexAgent = {
         // Honest declaration: the Codex SDK is turn-granular with no token/thinking
         // event stream, so the driver cannot expose Thinking (P1 candidate: extract
         // reasoning items from the Responses API, summary level only).
+        // tools:"mcp" means MCP tool calls surface through the CLI (config-based);
+        // binding.ops (function tools) have no channel in this SDK and fail-early.
         provider: { _tag: "Fixed", api: "openai.codex" }, granularity: "turn", thinking: false,
         cancel: true, pause: false, resume: true, fork: "none",
         tools: "mcp", toolCalls: "observe", structuredOutput: "native", sandbox: "delegated"
@@ -24,6 +26,17 @@ export const CodexAgent = {
       run: <A, R>(request: RunRequest<A, R>) => Effect.gen(function*() {
         yield* requireUntil(driver.id, driver.capabilities, request.until)
         request = yield* materialize(request)
+        // binding.ops are not wired by this driver: @openai/codex-sdk exposes no
+        // function-tools channel (TurnOptions is outputSchema/signal only; MCP is
+        // CLI-config driven). Fail loud instead of silently dropping the tools.
+        const wiredOps = request.access.flatMap(({ binding }) => binding.ops ?? [])
+        if (wiredOps.length > 0)
+          return yield* new AgentFailure({
+            agent: driver.id,
+            cause: "binding.ops are not wired by the codex driver: this codex-sdk version "
+              + "exposes no function-tools channel (MCP config only). Remove uses(binding) "
+              + "or switch to a driver that injects tools (vercel/pi/claude-code)."
+          })
         const client = options.client ?? new Codex(options.clientOptions)
         const thread = options.resume
           ? client.resumeThread(options.resume, options.thread)
