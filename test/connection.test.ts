@@ -92,7 +92,7 @@ describe("type-level tool names", () => {
     // per-slot assertions: each slot's contribution is derived at the type level
     const a1: "db__query" extends ToolNamesOf<typeof spec> ? true : false = true
     const a2: "grafana__list_dashboards" extends ToolNamesOf<Pick<typeof spec, "dashboards">> ? true : false = true
-    const a3: "ns__search" extends ToolNamesOf<Pick<typeof spec, "ns">> ? true : false = true
+    const a3: "docs__search" extends ToolNamesOf<Pick<typeof spec, "ns">> ? true : false = true
     const a4: "mcp__anything" extends ToolNamesOf<Pick<typeof spec, "monitoring">> ? true : false = true
     void a1; void a2; void a3; void a4
   })

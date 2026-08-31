@@ -1,10 +1,11 @@
 /**
- * OpenAI-compatible LLM adapter (zero dependencies, plain fetch): works with
- * OpenAI, DeepSeek, and any chat-completions-compatible endpoint.
+ * The built-in OpenAI-compatible provider connection (zero dependencies,
+ * plain fetch under Effect.tryPromise): works with OpenAI, DeepSeek, and any
+ * chat-completions-compatible endpoint. The model IS a connection.
  */
 import { Effect } from "effect"
-import type { Llm, LlmResult, Message } from "./agent.ts"
-import type { Tool } from "./connection.ts"
+import type { Connection, Tool } from "./connection.ts"
+import type { GenerateResult, Message } from "./message.ts"
 
 export interface OpenAiConfig {
   readonly apiKey: string
@@ -27,8 +28,8 @@ const toTools = (tools: ReadonlyArray<Tool>) =>
     function: { name: tool.name, description: tool.description ?? "", parameters: tool.input }
   }))
 
-export const openaiLlm = (config: OpenAiConfig): Llm => ({
-  generate: (systemPrompt, messages, tools) =>
+const openaiGenerate = (config: OpenAiConfig) =>
+  (systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<Tool>): Effect.Effect<GenerateResult, unknown> =>
     Effect.tryPromise({
       try: async () => {
         const response = await fetch(`${config.baseUrl ?? "https://api.openai.com/v1"}/chat/completions`, {
@@ -54,4 +55,10 @@ export const openaiLlm = (config: OpenAiConfig): Llm => ({
       },
       catch: (cause) => cause
     })
+
+/** The built-in OpenAI-compatible provider connection (name: "openai"). */
+export const openaiProvider = (config: OpenAiConfig): Connection => ({
+  name: "openai",
+  tools: [],
+  generate: openaiGenerate(config)
 })

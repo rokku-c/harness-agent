@@ -1,9 +1,10 @@
 /**
- * Anthropic Messages LLM adapter (zero dependencies, plain fetch).
+ * The built-in Anthropic provider connection (zero dependencies, plain fetch
+ * under Effect.tryPromise). The model IS a connection.
  */
 import { Effect } from "effect"
-import type { Llm, LlmResult, Message } from "./agent.ts"
-import type { Tool } from "./connection.ts"
+import type { Connection, Tool } from "./connection.ts"
+import type { GenerateResult, Message } from "./message.ts"
 
 export interface AnthropicConfig {
   readonly apiKey: string
@@ -31,8 +32,8 @@ const toTools = (tools: ReadonlyArray<Tool>) =>
     input_schema: tool.input
   }))
 
-export const anthropicLlm = (config: AnthropicConfig): Llm => ({
-  generate: (systemPrompt, messages, tools) =>
+const anthropicGenerate = (config: AnthropicConfig) =>
+  (systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<Tool>): Effect.Effect<GenerateResult, unknown> =>
     Effect.tryPromise({
       try: async () => {
         const response = await fetch(`${config.baseUrl ?? "https://api.anthropic.com"}/v1/messages`, {
@@ -63,4 +64,10 @@ export const anthropicLlm = (config: AnthropicConfig): Llm => ({
       },
       catch: (cause) => cause
     })
+
+/** The built-in Anthropic provider connection (name: "anthropic"). */
+export const anthropicProvider = (config: AnthropicConfig): Connection => ({
+  name: "anthropic",
+  tools: [],
+  generate: anthropicGenerate(config)
 })

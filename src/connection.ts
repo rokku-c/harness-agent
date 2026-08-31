@@ -8,6 +8,7 @@
  * that is the layer that lets agents compose like tools.
  */
 import { Effect } from "effect"
+import type { GenerateResult, Message } from "./message.ts"
 import { resolveNotation, type NotationStore, type NotationText } from "./notation.ts"
 
 /** JSON Schema object (the MCP-native tool schema form). */
@@ -24,13 +25,25 @@ export interface Tool {
 
 /**
  * The injectable unit: a named tool surface. Every dependency an agent takes -
- * an MCP server, a service binding, another agent - is normalized to this.
+ * an MCP server, a service binding, another agent, a MODEL provider - is
+ * normalized to this. There is no separate LLM concept: a model is a
+ * connection (a provider connection) carrying the generate capability.
  */
 export interface Connection {
   readonly name: string
   readonly tools: ReadonlyArray<Tool>
   /** Notated connections carry their own notation store (mode 6). */
   readonly notation?: NotationStore
+  /**
+   * The provider capability: model generation over the session log. Only
+   * built-in provider connections carry it; the agent runtime resolves its
+   * model through this surface.
+   */
+  readonly generate?: (
+    systemPrompt: string,
+    messages: ReadonlyArray<Message>,
+    tools: ReadonlyArray<Tool>
+  ) => Effect.Effect<GenerateResult, unknown>
 }
 
 export const connection = (name: string, tools: ReadonlyArray<Tool>, notation?: NotationStore): Connection =>
@@ -81,16 +94,20 @@ export const cascade = (members: ReadonlyArray<ConnectionDecl>): ConnectionDecl 
 // `${prefix}${string}`). Declarations preserve their literals via const
 // type parameters, so this composes at compile time.
 // ---------------------------------------------------------------------------
+// The runtime prefix is the CONNECTION name (the owner's rule: "name = prefix,
+// e.g. grafana__"), so the type-level derivation follows it: named slots know
+// their candidate connection names exactly; shaped slots know their tool names
+// but not which connection supplies them; any slots know their prefix.
 export type ToolNamesOf<S extends ConnectionSpec> = {
   [K in keyof S & string]: S[K] extends { _tag: "Any"; prefix: infer P extends string }
     ? `${P}${string}`
     : S[K] extends { _tag: "Named"; names: infer N extends ReadonlyArray<string> }
       ? `${N[number]}__${string}`
       : S[K] extends { _tag: "Shaped"; shape: infer SH extends ReadonlyArray<ShapeTool> }
-        ? `${K}__${SH[number]["name"]}`
-        : S[K] extends { _tag: "NamedShaped"; shape: infer NSH extends ReadonlyArray<ShapeTool> }
-          ? `${K}__${NSH[number]["name"]}`
-          : S[K] extends { _tag: "Cascade" } ? `${K}__${string}__${string}`
+        ? `${string}__${SH[number]["name"]}`
+        : S[K] extends { _tag: "NamedShaped"; names: infer NN extends ReadonlyArray<string>; shape: infer NSH extends ReadonlyArray<ShapeTool> }
+          ? `${NN[number]}__${NSH[number]["name"]}`
+          : S[K] extends { _tag: "Cascade" } ? `${string}__${string}__${string}`
           : never
 }[keyof S & string]
 
