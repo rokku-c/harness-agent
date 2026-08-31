@@ -5,9 +5,9 @@
  */
 import { Cause, Effect, Exit, Fiber, Option, PubSub, Queue, Ref, type Scope } from "effect"
 import {
-  AgentFailure, AgentRegistry, AgentRuntime, AgentSession, Boards, Groups,
+  AgentFailure, AgentPaused, AgentRegistry, AgentRuntime, AgentSession, Boards, CheckpointStore, Groups,
   type AgentError, type AgentEvent, type AgentRegistryService, type AgentRuntimeService,
-  type ChildResult, type ChildSummary, type Signal, type Spawned
+  type ChildResult, type ChildSummary, type Signal, type Spawned, type StoredCheckpoint
 } from "@effect-agent/core"
 
 export interface ChildState {
@@ -29,6 +29,8 @@ export const exitToResult = (state: ChildState) => (exit: Exit.Exit<unknown, unk
   if (Exit.isSuccess(exit)) return { childId: state.childId, agent: state.agent, status: "completed", output: exit.value }
   const cause = exit.cause
   if (Cause.isInterruptedOnly(cause)) return { childId: state.childId, agent: state.agent, status: "interrupted" }
+  if (cause._tag === "Fail" && (cause.error as { _tag?: string })._tag === "AgentPaused")
+    return { childId: state.childId, agent: state.agent, status: "paused", checkpointRef: (cause.error as { runId: string }).runId }
   if (cause._tag === "Fail" && (cause.error as { _tag?: string })._tag === "AgentFailure" &&
     String((cause.error as { cause?: unknown }).cause ?? "").includes("interrupted"))
     return { childId: state.childId, agent: state.agent, status: "interrupted" }
@@ -36,8 +38,8 @@ export const exitToResult = (state: ChildState) => (exit: Exit.Exit<unknown, unk
 }
 
 export interface ChildKernel {
-  /** Fork a child; the runtime service handed down is what the child sees. */
-  readonly spawn: (agent: string, task: string, runtime: AgentRuntimeService) => Effect.Effect<Spawned, AgentError, Scope.Scope>
+  /** Fork a child; the runtime service handed down is what the child sees. A seed resumes from an archive. */
+  readonly spawn: (agent: string, task: string, runtime: AgentRuntimeService, seed?: { readonly resume?: StoredCheckpoint }) => Effect.Effect<Spawned, AgentError, Scope.Scope>
   readonly join: (childId: string) => Effect.Effect<ChildResult, AgentError>
   readonly send: (childId: string, signal: Signal) => Effect.Effect<void, AgentError>
   readonly interrupt: (childId: string, hard?: boolean) => Effect.Effect<void, AgentError>
@@ -50,14 +52,15 @@ export interface ChildKernel {
  * Build a kernel over a registry. Requires the coordination services only so
  * that children can be handed the same surface their supervisor sees.
  */
-export const makeChildKernel = (registry: AgentRegistryService): Effect.Effect<ChildKernel, never, Boards | Groups> =>
+export const makeChildKernel = (registry: AgentRegistryService): Effect.Effect<ChildKernel, never, Boards | Groups | CheckpointStore> =>
   Effect.gen(function* () {
     const boards = yield* Boards
     const groups = yield* Groups
+    const store = yield* CheckpointStore
     const children = yield* Ref.make<ReadonlyMap<string, ChildState>>(new Map())
 
     const kernel: ChildKernel = {
-      spawn: (agent, task, runtime) =>
+      spawn: (agent, task, runtime, seed) =>
         Effect.gen(function* () {
           const program = registry.get(agent)
           if (Option.isNone(program))
@@ -69,11 +72,12 @@ export const makeChildKernel = (registry: AgentRegistryService): Effect.Effect<C
           const bus = yield* PubSub.unbounded<AgentEvent>()
           const childId = crypto.randomUUID()
           const childEffect = program.value.run(task).pipe(
-            Effect.provideService(AgentSession, { agent, signals, events: bus }),
+            Effect.provideService(AgentSession, { agent, signals, events: bus, runId: crypto.randomUUID(), resume: seed?.resume }),
             Effect.provideService(AgentRuntime, runtime),
             Effect.provideService(AgentRegistry, registry),
             Effect.provideService(Boards, boards),
             Effect.provideService(Groups, groups),
+            Effect.provideService(CheckpointStore, store),
             Effect.onExit((exit) =>
               Exit.isSuccess(exit)
                 ? PubSub.publish(bus, { _tag: "ChildCompleted", childId, agent, output: exit.value })

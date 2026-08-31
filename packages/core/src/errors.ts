@@ -14,5 +14,10 @@ export class AgentFailure extends Data.TaggedError("AgentFailure")<{
   readonly message?: string
 }> {}
 
+/** The agent paused cooperatively: its state is checkpointed under this run id. */
+export class AgentPaused extends Data.TaggedError("AgentPaused")<{
+  readonly runId: string
+}> {}
+
 export type AgentError = UnsupportedCapability | AgentFailure
 

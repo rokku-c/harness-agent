@@ -1,10 +1,13 @@
 /**
  * The default composition: registry + child kernel + boards + groups +
- * session wiring (forward, watch), assembled into one runtime layer. Every
- * piece lives in its own module - this file only wires them.
+ * checkpoint store + session wiring (forward, watch), assembled into one
+ * runtime layer. Every piece lives in its own module - this file only wires
+ * them. Pause is the kernel's send with a Pause signal; resume looks up the
+ * archive and spawns the same agent hydrated from it.
  */
 import { Effect, Layer, Option } from "effect"
-import { AgentRegistry, AgentRuntime, Boards, Groups, type AgentProgram, type AgentRuntimeService } from "@effect-agent/core"
+import { AgentFailure, AgentRegistry, AgentRuntime, Boards, CheckpointStore, Groups, type AgentProgram, type AgentRuntimeService } from "@effect-agent/core"
+import { CheckpointStoreLayer } from "./checkpoint.ts"
 import { BoardsLayer } from "./boards.ts"
 import { GroupsLayer } from "./groups.ts"
 import { makeChildKernel } from "./children.ts"
@@ -21,6 +24,7 @@ export const FiberAgentRuntime = {
         names: () => Object.keys(agents)
       }
       const kernel = yield* makeChildKernel(registry)
+      const store = yield* CheckpointStore
       const service: AgentRuntimeService = {
         spawn: (agent, task, watch = []) =>
           Effect.gen(function* () {
@@ -32,6 +36,14 @@ export const FiberAgentRuntime = {
             }
             return spawned
           }),
+        pause: (childId) => kernel.send(childId, { _tag: "Pause" }),
+        resume: (runId, task) =>
+          Effect.gen(function* () {
+            const stored = yield* store.get({ runId })
+            if (stored === undefined)
+              return yield* new AgentFailure({ agent: "runtime", cause: "unknown checkpoint: " + runId + " (known: " + (yield* Effect.map(store.list(), (all) => all.map((c) => c.ref.runId).join(", "))) + ")" })
+            return yield* kernel.spawn(stored.agent, task ?? stored.task, service, { resume: stored })
+          }),
         join: kernel.join,
         send: kernel.send,
         interrupt: kernel.interrupt,
@@ -42,7 +54,8 @@ export const FiberAgentRuntime = {
     }).pipe(
       (effect) => Layer.effect(AgentRuntime, effect),
       Layer.provideMerge(BoardsLayer),
-      Layer.provideMerge(GroupsLayer)
+      Layer.provideMerge(GroupsLayer),
+      Layer.provideMerge(CheckpointStoreLayer)
     ),
   /** The registry layer for named agents. */
   registry: (agents: RuntimeAgents) =>

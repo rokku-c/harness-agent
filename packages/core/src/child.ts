@@ -14,7 +14,7 @@ export interface Spawned {
   readonly agent: string
 }
 
-export type ChildStatus = "running" | "completed" | "failed" | "interrupted"
+export type ChildStatus = "running" | "completed" | "failed" | "interrupted" | "paused"
 
 export interface ChildResult {
   readonly childId: string
@@ -22,6 +22,8 @@ export interface ChildResult {
   readonly status: ChildStatus
   readonly output?: unknown
   readonly error?: string
+  /** For paused children: the run id their checkpoint is stored under. */
+  readonly checkpointRef?: string
 }
 
 export interface ChildSummary {

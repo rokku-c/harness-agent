@@ -121,12 +121,39 @@ composed from the kernel - no new machinery:
   tasks: ["alpha", "beta", "gamma"], concurrency: 2 } }
 ```
 
+## Checkpoints: storable by default, pause and resume anywhere
+
+Every run that declares state is storable **by default**: whenever a
+checkpoint store is present, the loop snapshots its logical state (context,
+thread, step) at every step boundary under the run's id. A `Pause` signal
+archives the state and ends the run as `paused`; `resume` spawns the same
+agent hydrated from the archive - the thread continues exactly where it
+stopped.
+
+Recovery is policy-driven by **sensitivity declarations**: a run declares
+what it is sensitive to, the checkpoint records the declarations, and at
+resume the matching notes are injected into the fresh context -
+
+- `TimeSensitive` -> wall-clock drift since the checkpoint ("X ms have
+  passed; re-check anything time-dependent"),
+- `ExternalEffects` -> "the world may have changed; verify assumptions and
+  avoid repeating side effects",
+- `Custom { label }` -> "re-validate the assumptions recorded before the
+  checkpoint".
+
+```ts
+EffectAgent.make({ model, sensitivities: [{ _tag: "TimeSensitive" }] })
+
+rt.pause(childId)                    // archive at the next step boundary
+rt.resume(paused.checkpointRef!)     // hydrate + inject recovery notes
+```
+
 ## Verify
 
 ```bash
 bun install
 bun run typecheck          # tsc --noEmit
-bun test                   # 32 tests
+bun test                   # 35 tests
 bun run examples           # offline examples (01, 02, 05)
 bun run examples 03 --live # live provider roundtrip (config.toml + .env)
 bun run examples 06 --live # live supervisor spawning real subagents

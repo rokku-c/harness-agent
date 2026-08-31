@@ -55,6 +55,17 @@ export const spawnOps = () => [
         const { mode } = (input ?? {}) as { mode?: "all" | "first" }
         return runtime.wait(mode ?? "all")
       })
+  }),
+  Op.write({
+    name: "resume_child",
+    description: notationText("Resume a paused child from its checkpoint: the same agent starts hydrated from the archived thread; sensitivity-based recovery notes are injected first. Pass a new task to change the goal."),
+    input: Schema.Struct({ runId: Schema.String, task: Schema.optional(Schema.String) }),
+    output: Schema.Unknown,
+    execute: (input: unknown) =>
+      Effect.flatMap(AgentRuntime, (runtime) => {
+        const { runId, task } = input as { runId: string; task?: string }
+        return runtime.resume(runId, task)
+      })
   })
 ]
 
@@ -84,6 +95,19 @@ export const signalOps = () => [
         const { child, hard } = input as { child: string; hard?: boolean }
         yield* runtime.interrupt(child, hard ?? false)
         return { interrupted: true }
+      })
+  }),
+  Op.write({
+    name: "pause_child",
+    description: notationText("Checkpoint a running child at its next step boundary and pause it; resume it later with resume_child using the returned run id."),
+    input: Schema.Struct({ child: Schema.String }),
+    output: Schema.Struct({ pauseRequested: Schema.Boolean }),
+    execute: (input: unknown) =>
+      Effect.gen(function* () {
+        const runtime = yield* AgentRuntime
+        const { child } = input as { child: string }
+        yield* runtime.pause(child)
+        return { pauseRequested: true }
       })
   })
 ]

@@ -6,8 +6,9 @@
  * agent definitions never see it.
  */
 import { Effect, Option, PubSub, Queue } from "effect"
-import type { Capabilities } from "@effect-agent/core"
-import { AgentFailure, AgentSession, materialize, requireUntil, decode, decodeJson, schemaJson, type AgentEvent, type Driver, type Op, type RunRequest } from "@effect-agent/core"
+import type { Capabilities, Content, Sensitivity } from "@effect-agent/core"
+import { AgentContext, AgentFailure, AgentPaused, AgentSession, CheckpointStore, materialize, requireUntil, decode, decodeJson, schemaJson, type AgentEvent, type Driver, type Op, type RunRequest } from "@effect-agent/core"
+import { recoveryContent } from "./checkpoint.ts"
 import type { Model, WireMessage, WireTool, WireToolCall } from "./wire.ts"
 
 export interface EffectAgentOptions {
@@ -15,6 +16,8 @@ export interface EffectAgentOptions {
   /** The system prompt: the driver's only model-facing prose, supplied by the operator. */
   readonly instructions?: string
   readonly maxSteps?: number
+  /** Declared sensitivities, recorded into every checkpoint; resume injects the matching recovery notes. */
+  readonly sensitivities?: ReadonlyArray<Sensitivity>
 }
 
 export const EffectAgent = {
@@ -60,27 +63,61 @@ export const EffectAgent = {
           }))
           const byName = new Map(ops.map((op) => [op.name, op]))
 
-          // the thread is the provider-side view of the context
+          // the thread is the provider-side view of the context. A resumed
+          // run hydrates both from its checkpoint before the first step, then
+          // sees its recovery notes (sensitivity declarations -> policies).
           let context = prepared.context
           const thread: Array<WireMessage> = [{ role: "user", content: context.render() }]
-          yield* emit({ _tag: "Step", agent: agentName, step: 0 })
+          let firstStep = 0
+          const resumed = Option.isSome(session) ? session.value.resume : undefined
+          if (resumed !== undefined) {
+            const saved = resumed.payload as { context: ReadonlyArray<Content>; thread: ReadonlyArray<WireMessage>; step: number }
+            context = new AgentContext(saved.context)
+            thread.length = 0
+            thread.push(...saved.thread)
+            thread.push({ role: "user", content: new AgentContext(recoveryContent(resumed)).render() })
+            firstStep = saved.step
+          }
+          yield* emit({ _tag: "Step", agent: agentName, step: firstStep })
           const maxSteps = options.maxSteps ?? 32
 
-          for (let step = 0; step < maxSteps; step++) {
+          // storage on by default: whenever a store is present, every step
+          // boundary snapshots the logical state under this run's id
+          const store = Option.isSome(session) ? yield* Effect.serviceOption(CheckpointStore) : Option.none()
+          const runId = Option.isSome(session) ? session.value.runId : undefined
+          const snapshot = (step: number) => {
+            if (Option.isNone(store) || runId === undefined) return Effect.void
+            return store.value.put({
+              ref: { runId },
+              agent: agentName,
+              task: prepared.context.render(),
+              sensitivities: options.sensitivities ?? [],
+              savedAt: Date.now(),
+              payload: { context: [...context.entries], thread: [...thread], step }
+            })
+          }
+
+          for (let step = firstStep; step < maxSteps; step++) {
             // cooperative scheduling: yield between steps so supervisors,
             // watchers and interruptions get their turn
             yield* Effect.yieldNow()
             // drain the signal box at the step boundary: injections land in
-            // the context, interrupts end the run cooperatively
+            // the context, interrupts end the run cooperatively, pauses
+            // archive the state first
             if (Option.isSome(session)) {
               const pending = yield* Queue.takeAll(session.value.signals)
               for (const signal of pending) {
                 if (signal._tag === "Interrupt")
                   return yield* new AgentFailure({ agent: driver.id, cause: "interrupted by signal" })
+                if (signal._tag === "Pause") {
+                  yield* snapshot(step)
+                  return yield* new AgentPaused({ runId: runId ?? "unknown" })
+                }
                 context = context.append(...signal.content)
                 thread.push({ role: "user", content: new (context.constructor as any)(signal.content).render() })
               }
             }
+            yield* snapshot(step)
             const result = yield* options.model
               .generate(options.instructions ?? "", thread, tools)
               .pipe(Effect.mapError((cause) => new AgentFailure({ agent: driver.id, cause })))

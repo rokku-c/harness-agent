@@ -17,6 +17,10 @@ export interface AgentRuntimeService {
   readonly join: (childId: string) => Effect.Effect<ChildResult, AgentError>
   readonly send: (childId: string, signal: Signal) => Effect.Effect<void, AgentError>
   readonly interrupt: (childId: string, hard?: boolean) => Effect.Effect<void, AgentError>
+  /** Checkpoint a running child at its next step boundary. */
+  readonly pause: (childId: string) => Effect.Effect<void, AgentError>
+  /** Start a fresh run of the checkpointed agent, hydrated from the archive. */
+  readonly resume: (runId: string, task?: string) => Effect.Effect<Spawned, AgentError, Scope.Scope>
   readonly wait: (mode: "all" | "first") => Effect.Effect<ReadonlyArray<ChildResult>, AgentError>
   readonly children: Effect.Effect<ReadonlyArray<ChildSummary>, AgentError>
 }
