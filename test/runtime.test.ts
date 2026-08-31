@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import { Deferred, Effect, Layer, Schema } from "effect"
 import {
-  Agent, AgentContext, AgentRuntime, Op, Until, notationText,
-  type Binding, type RunRequest
+  Agent, AgentContext, AgentRuntime, Boards, Groups, Op, notationText,
+  Until, type Binding, type RunRequest
 } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, runtimeBinding, type Model, type WireMessage } from "@effect-agent/builtin"
+import { EffectAgent, FiberAgentRuntime, childBinding, groupOps, progressOp, type Model, type WireMessage } from "@effect-agent/builtin"
 
 const noopBinding = (): Binding => ({
   uri: "ea://svc/noop/main",
@@ -19,16 +19,7 @@ const noopBinding = (): Binding => ({
 
 const progressBinding = (): Binding => ({
   uri: "ea://svc/progress/main",
-  ops: [Op.read({
-    name: "report_progress",
-    description: notationText("Report progress to your supervisor."),
-    input: Schema.Struct({ text: Schema.String }),
-    output: Schema.Struct({ reported: Schema.Boolean }),
-    execute: (input: unknown) =>
-      Effect.flatMap(AgentRuntime, (rt) =>
-        Effect.map(rt.emitProgress("worker", (input as { text: string }).text), () => ({ reported: true }))
-      )
-  })]
+  ops: [progressOp()]
 })
 
 /** A model whose first call blocks on a gate, then replays a script. */
@@ -173,17 +164,18 @@ describe("FiberAgentRuntime: supervision as fibers", () => {
     const agents = {
       worker: Agent.define("worker", (task: string) => AgentContext.text(task))
         .returns(Until.text)
-        .writes(runtimeBinding)
+        .writes(childBinding)
         .implementedBy(EffectAgent.make({ model: workerModel() }))
     }
     const results = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* AgentRuntime
-        yield* rt.createBoard("findings")
+        const boards = yield* Boards
+        yield* boards.create("findings")
         yield* rt.spawn("worker", "a")
         yield* rt.spawn("worker", "b")
         yield* rt.wait("all")
-        return yield* rt.readBoard("ea://board/findings")
+        return yield* boards.read("ea://board/findings")
       }).pipe(Effect.scoped, Effect.provide(provide(agents)))
     )
     expect(results.length).toBeGreaterThanOrEqual(2)
@@ -204,11 +196,14 @@ describe("FiberAgentRuntime: supervision as fibers", () => {
     const outcome = await Effect.runPromise(
       Effect.gen(function* () {
         const rt = yield* AgentRuntime
+        const groups = yield* Groups
         const spawned = yield* rt.spawn("worker", "start")
-        yield* rt.createGroup("room", [spawned.childId])
-        yield* rt.postGroup("ea://group/room", "supervisor", "please expedite")
+        yield* groups.create("room", [spawned.childId])
+        // delivery is composed in the op: post + push into members' signal boxes
+        const postOp = groupOps().find((op) => op.name === "post_group")!
+        yield* (postOp.execute as (input: unknown) => Effect.Effect<unknown, unknown>)({ group: "ea://group/room", text: "please expedite" })
         yield* model.release
-        const log = yield* rt.readGroup("ea://group/room")
+        const log = yield* groups.read("ea://group/room")
         return { results: yield* rt.wait("all"), log }
       }).pipe(Effect.scoped, Effect.provide(provide(agents)))
     )
@@ -222,7 +217,7 @@ describe("FiberAgentRuntime: supervision as fibers", () => {
     const agents = {
       notable: Agent.define("notable", (task: string) => AgentContext.text(task))
         .returns(Until.text)
-        .uses(progressBinding())
+        .writes(progressBinding())
         .implementedBy(EffectAgent.make({
           model: {
             generate: (() => {

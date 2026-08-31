@@ -6,40 +6,12 @@
  * the supervisor's context between its steps. The model is scripted here;
  * 06-live-orchestration.ts runs the same shape on a real provider.
  */
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer } from "effect"
 import {
-  Agent, AgentContext, AgentRuntime, ConsoleHook, Harness, Op, Until, notationText,
-  type Binding, type Driver, type RunRequest
+  Agent, AgentContext, ConsoleHook, Harness, Until,
+  type Driver, type RunRequest
 } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, runtimeBinding, type Model, type WireMessage } from "@effect-agent/builtin"
-
-const postBoard = (): Binding => ({
-  uri: "ea://svc/post/main",
-  ops: [Op.read({
-    name: "post_board",
-    description: notationText("Post a finding to the shared whiteboard."),
-    input: Schema.Struct({ text: Schema.String }),
-    output: Schema.Struct({ posted: Schema.Boolean }),
-    execute: (input: unknown) =>
-      Effect.flatMap(AgentRuntime, (rt) =>
-        Effect.map(rt.postBoard("ea://board/findings", "worker", (input as { text: string }).text), () => ({ posted: true }))
-      )
-  })]
-})
-
-const reportProgress = (): Binding => ({
-  uri: "ea://svc/progress/main",
-  ops: [Op.read({
-    name: "report_progress",
-    description: notationText("Report progress to your supervisor."),
-    input: Schema.Struct({ text: Schema.String }),
-    output: Schema.Struct({ reported: Schema.Boolean }),
-    execute: (input: unknown) =>
-      Effect.flatMap(AgentRuntime, (rt) =>
-        Effect.map(rt.emitProgress("worker", (input as { text: string }).text), () => ({ reported: true }))
-      )
-  })]
-})
+import { EffectAgent, FiberAgentRuntime, childBinding, runtimeBinding, type Model, type WireMessage } from "@effect-agent/builtin"
 
 // a worker: reports progress, posts one finding, finishes
 const workerModel = (finding: string): Model => {
@@ -60,18 +32,14 @@ const reviewerDriver: Driver<never> = {
   run: <A, R>(_request: RunRequest<A, R>) => Effect.succeed("reviewed" as A)
 }
 
-const reviewerProgram = Agent.define("reviewer", (task: string) => AgentContext.text(task))
-  .returns(Until.text)
-  .implementedBy(reviewerDriver)
-
 const registry = {
   worker: Agent.define("worker", (task: string) => AgentContext.text(task))
     .returns(Until.text)
-    .writes(runtimeBinding)
-    .uses(postBoard())
-    .uses(reportProgress())
+    .writes(childBinding)
     .implementedBy(EffectAgent.make({ model: workerModel("completed the narrow investigation") })),
-  reviewer: reviewerProgram
+  reviewer: Agent.define("reviewer", (task: string) => AgentContext.text(task))
+    .returns(Until.text)
+    .implementedBy(reviewerDriver)
 }
 
 // the supervisor's scripted model drives the real runtime ops
@@ -110,4 +78,5 @@ const answer = await Effect.runPromise(
   )
 )
 console.log("supervisor:", answer)
+void reviewerDriver
 

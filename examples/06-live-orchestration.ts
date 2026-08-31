@@ -5,15 +5,8 @@
  * Run: bun run examples 06 --live
  */
 import { Effect, Layer } from "effect"
-import { Agent, AgentContext, ConsoleHook, Harness, Until, type Binding } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, Providers, runtimeBinding } from "@effect-agent/builtin"
-
-// least privilege: workers may post to and read boards, but never spawn -
-// coordination bindings are just bindings, so scoping is data, not policy
-const childRuntime = (): Binding => ({
-  uri: runtimeBinding.uri,
-  ops: (runtimeBinding.ops ?? []).filter((op) => op.name === "post_board" || op.name === "read_board")
-})
+import { Agent, AgentContext, ConsoleHook, Harness, Until } from "@effect-agent/core"
+import { EffectAgent, FiberAgentRuntime, Providers, childBinding, runtimeBinding } from "@effect-agent/builtin"
 
 const program = Effect.gen(function* () {
   const model = yield* Effect.map(Providers, (catalog) => catalog.model())
@@ -21,7 +14,7 @@ const program = Effect.gen(function* () {
   const registry = {
     worker: Agent.define("worker", (task: string) => AgentContext.text(task))
       .returns(Until.text)
-      .writes(childRuntime())
+      .writes(childBinding)
       .implementedBy(Harness.withHooks(EffectAgent.make({ model, maxSteps: 6 }), ConsoleHook)),
     reviewer: Agent.define("reviewer", (task: string) => AgentContext.text(task))
       .returns(Until.text)
@@ -33,7 +26,11 @@ const program = Effect.gen(function* () {
     .define("supervisor", (goal: string) => AgentContext.text("Goal: " + goal))
     .returns(Until.text)
     .writes(runtimeBinding)
-    .implementedBy(Harness.withHooks(EffectAgent.make({ model, maxSteps: 12 }), ConsoleHook))
+    .implementedBy(Harness.withHooks(EffectAgent.make({
+      model,
+      maxSteps: 18,
+      instructions: "You are a supervisor. Execute the plan exactly ONCE: create_board, then spawn_agent twice, then wait_children, then read_board, then output the merged summary as your final text. Never repeat a phase; never spawn more than two workers; after reading the board, finish immediately."
+    }), ConsoleHook))
 
   return yield* Effect.map(
     Supervisor.run("Investigate what makes effect-agent's loop design good. First create a board. Then spawn TWO workers with narrow questions; each worker's task MUST tell it to post exactly ONE finding via post_board to the board uri you created. Then wait_children, then read_board, then merge the findings into a short summary."),
