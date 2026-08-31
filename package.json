@@ -12,7 +12,8 @@
     "test": "bun test",
     "example:01": "bun run examples/01-connections.ts",
     "example:02": "bun run examples/02-live-llm.ts",
-    "example:03": "bun run examples/03-purity.ts"
+    "example:03": "bun run examples/03-purity.ts",
+    "example:04": "bun run examples/04-live-composition.ts"
   },
   "dependencies": {
     "effect": "^3.22.1"
