@@ -5,12 +5,9 @@
  */
 import { Effect, JSONSchema, Schema } from "effect"
 import type { ShapeTool, Tool } from "./connection.ts"
-import type { NotationText } from "./notation.ts"
 
 export interface TypedTool<I, O, E = never> {
   readonly name: string
-  /** Model-facing prose - notation-injected. */
-  readonly description?: NotationText
   /** Decoded, typed input. */
   readonly input: Schema.Schema<I, I, never>
   readonly output: Schema.Schema<O, O, never>
@@ -22,7 +19,6 @@ export const make = <I, O, E = never>(tool: TypedTool<I, O, E>): TypedTool<I, O,
 /** Bridge a typed tool to the wire-level Tool: Schema -> JSON Schema, decode in, encode out. */
 export const toTool = <I, O, E>(typed: TypedTool<I, O, E>): Tool => ({
   name: typed.name,
-  description: typed.description,
   input: JSONSchema.make(typed.input) as unknown as Record<string, unknown>,
   output: JSONSchema.make(typed.output) as unknown as Record<string, unknown>,
   execute: (input: unknown) =>

@@ -4,7 +4,7 @@
  * chat-completions-compatible endpoint. The model IS a connection.
  */
 import { Effect } from "effect"
-import type { Connection, Tool } from "./connection.ts"
+import type { BoundTool, ModelConnection } from "./connection.ts"
 import type { GenerateResult, Message } from "./message.ts"
 
 export interface OpenAiConfig {
@@ -34,15 +34,14 @@ const toWire = (systemPrompt: string, messages: ReadonlyArray<Message>) => [
   })
 ]
 
-const toTools = (tools: ReadonlyArray<Tool>) =>
+const toTools = (tools: ReadonlyArray<BoundTool>) =>
   tools.map((tool) => ({
     type: "function",
-    // a bound tool presents its bound name (the prefix the agent declared)
-    function: { name: (tool as { boundName?: string }).boundName ?? tool.name, description: tool.description ?? "", parameters: tool.input }
+    function: { name: tool.boundName, description: tool.description, parameters: tool.input }
   }))
 
 const openaiGenerate = (config: OpenAiConfig) =>
-  (systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<Tool>): Effect.Effect<GenerateResult, unknown> =>
+  (systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<BoundTool>): Effect.Effect<GenerateResult, unknown> =>
     Effect.tryPromise({
       try: async () => {
         const response = await fetch(`${config.baseUrl ?? "https://api.openai.com/v1"}/chat/completions`, {
@@ -70,7 +69,7 @@ const openaiGenerate = (config: OpenAiConfig) =>
     })
 
 /** The built-in OpenAI-compatible provider connection (name: "openai"). */
-export const openaiProvider = (config: OpenAiConfig): Connection => ({
+export const openaiProvider = (config: OpenAiConfig): ModelConnection => ({
   name: "openai",
   tools: [],
   generate: openaiGenerate(config)

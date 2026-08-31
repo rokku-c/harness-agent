@@ -1,8 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { bind, connection, namedShaped, notated, shaped } from "../src/index.ts"
+import { bind, connection, memoryNotationStore, named, namedShaped, shaped } from "../src/index.ts"
 import { make, shapeOf, toTool } from "../src/index.ts"
-import { memoryNotationStore } from "../src/index.ts"
 
 const LookupWeather = make({
   name: "lookup_weather",
@@ -10,6 +9,10 @@ const LookupWeather = make({
   output: Schema.Struct({ city: Schema.String, temperature: Schema.Number, condition: Schema.String }),
   execute: ({ city }) => Effect.succeed({ city, temperature: 24, condition: "sunny" })
 })
+
+const weatherWithProse = () => connection("weather", [toTool(LookupWeather)], memoryNotationStore([
+  { target: "tool:lookup_weather", instructions: ["Look up the current weather for a city."] }
+]))
 
 describe("typed tools", () => {
   test("toTool bridges to the wire: JSON Schema + decode/encode execute", async () => {
@@ -27,19 +30,15 @@ describe("typed tools", () => {
   })
 
   test("shapeOf feeds the shaped declaration; named+shaped verifies", () => {
-    const conn = connection("weather", [toTool(LookupWeather)])
+    const conn = weatherWithProse()
     const bound = bind(shaped(shapeOf([LookupWeather])), conn)
     expect(bound).toHaveLength(1)
     const bound2 = bind(namedShaped(["weather"], shapeOf([LookupWeather])), conn)
     expect(bound2).toHaveLength(1)
   })
 
-  test("notation-injected description rides the typed tool", () => {
-    const store = memoryNotationStore([{ target: "tool:lookup_weather", instructions: ["Look up the current weather for a city."] }])
-    const described = make({ ...LookupWeather, description: undefined })
-    const conn = connection("weather", [{ ...toTool(described), description: undefined }], store)
-    const bound = bind(notated(), conn)
+  test("prose resolves at bind time from the connection's store - on every mode", () => {
+    const bound = bind(named("weather"), weatherWithProse())
     expect(String(bound[0]?.description)).toBe("Look up the current weather for a city.")
-    void described
   })
 })

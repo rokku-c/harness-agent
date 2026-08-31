@@ -7,6 +7,7 @@
 import { Effect } from "effect"
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process"
 import { connection, type Connection } from "./connection.ts"
+import { memoryNotationStore, type NotationEntry } from "./notation.ts"
 
 export interface McpOptions {
   /** The connection name (the slot key the agent declares). */
@@ -79,9 +80,17 @@ export const mcpConnection = (options: McpOptions): Effect.Effect<Connection, un
         })
         await request("notifications/initialized", {})
         const listed = await request<{ tools?: Array<{ name: string; description?: string; inputSchema: Record<string, unknown> }> }>("tools/list", {})
+        // the server's tool descriptions are external prose - they enter the
+        // system through a store like every other model-facing text
+        const entries: NotationEntry[] = []
+        for (const tool of listed.tools ?? []) {
+          if (tool.description === undefined || tool.description.length === 0)
+            throw new Error(`mcp server "${options.name}": tool "${tool.name}" carries no description - the server should provide one (model-facing prose must live in a store)`)
+          entries.push({ target: `tool:${tool.name}`, instructions: [tool.description] })
+        }
+        const store = memoryNotationStore(entries)
         const tools = (listed.tools ?? []).map((tool) => ({
           name: tool.name,
-          description: tool.description as never,
           input: tool.inputSchema,
           output: { type: "object" } as Record<string, unknown>,
           execute: (input: unknown) =>
@@ -93,7 +102,7 @@ export const mcpConnection = (options: McpOptions): Effect.Effect<Connection, un
               catch: (cause) => cause
             })
         }))
-        resume(Effect.succeed(connection(options.name, tools)))
+        resume(Effect.succeed(connection(options.name, tools, store)))
       } catch (cause) {
         resume(Effect.fail(cause))
       }

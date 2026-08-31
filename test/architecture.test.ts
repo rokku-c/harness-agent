@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import {
   Agent, architect, any, bind, connection, inject, layer, named,
-  memoryNotationStore, openaiProvider, type ArchitectureInput, type Connection, type GenerateResult, type AgentShape
+  memoryNotationStore, openaiProvider, type ArchitectureInput, type Connection,
+  type GenerateResult, type ModelConnection
 } from "../src/index.ts"
 
 const weather = connection("weather", [{
@@ -10,9 +11,9 @@ const weather = connection("weather", [{
   input: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
   output: { type: "object" },
   execute: () => Effect.succeed({ city: "Shanghai", temperature: 24 })
-}])
+}], memoryNotationStore([{ target: "tool:lookup", instructions: ["Look up the current weather for a city."] }]))
 
-const scriptOf = (...script: GenerateResult[]): Connection => {
+const scriptOf = (...script: GenerateResult[]): ModelConnection => {
   const queue = [...script]
   return {
     name: "scripted",
@@ -52,15 +53,11 @@ describe("agent architecture", () => {
     expect(messages[1]?.role).toBe("assistant")
   })
 
-  test("inject fails loud when the model is not a provider connection", async () => {
-    const arch = architect({ name: "ops-lead", connections: { sky: named("weather") }, prompt: "ops-lead/prompt" })
-    const failed = await Effect.runPromise(inject(arch, {
-      notation: store(),
-      model: weather,
-      connections: [weather]
-    }).pipe(Effect.map(() => null), Effect.either))
-    expect(failed._tag).toBe("Left")
-    if (failed._tag === "Left") expect((failed.left as { _tag: string })._tag).toBe("NotProvider")
+  test("the model must be a ModelConnection - now a compile-time guarantee", () => {
+    // generate is REQUIRED on ModelConnection, so passing a plain Connection
+    // is a type error; the runtime never has to check it
+    const provider: ModelConnection = scriptOf()
+    expect(provider.generate).toBeDefined()
   })
 
   test("inject fails loud when the notation target is missing (no prose, no agent)", async () => {
@@ -169,7 +166,6 @@ describe("agent architecture", () => {
     expect(model.generate).toBeDefined()
     // and they bind like any connection would
     expect(bind(named("openai"), model)).toHaveLength(0)
-    void ({} as AgentShape)
   })
 })
 

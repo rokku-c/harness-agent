@@ -10,8 +10,8 @@
  */
 import { Effect } from "effect"
 import {
-  any, architect, bind, cascade, connection, inject, named, notated,
-  memoryNotationStore, type Connection, type GenerateResult
+  any, architect, bind, cascade, connection, inject, named,
+  memoryNotationStore, type Connection, type GenerateResult, type ModelConnection
 } from "@effect-agent/core"
 
 // ── runtime connections (the pool the architecture's slots bind from) ──
@@ -22,7 +22,9 @@ const dashboards = connection("grafana", [
     output: { type: "object" },
     execute: () => Effect.succeed({ dashboards: ["latency", "errors"] })
   }
-])
+], memoryNotationStore([
+  { target: "tool:list_dashboards", instructions: ["List the monitoring dashboards available for the fleet."] }
+]))
 const monitoring = connection("prometheus", [
   {
     name: "query",
@@ -30,7 +32,9 @@ const monitoring = connection("prometheus", [
     output: { type: "object" },
     execute: () => Effect.succeed({ value: 0.42 })
   }
-])
+], memoryNotationStore([
+  { target: "tool:query", instructions: ["Run a metrics query against the fleet."] }
+]))
 const github = connection("github", [
   {
     name: "create_issue",
@@ -38,7 +42,9 @@ const github = connection("github", [
     output: { type: "object" },
     execute: () => Effect.succeed({ issue: 17 })
   }
-])
+], memoryNotationStore([
+  { target: "tool:create_issue", instructions: ["File ONE issue per incident; link the dashboard in the body."] }
+]))
 const stack = connection("stack", []) as Connection & { members?: ReadonlyArray<Connection> }
 stack.members = [dashboards, github]
 
@@ -65,7 +71,7 @@ const notation = memoryNotationStore([
 ])
 
 // ── a scripted provider connection (swap openaiProvider/anthropicProvider in for real) ──
-const scriptedProvider = (script: GenerateResult[]): Connection => {
+const scriptedProvider = (script: GenerateResult[]): ModelConnection => {
   const queue = [...script]
   return {
     name: "scripted",
@@ -87,15 +93,15 @@ const opsLead = architect({
     dashboards: named("grafana"),
     monitoring: any(),
     stack: cascade([]),
-    docs: notated()
+    docs: named("docs")
   },
   agents: [reviewer],
   prompt: "ops-lead/prompt"
 })
 
-// what the model will see for the notated tool: description from the store
-const notatedBinding = bind(notated(), notes)
-console.log("notated description:", String(notatedBinding[0]?.description))
+// what the model will see: prose resolved from the connection's store at bind
+const docsBinding = bind(named("docs"), notes)
+console.log("model-facing description:", String(docsBinding[0]?.description))
 
 // ── 2. the injection: notation + provider + connections → executable agent ──
 const model = scriptedProvider([

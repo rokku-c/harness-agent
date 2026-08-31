@@ -10,9 +10,9 @@ every operation is an Effect with typed errors.
 ### Connection (the layered abstraction)
 
 A **Connection** is the injectable unit: a named surface of tools (JSON-Schema
-input/output, MCP-native) plus optional notation. An agent architecture
-declares HOW it accepts connections - the six declaration modes, declared
-**before** its shape:
+input/output, MCP-native) plus the notation store its prose lives in. An agent
+architecture declares HOW it accepts connections - the five declaration modes,
+declared **before** its shape:
 
 | mode | declaration | matching |
 |---|---|---|
@@ -21,13 +21,23 @@ declares HOW it accepts connections - the six declaration modes, declared
 | shaped | `shaped(shape)` | verifies the connection's tools against declared schemas (fails loud) |
 | named + shaped | `namedShaped([...], shape)` | both |
 | cascade | `cascade([...])` | a connection of connections; members flatten recursively to `stack__member__tool` |
-| notated | `notation` on the connection | model-facing prose resolves from the notation store |
 
-There is **no LLM concept**. The model is a connection: a built-in
-**provider connection** carrying the generate capability
-(`openaiProvider(config)`, `anthropicProvider(config)` - zero dependencies,
-plain fetch under `Effect.tryPromise`). The MCP adapter (`mcpConnection`)
-brings any MCP server in as an ordinary connection.
+## The prose rule is absolute
+
+A **Tool carries no description**. Every model-facing text - authored or
+external - lives in a notation store and resolves at bind time onto the
+BoundTool (the wire artifact). A tool-bearing connection without a store
+entry for a tool fails loud. Even the MCP adapter normalizes the server's
+descriptions into a store, so every route to the model goes through the
+same mechanism.
+
+There is **no LLM concept**. The model is a connection: a
+**ModelConnection** - the Connection subtype carrying the generate
+capability (`openaiProvider(config)`, `anthropicProvider(config)` - zero
+dependencies, plain fetch under `Effect.tryPromise`). The base Connection
+does not know the model exists; the type system guarantees the runtime
+gets a real provider. The MCP adapter (`mcpConnection`) brings any MCP
+server in as an ordinary connection.
 
 ### Agent architecture (a blueprint, not a runnable thing)
 

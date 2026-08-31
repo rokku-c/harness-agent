@@ -29,7 +29,9 @@ const weather = connection("weather", [{
     const { city } = input as { city: string }
     return Effect.succeed({ city, temperature: 24, condition: "sunny" })
   }
-}])
+}], memoryNotationStore([
+  { target: "tool:lookup", instructions: ["Look up the current weather for a city."] }
+]))
 
 const weatherAssistant = architect({
   name: "weather-assistant",

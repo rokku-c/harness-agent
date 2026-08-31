@@ -1,14 +1,19 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { any, bind, cascade, connection, memoryNotationStore, named, namedShaped, notated, shaped, type ToolNamesOf } from "../src/index.ts"
+import { any, bind, cascade, connection, memoryNotationStore, named, namedShaped, shaped, type ToolNamesOf } from "../src/index.ts"
 import type { Connection } from "../src/index.ts"
+
+// every tool-bearing connection carries its prose store - descriptions
+// resolve at bind time and exist only on the bound tool
+const weatherStore = () => memoryNotationStore([{ target: "tool:lookup", instructions: ["Look up current weather."] }])
+const grafanaStore = () => memoryNotationStore([{ target: "tool:list_dashboards", instructions: ["List the dashboards."] }])
 
 const grafana = connection("grafana", [
   { name: "list_dashboards", input: { type: "object" }, output: { type: "array" }, execute: () => Effect.succeed([]) }
-])
+], grafanaStore())
 const weather = connection("weather", [
   { name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }
-])
+], weatherStore())
 
 describe("connection declarations", () => {
   test("any: accepts any connection under the fixed prefix", () => {
@@ -69,16 +74,28 @@ describe("connection declarations", () => {
     ])
   })
 
-  test("notated: descriptions resolve from the connection's notation store", () => {
-    const store = memoryNotationStore([{ target: "tool:lookup", instructions: ["Look up current weather."] }])
-    const conn = connection("weather", [{ name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }], store)
-    const bound = bind(notated(), conn)
+  test("prose: every bound tool's description resolves from the connection's store", () => {
+    const bound = bind(named("weather"), weather)
     expect(String(bound[0]?.description)).toBe("Look up current weather.")
   })
 
-  test("notated: fails loud when the connection carries no store", () => {
-    expect(() => bind(notated(), weather)).toThrow(/carries no notation store/)
+  test("prose: fails loud when the connection carries no store", () => {
+    const bare = connection("weather", [{ name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }])
+    expect(() => bind(named("weather"), bare)).toThrow(/has no notation store/)
   })
+
+  test("prose: fails loud when the store lacks the tool's entry", () => {
+    const wrongStore = connection("weather", [
+      { name: "lookup", input: { type: "object" }, output: { type: "object" }, execute: () => Effect.succeed({}) }
+    ], memoryNotationStore([{ target: "tool:other", instructions: ["unrelated"] }]))
+    expect(() => bind(named("weather"), wrongStore)).toThrow(/no notation entry for tool "lookup"/)
+  })
+
+  test("a tool-bearing connection needs no store only when it has no tools", () => {
+    const empty = connection("empty", [])
+    expect(bind(any(), empty)).toHaveLength(0)
+  })
+})
 
 describe("type-level tool names", () => {
   test("ToolNamesOf composes literal prefixes from the spec", () => {
@@ -96,5 +113,4 @@ describe("type-level tool names", () => {
     const a4: "mcp__anything" extends ToolNamesOf<Pick<typeof spec, "monitoring">> ? true : false = true
     void a1; void a2; void a3; void a4
   })
-})
 })

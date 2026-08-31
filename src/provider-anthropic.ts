@@ -3,7 +3,7 @@
  * under Effect.tryPromise). The model IS a connection.
  */
 import { Effect } from "effect"
-import type { Connection, Tool } from "./connection.ts"
+import type { BoundTool, ModelConnection } from "./connection.ts"
 import type { GenerateResult, Message } from "./message.ts"
 
 export interface AnthropicConfig {
@@ -33,16 +33,15 @@ const toWire = (messages: ReadonlyArray<Message>) =>
     return { role: "user", content: [{ type: "text", text: message.content }] }
   })
 
-const toTools = (tools: ReadonlyArray<Tool>) =>
+const toTools = (tools: ReadonlyArray<BoundTool>) =>
   tools.map((tool) => ({
-    // a bound tool presents its bound name (the prefix the agent declared)
-    name: (tool as { boundName?: string }).boundName ?? tool.name,
-    description: tool.description ?? "",
+    name: tool.boundName,
+    description: tool.description,
     input_schema: tool.input
   }))
 
 const anthropicGenerate = (config: AnthropicConfig) =>
-  (systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<Tool>): Effect.Effect<GenerateResult, unknown> =>
+  (systemPrompt: string, messages: ReadonlyArray<Message>, tools: ReadonlyArray<BoundTool>): Effect.Effect<GenerateResult, unknown> =>
     Effect.tryPromise({
       try: async () => {
         const response = await fetch(`${config.baseUrl ?? "https://api.anthropic.com"}/v1/messages`, {
@@ -75,7 +74,7 @@ const anthropicGenerate = (config: AnthropicConfig) =>
     })
 
 /** The built-in Anthropic provider connection (name: "anthropic"). */
-export const anthropicProvider = (config: AnthropicConfig): Connection => ({
+export const anthropicProvider = (config: AnthropicConfig): ModelConnection => ({
   name: "anthropic",
   tools: [],
   generate: anthropicGenerate(config)

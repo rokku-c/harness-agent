@@ -16,7 +16,7 @@
  * a Layer, and every operation returns an Effect with typed errors.
  */
 import { Context, Effect, Layer, Ref } from "effect"
-import type { BoundTool, Connection, ConnectionDecl, ConnectionSpec, Tool } from "./connection.ts"
+import type { BoundTool, Connection, ConnectionDecl, ConnectionSpec, ModelConnection, Tool } from "./connection.ts"
 import { bind } from "./connection.ts"
 import type { Message, Turn } from "./message.ts"
 import { resolveNotation, type NotationStore } from "./notation.ts"
@@ -32,7 +32,6 @@ export type AgentError =
 export type BindError = { readonly _tag: "BindFailed"; readonly agent: string; readonly cause: string }
 
 export type InjectError =
-  | { readonly _tag: "NotProvider"; readonly connection: string }
   | { readonly _tag: "PromptUnresolved"; readonly target: string; readonly cause: string }
   | { readonly _tag: "DepFailed"; readonly agent: string; readonly cause: string }
   | BindError
@@ -140,7 +139,7 @@ export const architect = (def: ArchitectureInput): ArchitectureInput => {
  */
 export interface Activation {
   readonly notation: NotationStore
-  readonly model: Connection
+  readonly model: ModelConnection
   readonly connections?: ReadonlyArray<Connection>
   /** Interpolation variables for the notation targets ({team} etc.). */
   readonly vars?: Record<string, unknown>
@@ -149,12 +148,12 @@ export interface Activation {
 const declNames = (decl: ConnectionDecl): string[] =>
   decl._tag === "Named" || decl._tag === "NamedShaped" ? [...decl.names] : []
 
-type BoundTools = { tools: ReadonlyArray<Tool>; names: Map<string, Tool> }
+type BoundTools = { tools: ReadonlyArray<BoundTool>; names: Map<string, BoundTool> }
 
 /** Agent dependencies are static composition: bound at injection time. */
 const depTools = (deps: ReadonlyArray<AgentShape>): BoundTools => {
-  const names = new Map<string, Tool>()
-  const tools: Tool[] = []
+  const names = new Map<string, BoundTool>()
+  const tools: BoundTool[] = []
   for (const dep of deps) {
     const toolName = `${dep.name}__invokeMessage`
     const tool: Tool = {
@@ -163,8 +162,15 @@ const depTools = (deps: ReadonlyArray<AgentShape>): BoundTools => {
       output: { type: "string" },
       execute: (input: unknown) => dep.invokeMessage(String((input as { message: string }).message))
     }
-    names.set(toolName, tool)
-    tools.push(tool)
+    const bound: BoundTool = {
+      ...tool,
+      boundName: toolName,
+      source: dep.name,
+      // mechanical prose, not authored: the invocation surface names itself
+      description: `Invoke the agent "${dep.name}" with a message.`
+    }
+    names.set(toolName, bound)
+    tools.push(bound)
   }
   return { tools, names }
 }
@@ -176,9 +182,7 @@ const depTools = (deps: ReadonlyArray<AgentShape>): BoundTools => {
  */
 export const inject = (architecture: Architecture, activation: Activation): Effect.Effect<AgentShape, InjectError> =>
   Effect.gen(function* () {
-    // the model must be a provider connection
-    if (activation.model.generate === undefined)
-      return yield* Effect.fail<InjectError>({ _tag: "NotProvider", connection: activation.model.name })
+    // the model is a ModelConnection - the type system guarantees generate
     const generate = activation.model.generate
 
     // agent dependencies: architectures inject recursively with the same activation
@@ -214,8 +218,8 @@ export const inject = (architecture: Architecture, activation: Activation): Effe
       Effect.try({
         try: () => {
           const specs = Object.entries(architecture.connections)
-          const tools: Tool[] = []
-          const names = new Map<string, Tool>()
+          const tools: BoundTool[] = []
+          const names = new Map<string, BoundTool>()
           const claimed = new Set<string>()
           // two passes: specific slots (keyed / named / shaped / cascade)
           // match first; any-mode slots take the leftovers - so an any slot

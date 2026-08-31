@@ -2,7 +2,7 @@
  * LIVE composition: the full architecture story against the real provider.
  *
  * Two architectures (ops-lead composes reviewer) + four connection modes
- * (named / cascade / notated / any-slot idle) + {var} interpolation - all
+ * (named / cascade / notated-prose / any-slot idle) + {var} interpolation - all
  * model-facing prose resolved from notation stores, the real model driving
  * the tool loop end to end.
  *
@@ -11,7 +11,7 @@
 import { Effect } from "effect"
 import {
   anthropicProvider, architect, bind, cascade, connection, inject, named,
-  notated, memoryNotationStore, notatedTool, type Connection, type NotationStore
+  memoryNotationStore, type Connection, type NotationStore
 } from "@effect-agent/core"
 
 const apiKey = process.env.LLM_API_KEY
@@ -25,16 +25,16 @@ const grafanaStore = (): NotationStore => memoryNotationStore([
   { target: "tool:list_dashboards", instructions: ["List the monitoring dashboards available for the fleet."] }
 ])
 const dashboards = connection("grafana", [
-  notatedTool({
+  {
     name: "list_dashboards",
     input: { type: "object", properties: {} },
     output: { type: "object" },
     execute: () => Effect.succeed({ dashboards: ["latency", "errors", "saturation"] })
-  }, grafanaStore())
-])
+  }
+], grafanaStore())
 
 const notes = connection("docs", [
-  notatedTool({
+  {
     name: "search_notes",
     input: { type: "object", properties: { q: { type: "string" } }, required: ["q"] },
     output: { type: "object" },
@@ -42,15 +42,13 @@ const notes = connection("docs", [
       const { q } = input as { q: string }
       return Effect.succeed({ hits: [`2026-08-12 postmortem: ${q} incident, root cause was a config rollback`] })
     }
-  }, memoryNotationStore([
-    { target: "tool:search_notes", instructions: ["Search past incident notes for history and postmortems."] }
-  ]))
+  }
 ], memoryNotationStore([
   { target: "tool:search_notes", instructions: ["Search past incident notes for history and postmortems."] }
 ]))
 
 const github = connection("github", [
-  notatedTool({
+  {
     name: "create_issue",
     input: { type: "object", properties: { title: { type: "string" }, body: { type: "string" } }, required: ["title"] },
     output: { type: "object" },
@@ -58,10 +56,10 @@ const github = connection("github", [
       const { title } = input as { title: string }
       return Effect.succeed({ issue: 17, title })
     }
-  }, memoryNotationStore([
-    { target: "tool:create_issue", instructions: ["File ONE issue per incident; link the dashboard name in the body."] }
-  ]))
-])
+  }
+], memoryNotationStore([
+  { target: "tool:create_issue", instructions: ["File ONE issue per incident; link the dashboard name in the body."] }
+]))
 
 const stack = connection("stack", []) as Connection & { members?: ReadonlyArray<Connection> }
 stack.members = [dashboards, github]
@@ -80,7 +78,7 @@ const notation = memoryNotationStore([
 const reviewer = architect({ name: "reviewer", connections: {}, prompt: "reviewer/prompt" })
 const opsLead = architect({
   name: "ops-lead",
-  connections: { dashboards: named("grafana"), docs: notated(), stack: cascade([]) },
+  connections: { dashboards: named("grafana"), docs: named("docs"), stack: cascade([]) },
   agents: [reviewer],
   prompt: "ops-lead/prompt"
 })
@@ -98,9 +96,9 @@ const program = Effect.gen(function* () {
     connections: [dashboards, github, stack, notes],
     vars: { team: "platform-infra" }
   })
-  // what the notated slot bound (description resolved from the store)
-  const bound = bind(notated(), notes)
-  console.log("bound notated tool:", bound.map((tool) => `${tool.boundName}: ${String(tool.description)}`)[0])
+  // what the model will see: prose resolved from the connection's store
+  const bound = bind(named("docs"), notes)
+  console.log("bound docs tool:", bound.map((tool) => `${tool.boundName}: ${String(tool.description)}`)[0])
 
   const reply = yield* lead.invokeMessage("latency is spiking on prod - handle it end to end")
   console.log("reply:", reply)
