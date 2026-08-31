@@ -10,7 +10,6 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "baseUrl": ".",
     "paths": {
       "@effect-agent/core": ["./packages/core/src/index.ts"],
       "@effect-agent/builtin": ["./packages/builtin/src/index.ts"]
