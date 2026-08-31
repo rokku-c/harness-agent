@@ -80,10 +80,28 @@ Definitions reference targets, never prose (`src/notation.ts`). The
 architecture is inert prose-free data; the notation store injected at
 activation is the single prose source.
 
+## The definition-time code ban
+
+An architecture is PURE DATA. `architect()` enforces it on two layers:
+
+1. **Types**: `architect()` takes `ArchitectureInput` - `agents` accepts only
+   other blueprints, the connection spec accepts only the six pure-data
+   declaration modes. A ready agent (all closures) or a Connection with
+   `execute` functions cannot even typecheck into a slot.
+2. **Runtime guard**: a deep inert-walk (`Reflect.ownKeys`) rejects
+   functions, non-plain objects (console/Date/node namespaces), accessor
+   properties (getters run on read), and non-data primitives - fail-loud
+   with the precise path, e.g.
+   `architecture "bad": architecture.io is not a plain object`.
+
+Code enters the system only through connections at ACTIVATION (a tool's
+`execute`) - the definition stays inert.
+
 ## Verify
 
 ```
 bun test && npx tsc --noEmit
-bun run examples/01-connections.ts        # the full chain, scripted provider
-OPENAI_API_KEY=... bun run examples/02-live-llm.ts   # a live provider connection
+bun run examples/01-connections.ts        # all six modes + composition + rebind (scripted provider)
+bun run examples/02-live-llm.ts           # LIVE: the .env provider (anthropic-messages gateway)
+bun run examples/03-purity.ts             # the definition-time code ban in action
 ```

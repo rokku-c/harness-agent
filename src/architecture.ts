@@ -142,6 +142,8 @@ export interface Activation {
   readonly notation: NotationStore
   readonly model: Connection
   readonly connections?: ReadonlyArray<Connection>
+  /** Interpolation variables for the notation targets ({team} etc.). */
+  readonly vars?: Record<string, unknown>
 }
 
 const declNames = (decl: ConnectionDecl): string[] =>
@@ -196,7 +198,7 @@ export const inject = (architecture: Architecture, activation: Activation): Effe
     // THE injection: the notation target resolves now - before this, the
     // architecture carries no prose and can do nothing.
     const initialPrompt = yield* Effect.try({
-      try: () => resolveNotation(activation.notation, architecture.prompt) as string,
+      try: () => resolveNotation(activation.notation, architecture.prompt, activation.vars) as string,
       catch: (cause): InjectError => ({ _tag: "PromptUnresolved", target: architecture.prompt, cause: String(cause) })
     })
 
