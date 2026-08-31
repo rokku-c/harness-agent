@@ -1,23 +1,16 @@
 {
-  "name": "@effect-agent/core",
-  "version": "0.1.0",
+  "name": "effect-agent",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
   "packageManager": "bun@1.3.4",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "examples": "bun run scripts/run-examples.ts",
-    "examples:live": "bun run scripts/run-examples.ts --live"
-  },
-  "dependencies": {
-    "effect": "^3.22.1"
-  },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5.9.2"
+    "examples": "bun scripts/run-examples.ts",
+    "examples:live": "bun scripts/run-examples.ts --live"
   }
 }
