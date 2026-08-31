@@ -8,7 +8,7 @@
  *
  * Run: bun run examples/03-purity.ts
  */
-import { architect, named } from "../src/index.ts"
+import { architect, named } from "@effect-agent/core"
 
 const attempt = (label: string, build: () => unknown): void => {
   try {

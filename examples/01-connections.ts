@@ -12,7 +12,7 @@ import { Effect } from "effect"
 import {
   any, architect, bind, cascade, connection, inject, named, notated,
   memoryNotationStore, type Connection, type GenerateResult
-} from "../src/index.ts"
+} from "@effect-agent/core"
 
 // ── runtime connections (the pool the architecture's slots bind from) ──
 const dashboards = connection("grafana", [

@@ -5,7 +5,7 @@
  * Run: bun run examples/02-live-llm.ts
  */
 import { Effect } from "effect"
-import { anthropicProvider, architect, connection, inject, memoryNotationStore, named } from "../src/index.ts"
+import { anthropicProvider, architect, connection, inject, memoryNotationStore, named } from "@effect-agent/core"
 
 // bun auto-loads .env - the same provider key the earlier config used
 const apiKey = process.env.LLM_API_KEY
