@@ -9,6 +9,7 @@ import {
   AgentRegistry, AgentRuntime, Boards, Groups, notationText, Op,
   type Binding, type Watch
 } from "@effect-agent/core"
+import { batchOps } from "./batch.ts"
 import { boardOps } from "./boards.ts"
 import { groupOps } from "./groups.ts"
 import { progressOp } from "./signals.ts"
@@ -96,7 +97,7 @@ export const runtimeBinding: Binding<any, any, AgentRuntime | AgentRegistry | Bo
     _tag: "Text" as const,
     text: "Registered agents you may spawn: " + (registry.names().join(", ") || "(none)")
   })),
-  ops: [...spawnOps(), ...signalOps(), ...groupOps(), ...boardOps(), progressOp()]
+  ops: [...spawnOps(), ...batchOps(), ...signalOps(), ...groupOps(), ...boardOps(), progressOp()]
 }
 
 /** The least-privilege child surface: boards and progress, nothing else. */

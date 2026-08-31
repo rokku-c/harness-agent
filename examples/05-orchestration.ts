@@ -32,11 +32,30 @@ const reviewerDriver: Driver<never> = {
   run: <A, R>(_request: RunRequest<A, R>) => Effect.succeed("reviewed" as A)
 }
 
+// a batch worker: stateless - it knows its round from the thread (a tool
+// result means it already posted). The supervisor fans it out with
+// map_children over a task list, bounded concurrency.
+const scannerModel = (): Model => ({
+  generate: (_s: string, messages: ReadonlyArray<WireMessage>) => {
+    const alreadyPosted = messages.some((m) => m.role === "tool")
+    if (alreadyPosted) return Effect.succeed({ text: "scan done", toolCalls: [] })
+    const task = messages.find((m) => m.role === "user")?.content ?? "unknown"
+    return Effect.succeed({
+      text: "",
+      toolCalls: [{ id: "b", name: "post_board", input: { board: "ea://board/findings", text: "scanned: " + task } }]
+    })
+  }
+})
+
 const registry = {
   worker: Agent.define("worker", (task: string) => AgentContext.text(task))
     .returns(Until.text)
     .writes(childBinding)
     .implementedBy(EffectAgent.make({ model: workerModel("completed the narrow investigation") })),
+  scanner: Agent.define("scanner", (task: string) => AgentContext.text(task))
+    .returns(Until.text)
+    .writes(childBinding)
+    .implementedBy(EffectAgent.make({ model: scannerModel() })),
   reviewer: Agent.define("reviewer", (task: string) => AgentContext.text(task))
     .returns(Until.text)
     .implementedBy(reviewerDriver)
@@ -54,8 +73,9 @@ const supervisorModel = (): Model => {
       } }
     ] },
     { text: "", toolCalls: [{ id: "c4", name: "wait_children", input: { mode: "all" } }] },
-    { text: "", toolCalls: [{ id: "c5", name: "read_board", input: { board: "ea://board/findings" } }] },
-    { text: "Merged findings from both workers; the reviewer was forked on progress.", toolCalls: [] }
+    { text: "", toolCalls: [{ id: "c5", name: "map_children", input: { agent: "scanner", tasks: ["alpha", "beta", "gamma"], concurrency: 2 } }] },
+    { text: "", toolCalls: [{ id: "c6", name: "read_board", input: { board: "ea://board/findings" } }] },
+    { text: "Merged: two worker findings plus three scans; the reviewer was forked on progress.", toolCalls: [] }
   ]
   return {
     generate: () => {

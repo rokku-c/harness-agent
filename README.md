@@ -99,12 +99,34 @@ Structured concurrency holds throughout: children are `forkScoped` into
 the supervisor's scope, so they die with it; `wait("all" | "first")`
 joins them as `ChildResult` data (completed / failed / interrupted).
 
+## Batches: map / filter / reduce over children
+
+Large-scale parallel manipulation takes its shape from collection algebra,
+composed from the kernel - no new machinery:
+
+- **map** - `map_children { agent, tasks, concurrency, join }` fans out one
+  child per task with bounded concurrency and (by default) returns every
+  result: a parallel map in one tool call.
+- **filter** - `children_where { agent?, status? }` selects children;
+  act on the matches with `send_child` / `interrupt_child`.
+- **reduce** - deliberately not an op: a **board is the accumulator**
+  (`post_board` folds, `read_board` finalizes - append is a monoid), and
+  small result sets reduce in the supervisor's context straight from
+  `map_children`'s return. Combine with watch rules for reactive batches:
+  a responder forks the moment a child reports.
+
+```ts
+// one call: three scans, two running at a time, results folded back
+{ tool: "map_children", input: { agent: "scanner",
+  tasks: ["alpha", "beta", "gamma"], concurrency: 2 } }
+```
+
 ## Verify
 
 ```bash
 bun install
 bun run typecheck          # tsc --noEmit
-bun test                   # 30 tests
+bun test                   # 32 tests
 bun run examples           # offline examples (01, 02, 05)
 bun run examples 03 --live # live provider roundtrip (config.toml + .env)
 bun run examples 06 --live # live supervisor spawning real subagents

@@ -4,7 +4,7 @@ import {
   Agent, AgentContext, AgentRuntime, Boards, Groups, Op, notationText,
   Until, type Binding, type RunRequest
 } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, childBinding, groupOps, progressOp, type Model, type WireMessage } from "@effect-agent/builtin"
+import { EffectAgent, FiberAgentRuntime, batchOps, childBinding, groupOps, progressOp, type Model, type WireMessage } from "@effect-agent/builtin"
 
 const noopBinding = (): Binding => ({
   uri: "ea://svc/noop/main",
@@ -211,6 +211,53 @@ describe("FiberAgentRuntime: supervision as fibers", () => {
     expect(outcome.results[0]?.output).toBe("saw the group post")
     const last = model.seen[model.seen.length - 1] ?? []
     expect(last.some((m) => m.role === "user" && m.content.includes("please expedite"))).toBe(true)
+  })
+
+  test("map_children: bounded parallel map over a task list", async () => {
+    const agents = {
+      worker: scriptedAgent("worker", "w1"),
+      idle: scriptedAgent("idle", "i1")
+    }
+    const results = await Effect.runPromise(
+      Effect.gen(function* () {
+        const mapOp = batchOps().find((op) => op.name === "map_children")!
+        const executed = yield* (mapOp.execute as (input: unknown) => Effect.Effect<unknown, unknown>)({
+          agent: "worker",
+          tasks: ["t1", "t2", "t3", "t4"],
+          concurrency: 2
+        })
+        const all = yield* (batchOps().find((op) => op.name === "children_where")!
+          .execute as (input: unknown) => Effect.Effect<unknown, unknown>)({})
+        return { results: executed, all }
+      }).pipe(Effect.scoped, Effect.provide(provide(agents)))
+    )
+    const mapped = results.results as Array<{ status: string; output: string }>
+    expect(mapped).toHaveLength(4)
+    expect(mapped.every((r) => r.status === "completed" && r.output === "w1")).toBe(true)
+    const all = results.all as Array<{ agent: string; status: string }>
+    expect(all.filter((c) => c.agent === "worker")).toHaveLength(4)
+    expect(all.filter((c) => c.agent === "idle")).toHaveLength(0)
+  })
+
+  test("children_where filters by agent and status", async () => {
+    const agents = {
+      worker: scriptedAgent("worker", "w"),
+      idle: scriptedAgent("idle", "i")
+    }
+    const outcome = await Effect.runPromise(
+      Effect.gen(function* () {
+        const rt = yield* AgentRuntime
+        yield* rt.spawn("worker", "t1")
+        yield* rt.spawn("idle", "t2")
+        const whereOp = batchOps().find((op) => op.name === "children_where")!
+        const run = yield* (whereOp.execute as (input: unknown) => Effect.Effect<unknown, unknown>)({ agent: "worker", status: "running" })
+        const failed = yield* (whereOp.execute as (input: unknown) => Effect.Effect<unknown, unknown>)({ status: "failed" })
+        return { run, failed }
+      }).pipe(Effect.scoped, Effect.provide(provide(agents)))
+    )
+    expect((outcome.run as Array<{ agent: string }>)).toHaveLength(1)
+    expect((outcome.run as Array<{ agent: string }>)[0]?.agent).toBe("worker")
+    expect(outcome.failed).toHaveLength(0)
   })
 
   test("watch rules fork responders at declared moments", async () => {
