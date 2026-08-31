@@ -13,13 +13,14 @@ const weatherOp = () => Op.read({
 
 type Script = Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }>
 
-const scriptedModel = (script: Script): Model & { calls: number; lastTools?: ReadonlyArray<WireTool> } => {
+const scriptedModel = (script: Script): Model & { calls: number; lastTools?: ReadonlyArray<WireTool>; lastThread?: ReadonlyArray<WireMessage> } => {
   const queue = [...script]
   const model: any = {
     calls: 0,
-    generate: (_s: string, _m: ReadonlyArray<WireMessage>, tools: ReadonlyArray<WireTool>) => {
+    generate: (_s: string, messages: ReadonlyArray<WireMessage>, tools: ReadonlyArray<WireTool>) => {
       model.calls++
       model.lastTools = tools
+      model.lastThread = messages
       return Effect.succeed(queue.shift() ?? { text: "done", toolCalls: [] })
     }
   }
@@ -111,11 +112,15 @@ describe("EffectAgent: the default loop", () => {
     expect(model.lastTools).toHaveLength(1)
   })
 
-  test("unknown op call fails loud", async () => {
-    const model = scriptedModel([{ text: "", toolCalls: [{ id: "t", name: "nope", input: {} }] }])
-    const failed = await Effect.runPromise(runAgent(model, Until.text).pipe(Effect.either))
-    expect(failed._tag).toBe("Left")
-    if (failed._tag === "Left") expect((failed.left as { cause?: string }).cause).toContain("unknown op")
+  test("unknown op is a recoverable tool error fed back to the model", async () => {
+    const model = scriptedModel([
+      { text: "", toolCalls: [{ id: "t", name: "nope", input: {} }] },
+      { text: "recovered" }
+    ])
+    const result = await Effect.runPromise(runAgent(model, Until.text))
+    expect(result).toBe("recovered")
+    const last = model.lastThread?.[model.lastThread.length - 1]
+    expect(last?.role === "tool" && last.content.includes("unknown tool nope")).toBe(true)
   })
 
   test("maxSteps bounds the loop", async () => {

@@ -57,12 +57,55 @@ catalog (`config.toml` + `.env`, `anthropic.messages` / `openai.chat`).
 loop, tools and runtime. Binding ops become native MCP tools inside its
 process; the Until condition decides what comes back.
 
+## Orchestration: sessions, signals, and the runtime
+
+Supervision is not a framework feature - it is the same algebra, applied
+recursively. The runtime provides three primitives, all URI-addressable or
+data-shaped:
+
+- **AgentSession** - an optional Effect service the runtime gives each run:
+  a signal box (in) and an event bus (out). The EffectAgent loop drains the
+  signal box at every step boundary: `Inject` appends to the context and
+  thread, `Interrupt` ends the run cooperatively. Anyone holding a child's
+  session can inject or interrupt it mid-run.
+- **Watch rules** - declarative timing: `{ when: { kind: "progress" },
+  spawn: { agent, task } }` forks a responder the moment a child emits the
+  declared event. Task templates interpolate `{child}`, `{agent}`,
+  `{text}`.
+- **Boards & groups** - pure `Ref`-backed structures behind
+  `ea://board/<name>` and `ea://group/<name>`: shared whiteboards children
+  post to, and fan-out channels whose posts land in every member's signal
+  box.
+
+The **runtime ops** are a binding (`ea://runtime/agents`): spawn_agent /
+send_child / interrupt_child / wait_children / report_progress /
+create_board / post_board / read_board / create_group / post_group /
+read_group. A supervisor is just an agent that `.writes(runtimeBinding)`;
+its model sees the registry roster (materialized from the binding's read)
+and drives coordination as ordinary tool calls. Children receive the same
+runtime and registry, so orchestration recurses.
+
+```ts
+const Supervisor = Agent
+  .define("supervisor", (goal: string) => AgentContext.text("Goal: " + goal))
+  .returns(Until.text)
+  .writes(runtimeBinding)                    // coordination ops as tools
+  .implementedBy(EffectAgent.make({ model }))
+
+// provide FiberAgentRuntime.layer(registry) - children run as scoped fibers
+```
+
+Structured concurrency holds throughout: children are `forkScoped` into
+the supervisor's scope, so they die with it; `wait("all" | "first")`
+joins them as `ChildResult` data (completed / failed / interrupted).
+
 ## Verify
 
 ```bash
 bun install
 bun run typecheck          # tsc --noEmit
-bun test                   # 23 tests
-bun run examples           # offline examples
+bun test                   # 30 tests
+bun run examples           # offline examples (01, 02, 05)
 bun run examples 03 --live # live provider roundtrip (config.toml + .env)
+bun run examples 06 --live # live supervisor spawning real subagents
 ```
