@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import {
   Agent, architect, any, bind, connection, inject, layer, named,
-  memoryNotationStore, openaiProvider, type Connection, type GenerateResult, type AgentShape
+  memoryNotationStore, openaiProvider, type ArchitectureInput, type Connection, type GenerateResult, type AgentShape
 } from "../src/index.ts"
 
 const weather = connection("weather", [{
@@ -170,5 +170,42 @@ describe("agent architecture", () => {
     // and they bind like any connection would
     expect(bind(named("openai"), model)).toHaveLength(0)
     void ({} as AgentShape)
+  })
+})
+
+describe("architecture purity - no code in the blueprint", () => {
+  test("a function anywhere in the blueprint fails loud with its path", () => {
+    expect(() => architect({ name: "bad", connections: {}, prompt: "t/p",
+      maxSteps: Number.isInteger(8) ? 8 : 8 })).not.toThrow()
+    expect(() => architect({ name: "bad", connections: {}, prompt: "t/p",
+      // @ts-expect-error - smuggling a function into the blueprint
+      onData: () => console.log("leak") })).toThrow(/architecture "bad": architecture.onData is a function/)
+  })
+
+  test("a ready agent cannot ride the blueprint (closures are code)", () => {
+    const readyAgent = { name: "r", invokeMessage: () => Effect.succeed("x"), applyTools: () => Effect.void,
+      updateSystemPrompt: () => Effect.void, listTurns: Effect.succeed([]), listMessages: Effect.succeed([]),
+      asConnection: { name: "r", tools: [] } } as unknown as ArchitectureInput
+    expect(() => architect({ name: "bad", connections: {}, prompt: "t/p", agents: [readyAgent] }))
+      .toThrow(/agents\[0\].invokeMessage is a function/)
+  })
+
+  test("class instances (console, fs namespace, Date) are rejected", () => {
+    expect(() => architect({ name: "bad", connections: {}, prompt: "t/p",
+      // @ts-expect-error - smuggling a namespace object
+      io: console })).toThrow(/pure data/)
+    expect(() => architect({ name: "bad", connections: {}, prompt: "t/p",
+      // @ts-expect-error - smuggling a class instance
+      at: new Date() })).toThrow(/architecture.at is not a plain object/)
+  })
+
+  test("accessor properties (getters run code on read) are rejected", () => {
+    const sneaky: Record<string, unknown> = { name: "bad", connections: {}, prompt: "t/p" }
+    Object.defineProperty(sneaky, "lazy", { enumerable: true, get: () => console.log("side effect") })
+    expect(() => architect(sneaky as unknown as ArchitectureInput)).toThrow(/architecture.lazy is an accessor property/)
+  })
+
+  test("a valid pure-data blueprint passes the walk", () => {
+    expect(() => architect({ name: "ok", connections: { sky: named("weather") }, prompt: "ok/p", maxSteps: 4 })).not.toThrow()
   })
 })

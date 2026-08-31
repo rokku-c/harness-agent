@@ -78,8 +78,60 @@ export interface Architecture {
   readonly maxSteps?: number
 }
 
+/**
+ * The blueprint as PURE DATA: unlike the runtime Architecture, `agents`
+ * accepts only other blueprints - a ready agent (full of closures) cannot
+ * even typecheck here. Combined with the deep inert-walk in `architect`,
+ * this is the definition-time ban on console/fs/any code: an architecture
+ * is data, and code enters only through connections at activation.
+ */
+export interface ArchitectureInput {
+  readonly name: string
+  readonly connections: ConnectionSpec
+  readonly agents?: ReadonlyArray<ArchitectureInput>
+  readonly prompt: string
+  readonly maxSteps?: number
+}
+
+/**
+ * Deep inert-walk: every value in the blueprint must be plain data. Rejects
+ * functions (console/fs/execute closures), non-plain objects (class
+ * instances like the node built-ins), accessor properties (getters run
+ * code on read), and primitives outside the data set - with the precise
+ * path of the offender.
+ */
+const assertInert = (name: string, value: unknown, path: string): void => {
+  if (value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean")
+    return
+  if (typeof value === "function")
+    throw new Error(
+      `architecture "${name}": ${path} is a function - architectures are pure data; ${path === "architecture" ? "code enters through connections at activation" : "move this into a connection's tool execute (injected at activation)"}`
+    )
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => assertInert(name, entry, `${path}[${index}]`))
+    return
+  }
+  if (typeof value === "object") {
+    const proto = Object.getPrototypeOf(value)
+    if (proto !== Object.prototype && proto !== null)
+      throw new Error(`architecture "${name}": ${path} is not a plain object (prototype ${proto?.constructor?.name ?? "unknown"}) - architectures are pure data`)
+    // Reflect.ownKeys: also catches non-enumerable accessors and symbol keys
+    for (const key of Reflect.ownKeys(value)) {
+      const desc = Object.getOwnPropertyDescriptor(value, key)
+      if (desc !== undefined && (desc.get !== undefined || desc.set !== undefined))
+        throw new Error(`architecture "${name}": ${path}.${String(key)} is an accessor property - architectures are pure data`)
+      assertInert(name, desc?.value, `${path}.${String(key)}`)
+    }
+    return
+  }
+  throw new Error(`architecture "${name}": ${path} is ${typeof value} - not allowed in a pure-data architecture`)
+}
+
 /** Define an agent architecture - an inert blueprint, not a runnable thing. */
-export const architect = (def: Architecture): Architecture => def
+export const architect = (def: ArchitectureInput): ArchitectureInput => {
+  assertInert(def.name, def, "architecture")
+  return def
+}
 
 /**
  * The activation: notation (the prose layer), the model (a built-in provider
