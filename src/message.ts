@@ -4,7 +4,12 @@
  */
 export type Message =
   | { readonly role: "user"; readonly content: string }
-  | { readonly role: "assistant"; readonly content: string }
+  | {
+      readonly role: "assistant"
+      readonly content: string
+      /** The calls the model made - real wires require them on the assistant message. */
+      readonly toolCalls?: ReadonlyArray<LlmToolCall>
+    }
   /** The tool result correlates to its call by id (real protocols require it). */
   | { readonly role: "tool"; readonly id: string; readonly name: string; readonly content: string }
 

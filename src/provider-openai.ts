@@ -16,16 +16,29 @@ export interface OpenAiConfig {
 
 const toWire = (systemPrompt: string, messages: ReadonlyArray<Message>) => [
   { role: "system", content: systemPrompt },
-  ...messages.map((message): Record<string, unknown> =>
-    message.role === "tool"
-      ? { role: "tool", tool_call_id: message.id, content: message.content }
-      : { role: message.role, content: message.content })
+  ...messages.map((message): Record<string, unknown> => {
+    if (message.role === "tool")
+      return { role: "tool", tool_call_id: message.id, content: message.content }
+    if (message.role === "assistant" && message.toolCalls !== undefined && message.toolCalls.length > 0)
+      // the wire requires the assistant message to carry its tool_calls
+      return {
+        role: "assistant",
+        content: message.content.length > 0 ? message.content : null,
+        tool_calls: message.toolCalls.map((call) => ({
+          id: call.id,
+          type: "function",
+          function: { name: call.name, arguments: JSON.stringify(call.input) }
+        }))
+      }
+    return { role: message.role, content: message.content }
+  })
 ]
 
 const toTools = (tools: ReadonlyArray<Tool>) =>
   tools.map((tool) => ({
     type: "function",
-    function: { name: tool.name, description: tool.description ?? "", parameters: tool.input }
+    // a bound tool presents its bound name (the prefix the agent declared)
+    function: { name: (tool as { boundName?: string }).boundName ?? tool.name, description: tool.description ?? "", parameters: tool.input }
   }))
 
 const openaiGenerate = (config: OpenAiConfig) =>

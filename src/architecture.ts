@@ -215,7 +215,8 @@ export const inject = (architecture: Architecture, activation: Activation): Effe
           generate(systemPrompt, log, boundNow.tools),
           (cause): AgentError => ({ _tag: "GenerateFailed", agent: architecture.name, cause })
         )
-        yield* Ref.update(messages, (ms): ReadonlyArray<Message> => [...ms, { role: "assistant", content: result.text }])
+        yield* Ref.update(messages, (ms): ReadonlyArray<Message> =>
+          [...ms, { role: "assistant", content: result.text, toolCalls: result.toolCalls }])
         if (result.toolCalls.length === 0) {
           yield* closeTurn(turnStart, "complete")
           return result.text

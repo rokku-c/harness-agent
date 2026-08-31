@@ -20,14 +20,23 @@ const toWire = (messages: ReadonlyArray<Message>) =>
         role: "user",
         content: [{ type: "tool_result", tool_use_id: message.id, content: message.content }]
       }
-    if (message.role === "assistant")
-      return { role: "assistant", content: [{ type: "text", text: message.content }] }
+    if (message.role === "assistant") {
+      // the wire requires the tool_use blocks ON the assistant message that
+      // made the calls - a bare text block breaks tool_result correlation
+      const blocks: Array<Record<string, unknown>> = []
+      if (message.content.length > 0) blocks.push({ type: "text", text: message.content })
+      for (const call of message.toolCalls ?? [])
+        blocks.push({ type: "tool_use", id: call.id, name: call.name, input: call.input })
+      if (blocks.length === 0) blocks.push({ type: "text", text: "" })
+      return { role: "assistant", content: blocks }
+    }
     return { role: "user", content: [{ type: "text", text: message.content }] }
   })
 
 const toTools = (tools: ReadonlyArray<Tool>) =>
   tools.map((tool) => ({
-    name: tool.name,
+    // a bound tool presents its bound name (the prefix the agent declared)
+    name: (tool as { boundName?: string }).boundName ?? tool.name,
     description: tool.description ?? "",
     input_schema: tool.input
   }))
