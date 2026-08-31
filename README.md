@@ -101,7 +101,10 @@ Code enters the system only through connections at ACTIVATION (a tool's
 
 ```
 bun test && npx tsc --noEmit
-bun run examples/01-connections.ts        # all six modes + composition + rebind (scripted provider)
-bun run examples/02-live-llm.ts           # LIVE: the .env provider (anthropic-messages gateway)
-bun run examples/03-purity.ts             # the definition-time code ban in action
+bun run examples            # auto-discovers examples/*.ts (offline ones)
+bun run examples --live     # include the live ones (real provider, spends tokens)
+bun run examples 01         # a single example by filename fragment
 ```
+
+Examples self-describe: a filename containing `-live` runs against the real
+provider and is skipped unless `--live` is passed.
