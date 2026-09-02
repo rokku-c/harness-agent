@@ -1,5 +1,6 @@
 import { Context, Effect, Ref } from "effect"
 import type { AgentError } from "./errors.ts"
+import { eaUri } from "./uri.ts"
 
 /**
  * Coordination structures as pure data. A Board is a versioned whiteboard;
@@ -29,7 +30,7 @@ export interface BoardRef {
 export const makeBoard = (name: string): Effect.Effect<BoardRef> =>
   Effect.gen(function* () {
     const entries = yield* Ref.make<ReadonlyArray<BoardEntry>>([])
-    return { uri: "ea://board/" + name, entries }
+    return { uri: eaUri("board", name), entries }
   })
 
 export const boardPost = (board: BoardRef, author: string, text: string) =>
@@ -51,7 +52,7 @@ export const makeGroup = (name: string, children: ReadonlyArray<string>): Effect
   Effect.gen(function* () {
     const log = yield* Ref.make<ReadonlyArray<GroupEntry>>([])
     const members = Ref.unsafeMake(children)
-    return { uri: "ea://group/" + name, log, members }
+    return { uri: eaUri("group", name), log, members }
   })
 
 export const groupPost = (group: GroupRef, author: string, text: string) =>

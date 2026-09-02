@@ -5,13 +5,13 @@
  */
 import { Effect, Layer, Option, Ref, Schema } from "effect"
 import {
-  AgentFailure, AgentSession, Boards, boardPost, boardRead, makeBoard,
-  notationText, Op, type BoardRef
+  AgentFailure, AgentSession, Boards, boardPost, boardRead, eaUri, makeBoard,
+  notationText, Op, Uri, type BoardRef
 } from "@effect-agent/core"
 
 export const BoardsLayer = Layer.effect(Boards, Effect.gen(function* () {
   const boards = yield* Ref.make<ReadonlyMap<string, BoardRef>>(new Map())
-  const boardUri = (uriOrName: string) => (uriOrName.startsWith("ea://") ? uriOrName : "ea://board/" + uriOrName)
+  const boardUri = (uriOrName: string) => (Uri.isEa(uriOrName) ? uriOrName : eaUri("board", uriOrName))
   const known = (map: ReadonlyMap<string, BoardRef>) => [...map.keys()].join(", ")
 
   return {

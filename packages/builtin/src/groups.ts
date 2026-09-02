@@ -6,13 +6,13 @@
  */
 import { Effect, Layer, Option, Ref, Schema } from "effect"
 import {
-  AgentFailure, AgentRuntime, AgentSession, Groups, groupPost, groupRead, makeGroup,
-  notationText, Op, type GroupRef
+  AgentFailure, AgentRuntime, AgentSession, eaUri, Groups, groupPost, groupRead,
+  makeGroup, notationText, Op, Uri, type GroupRef
 } from "@effect-agent/core"
 
 export const GroupsLayer = Layer.effect(Groups, Effect.gen(function* () {
   const groups = yield* Ref.make<ReadonlyMap<string, GroupRef>>(new Map())
-  const groupUri = (uriOrName: string) => (uriOrName.startsWith("ea://") ? uriOrName : "ea://group/" + uriOrName)
+  const groupUri = (uriOrName: string) => (Uri.isEa(uriOrName) ? uriOrName : eaUri("group", uriOrName))
   const known = (map: ReadonlyMap<string, GroupRef>) => [...map.keys()].join(", ")
 
   return {
