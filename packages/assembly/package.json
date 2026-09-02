@@ -1,0 +1,19 @@
+{
+  "name": "@effect-agent/assembly",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/builtin": "workspace:*",
+    "@effect-agent/channel": "workspace:*",
+    "@effect-agent/gate": "workspace:*",
+    "@effect-agent/memory": "workspace:*",
+    "@effect-agent/model": "workspace:*",
+    "@effect-agent/schedule": "workspace:*",
+    "@effect-agent/state": "workspace:*",
+    "@effect-agent/tools": "workspace:*",
+    "effect": "^3.22.1"
+  }
+}

@@ -9,12 +9,27 @@ Agent<Input, Output, Error, Requirements>
     = Input -> Effect<Output, Error, Requirements>
 ```
 
-## Packages
+## Packages (layered by change axis)
 
-| package | role |
-|---|---|
-| `@effect-agent/core` | the symbolic abstractions: Content / Until / Op / Binding / Driver / Agent - pure vocabulary, zero I/O |
-| `@effect-agent/builtin` | the built-in drivers: **EffectAgent** (the default Effect-TS loop) + **ClaudeCode** (the ComposedAgent adapter) + the provider catalog |
+The core stays minimal and stable; everything else is a replaceable seam
+(Tag + Layer, agenthost-style). Swap implementations by providing Layers;
+`@effect-agent/assembly` is the composition root that turns all seams into
+one runnable instance. See [docs/layers.md](docs/layers.md) for the map.
+
+| layer | package | role |
+|---|---|---|
+| L3 core | `@effect-agent/core` | the symbolic abstractions: Content / Until / Op / Binding / Driver / Agent - pure vocabulary, zero I/O |
+| L3 core | `@effect-agent/builtin` | the built-in drivers: **EffectAgent** (the default Effect-TS loop) + **ClaudeCode** (the ComposedAgent adapter) + the provider catalog |
+| L1 base | `@effect-agent/model` | the Model contract (wire types + capabilities), openai/anthropic providers, config-driven model catalog |
+| L1 base | `@effect-agent/channel` | Ingress / Delivery adapters (inbound + outbound); MemoryChannel is the open-box default |
+| L1 base | `@effect-agent/tools` | the API-as-data tool registry (ToolDescriptor -> any surface) + MCP session adapter |
+| L2 state | `@effect-agent/state` | Store (memory/jsonl), EventLog (append-only, model-visible = logged), checkpoint persistence |
+| L2 state | `@effect-agent/memory` | remember / recall / promote: long-term memory with a pluggable learning gate |
+| L4 orchestration | `@effect-agent/gate` | pre-execution approval: AllowAll / DenyWrites / Manual (operator-confirmed) |
+| L4 orchestration | `@effect-agent/schedule` | Interval / At triggers; process-local default, external cron can implement the same service |
+| capability sandbox | `@effect-agent/script` | self-bootstrapping TS/JS tool sandbox: scripts compose toolcalls into higher tools; closure visibility + content-addressed versions + graded compatibility + one Policy type (see [docs/script-sandbox.md](docs/script-sandbox.md)) |
+| cross-cutting | `@effect-agent/assembly` | the composition root: defaultLayers(), driver(), profile-driven assembly |
+| L5 app | `app-playground` | wires all layers into a runnable agent (bun apps/playground/src/main.ts) |
 
 ## The loop as a sentence
 

@@ -1,0 +1,13 @@
+{
+  "name": "@effect-agent/script",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/tools": "workspace:*",
+    "effect": "^3.22.1",
+    "isolated-vm": "^7.0.1"
+  }
+}

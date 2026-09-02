@@ -12,8 +12,22 @@
     "noEmit": true,
     "paths": {
       "@effect-agent/core": ["./packages/core/src/index.ts"],
-      "@effect-agent/builtin": ["./packages/builtin/src/index.ts"]
+      "@effect-agent/builtin": ["./packages/builtin/src/index.ts"],
+      "@effect-agent/model": ["./packages/model/src/index.ts"],
+      "@effect-agent/channel": ["./packages/channel/src/index.ts"],
+      "@effect-agent/tools": ["./packages/tools/src/index.ts"],
+      "@effect-agent/state": ["./packages/state/src/index.ts"],
+      "@effect-agent/memory": ["./packages/memory/src/index.ts"],
+      "@effect-agent/gate": ["./packages/gate/src/index.ts"],
+      "@effect-agent/schedule": ["./packages/schedule/src/index.ts"],
+      "@effect-agent/assembly": ["./packages/assembly/src/index.ts"]
     }
   },
-  "include": ["packages/core/src/**/*.ts", "packages/builtin/src/**/*.ts", "test/**/*.ts", "examples/**/*.ts", "scripts/**/*.ts"]
+  "include": [
+    "packages/*/src/**/*.ts",
+    "apps/**/*.ts",
+    "test/**/*.ts",
+    "examples/**/*.ts",
+    "scripts/**/*.ts"
+  ]
 }
