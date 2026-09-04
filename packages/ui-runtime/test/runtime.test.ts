@@ -138,6 +138,15 @@ test("replays a JSONL command journal", async () => {
   expect(runtime.navigation().params).toEqual({ userId: "u1" })
 })
 
+test("replays persisted runtime data", async () => {
+  const file = join(tmpdir(), `ui-data-${crypto.randomUUID()}.jsonl`)
+  const journal = makeUIJournal(file)
+  await journal.append({ kind: "set-data", path: "$.user.name", value: "Ada" })
+  const runtime = makeUIRuntime(makeDefinitionStore(), "root")
+  expect(await journal.replay(runtime)).toBe(1)
+  expect(runtime.data().get("user.name")).toBe("Ada")
+})
+
 test("restore does not duplicate history and records new commands", async () => {
   const file = join(tmpdir(), `ui-restore-${crypto.randomUUID()}`, "ui.jsonl")
   const journal = makeUIJournal(file)
