@@ -20,6 +20,20 @@ export const fetchDataSource = (url: string, init?: RequestInit): UIDataSource =
   }
 })
 
+export const cachedDataSource = (source: UIDataSource, ttlMs: number, now = () => Date.now()): UIDataSource => {
+  let cached: Record<string, unknown> | undefined
+  let expires = 0
+  return {
+    read: async (signal) => {
+      if (cached !== undefined && now() < expires) return structuredClone(cached)
+      const value = await source.read(signal)
+      cached = structuredClone(value)
+      expires = now() + Math.max(0, ttlMs)
+      return structuredClone(value)
+    }
+  }
+}
+
 export const syncDataSource = (store: UIDataStore, source: UIDataSource): UIDataSync => ({
   refresh: async (signal) => {
     const data = await source.read(signal)
