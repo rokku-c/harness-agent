@@ -2,6 +2,7 @@ import type { UICommand, UIEvent } from "@effect-agent/ui-protocol"
 import type { DefinitionStore } from "@effect-agent/ui-definition"
 import { makeActions, type NavigationState } from "./actions.ts"
 import { resolveCanvas, type ResolvedUITree } from "./index.ts"
+import { makeUIDataStore, type UIDataStore } from "./data.ts"
 
 export interface UIRuntime {
   readonly apply: (command: UICommand) => void
@@ -14,12 +15,14 @@ export interface UIRuntime {
   readonly setTheme: (theme: string) => void
   readonly renderer: () => string
   readonly setRenderer: (renderer: string) => void
+  readonly data: () => UIDataStore
 }
 
-export interface UIRuntimeOptions { readonly onCommand?: (command: UICommand) => void }
+export interface UIRuntimeOptions { readonly onCommand?: (command: UICommand) => void; readonly data?: UIDataStore }
 
 export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, options: UIRuntimeOptions = {}): UIRuntime => {
   const actions = makeActions(initialCanvas)
+  const data = options.data ?? makeUIDataStore()
   let activeTheme = "default"
   let activeRenderer = "web-html"
   return {
@@ -34,9 +37,9 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     navigation: actions.navigation,
     view: (state = {}) => {
       const nav = actions.navigation()
-      return resolveCanvas(store, nav.current, { ...state, ...nav.params }, state)
+      return resolveCanvas(store, nav.current, { ...data.snapshot(), ...state, ...nav.params }, state)
     },
-    viewCanvas: (canvasId, state = {}) => resolveCanvas(store, canvasId, state),
+    viewCanvas: (canvasId, state = {}) => resolveCanvas(store, canvasId, { ...data.snapshot(), ...state }),
     version: (canvasId) => store.getCanvas(canvasId)?.version ?? 0,
     theme: () => activeTheme,
     setTheme: (theme) => {
@@ -47,6 +50,7 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     setRenderer: (renderer) => {
       activeRenderer = renderer
       options.onCommand?.({ kind: "set-renderer", renderer })
-    }
+    },
+    data: () => data
   }
 }

@@ -4,6 +4,7 @@ import { resolveCanvas } from "../src/index.ts"
 import { makeActions } from "../src/index.ts"
 import { makeUIRuntime } from "../src/index.ts"
 import { makeUIJournal, restoreUIRuntime } from "../src/index.ts"
+import { makeUIDataStore } from "../src/index.ts"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 
@@ -69,6 +70,16 @@ test("routes definition changes and view through one runtime", () => {
   runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
   runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "text", type: "Text", props: { value: "ok" } } })
   expect(runtime.view().children[0]!.resolvedProps.value).toBe("ok")
+})
+
+test("uses the runtime data store with per-view overrides", () => {
+  const store = makeDefinitionStore()
+  const data = makeUIDataStore({ user: { name: "Ada" } })
+  const runtime = makeUIRuntime(store, "root", { data })
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "name", type: "Text", bindings: { value: { kind: "path", value: "$.user.name" } } } })
+  expect(runtime.view().children[0]!.resolvedProps.value).toBe("Ada")
+  expect(runtime.view({ user: { name: "Lin" } }).children[0]!.resolvedProps.value).toBe("Lin")
 })
 
 test("switches theme without changing the canvas definition", () => {
