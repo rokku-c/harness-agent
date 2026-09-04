@@ -239,6 +239,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const isolation = Array.isArray(capabilities.isolation) ? capabilities.isolation.map(String).filter((x): x is "env" | "workspace" | "sandbox" => ["env", "workspace", "sandbox"].includes(x)) : []
     const running = new Set((str(a, "running") ?? "").split(",").map((x) => x.trim()).filter(Boolean))
     await Effect.runPromise(Ref.update(board.tables.agents, (m) => new Map(m).set(agentId, { agentId, kind: str(a, "agentKind") ?? kind ?? "agent", channel: kind === "probe" ? "probe" : "mcp-self", capabilities: { launchKinds: launches, claimKinds: claims, isolation }, status: "online", lastSeen: Date.now() })))
+    await Effect.runPromise(board.persist())
     const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
     if (running.size > 0) {
       await Effect.runPromise(Ref.update(board.tables.executions, (records) => {
