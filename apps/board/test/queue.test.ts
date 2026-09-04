@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { acknowledge, deserialize, emptyQueue, enqueue, makeCommandQueue, poll, serialize, type BoardCommand } from "../src/launch/queue.ts"
+import { makeProbeGateway } from "../src/launch.ts"
 
 const command = (id: string, agentId = "probe"): BoardCommand => ({ id, agentId, kind: "launch", runId: id, createdAt: 1 })
 
@@ -24,5 +25,13 @@ describe("probe command queue", () => {
   test("snapshots preserve pending commands", () => {
     const queue = enqueue(emptyQueue(), command("c3"))
     expect(deserialize(serialize(queue)).commands[0]?.runId).toBe("c3")
+  })
+  test("gateway polls only its agent and records heartbeat", () => {
+    const gateway = makeProbeGateway()
+    gateway.submit(command("c4", "probe-a"))
+    expect(gateway.poll("probe-b").commands).toHaveLength(0)
+    expect(gateway.poll("probe-a").commands).toHaveLength(1)
+    gateway.ack(["c4"])
+    expect(gateway.poll("probe-a").commands).toHaveLength(0)
   })
 })
