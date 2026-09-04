@@ -11,6 +11,8 @@ export { TreeInvariantError, isLeaf, assertParent, attachChild, descendants, dep
 export { rollup } from "./domain/rollup.ts"
 export type { Rollup } from "./domain/rollup.ts"
 export type { ExecutorKind, Executor } from "./domain/executors.ts"
+export type { AgentChannel, AgentStatus, IsolationLevel, AgentCapabilities, AgentInstance } from "./domain/agents.ts"
+export { supportsLaunch, isOffline } from "./domain/agents.ts"
 export type { ViewColumn, BoardView } from "./domain/views.ts"
 export type { Transition } from "./domain/machine.ts"
 export { TRANSITIONS, canTransition } from "./domain/machine.ts"
