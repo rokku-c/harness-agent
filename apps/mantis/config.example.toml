@@ -1,0 +1,38 @@
+# mantis config - keeps the ORIGINAL mantis config.toml shape where the keys
+# still mean something. Point MANTIS_CONFIG_FILE at your original
+# repos/clawyp/clawyp/config.toml, or copy this file to config.toml next to
+# this repo. Strings like "$ENV_NAME" are expanded from the environment.
+# Original keys the new engine does not honor (web/tool_registry/autonomy/...)
+# are reported as deprecated at startup and ignored - nothing crashes.
+
+[dingtalk]
+# Robot channel (bot identity): the same enterprise app credentials as before
+client_id = "$DINGTALK_CLIENT_ID"          # AppKey
+client_secret = "$DINGTALK_CLIENT_SECRET"  # AppSecret
+# agent_id = "$DINGTALK_AGENT_ID"          # accepted for compatibility (not used yet)
+# card_template_id = "$DINGTALK_CARD_TEMPLATE_ID"
+#   Interactive approval cards (recommended on the robot channel):
+#   create an interactive card template in the DingTalk developer console with
+#   variables: content (the question text), tool, input, callId; two buttons
+#   同意/拒绝 whose STATIC callback payload is {"action":"approve"} and
+#   {"action":"deny"}. Button clicks come back over the stream (TOPIC_CARD)
+#   and resolve the approval - no text parsing. Without a template the host
+#   degrades to a text card answered in chat.
+
+# dws channel (user identity) instead needs the dws CLI logged in and, at
+# runtime, DWS_GROUP_ID or DWS_USER_ID (or [dingtalk] group_id / user_id):
+# group_id = ""
+# user_id = ""
+
+[agent]
+provider_type = "anthropic"   # anthropic -> anthropic.messages | anything else -> openai.chat
+model = "deepseek-v4-flash"
+api_key = "$BAIZHI_API_KEY"   # expanded from the environment at load time
+base_url = "https://ai-api-gateway.app.baizhi.cloud/api/anthropic/v1"
+max_steps = 1024
+# context_mode = "supply_side"   # the new engine is always supply-side
+
+[agent.reflection]
+# only max_passes is honored here (our reflection is the observe-only prompt
+# after a failed tool step); every other original reflection knob is ignored.
+max_passes = 1

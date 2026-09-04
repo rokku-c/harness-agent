@@ -1,0 +1,33 @@
+{
+  "name": "app-board",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/builtin": "workspace:*",
+    "@effect-agent/core": "workspace:*",
+    "@effect-agent/gate": "workspace:*",
+    "@effect-agent/model": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "effect": "^3.22.1",
+    "zod": "^3.25.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "@mantine/core": "^9.6.0",
+    "@tabler/icons-react": "^3.46.0"
+  },
+  "scripts": {
+    "start": "bun src/hosts/all/main.ts",
+    "start:web": "bun src/hosts/web/main.ts",
+    "start:mcp": "bun src/hosts/mcp/main.ts",
+    "build:web": "bun build src/hosts/web/panel/app.tsx --outdir src/hosts/web/public --target browser --format esm --minify",
+    "test": "bun test test/"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5"
+  }
+}

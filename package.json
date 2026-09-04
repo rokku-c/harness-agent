@@ -12,6 +12,16 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "examples": "bun scripts/run-examples.ts",
-    "examples:live": "bun scripts/run-examples.ts --live"
+    "examples:live": "bun scripts/run-examples.ts --live",
+    "mantis:pm2:start": "pm2 start apps/mantis/ecosystem.config.cjs",
+    "mantis:pm2:robot": "pm2 start apps/mantis/ecosystem.config.cjs --only mantis-robot",
+    "mantis:pm2:dws": "pm2 start apps/mantis/ecosystem.config.cjs --only mantis-dws",
+    "mantis:pm2:restart": "pm2 restart apps/mantis/ecosystem.config.cjs",
+    "mantis:pm2:stop": "pm2 stop apps/mantis/ecosystem.config.cjs",
+    "mantis:pm2:logs": "pm2 logs mantis-robot mantis-dws",
+    "lint:lines": "bun scripts/check-lines.ts"
+  },
+  "devDependencies": {
+    "pm2": "^7.0.4"
   }
 }

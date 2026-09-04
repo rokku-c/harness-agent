@@ -1,0 +1,344 @@
+/* ============================================================
+   board panel - Claymorphism skin (design brief: claymorphism)
+   Rules below run AFTER Mantine (index.html loads /app.css first).
+   Layout geometry & semantics are untouched; this is a pure surface
+   layer: macaron palette, double shadows, pressed states.
+   ============================================================ */
+
+:root {
+  --clay-bg: #f6eddd;
+  --clay-ink: #4a3f32;
+  --clay-card: #fffcf4;
+  --clay-tray: rgba(146, 105, 60, 0.055);
+  --clay-tray-line: rgba(130, 95, 50, 0.10);
+  --clay-line: rgba(120, 90, 55, 0.14);
+  --clay-shadow-hi: rgba(130, 95, 50, 0.22);
+  --clay-highlight: rgba(255, 255, 255, 0.85);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  color: var(--clay-ink);
+  background:
+    radial-gradient(1100px 700px at 88% -8%, rgba(255, 214, 165, 0.55), transparent 60%),
+    radial-gradient(900px 720px at -12% 112%, rgba(186, 224, 255, 0.5), transparent 58%),
+    var(--clay-bg);
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-variant-numeric: tabular-nums; }
+
+.app { height: 100%; display: flex; flex-direction: column; min-width: 860px; }
+
+/* top bar: soft clay slab instead of a hard divider */
+.top {
+  height: 48px; flex: none; padding: 0 16px; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px;
+  background: rgba(255, 252, 244, 0.72);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(140, 105, 60, 0.10);
+  box-shadow: 0 6px 16px -10px rgba(120, 85, 45, 0.28);
+  z-index: 3;
+}
+
+.body { flex: 1; display: flex; min-height: 0; }
+.main { flex: 1; min-width: 0; overflow: auto; padding: 16px 18px; }
+
+/* right rail: recessed matte panel (inputs sit on, cards pop out) */
+.aside {
+  flex: none; width: 296px; display: flex; flex-direction: column; min-height: 0;
+  background: linear-gradient(180deg, rgba(255, 250, 238, 0.92), rgba(250, 241, 225, 0.96));
+  border-left: 1px solid rgba(140, 105, 60, 0.10);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.6);
+  padding: 12px 14px 0; gap: 14px;
+}
+
+/* kanban columns: cards pop out of a soft recessed tray */
+.kanban { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(232px, 1fr); gap: 16px; align-items: start; min-height: 100%; }
+.col { display: flex; flex-direction: column; min-height: 0; }
+.col-head { display: flex; align-items: center; gap: 7px; padding: 2px 10px 10px; }
+.col-head .mantine-Text-root { color: #6b5533; }
+.col-head .col-count {
+  font-size: 11px; color: #8a6b45; background: rgba(255, 255, 255, 0.6);
+  border-radius: 999px; padding: 0 9px; line-height: 18px; font-weight: 700;
+  box-shadow: 0 1px 2px rgba(130, 95, 50, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.col-body {
+  display: flex; flex-direction: column; gap: 10px; padding: 12px 10px 14px;
+  background: linear-gradient(180deg, var(--clay-tray), rgba(146, 105, 60, 0.02));
+  border-radius: 26px;
+  box-shadow: inset 0 2.5px 6px rgba(130, 95, 50, 0.10), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* work item card: inflated clay */
+.item-card {
+  appearance: none; text-align: left; cursor: pointer; font: inherit; color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #fffdf6, var(--clay-card));
+  padding: 12px 14px;
+  box-shadow:
+    0 1px 1.5px rgba(112, 84, 44, 0.08),
+    0 10px 18px -8px rgba(112, 84, 44, 0.20),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px -2px rgba(130, 95, 50, 0.12);
+  transition: transform 150ms var(--spring), box-shadow 150ms ease, border-color 150ms ease;
+}
+.item-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 3px rgba(112, 84, 44, 0.10),
+    0 16px 26px -10px rgba(112, 84, 44, 0.28),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -3px 5px -2px rgba(130, 95, 50, 0.10);
+}
+.item-card:active {
+  transform: translateY(1px) scale(0.992);
+  box-shadow:
+    0 1px 2px rgba(112, 84, 44, 0.14),
+    inset 0 3px 6px rgba(130, 95, 50, 0.18),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.6);
+  transition-duration: 70ms;
+}
+.item-card:focus-visible { outline: 3px solid rgba(79, 122, 232, 0.4); outline-offset: 2px; }
+
+/* status / prio badges: soft capsules that sit IN the card */
+.app .mantine-Badge-root {
+  border-radius: 999px;
+  font-weight: 650;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 1px rgba(90, 60, 30, 0.06);
+}
+
+/* side sections */
+.side-card { display: flex; flex-direction: column; gap: 7px; }
+.side-card.grow { flex: 1; min-height: 0; }
+.side-title { display: flex; align-items: center; gap: 6px; color: #7d6847; }
+.side-row { display: flex; align-items: center; gap: 7px; padding: 3px 2px; min-width: 0; }
+.activity-scroll { flex: 1; min-height: 0; }
+.act-line { display: flex; gap: 8px; padding: 4px 2px; border-bottom: 1px dashed rgba(150, 115, 70, 0.16); }
+
+/* status dots keep their colors; add a tiny raised feel */
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; box-shadow: inset 0 -1px 1px rgba(0,0,0,0.15); }
+
+/* detail modal: value rows */
+.kv { display: grid; grid-template-columns: 84px 1fr; row-gap: 3px; column-gap: 10px; }
+.kv .k { font-size: 12px; color: #8a6b45; }
+.kv .v { font-size: 13px; overflow-wrap: anywhere; }
+.ref {
+  appearance: none; border: 0; cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(240,229,211,0.9));
+  border-radius: 999px; font-size: 12px; font-family: ui-monospace, Menlo, monospace;
+  color: #7a5a33; padding: 2px 10px;
+  box-shadow: 0 1px 2px rgba(130, 95, 50, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.ref:hover { color: #4f7ae8; transform: translateY(-0.5px); }
+.ref:active { box-shadow: inset 0 1.5px 3px rgba(130, 95, 50, 0.2); transform: translateY(0.5px); }
+
+/* ===== clay-ify the Mantine controls (scoped to the board app) ===== */
+.app .mantine-Button-root {
+  border-radius: 999px;
+  font-weight: 650;
+  box-shadow:
+    0 2px 0 0 rgba(125, 90, 50, 0.13),
+    0 6px 10px -6px rgba(125, 90, 50, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 160ms var(--spring), box-shadow 140ms ease, filter 140ms ease;
+}
+.app .mantine-Button-root:active:not(:disabled) {
+  transform: translateY(1.5px) scale(0.985);
+  box-shadow: 0 0 0 0 transparent, inset 0 2.5px 5px rgba(90, 60, 30, 0.22);
+  transition-duration: 60ms;
+}
+.app .mantine-Button-variant-filled { box-shadow: 0 2px 0 0 rgba(90, 60, 30, 0.22), 0 7px 12px -7px rgba(60, 45, 25, 0.4), inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 3px rgba(0,0,0,0.14); }
+.app .mantine-Button-variant-default { background: linear-gradient(180deg, #fffdf6, #f6ecd9); }
+.app .mantine-Button-variant-outline { background: rgba(255, 255, 255, 0.55); }
+.app .mantine-Button-root[data-disabled] { box-shadow: none; opacity: 0.55; }
+
+/* inputs: recessed wells dug into the clay */
+.app .mantine-Modal-content .mantine-TextInput-input,
+.app .mantine-Modal-content .mantine-Textarea-input,
+.app .mantine-Modal-content .mantine-NumberInput-input,
+.app .mantine-Modal-content .mantine-Select-input {
+  background: linear-gradient(180deg, rgba(150, 110, 60, 0.08), rgba(255, 255, 255, 0.28));
+  border: 1px solid rgba(150, 110, 60, 0.10);
+  border-radius: 14px;
+  color: var(--clay-ink);
+  box-shadow: inset 2px 2.5px 6px rgba(130, 95, 50, 0.12), inset -1.5px -1.5px 4px rgba(255, 255, 255, 0.55);
+  caret-color: #4f7ae8;
+}
+.app .mantine-Modal-content .mantine-TextInput-input:focus,
+.app .mantine-Modal-content .mantine-Textarea-input:focus,
+.app .mantine-Modal-content .mantine-NumberInput-input:focus,
+.app .mantine-Modal-content .mantine-Select-input:focus {
+  border-color: rgba(79, 122, 232, 0.45);
+  box-shadow: 0 0 0 3px rgba(79, 122, 232, 0.13), inset 2px 2.5px 6px rgba(130, 95, 50, 0.10), inset -1.5px -1.5px 4px rgba(255, 255, 255, 0.5);
+}
+.app .mantine-Input-label { color: #7d6847; font-weight: 600; }
+
+/* segmented control: capsule track with a raised selected pill */
+.app .mantine-SegmentedControl-root {
+  background: linear-gradient(180deg, rgba(150, 110, 60, 0.10), rgba(150, 110, 60, 0.06));
+  border: none;
+  border-radius: 999px;
+  padding: 3px;
+  box-shadow: inset 0 2px 4px rgba(130, 95, 50, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
+}
+.app .mantine-SegmentedControl-indicator {
+  border-radius: 999px;
+  background: #fffdf6;
+  box-shadow: 0 2px 6px rgba(130, 95, 50, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -2px 3px rgba(130, 95, 50, 0.07);
+}
+.app .mantine-SegmentedControl-label { color: #6b5533; }
+
+/* modal: soft clay sheet floating over a blurred mat */
+.app .mantine-Modal-overlay { background: rgba(92, 70, 42, 0.16); backdrop-filter: blur(2px); }
+.app .mantine-Modal-content {
+  border-radius: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: linear-gradient(180deg, #fffaf0, #fdf3e2);
+  box-shadow: 0 24px 60px -18px rgba(110, 80, 45, 0.4), inset 0 2px 0 #fff;
+}
+.app .mantine-Modal-header { background: transparent; }
+.app .mantine-Modal-title { font-weight: 700; color: #5d4a30; }
+
+/* avatar chip inside cards */
+.app .mantine-Avatar-root { box-shadow: 0 2px 5px rgba(112, 84, 44, 0.22), inset 0 -1px 2px rgba(255,255,255,0.4); }
+
+/* soft scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: rgba(150, 115, 70, 0.25); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: rgba(150, 115, 70, 0.4); border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* empty hints read softer on trays */
+.app .mantine-Text-root[data-truncate] { min-width: 0; }
+.col-body .mantine-Text-root { opacity: 0.85; }
+
+/* ============================================================
+   Responsive: any ratio (mobile touch / tablet / desktop).
+   <=960: the page becomes one scrolling column; the kanban stays a
+   horizontal snap-scroll strip (full-bleed touch swipe), the side
+   rail moves under it. Clay surfaces are kept everywhere.
+   ============================================================ */
+
+@media (max-width: 960px) {
+  .app { min-width: 0; height: 100%; overflow-y: auto; }
+  .top {
+    position: sticky; top: 0;
+    padding-left: calc(12px + env(safe-area-inset-left));
+    padding-right: calc(12px + env(safe-area-inset-right));
+  }
+  .body { display: block; overflow: visible; }
+  .main {
+    height: min(62vh, 520px); min-height: 240px;
+    padding: 12px; overflow-x: auto; overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kanban { grid-auto-columns: minmax(248px, min(80vw, 340px)); gap: 14px; height: 100%; }
+  .col { scroll-snap-align: start; height: 100%; }
+  .col-body { overflow-y: auto; min-height: 0; height: auto; max-height: calc(100% - 34px); }
+  .aside {
+    width: auto; border-left: 0; box-shadow: none;
+    margin: 4px 10px calc(16px + env(safe-area-inset-bottom));
+    padding: 12px 14px;
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+  }
+  .activity-scroll { max-height: 260px; }
+}
+
+@media (max-width: 560px) {
+  .top { height: auto; min-height: 48px; flex-wrap: wrap; row-gap: 6px; padding-top: 8px; padding-bottom: 8px; }
+  .top .mantine-Text-root { font-size: 12px; }
+}
+
+/* bigger touch targets for coarse pointers (touch primary) */
+@media (pointer: coarse) {
+  .app .mantine-Button-root { min-height: 34px; }
+  .app .mantine-SegmentedControl-root { min-height: 34px; }
+  .item-card { padding: 13px 14px; }
+  /* R22: worktable row actions & filter chips sized for thumbs */
+  .wt-acts .mantine-ActionIcon-root { min-width: 36px; min-height: 36px; }
+  .wt-chip { min-height: 36px; }
+}
+
+/* ============================================================
+   Control-room worktable (default view) - dense clay table.
+   Rows = work items; columns = the dimensions an operator actually
+   reasons about. Replaces column-board as the primary surface.
+   ============================================================ */
+.wt { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.wt-tool { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.wt-chip {
+  appearance: none; border: 0; cursor: pointer; font: inherit; font-size: 12px; font-weight: 650;
+  color: #8a6b45; background: rgba(255, 255, 255, 0.35); padding: 3px 11px; border-radius: 999px;
+  box-shadow: inset 0 1px 2px rgba(130, 95, 50, 0.10);
+  transition: box-shadow 120ms ease, transform 120ms var(--spring);
+}
+.wt-chip:hover { color: #6b5533; }
+.wt-chip:active { transform: translateY(0.5px); }
+.wt-chip.on {
+  color: #6b4a1f; background: linear-gradient(180deg, #fffdf6, #f7ecd8);
+  box-shadow: 0 2px 6px rgba(130, 95, 50, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -2px 3px rgba(130, 95, 50, 0.08);
+}
+.wt-chip .wt-count { font-size: 10px; opacity: 0.65; margin-left: 3px; }
+.wt-chip-id { font-family: ui-monospace, Menlo, monospace; }
+.wt-vr { width: 1px; height: 18px; background: rgba(150, 115, 70, 0.25); margin: 0 2px; }
+.wt-search {
+  margin-left: auto; width: 200px; font: inherit; font-size: 12px; color: var(--clay-ink);
+  background: linear-gradient(180deg, rgba(150, 110, 60, 0.07), rgba(255, 255, 255, 0.3));
+  border: 1px solid rgba(150, 110, 60, 0.12); border-radius: 999px; padding: 5px 12px;
+  box-shadow: inset 2px 2.5px 6px rgba(130, 95, 50, 0.10), inset -1.5px -1.5px 4px rgba(255, 255, 255, 0.5);
+}
+.wt-search:focus { outline: 2px solid rgba(79, 122, 232, 0.35); outline-offset: 1px; border-color: rgba(79, 122, 232, 0.4); }
+
+.wt-row {
+  display: grid; grid-template-columns: minmax(280px, 1.6fr) 92px 108px 84px 168px 52px auto;
+  gap: 6px 12px; align-items: center; padding: 7px 10px; border-radius: 14px; cursor: pointer;
+  border-bottom: 1px solid rgba(150, 115, 70, 0.10);
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+.wt-head.wt-row { cursor: default; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: #a0885f; text-transform: uppercase; padding: 4px 10px; border-bottom: 1px solid rgba(150, 115, 70, 0.16); }
+.wt-row:hover { background: rgba(255, 255, 255, 0.55); box-shadow: 0 3px 10px -4px rgba(130, 95, 50, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+.wt-row:focus-visible { outline: 2px solid rgba(79, 122, 232, 0.4); outline-offset: -2px; }
+.wt-c { min-width: 0; display: flex; align-items: center; gap: 4px; }
+.wt-titlecell { flex-direction: column; align-items: stretch; }
+.wt-l1 { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.wt-title { font-weight: 600; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; min-width: 0; }
+.wt-l2 { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 1px; min-width: 0; }
+.wt-pri {
+  flex: none; font-size: 10px; font-weight: 800; color: #fff; border-radius: 6px;
+  min-width: 16px; text-align: center; line-height: 16px; padding: 0 3px;
+  box-shadow: inset 0 -1px 2px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.wt-pri-urgent { background: #fa5252; }
+.wt-pri-high { background: #fd7e14; }
+.wt-labs { font-size: 11px; color: #7a8ca0; overflow-wrap: anywhere; }
+.wt-blocked { font-size: 11px; font-weight: 600; color: #d9480f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.wt-result { font-size: 11px; color: #a0642f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-family: ui-monospace, Menlo, monospace; }
+.wt-assign { font-family: ui-monospace, Menlo, monospace; font-size: 12px; font-weight: 600; color: #4f7ae8; }
+.wt-warn { font-size: 11px; font-weight: 700; color: #d9480f; background: rgba(217, 72, 15, 0.09); border-radius: 999px; padding: 1px 8px; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); }
+.wt-rc { font-size: 10px; color: #6b5533; background: rgba(146, 105, 60, 0.10); border-radius: 999px; padding: 1px 7px; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255,255,255,0.5); }
+.wt-age { font-size: 11px; color: #8f7d62; white-space: nowrap; }
+.wt-fresh { color: #0c8f5e; font-weight: 700; }
+.wt-dim { font-size: 11px; color: #b3a48c; }
+.wt-empty { padding: 26px 0; text-align: center; font-size: 12px; color: #a0885f; }
+.wt-acts { justify-content: flex-end; gap: 2px; }
+
+/* ============ worktable on small screens: flow rows (still clay) ============ */
+@media (max-width: 960px) {
+  .wt { gap: 8px; }
+  .wt-tool { padding-bottom: 2px; }
+  .wt-search { margin-left: 0; width: 100%; }
+  .wt-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+    padding: 9px 4px; border-radius: 0;
+  }
+  .wt-head.wt-row { display: none; }
+  .wt-titlecell { flex: 1 1 100%; }
+  .wt-title { font-size: 14px; }
+  .wt-acts { margin-left: auto; }
+  .wt-rc { font-size: 11px; }
+}

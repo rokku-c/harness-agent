@@ -1,0 +1,14 @@
+{
+  "name": "deckconsole",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@effect-agent/agentdeck": "*"
+  },
+  "scripts": {
+    "dev": "bun src/main.ts",
+    "start": "bun src/main.ts",
+    "test": "bun test"
+  }
+}

@@ -1,7 +1,7 @@
 /**
  * Memory: the replaceable long-term memory seam (E10). The contract is
  * remember/recall/promote; implementations may be keyword-scored (default),
- * vector, file or graph. The promotion gate is the nclawyp learning ladder
+ * vector, file or graph. The promotion gate is the nmantis learning ladder
  * (episode → lesson → skill) expressed as a pluggable hook, not a concept.
  */
 import { Context, Effect } from "effect"

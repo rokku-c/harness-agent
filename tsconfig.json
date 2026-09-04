@@ -19,8 +19,10 @@
       "@effect-agent/state": ["./packages/state/src/index.ts"],
       "@effect-agent/memory": ["./packages/memory/src/index.ts"],
       "@effect-agent/gate": ["./packages/gate/src/index.ts"],
+      "@effect-agent/logger": ["./packages/logger/src/index.ts"],
       "@effect-agent/schedule": ["./packages/schedule/src/index.ts"],
-      "@effect-agent/assembly": ["./packages/assembly/src/index.ts"]
+      "@effect-agent/assembly": ["./packages/assembly/src/index.ts"],
+      "@effect-agent/agentdeck": ["./packages/agentdeck/src/index.ts"]
     }
   },
   "include": [

@@ -1,0 +1,54 @@
+/* mantis console host styles - professional dark edition (canvas v1).
+   No decorative skin: Mantine dark scheme supplies surfaces; this file only
+   tunes the chrome, the A2UI renderer mapping, and responsive behavior. */
+html, body, #root { height: 100%; }
+body { margin: 0; }
+:root {
+  --acc-border: #2c3444;   /* hairline borders */
+  --acc-well: #141a24;     /* inset wells / non-interactive surfaces */
+  --acc-raised: #1c2432;   /* raised cards */
+  --acc-hover: #212b3a;
+}
+
+/* A2UI official renderer remapped onto the dark console palette */
+.a2ui-dark {
+  --a2ui-color-background: #101418;
+  --a2ui-color-on-background: #d7dde4;
+  --a2ui-color-surface: #171d26;
+  --a2ui-color-on-surface: #d7dde4;
+  --a2ui-color-primary: #4e8ad9;
+  --a2ui-color-primary-light: #74a6e6;
+  --a2ui-color-primary-dark: #3263a8;
+  --a2ui-color-on-primary: #ffffff;
+  --a2ui-color-secondary: #2c3444;
+  --a2ui-color-secondary-light: #39435a;
+  --a2ui-color-secondary-dark: #232b39;
+  --a2ui-color-on-secondary: #c4ccd6;
+  --a2ui-color-input: #141a24;
+  --a2ui-color-on-input: #e3e7ec;
+  --a2ui-color-border: #2c3444;
+  --a2ui-border-width: 1px;
+  --a2ui-border-radius: 8px;
+  --a2ui-font-size-xs: 11px;
+  --a2ui-font-size-sm: 12px;
+  --a2ui-font-size-md: 13px;
+  --a2ui-font-size-lg: 16px;
+  --a2ui-font-size-xl: 20px;
+  --a2ui-font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --a2ui-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* responsive console chrome (R19): phone/touch, desktop/mouse, any ratio ------- */
+#root { height: 100vh; height: 100dvh; }
+body { overflow: hidden; overscroll-behavior: none; }
+pre, code { white-space: pre-wrap; word-break: break-word; }
+@media (pointer: coarse) {
+  button, .mantine-Button-root, .mantine-ActionIcon-root, .mantine-SegmentedControl-root { touch-action: manipulation; }
+  /* touch targets >= 36px inside workspace record rows (R22) */
+  [data-kind] .mantine-ActionIcon-root { min-width: 36px; min-height: 36px; }
+  [data-kind] .mantine-Button-root { min-height: 36px; }
+  [data-kind] input.mantine-TextInput-input { min-height: 36px; }
+}
+@media (max-width: 700px) {
+  textarea.mantine-Textarea-input, input.mantine-TextInput-input { font-size: 16px; }
+}

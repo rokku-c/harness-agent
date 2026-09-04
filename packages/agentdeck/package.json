@@ -1,0 +1,18 @@
+{
+  "name": "@effect-agent/agentdeck",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "effect": "^3.22.1",
+    "@effect-agent/core": "*",
+    "@effect-agent/builtin": "*",
+    "@effect-agent/gate": "*"
+  },
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  }
+}

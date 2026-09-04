@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agentdeck · 控制室</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 -apple-system,"PingFang SC",system-ui,sans-serif;background:#101418;color:#e6ebf0}
+header{padding:14px 20px;display:flex;align-items:baseline;gap:10px;border-bottom:1px solid #232b33}
+header h1{font-size:17px;margin:0}
+header span{color:#7d8b99;font-size:12px}
+main{padding:20px;max-width:1120px;margin:0 auto;display:grid;gap:18px}
+section{background:#171d24;border:1px solid #232b33;border-radius:10px;padding:14px}
+h2{font-size:13px;margin:0 0 10px;color:#9fb2c3;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #1e262e;font-size:13px}
+th{color:#7d8b99;font-weight:500}
+button{background:#1f2a35;color:#dbe6ef;border:1px solid #31424f;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer}
+button:hover{background:#2a3a48}
+button.ok{background:#123c2e;border-color:#1f6b50;color:#a8e6c8}
+button.no{background:#3c2020;border-color:#6b2f2f;color:#f0b0b0}
+input,select,textarea{background:#0f1419;color:#e6ebf0;border:1px solid #2b3944;border-radius:6px;padding:6px 8px;font-size:13px;width:100%}
+textarea{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.row{display:flex;gap:8px;align-items:center;margin:6px 0;flex-wrap:wrap}
+.pill{background:#0f2a44;color:#9fd0ff;border-radius:999px;padding:2px 10px;font-size:12px}
+.pill.red{background:#4a1f1f;color:#ffc4c4}
+pre{background:#0d1116;border:1px solid #1e262e;border-radius:8px;padding:10px;overflow:auto;font-size:12px;max-height:280px}
+.empty{color:#5f6f7e;font-style:italic;padding:8px}
+#notice{position:fixed;right:16px;top:16px;background:#14304b;border:1px solid #2c5c8a;color:#cfe6ff;padding:8px 14px;border-radius:8px;display:none;font-size:13px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><h1>agentdeck · 控制室</h1><span id="summary"></span></header>
+<main>
+<div id="notice"></div>
+<section><h2>会话与代理 <button style="margin-left:10px" onclick="closeAll()" class="no">全部关闭</button></h2>
+  <div class="row">
+    <select id="openKind">
+      <option value="demo">demo（内置演示 agent）</option>
+      <option value="claude-code">claude code</option>
+      <option value="codex">codex</option>
+      <option value="gemini">gemini</option>
+      <option value="pi">pi</option>
+      <option value="effect">effect（需启动时注入模型）</option>
+      <option value="effect-ops">effect-ops（审批执行循环，需注入模型）</option>
+      <option value="claude-cc">claude-cc（SDK 进程内变体）</option>
+      <option value="custom">custom</option>
+    </select>
+    <input id="openLabel" placeholder="会话标签" value="评审" style="max-width:200px">
+    <button onclick="openSession()">开启会话</button>
+  </div>
+  <div class="row">
+    <input id="openAuto" placeholder="自动同意工具(逗号分隔)，如 note_write,read" style="max-width:300px">
+    <label style="color:#8fa1b1">默认决议
+      <select id="openDefault" style="width:auto"><option value="ask">ask（询问）</option><option value="allow">allow（放行）</option><option value="deny">deny（拒绝）</option></select>
+    </label>
+    <span class="pill">会话级同意策略（demo 生效）</span>
+  </div>
+  <div id="launchers" class="row"></div>
+  <div class="row"><select id="addKind">
+    <option value="demo">demo</option><option value="claude-code">claude-code</option>
+    <option value="claude-cc">claude-cc</option><option value="codex">codex</option>
+    <option value="gemini">gemini</option><option value="pi">pi</option><option value="custom">custom</option>
+  </select>
+  <input id="addLabel" placeholder="新启动组标签" style="max-width:180px">
+  <button onclick="addLauncher()">添加启动组</button></div>
+  <table id="sessions"><thead><tr><th>session</th><th>kind</th><th>状态</th><th>最近活动</th><th>操作</th></tr></thead><tbody></tbody></table>
+</section>
+<div class="grid">
+<section><h2>session → 同意 映射</h2>
+  <table id="consent"><thead><tr><th>session</th><th>条目</th><th>待批</th><th>同意</th><th>拒绝</th></tr></thead><tbody></tbody></table>
+  <div id="pending"></div>
+</section>
+<section><h2>配置 → 统一映射 预览</h2>
+  <div class="row"><select id="cfgKind">
+    <option value="claude-code">claude-code</option><option value="codex">codex</option><option value="gemini">gemini</option><option value="pi">pi</option><option value="effect">effect</option><option value="custom">custom</option>
+  </select>
+  <button onclick="previewConfig()">归一预览</button>
+  <button onclick="loadSample()">载入样例</button></div>
+  <textarea id="cfgRaw" rows="5" spellcheck="false">{ "model": "claude-sonnet-4-5", "cwd": "/workspace", "permissionMode": "bypassPermissions", "allowedTools": ["Read", "Edit"] }</textarea>
+  <pre id="cfgOut"></pre>
+</section>
+</div>
+<section><h2>同意流水（session → consent）</h2><div id="flow"></div></section>
+<section><h2>会话详情</h2><div id="detail"><p class="empty">点某行「详情」查看会话 transcript 与该会话的同意日志</p></div></section>
+</main>
+</body>
+<script>
+const $ = (s) => document.querySelector(s);
+const notice = (text) => { const n = $("#notice"); n.textContent = text; n.style.display = "block"; setTimeout(function(){ n.style.display = "none"; }, 2600); };
+const statusLabel = (s) => s === "running" ? "运行中" : s === "idle" ? "空闲" : s === "opening" ? "开启中" : s === "failed" ? "失败" : s;
+const fmt = (t) => t ? new Date(t).toLocaleTimeString("zh-CN", { hour12: false }) : "-";
+const api = async (path, opts) => {
+  const r = await fetch(path, opts);
+  let j = {}; try { j = await r.json(); } catch (e) { j = { ok: false, detail: "bad response" }; }
+  if (!r.ok && !j.ok) notice(j.detail || ("HTTP " + r.status));
+  return j;
+};
+const post = (path, body) => api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+let LAUNCHERS = [];
+let SAMPLES = {};
+const mk = (tag, cls, text) => { const el = document.createElement(tag); if (cls) el.className = cls; if (text != null) el.textContent = text; return el; };
+const btn = (label, cls, act, data) => { const b = mk("button", cls, label); b.dataset.act = act; for (const k in data) b.dataset[k] = data[k]; return b; };
+function renderLaunchers() {
+  const el = $("#launchers"); el.innerHTML = "";
+  if (!LAUNCHERS.length) return;
+  el.appendChild(mk("span", "pill", "快捷启动"));
+  LAUNCHERS.forEach(function(l){
+    const chip = btn(l.label, "", "launch", { kind: l.kind, label: l.label, config: JSON.stringify(l.config || {}) });
+    if (l.config) chip.title = "配置: " + JSON.stringify(l.config).slice(0, 120);
+    el.appendChild(chip);
+  });
+}
+function renderTables(d) {
+  const tb = document.querySelector("#sessions tbody"); tb.innerHTML = "";
+  if (!d.sessions.length) { const tr = mk("tr"); const td = mk("td", "empty", "还没有会话：上方选个 agent 开启"); td.colSpan = 5; tr.appendChild(td); tb.appendChild(tr); }
+  d.sessions.forEach(function(s){
+    const tr = mk("tr");
+    tr.appendChild(mk("td", null, s.sessionId));
+    tr.appendChild(mk("td", null, s.kind));
+    tr.appendChild(mk("td", null, statusLabel(s.status)));
+    tr.appendChild(mk("td", null, fmt(s.lastActivityAt)));
+    const ops = mk("td");
+    const sendIn = document.createElement("input");
+    sendIn.className = "rowSend";
+    sendIn.placeholder = "输入提示词后回车或点发送";
+    sendIn.addEventListener("keydown", function(ev){ if (ev.key === "Enter") sendRow(s.sessionId, sendIn.value); });
+    ops.appendChild(sendIn);
+    ops.appendChild(btn("发送", "ok", "send", { id: s.sessionId }));
+    ops.appendChild(btn("问候", "", "demo", { id: s.sessionId, text: "hi", label: "问候" }));
+    ops.appendChild(btn("触发审批", "", "demo", { id: s.sessionId, text: "ask:note_write {\"text\":\"需要你同意\"}", label: "审批" }));
+    ops.appendChild(btn("关闭", "no", "close", { id: s.sessionId }));
+    ops.appendChild(btn("详情", "", "detail", { id: s.sessionId }));
+    tr.appendChild(ops); tb.appendChild(tr);
+  });
+  const cb = document.querySelector("#consent tbody"); cb.innerHTML = "";
+  if (!d.mapping.length) { const tr = mk("tr"); const td = mk("td", "empty", "暂无 session→同意 记录"); td.colSpan = 5; tr.appendChild(td); cb.appendChild(tr); }
+  d.mapping.forEach(function(m2){
+    const tr = mk("tr");
+    tr.appendChild(mk("td", null, m2.sessionId));
+    tr.appendChild(mk("td", null, String(m2.entries)));
+    const pcell = mk("td"); const pill = mk("span", "pill red", String(m2.pending)); pcell.appendChild(pill); tr.appendChild(pcell);
+    tr.appendChild(mk("td", null, String(m2.allowed)));
+    tr.appendChild(mk("td", null, String(m2.denied)));
+    cb.appendChild(tr);
+  });
+  const pd = $("#pending"); pd.innerHTML = "";
+  if (!d.pending.length) pd.appendChild(mk("p", "empty", "没有等待操作者的调用"));
+  d.pending.forEach(function(p){
+    const row = mk("div", "row");
+    const who = mk("span", "pill", p.sessionId);
+    row.appendChild(who);
+    row.appendChild(mk("span", null, p.tool));
+    row.appendChild(mk("code", null, JSON.stringify(p.input)));
+    row.appendChild(btn("同意", "ok", "decide", { call: p.callId, allow: "1" }));
+    row.appendChild(btn("拒绝", "no", "decide", { call: p.callId, allow: "0" }));
+    pd.appendChild(row);
+  });
+}
+function loadPresets() {
+  api("/api/presets", {}).then(function(d){
+    if (!d || !d.ok) return;
+    const dynamic = d.presets.filter(function(p){ return !p.builtin; });
+    if (!dynamic.length) return;
+    const openSel = document.querySelector("#openKind");
+    const addSel = document.querySelector("#addKind");
+    const cfgSel = document.querySelector("#cfgKind");
+    [openSel, addSel, cfgSel].forEach(function(sel){
+      dynamic.forEach(function(p){
+        if (![...sel.options].some(function(o){ return o.value === p.kind; })) {
+          const o = document.createElement("option");
+          o.value = p.kind;
+          o.textContent = p.kind + "（动态方言）";
+          sel.appendChild(o);
+        }
+      });
+    });
+  });
+}
+function loadFlow() {
+  api("/api/consent", {}).then(function(d){
+    const box = $("#flow");
+    box.innerHTML = "";
+    if (!d || !d.ok) { box.appendChild(mk("p", "empty", "读取失败")); return; }
+    const list = d.entries || [];
+    if (!list.length) { box.appendChild(mk("p", "empty", "暂无同意记录：demo 会话里点「触发审批」会产生")); return; }
+    const head = mk("div", "row");
+    head.appendChild(mk("span", "pill", "共 " + list.length + " 条"));
+    head.appendChild(mk("span", "pill", "待批 " + list.filter(function(e){ return e.decision === "pending"; }).length));
+    const bAll = btn("全部同意（批量）", "ok", "bulk", { allow: "1" });
+    head.appendChild(bAll);
+    box.appendChild(head);
+    const t = mk("table");
+    const thead = mk("thead");
+    const hr = mk("tr");
+    ["时间", "session", "工具", "决议", "by", "输入"].forEach(function(c){ thead.appendChild(mk("th", null, c)); });
+    t.appendChild(thead);
+    const tb = mk("tbody");
+    list.slice(0, 20).forEach(function(e){
+      const tr = mk("tr");
+      tr.appendChild(mk("td", null, fmt(e.decidedAt || e.askedAt)));
+      tr.appendChild(mk("td", null, e.sessionId));
+      tr.appendChild(mk("td", null, e.tool));
+      const pillCls = e.decision === "allow" ? "pill ok" : e.decision === "deny" ? "pill no" : "pill red";
+      const dcell = mk("td"); dcell.appendChild(mk("span", pillCls, e.decision)); tr.appendChild(dcell);
+      tr.appendChild(mk("td", null, e.by || "-"));
+      tr.appendChild(mk("td", null, JSON.stringify(e.input)));
+      if (e.decision === "pending") {
+        const ops = mk("td");
+        ops.appendChild(btn("同意", "ok", "decide", { call: e.callId, allow: "1" }));
+        ops.appendChild(btn("拒绝", "no", "decide", { call: e.callId, allow: "0" }));
+        tr.appendChild(ops);
+      }
+      tb.appendChild(tr);
+    });
+    t.appendChild(tb);
+    box.appendChild(t);
+  });
+}
+function refresh() {
+  api("/api/deck", {}).then(function(d){
+    if (!d || !d.kinds) return;
+    LAUNCHERS = d.launchers || [];
+    SAMPLES = d.samples || {};
+    $("#summary").textContent = "代理 " + d.kinds.length + " · 会话 " + d.sessions.length + " · 待批 " + d.pending.length;
+    renderLaunchers();
+    renderTables(d);
+    loadFlow();
+    loadPresets();
+  });
+}
+function openSession() {
+  const kind = document.querySelector("#openKind").value;
+  const label = document.querySelector("#openLabel").value || "session";
+  const sid = kind + "-" + Date.now().toString(36);
+  const autoRaw = document.querySelector("#openAuto").value;
+  const auto = autoRaw.split(",").map(function(s){ return s.trim(); }).filter(Boolean);
+  const dflt = document.querySelector("#openDefault").value;
+  const config = { label: label };
+  if (auto.length || dflt !== "ask") config.consent = { autoApproveTools: auto, defaultDecision: dflt };
+  post("/api/session", { kind: kind, sessionId: sid, config: config }).then(function(j){ if (j.ok) notice("已开启 " + j.session.sessionId); refresh(); });
+}
+function addLauncher() {
+  const kind = document.querySelector("#addKind").value;
+  const label = document.querySelector("#addLabel").value.trim();
+  if (!label) { notice("填个标签"); return; }
+  const cfgRaw = document.querySelector("#addCfg").value.trim();
+  let config;
+  if (cfgRaw) {
+    try { config = JSON.parse(cfgRaw); } catch (_e) { notice("配置JSON解析失败"); return; }
+  }
+  post("/api/launchers", { kind: kind, label: label, config: config }).then(function(j){ notice(j.ok ? "已添加 " + label : (j.detail || "")); refresh(); });
+}
+function removeLauncher(kind, label) {
+  api("/api/launchers/" + encodeURIComponent(label) + "?kind=" + encodeURIComponent(kind), { method: "DELETE" }).then(function(j){ if (j.ok) notice("已移除 " + label); refresh(); });
+}
+function quickLaunch(kind, label, config) {
+  const sid = kind + "-" + Date.now().toString(36);
+  const cfg = { label: label };
+  let extra = {};
+  try { extra = config ? JSON.parse(config) : {}; } catch (_e) {}
+  for (const k2 in extra) cfg[k2] = extra[k2];
+  post("/api/session", { kind: kind, sessionId: sid, config: cfg }).then(function(j){ if (j.ok) notice("已开启 " + j.session.sessionId); refresh(); });
+}
+function sendRow(id, text) {
+  post("/api/session/" + encodeURIComponent(id) + "/send", { text: text }).then(function(j){
+    if (j.ok) { notice("回复: " + String(j.text || "").slice(0, 120)); detailSession(id); }
+    else if (j.awaiting && j.awaiting.length) notice("已挂起等审批: " + j.awaiting.join(","));
+    else notice(j.detail || "失败");
+    refresh();
+  });
+}
+function demoAct(id, text) {
+  post("/api/session/" + encodeURIComponent(id) + "/send", { text: text }).then(function(j){ notice(j.text || j.detail || "done"); refresh(); });
+}
+function closeSession(id) { post("/api/session/" + encodeURIComponent(id) + "/close", {}).then(function(){ notice("已关闭 " + id); refresh(); }); }
+function closeAll() { post("/api/sessions/close-all", {}).then(function(j){ notice(j.ok ? ("已全部关闭 " + (j.closed || 0) + " 个会话") : (j.detail || "")); refresh(); }); }
+function bulkDecide(allow) {
+  post("/api/consent/bulk", { allow: allow }).then(function(j){ notice(j.ok ? ("已批量处理 " + (j.decided || 0) + " 条") : (j.detail || "")); refresh(); });
+}
+function decide(callId, allow) {
+  post("/api/consent/" + encodeURIComponent(callId), { allow: allow }).then(function(j){ notice(j.ok ? (allow ? "已同意" : "已拒绝") : (j.detail || "")); refresh(); });
+}
+function previewConfig() {
+  const kind = document.querySelector("#cfgKind").value;
+  const raw = document.querySelector("#cfgRaw").value;
+  try { JSON.parse(raw); } catch (e) { notice("原始配置不是合法 JSON"); return; }
+  api("/api/config/preview?kind=" + encodeURIComponent(kind) + "&raw=" + encodeURIComponent(raw), {}).then(function(j){
+    if (j.ok) {
+      const el = document.querySelector("#cfgOut");
+      let text = "统一配置:\n" + JSON.stringify(j.unified, null, 2);
+      if (j.invocation) text += "\n\n调用计划 (spawn):\n" + j.invocation.file + " " + j.invocation.argv.map(function(a){ return a.indexOf(" ") >= 0 ? JSON.stringify(a) : a; }).join(" ");
+      else if (j.unified && (j.unified.kind === "effect" || j.unified.kind === "claude-cc" || j.unified.kind === "demo")) text += "\n\n运行方式: 进程内驱动（非 spawn）";
+      el.textContent = text;
+    }
+  });
+}
+function loadSample() {
+  const kind = document.querySelector("#cfgKind").value;
+  const sample = SAMPLES[kind];
+  if (sample !== undefined) document.querySelector("#cfgRaw").value = sample;
+  previewConfig();
+}
+function renderDetail(id, d) {
+  const box = $("#detail");
+  box.innerHTML = "";
+  const head = mk("div", "row");
+  head.appendChild(mk("strong", null, "会话详情 " + id));
+  head.appendChild(mk("span", "pill", "turns " + d.turns.length + " · consent " + d.consent.length));
+  box.appendChild(head);
+  if (!d.turns.length && !d.consent.length) { box.appendChild(mk("p", "empty", "暂无记录")); return; }
+  const t = mk("table");
+  const thead = mk("thead");
+  const hr = mk("tr");
+  ["时间", "方向", "内容"].forEach(function(c){ const th = mk("th", null, c); hr.appendChild(th); });
+  thead.appendChild(hr); t.appendChild(thead);
+  const tb = mk("tbody");
+  d.turns.slice(-6).forEach(function(turn){
+    const tr = mk("tr");
+    tr.appendChild(mk("td", null, fmt(turn.at)));
+    tr.appendChild(mk("td", null, turn.role === "user" ? "用户" : "agent"));
+    const cell = mk("td", null, turn.content);
+    tr.appendChild(cell);
+    tb.appendChild(tr);
+  });
+  d.consent.forEach(function(c2){
+    const tr = mk("tr");
+    tr.appendChild(mk("td", null, fmt(c2.decidedAt || c2.askedAt)));
+    tr.appendChild(mk("td", null, c2.tool + " → " + c2.decision + (c2.by ? " by " + c2.by : "")));
+    tr.appendChild(mk("td", null, JSON.stringify(c2.input)));
+    tb.appendChild(tr);
+  });
+  t.appendChild(tb);
+  box.appendChild(t);
+}
+function detailSession(id) {
+  api("/api/session/" + encodeURIComponent(id) + "/history", {}).then(function(d){
+    if (d && d.ok) renderDetail(id, d); else notice(d.detail || "读取失败");
+  });
+}
+document.addEventListener("click", function(ev){
+  const t = ev.target;
+  const b = t && t.closest ? t.closest("button[data-act]") : null;
+  if (!b) return;
+  const a = b.dataset;
+  if (a.act === "demo") demoAct(a.id, a.text);
+  else if (a.act === "close") closeSession(a.id);
+  else if (a.act === "send") {
+    const inp = b.closest("tr") && b.closest("tr").querySelector(".rowSend");
+    if (inp && inp.value && inp.value.trim()) sendRow(a.id, inp.value.trim());
+    else notice("先输入提示词");
+  }
+  else if (a.act === "detail") detailSession(a.id);
+  else if (a.act === "bulk") bulkDecide(a.allow === "1");
+  else if (a.act === "decide") decide(a.call, a.allow === "1");
+  else if (a.act === "launch") quickLaunch(a.kind, a.label, a.config);
+  else if (a.act === "rmlaunch") removeLauncher(a.kind, a.label);
+});
+document.querySelector("#cfgKind").addEventListener("change", loadSample);
+refresh();
+setInterval(refresh, 2500);
+</script></script>
+</html>

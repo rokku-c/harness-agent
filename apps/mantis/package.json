@@ -1,0 +1,47 @@
+{
+  "name": "app-mantis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/agent.ts"
+  },
+  "dependencies": {
+    "@a2ui/react": "^0.11.0",
+    "@a2ui/web_core": "^0.10.7",
+    "@effect-agent/builtin": "workspace:*",
+    "@effect-agent/core": "workspace:*",
+    "@effect-agent/gate": "workspace:*",
+    "@effect-agent/logger": "workspace:*",
+    "@effect-agent/model": "workspace:*",
+    "@mantine/core": "^9.6.0",
+    "@mantine/hooks": "^9.6.0",
+    "@mantine/notifications": "^9.5.2",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@tabler/icons-react": "^3.46.0",
+    "dingtalk-stream": "2.1.6-beta.1",
+    "effect": "^3.22.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "smol-toml": "^1.8.0"
+  },
+  "scripts": {
+    "start": "bun src/hosts/dingtalk/main.ts",
+    "start:web": "bun src/hosts/webui/main.ts",
+    "build:web": "bun build src/hosts/webui/panel/app-shell.tsx --outdir src/hosts/webui/public --target browser --format esm",
+    "start:mcp": "bun src/hosts/mcp/main.ts",
+    "start:stdin": "bun examples/stdin.ts",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:start:robot": "pm2 start ecosystem.config.cjs --only mantis-robot",
+    "pm2:start:dws": "pm2 start ecosystem.config.cjs --only mantis-dws",
+    "pm2:start:web": "pm2 start ecosystem.config.cjs --only mantis-web",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs",
+    "pm2:delete": "pm2 delete ecosystem.config.cjs",
+    "pm2:logs": "pm2 logs mantis-robot mantis-dws mantis-web"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5"
+  }
+}

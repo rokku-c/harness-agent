@@ -1,3 +1,6 @@
 node_modules/
 .env
 config.toml
+*.out.log
+*.err.log
+.board-data/

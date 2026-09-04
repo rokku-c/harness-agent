@@ -30,6 +30,8 @@ one runnable instance. See [docs/layers.md](docs/layers.md) for the map.
 | capability sandbox | `@effect-agent/script` | self-bootstrapping TS/JS tool sandbox: scripts compose toolcalls into higher tools; closure visibility + content-addressed versions + graded compatibility + one Policy type (see [docs/script-sandbox.md](docs/script-sandbox.md)) |
 | cross-cutting | `@effect-agent/assembly` | the composition root: defaultLayers(), driver(), profile-driven assembly |
 | L5 app | `app-playground` | wires all layers into a runnable agent (bun apps/playground/src/main.ts) |
+| L5 app | `app-board` | the multi-agent **board** (gitlab-workitem style): layered domain / store / resource governor (all-or-nothing atomic claims, exclusive & shared, priority wake) / builtin coordinator agent / MCP surface (`board_*` tools, stdio or in-process) / web panel whose backend IS the board MCP server - independent, depends only on the bottom abstractions. bun apps/board/src/hosts/mcp/main.ts | bun apps/board/src/hosts/web/main.ts |
+| L5 app | `app-mantis` | mantis on effect-agent: the session agent (tool supply / explicit ApprovalPolicy / reflection / FinalReply) **plus two live hosts**: the dingtalk host (dws user identity + robot bot identity, interactive approval cards, original-clawyp config.toml compatible) and the **web console** (observability + browser chat + approvals + versioned agent UI) - bun apps/mantis/src/hosts/dingtalk/main.ts | bun apps/mantis/src/hosts/webui/main.ts | |
 
 ## The loop as a sentence
 
@@ -173,3 +175,31 @@ bun run examples           # offline examples (01, 02, 05)
 bun run examples 03 --live # live provider roundtrip (config.toml + .env)
 bun run examples 06 --live # live supervisor spawning real subagents
 ```
+
+## 主流 agent 中间抽象控制：@effect-agent/agentdeck + deckconsole
+
+「在这里面找地方」的落点就是本仓库的两个包：
+
+- **组件 packages/agentdeck**：对所有主流 agent（claude-code/codex/gemini/pi/本框架
+  effect/自定义 CLI/*claw 类自定义）的统一中间控制层
+  1. 流程控制：SessionGateway(open/close/send/status/sessions/history) + AgentDeck 注册聚合
+  2. session→同意映射：ConsentLedger(ask/allow/deny，留痕 by/time)
+  3. 配置→统一映射：normalizeConfig(kind, raw)（方言字段归一，extra 无损）
+  适配器：effect(进程内 EffectAgent) / claude-cc(进程内 SDK) / 通用 CLI(custom/cli 预设)
+  测试：packages/agentdeck/test（免模型/免真 CLI）
+- **产品 apps/deckconsole**：组件之上的「控制室」（HTTP + 暗色管理页）——跨 agent 会话管理、
+  审批(含 auto/deny 会话级策略)、配置归一预览、会话详情、启动组(可持久化 DECK_FILE)、一键全关
+  启动：DECK_PORT=4851 bun apps/deckconsole/src/main.ts，浏览器开 http://127.0.0.1:4851
+
+详见 docs/agentdeck.md。
+
+
+## 组件与产品状态（agentdeck / deckconsole）
+
+- **组件** packages/agentdeck：三面抽象（流程控制 SessionGateway / session→同意 ConsentLedger /
+  配置→统一 normalizeConfig）+ 5 适配器（effect、effect-ops、claude-cc、CLI、demo）+ 审批驱动
+  真实执行 + 运行时方言注册（任意 "*claw"-like CLI agent 免改码接入）
+- **产品** apps/deckconsole：控制室（HTTP API + 暗色管理页）。文档：docs/agentdeck.md（分轮记录）、
+  docs/agentdeck-map.md（目标→落点→测试矩阵）
+- **真机冒烟**：deckconsole 真实驱动 claude-code 成功（open→send→text 与真实多轮 + 完整转录）；
+  codex/pi/gemini 冒烟受沙箱（home 目录写/内部服务 EPERM）与交互式 OAuth 限制，需授权后补跑

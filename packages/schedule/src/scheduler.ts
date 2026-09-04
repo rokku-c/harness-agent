@@ -39,7 +39,8 @@ export const IntervalScheduler = Effect.gen(function* () {
       Effect.gen(function* () {
         const id = randomUUID()
         const fire = () => {
-          Effect.runPromise(run).catch((error) => console.error("[schedule] job", task, "failed:", error))
+          // leveled, replaceable via Effect's Logger provider - never a raw console
+          Effect.runPromise(run.pipe(Effect.tapError((error) => Effect.logError("[schedule] job failed: " + task, error)))).catch(() => {})
         }
         if (trigger._tag === "Interval") {
           const handle = setInterval(fire, trigger.everyMs)

@@ -11,16 +11,25 @@ export type Until<A> =
   | { readonly _tag: "Thinking" }
   | { readonly _tag: "ToolCall" }
   | { readonly _tag: "Stop" }
-  | { readonly _tag: "Schema"; readonly schema: Schema.Schema<A, any, never> }
+  /**
+   * The run's output is the schema's decoded value. Drivers that serve this
+   * over native tool calls expose ONE synthetic tool whose input schema IS
+   * the result - its NAME and description come from `asTool`, declared by the
+   * agent layer (core stays generic; naming belongs to the agent, not core).
+   */
+  | { readonly _tag: "Schema"; readonly schema: Schema.Schema<A, any, never>; readonly asTool?: { readonly name: string; readonly description?: string } }
 
 export const Until = {
   text: { _tag: "Text" } as Until<string>,
   thinking: { _tag: "Thinking" } as Until<string>,
   toolCall: { _tag: "ToolCall" } as Until<Extract<import("./content.ts").Content, { _tag: "ToolCall" }>>,
   stop: { _tag: "Stop" } as Until<string>,
-  schema: <A>(schema: Schema.Schema<A, any, never>): Until<A> => ({ _tag: "Schema", schema })
+  /** structured result; pass asTool to serve it as a native tool call */
+  schema: <A>(
+    schema: Schema.Schema<A, any, never>,
+    asTool?: { readonly name: string; readonly description?: string }
+  ): Until<A> => ({ _tag: "Schema", schema, ...(asTool === undefined ? {} : { asTool }) })
 }
-
 /** Check a driver's capabilities against the requested until - fail loud, precisely. */
 export const requireUntil = <A>(id: string, capabilities: Capabilities, until: Until<A>) => {
   const reject = (required: string, actual: string) => new UnsupportedCapability({ agent: id, required, actual })

@@ -1,0 +1,61 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2023"
+    ],
+    "types": [
+      "bun-types"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "paths": {
+      "@effect-agent/core": [
+        "./packages/core/src/index.ts"
+      ],
+      "@effect-agent/builtin": [
+        "./packages/builtin/src/index.ts"
+      ],
+      "@effect-agent/model": [
+        "./packages/model/src/index.ts"
+      ],
+      "@effect-agent/channel": [
+        "./packages/channel/src/index.ts"
+      ],
+      "@effect-agent/tools": [
+        "./packages/tools/src/index.ts"
+      ],
+      "@effect-agent/state": [
+        "./packages/state/src/index.ts"
+      ],
+      "@effect-agent/memory": [
+        "./packages/memory/src/index.ts"
+      ],
+      "@effect-agent/gate": [
+        "./packages/gate/src/index.ts"
+      ],
+      "@effect-agent/logger": [
+        "./packages/logger/src/index.ts"
+      ],
+      "@effect-agent/schedule": [
+        "./packages/schedule/src/index.ts"
+      ],
+      "@effect-agent/assembly": [
+        "./packages/assembly/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../packages/core/src/**/*.ts",
+    "../../packages/builtin/src/**/*.ts",
+    "../../packages/model/src/**/*.ts",
+    "../../packages/gate/src/**/*.ts"
+  ]
+
+}
