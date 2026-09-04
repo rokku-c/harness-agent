@@ -239,7 +239,9 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const isolation = Array.isArray(capabilities.isolation) ? capabilities.isolation.map(String).filter((x): x is "env" | "workspace" | "sandbox" => ["env", "workspace", "sandbox"].includes(x)) : []
     await Effect.runPromise(Ref.update(board.tables.agents, (m) => new Map(m).set(agentId, { agentId, kind: str(a, "agentKind") ?? kind ?? "agent", channel: kind === "probe" ? "probe" : "mcp-self", capabilities: { launchKinds: launches, claimKinds: claims, isolation }, status: "online", lastSeen: Date.now() })))
     const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
-    return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: true, consent: true } })
+    const orphans = await Effect.runPromise(Ref.get(board.tables.executions)).then((records) =>
+      [...records.values()].filter((record) => record.agentId === agentId && record.status === "orphan"))
+    return json({ ...result, agentId, registered: result.ok, capabilities, orphans, server: { protocol: "board.v2@1", tree: true, launch: true, consent: true } })
   })
 
   tool(server, "board_create_item",
