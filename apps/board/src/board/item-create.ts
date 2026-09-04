@@ -7,6 +7,7 @@ import type { WorkItem } from "../domain.ts"
 import type { BoardApi } from "./contract.ts"
 import type { BoardCtx } from "./context.ts"
 import { PRIORITY_OF, newItemId } from "./rules.ts"
+import { assertParent } from "../domain.ts"
 
 export const createItemSlice = (ctx: BoardCtx): Pick<BoardApi, "createItem"> => {
   const { tables, bus, save } = ctx
@@ -15,8 +16,10 @@ export const createItemSlice = (ctx: BoardCtx): Pick<BoardApi, "createItem"> => 
       Effect.gen(function* () {
         const id = newItemId(input.title)
         const now = Date.now()
+        const existing = yield* Ref.get(tables.items)
         const item: WorkItem = {
           itemId: id,
+          kind: input.kind ?? "leaf",
           title: input.title,
           body: input.body,
           state: "todo",
@@ -32,6 +35,7 @@ export const createItemSlice = (ctx: BoardCtx): Pick<BoardApi, "createItem"> => 
           createdAt: now,
           updatedAt: now
         }
+        assertParent(existing, item)
         yield* Ref.update(tables.items, (m) => new Map(m).set(id, item))
         const parentId = input.parentId
         if (parentId !== undefined)

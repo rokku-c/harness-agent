@@ -3,7 +3,7 @@
  *  only through BoardApi; it is the only place allowed to combine Store +
  *  ResourceGovernor + EventBus. Options + snapshot shapes live here. */
 import { Effect } from "effect"
-import type { Concurrency, ExecutorKind, ResourceKind, WorkItem } from "../domain.ts"
+import type { Concurrency, ExecutorKind, ResourceKind, WorkItem, WorkItemKind } from "../domain.ts"
 import type { Tables } from "../store.ts"
 import type { ResourceGovernor } from "../governor.ts"
 import type { EventBus, BoardEvent } from "../events.ts"
@@ -28,6 +28,7 @@ export interface BoardApi {
   readonly state: () => Effect.Effect<BoardSnapshot>
   readonly createItem: (input: {
     title: string
+    kind?: WorkItemKind
     body?: string
     priority?: "low" | "normal" | "high" | "urgent"
     requires?: ReadonlyArray<{ resourceId: string; amount?: number }>

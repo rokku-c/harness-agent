@@ -56,6 +56,7 @@ const SCHEMA = {
   state: {} as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
+    kind: z.enum(["goal", "group", "leaf"]).optional(),
     body: z.string().max(8000).optional(),
     priority: z.string().max(20).optional(),
     requires: z.string().max(4000).optional(),
@@ -121,6 +122,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
       const priority = str(a, "priority")
       const input = {
         title: String(a.title ?? ""),
+        kind: str(a, "kind") as "goal" | "group" | "leaf" | undefined,
         body: str(a, "body"),
         priority: priority !== undefined && (PRIORITIES as ReadonlyArray<string>).includes(priority) ? priority as "low" | "normal" | "high" | "urgent" : undefined,
         requires: splitRequires(str(a, "requires")),
