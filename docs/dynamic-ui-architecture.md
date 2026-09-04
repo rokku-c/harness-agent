@@ -50,7 +50,8 @@ Registry 只保存声明和 renderer 引用，不保存 React/Vue 实例。组�
 
 ## 数据绑定与下钻
 
-- `DataStore` 保存远程源、缓存和本地状态；每个 Canvas 创建带父链的 `Scope`。
+- `DataStore` 保存远程源、缓存和本地状态；`UIDataSource` 通过异步 `read(signal)`
+  接口接入，`syncDataSource` 负责把快照写入 store；每个 Canvas 创建带父链的 `Scope`。
 - 绑定只允许安全路径/表达式：`$scope.user.id`、`$data.sales.items`、`$event.row`；
   禁止 `eval`。读写动作经过 schema 校验和 Gate。
 - 点击 CanvasRef 产生 `navigate(canvasId, params)`，把参数写入子 Scope，
