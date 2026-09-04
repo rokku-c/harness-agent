@@ -34,7 +34,12 @@ export const makeDefinitionStore = (initial: DefinitionSnapshot = { canvases: {}
     if (command.kind === "insert-node") { const next = withNode(canvas, command.node, command.parentId, components.find((item) => item.type === command.node.type)); canvases[command.canvasId] = next; return next }
     if (command.kind === "link-canvas") {
       if (canvases[command.targetCanvasId] === undefined) throw new UIError("not-found", "target canvas not found: " + command.targetCanvasId)
-      const next = withNode(canvas, { id: command.nodeId, type: "CanvasRef", props: { targetCanvasId: command.targetCanvasId } }, command.parentId, components.find((item) => item.type === "CanvasRef"))
+      const next = withNode(canvas, {
+        id: command.nodeId,
+        type: "CanvasRef",
+        props: { targetCanvasId: command.targetCanvasId },
+        events: { click: [{ action: "navigate_to_canvas", input: { canvasId: command.targetCanvasId } }] }
+      }, command.parentId, components.find((item) => item.type === "CanvasRef"))
       canvases[command.canvasId] = next
       return next
     }

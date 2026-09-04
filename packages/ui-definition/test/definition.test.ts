@@ -54,6 +54,8 @@ describe("ui definition store", () => {
     store.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
     store.apply({ kind: "create-canvas", canvasId: "child", title: "Child" })
     store.apply({ kind: "link-canvas", canvasId: "root", nodeId: "child-link", targetCanvasId: "child" })
-    expect(store.getCanvas("root")!.nodes["child-link"]!.props?.targetCanvasId).toBe("child")
+    const link = store.getCanvas("root")!.nodes["child-link"]!
+    expect(link.props?.targetCanvasId).toBe("child")
+    expect(link.events?.click?.[0]).toEqual({ action: "navigate_to_canvas", input: { canvasId: "child" } })
   })
 })
