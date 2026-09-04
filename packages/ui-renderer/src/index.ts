@@ -1,5 +1,6 @@
 import type { ResolvedNode, ResolvedUITree } from "@effect-agent/ui-runtime"
 import type { UIRuntime } from "@effect-agent/ui-runtime"
+export { defaultThemes, makeThemeRegistry, type ThemeDefinition, type ThemeRegistry, type ThemeTokens } from "./theme.ts"
 
 export interface RendererContext { readonly onAction?: (action: string) => string; readonly theme?: string }
 export interface Renderer {
