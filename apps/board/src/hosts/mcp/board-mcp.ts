@@ -13,6 +13,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { BoardApi } from "../../board.ts"
 import { coordinate } from "../../coordinator.ts"
 import type { Model } from "@effect-agent/builtin"
+import { isOffline } from "../../domain/agents.ts"
 
 export interface BoardMcpOptions {
   readonly board: BoardApi
@@ -116,7 +117,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_state", "Full board snapshot: resources (with current usage), all work items, executors, views.", SCHEMA.state, async () =>
     json(await Effect.runPromise(board.state())))
   tool(server, "board_agents", "List registered agents and probes with their capabilities and heartbeat state.", SCHEMA.agents, async () =>
-    json({ ok: true, agents: [...(await Effect.runPromise(Ref.get(board.tables.agents))).values()] }))
+    json({ ok: true, agents: [...(await Effect.runPromise(Ref.get(board.tables.agents))).values()].map((agent) => ({ ...agent, status: isOffline(agent, Date.now()) ? "offline" : agent.status })) }))
 
   tool(server, "board_sync", "Register an agent or probe and negotiate board.v2 capabilities.", SCHEMA.sync, async (a) => {
     const agentId = String(a.agentId ?? "")
