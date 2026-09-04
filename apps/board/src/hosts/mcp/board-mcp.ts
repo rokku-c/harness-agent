@@ -60,8 +60,8 @@ const SCHEMA = {
   agents: {} as z.ZodRawShape,
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
-  progress: { runId: z.string().min(1), progress: z.number().min(0).max(1), message: z.string().optional() } as z.ZodRawShape,
-  terminal: { runId: z.string().min(1), result: z.string().optional() } as z.ZodRawShape,
+  progress: { runId: z.string().min(1), agentId: z.string().min(1), progress: z.number().min(0).max(1), message: z.string().optional() } as z.ZodRawShape,
+  terminal: { runId: z.string().min(1), agentId: z.string().min(1), result: z.string().optional() } as z.ZodRawShape,
   launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]), isolation: z.enum(["env", "workspace", "sandbox"]).optional(), config: z.string().optional(), runPolicy: z.string().optional() } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
@@ -143,20 +143,20 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     return json({ ok: true, acknowledged: ids })
   })
   tool(server, "board_report_progress", "Report progress for a queued or running probe execution.", SCHEMA.progress, async (a) => {
-    const runId = String(a.runId), percent = Number(a.progress)
+    const runId = String(a.runId), agentId = String(a.agentId), percent = Number(a.progress)
     const updated = await Effect.runPromise(Ref.modify(board.tables.executions, (records) => {
       const record = records.get(runId)
-      if (!record || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
+      if (!record || record.agentId !== agentId || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
       return [true, new Map(records).set(runId, { ...record, progress: percent, progressMessage: str(a, "message") })] as const
     }))
     if (updated) await Effect.runPromise(board.persist())
     return json({ ok: updated, runId, progress: percent })
   })
   const terminalTool = (status: "done" | "failed") => async (a: Record<string, unknown>) => {
-    const runId = String(a.runId)
+    const runId = String(a.runId), agentId = String(a.agentId)
     const updated = await Effect.runPromise(Ref.modify(board.tables.executions, (records) => {
       const record = records.get(runId)
-      if (!record || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
+      if (!record || record.agentId !== agentId || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
       return [true, new Map(records).set(runId, { ...record, status, result: str(a, "result"), progress: status === "done" ? 1 : record.progress, finishedAt: Date.now() })] as const
     }))
     if (updated) await Effect.runPromise(board.persist())
