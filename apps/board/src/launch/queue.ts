@@ -11,6 +11,19 @@ export interface BoardCommand {
 
 export interface CommandQueue { readonly commands: ReadonlyArray<BoardCommand> }
 
+export const serialize = (queue: CommandQueue): string => JSON.stringify(queue)
+
+export const deserialize = (raw: string): CommandQueue => {
+  const value = JSON.parse(raw) as { commands?: unknown }
+  if (!Array.isArray(value.commands)) throw new Error("invalid command queue snapshot")
+  const commands = value.commands.filter((item): item is BoardCommand => {
+    if (!item || typeof item !== "object") return false
+    const command = item as Record<string, unknown>
+    return typeof command.id === "string" && typeof command.agentId === "string" && typeof command.runId === "string"
+  })
+  return { commands }
+}
+
 export const emptyQueue = (): CommandQueue => ({ commands: [] })
 
 export const enqueue = (queue: CommandQueue, command: BoardCommand): CommandQueue =>

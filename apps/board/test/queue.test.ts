@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { acknowledge, emptyQueue, enqueue, makeCommandQueue, poll, type BoardCommand } from "../src/launch/queue.ts"
+import { acknowledge, deserialize, emptyQueue, enqueue, makeCommandQueue, poll, serialize, type BoardCommand } from "../src/launch/queue.ts"
 
 const command = (id: string, agentId = "probe"): BoardCommand => ({ id, agentId, kind: "launch", runId: id, createdAt: 1 })
 
@@ -20,5 +20,9 @@ describe("probe command queue", () => {
     expect(queue.poll("probe")).toHaveLength(1)
     queue.acknowledge(["c2"])
     expect(queue.snapshot().commands).toHaveLength(0)
+  })
+  test("snapshots preserve pending commands", () => {
+    const queue = enqueue(emptyQueue(), command("c3"))
+    expect(deserialize(serialize(queue)).commands[0]?.runId).toBe("c3")
   })
 })
