@@ -8,6 +8,7 @@ import type { Tables } from "../store.ts"
 import type { ResourceGovernor } from "../governor.ts"
 import type { EventBus, BoardEvent } from "../events.ts"
 import type { Rollup } from "../domain/rollup.ts"
+import type { ProbeGateway } from "../launch.ts"
 
 export interface BoardOptions {
   /** optional snapshot file for restart persistence (BOARD_DATA_FILE) */
@@ -26,6 +27,7 @@ export interface BoardApi {
   readonly tables: Tables
   readonly bus: EventBus
   readonly governor: ResourceGovernor
+  readonly probe: ProbeGateway
   readonly state: () => Effect.Effect<BoardSnapshot>
   readonly createItem: (input: {
     title: string
@@ -64,4 +66,5 @@ export interface BoardDeps {
   readonly bus: EventBus
   readonly governor: ResourceGovernor
   readonly dataFile: string | undefined
+  readonly probe: ProbeGateway
 }

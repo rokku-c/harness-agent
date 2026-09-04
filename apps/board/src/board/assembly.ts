@@ -14,10 +14,12 @@ import { createItemSlice } from "./item-create.ts"
 import { startSlice } from "./start.ts"
 import { outcomeSlice } from "./outcomes.ts"
 import { execResSlice } from "./exec-res.ts"
+import { makeProbeGateway } from "../launch.ts"
 
 const buildApi = (deps: BoardDeps): BoardApi => {
   const ctx = makeCtx(deps)
   return {
+    probe: deps.probe,
     ...readsSlice(deps),
     ...createItemSlice(ctx),
     ...startSlice(ctx),
@@ -44,5 +46,5 @@ export const makeBoard = (options?: BoardOptions): Effect.Effect<BoardApi> =>
           yield* persist(options?.dataFile, tables)
         })
     })
-    return buildApi({ tables, bus, governor, dataFile: options?.dataFile })
+    return buildApi({ tables, bus, governor, dataFile: options?.dataFile, probe: makeProbeGateway() })
   })
