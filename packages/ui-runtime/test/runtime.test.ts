@@ -96,11 +96,14 @@ test("replays a JSONL command journal", async () => {
   await journal.append({ kind: "create-canvas", canvasId: "root", title: "Restored" })
   await journal.append({ kind: "set-theme", theme: "dark" })
   await journal.append({ kind: "set-renderer", renderer: "canvas" })
+  await journal.append({ kind: "create-canvas", canvasId: "child", title: "Child" })
+  await journal.append({ kind: "navigate", canvasId: "child", params: { userId: "u1" } })
   const runtime = makeUIRuntime(makeDefinitionStore(), "root")
-  expect(await journal.replay(runtime)).toBe(3)
-  expect(runtime.view().title).toBe("Restored")
+  expect(await journal.replay(runtime)).toBe(5)
+  expect(runtime.view().title).toBe("Child")
   expect(runtime.theme()).toBe("dark")
   expect(runtime.renderer()).toBe("canvas")
+  expect(runtime.navigation().params).toEqual({ userId: "u1" })
 })
 
 test("restore does not duplicate history and records new commands", async () => {
