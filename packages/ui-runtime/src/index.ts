@@ -1,7 +1,7 @@
 import type { BindingExpression, CanvasDefinition, UINode } from "@effect-agent/ui-protocol"
 import type { DefinitionStore } from "@effect-agent/ui-definition"
 export { makeActions, type NavigationState, type RuntimeActions } from "./actions.ts"
-export { makeUIRuntime, type UIRuntime } from "./runtime.ts"
+export { makeUIRuntime, type UIRuntime, type UIRuntimeOptions } from "./runtime.ts"
 
 export interface RuntimeContext { readonly state: Record<string, unknown>; readonly canvasId: string }
 export interface ResolvedNode extends UINode { readonly resolvedProps: Record<string, unknown>; readonly resolvedChildren: ReadonlyArray<ResolvedNode> }

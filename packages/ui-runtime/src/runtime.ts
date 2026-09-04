@@ -14,12 +14,15 @@ export interface UIRuntime {
   readonly setTheme: (theme: string) => void
 }
 
-export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string): UIRuntime => {
+export interface UIRuntimeOptions { readonly onCommand?: (command: UICommand) => void }
+
+export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, options: UIRuntimeOptions = {}): UIRuntime => {
   const actions = makeActions(initialCanvas)
   let activeTheme = "default"
   return {
     apply: (command) => {
       store.apply(command)
+      options.onCommand?.(command)
     },
     dispatch: (event) => actions.dispatch(event),
     navigation: actions.navigation,

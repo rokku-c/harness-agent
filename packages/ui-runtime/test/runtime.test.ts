@@ -50,6 +50,15 @@ test("switches theme without changing the canvas definition", () => {
   expect(runtime.version("root")).toBe(version)
 })
 
+test("records only successfully applied commands", () => {
+  const store = makeDefinitionStore()
+  const recorded: string[] = []
+  const runtime = makeUIRuntime(store, "root", { onCommand: (command) => recorded.push(command.kind) })
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  expect(() => runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Again" })).toThrow()
+  expect(recorded).toEqual(["create-canvas"])
+})
+
 test("expands a registered composite component", () => {
   const store = makeDefinitionStore()
   store.registerComponent({ type: "Card", version: "1", category: "composite", template: { id: "body", type: "Text", props: { value: "inside" } } })
