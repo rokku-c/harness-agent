@@ -32,6 +32,8 @@ export const guardedSandbox = (sandbox: UISandbox): UISandbox => ({
 export const makeRuntimeSandbox = (runtime: ScriptRuntime, dependencies: Readonly<Record<string, ToolApi>> = {}): UISandbox => guardedSandbox({
   execute: async (request) => {
     const declared = new Set(request.dependencies ?? [])
+    const missing = [...declared].filter((name) => dependencies[name] === undefined)
+    if (missing.length > 0) return { ok: false, error: "missing dependency: " + missing.join(", ") }
     const env = Object.fromEntries(Object.entries(dependencies).filter(([name]) => declared.has(name)))
     const host: ScriptHost = { defineTool: () => undefined }
     try { return { ok: true, value: await runtime.execute(request.code, env, host) } }

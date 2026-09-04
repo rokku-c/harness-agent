@@ -36,6 +36,12 @@ test("runtime failures return a readable sandbox result", async () => {
   expect(result).toEqual({ ok: false, error: "script failed" })
 })
 
+test("reports a missing declared dependency", async () => {
+  const runtime: ScriptRuntime = { runtime: "node-vm", execute: async () => 1 }
+  const result = await makeRuntimeSandbox(runtime).execute({ code: "", dependencies: ["missing"], extension })
+  expect(result).toEqual({ ok: false, error: "missing dependency: missing" })
+})
+
 test("isolated factory guards invalid requests before native loading", async () => {
   const result = await makeIsolatedSandbox().execute({ code: "", extension: { ...extension, permissions: [] } })
   expect(result.error).toContain("lacks execute:script")
