@@ -9,6 +9,7 @@ export interface RuntimeActions {
 export const makeActions = (initialCanvas: string): RuntimeActions => {
   let current = initialCanvas
   let stack: string[] = []
+  let paramStack: Array<Record<string, unknown>> = []
   let params: Record<string, unknown> = {}
   const navigation = (): NavigationState => ({ current, stack: [...stack], params: { ...params } })
   const run = async (action: ActionRef): Promise<void> => {
@@ -16,12 +17,18 @@ export const makeActions = (initialCanvas: string): RuntimeActions => {
       const target = action.input?.canvasId
       if (typeof target !== "string") throw new Error("navigate_to_canvas needs canvasId")
       stack = [...stack, current]
+      paramStack = [...paramStack, params]
       current = target
       params = { ...(action.input ?? {}) }
       delete params.canvasId
     } else if (action.action === "go_back") {
       const previous = stack.at(-1)
-      if (previous !== undefined) { current = previous; stack = stack.slice(0, -1); params = {} }
+      if (previous !== undefined) {
+        current = previous
+        stack = stack.slice(0, -1)
+        params = paramStack.at(-1) ?? {}
+        paramStack = paramStack.slice(0, -1)
+      }
     }
   }
   return {

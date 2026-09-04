@@ -35,6 +35,14 @@ test("navigates into nested canvas and back", async () => {
   expect(actions.navigation()).toEqual({ current: "root", stack: [], params: {} })
 })
 
+test("restores parent parameters after nested navigation", async () => {
+  const actions = makeActions("root")
+  await actions.dispatch({ eventId: "e1", nodeId: "a", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "a", rootId: "r" } }] })
+  await actions.dispatch({ eventId: "e2", nodeId: "b", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "b", childId: "c" } }] })
+  await actions.dispatch({ eventId: "e3", nodeId: "b", type: "click", actions: [{ action: "go_back" }] })
+  expect(actions.navigation().params).toEqual({ rootId: "r" })
+})
+
 test("routes definition changes and view through one runtime", () => {
   const store = makeDefinitionStore()
   const runtime = makeUIRuntime(store, "root")
