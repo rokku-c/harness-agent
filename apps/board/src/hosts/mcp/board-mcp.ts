@@ -130,14 +130,17 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_poll", "Probe heartbeat and pull pending commands; commands remain pending until acknowledged.", SCHEMA.poll, async (a) => {
     const ack = str(a, "ack")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
     board.probe.ack(ack)
-    if (ack.length > 0) await Effect.runPromise(Ref.update(board.tables.executions, (records) => {
+    if (ack.length > 0) {
+      await Effect.runPromise(Ref.update(board.tables.executions, (records) => {
       const next = new Map(records), startedAt = Date.now()
       for (const id of ack) {
         const record = next.get(id)
         if (record?.status === "queued") next.set(id, { ...record, status: "running", startedAt })
       }
       return next
-    }))
+      }))
+      await Effect.runPromise(board.persist())
+    }
     const result = board.probe.poll(String(a.agentId ?? ""))
     await Effect.runPromise(Ref.update(board.tables.agents, (agents) => {
       const agentId = String(a.agentId ?? ""), current = agents.get(agentId)
