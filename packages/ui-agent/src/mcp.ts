@@ -44,6 +44,7 @@ export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore, ren
     runtime.apply({ kind: "set-theme", theme }); return result({ ok: true, theme })
   })
   server.registerTool("ui_set_renderer", { description: "Switch the active UI renderer.", inputSchema: { renderer: z.string() } }, async ({ renderer }) => {
+    if (renderers !== undefined && renderers.get(renderer) === undefined) return result({ ok: false, error: "renderer not found: " + renderer })
     runtime.apply({ kind: "set-renderer", renderer }); return result({ ok: true, renderer })
   })
   server.registerTool("ui_enter_canvas", { description: "Navigate into a canvas with optional parameters.", inputSchema: { canvasId: z.string(), params: z.record(z.string(), z.unknown()).optional() } }, async ({ canvasId, params }) => {
