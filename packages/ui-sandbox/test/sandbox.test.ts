@@ -29,3 +29,9 @@ test("runtime sandbox injects only declared dependencies", async () => {
   const result = await sandbox.execute({ code: "", dependencies: ["allowed"], extension })
   expect(result).toEqual({ ok: true, value: ["allowed"] })
 })
+
+test("runtime failures return a readable sandbox result", async () => {
+  const runtime: ScriptRuntime = { runtime: "node-vm", execute: async () => { throw new Error("script failed") } }
+  const result = await makeRuntimeSandbox(runtime).execute({ code: "throw", extension })
+  expect(result).toEqual({ ok: false, error: "script failed" })
+})
