@@ -6,6 +6,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@effect-agent/ui-protocol": "workspace:*",
-    "@effect-agent/ui-runtime": "workspace:*"
+    "@effect-agent/ui-runtime": "workspace:*",
+    "@effect-agent/ui-renderer": "workspace:*"
   }
 }
