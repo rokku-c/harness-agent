@@ -7,9 +7,12 @@ import type { ResourceClaim } from "./resources.ts"
 export const WORK_ITEM_STATES = ["todo", "ready", "doing", "blocked", "done", "failed", "cancelled"] as const
 export type WorkItemState = (typeof WORK_ITEM_STATES)[number]
 export type Priority = "low" | "normal" | "high" | "urgent"
+export type WorkItemKind = "goal" | "group" | "leaf"
 
 export interface WorkItem {
   readonly itemId: string
+  /** Tree role; omitted by v1 snapshots and treated as a leaf. */
+  readonly kind?: WorkItemKind
   readonly title: string
   readonly body?: string
   readonly state: WorkItemState
@@ -31,4 +34,6 @@ export interface WorkItem {
   readonly result?: string
   readonly createdAt: number
   readonly updatedAt: number
+  /** Optimistic concurrency token for tree edits. */
+  readonly version?: number
 }

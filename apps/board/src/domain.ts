@@ -6,7 +6,10 @@
  */
 export type { ResourceKind, Concurrency, Resource, ResourceClaim } from "./domain/resources.ts"
 export { WORK_ITEM_STATES } from "./domain/work.ts"
-export type { WorkItemState, Priority, WorkItem } from "./domain/work.ts"
+export type { WorkItemState, Priority, WorkItemKind, WorkItem } from "./domain/work.ts"
+export { TreeInvariantError, isLeaf, assertParent, attachChild, descendants } from "./domain/task-tree.ts"
+export { rollup } from "./domain/rollup.ts"
+export type { Rollup } from "./domain/rollup.ts"
 export type { ExecutorKind, Executor } from "./domain/executors.ts"
 export type { ViewColumn, BoardView } from "./domain/views.ts"
 export type { Transition } from "./domain/machine.ts"
