@@ -117,7 +117,7 @@ test("journal skips malformed lines", async () => {
   const file = join(tmpdir(), `ui-corrupt-${crypto.randomUUID()}`, "ui.jsonl")
   const journal = makeUIJournal(file)
   await journal.append({ kind: "create-canvas", canvasId: "root", title: "Root" })
-  await Bun.write(file, (await Bun.file(file).text()) + "not-json\n{}\n")
+  await Bun.write(file, (await Bun.file(file).text()) + "not-json\n{}\n{\"kind\":\"future-command\"}\n")
   expect((await journal.read()).map((command) => command.kind)).toEqual(["create-canvas"])
 })
 

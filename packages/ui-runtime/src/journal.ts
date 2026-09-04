@@ -12,10 +12,11 @@ export interface UIJournal {
   readonly flush: () => Promise<void>
 }
 
+const commandKinds = new Set(["create-canvas", "insert-node", "remove-node", "patch-node", "bind-node", "link-canvas", "set-theme", "set-renderer"])
 const decode = (line: string): UICommand | undefined => {
   try {
     const value = JSON.parse(line) as UICommand
-    return typeof value?.kind === "string" ? value : undefined
+    return typeof value?.kind === "string" && commandKinds.has(value.kind) ? value : undefined
   } catch { return undefined }
 }
 
