@@ -27,6 +27,7 @@ test("ui host advertises the external MCP surface", async () => {
     expect(listed.tools.map((tool: { name: string }) => tool.name)).toContain("ui_list_components")
     expect(listed.tools.map((tool: { name: string }) => tool.name)).toContain("ui_remove_node")
     expect(listed.tools.map((tool: { name: string }) => tool.name)).toContain("ui_link_canvas")
+    expect(listed.tools.map((tool: { name: string }) => tool.name)).toContain("ui_register_component")
     const created = await call(child, "tools/call", { name: "ui_create_canvas", arguments: { canvasId: "demo", title: "Demo" } }, 3)
     expect(JSON.stringify(created)).toContain("demo")
     await call(child, "tools/call", { name: "ui_insert_node", arguments: { canvasId: "demo", nodeId: "title", type: "Text", value: "Hello" } }, 4)
