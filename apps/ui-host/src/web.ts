@@ -15,6 +15,7 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
     const url = new URL(request.url)
     if (url.pathname === "/api/canvas") return json(url.searchParams.has("canvasId") ? runtime.viewCanvas(url.searchParams.get("canvasId")!) : runtime.view())
     if (url.pathname === "/api/components") return json(definitions.listComponents())
+    if (url.pathname === "/api/canvases") return json(Object.values(definitions.snapshot().canvases).map((canvas) => ({ canvasId: canvas.canvasId, title: canvas.title, version: canvas.version })))
     if (url.pathname === "/api/command" && request.method === "POST") {
       try { runtime.apply(await request.json() as UICommand); return json({ ok: true, canvas: runtime.view() }) }
       catch (error) { return json({ ok: false, error: error instanceof Error ? error.message : String(error) }) }
