@@ -23,3 +23,13 @@ export const acknowledge = (queue: CommandQueue, ids: ReadonlyArray<string>): Co
   const accepted = new Set(ids)
   return { commands: queue.commands.filter((command) => !accepted.has(command.id)) }
 }
+
+export const makeCommandQueue = () => {
+  let current = emptyQueue()
+  return {
+    enqueue: (command: BoardCommand): void => { current = enqueue(current, command) },
+    poll: (agentId: string): ReadonlyArray<BoardCommand> => poll(current, agentId),
+    acknowledge: (ids: ReadonlyArray<string>): void => { current = acknowledge(current, ids) },
+    snapshot: (): CommandQueue => current
+  }
+}
