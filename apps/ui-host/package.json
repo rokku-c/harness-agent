@@ -7,6 +7,7 @@
     "@effect-agent/ui-agent": "workspace:*",
     "@effect-agent/ui-definition": "workspace:*",
     "@effect-agent/ui-runtime": "workspace:*",
+    "@effect-agent/ui-extension": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.2"
   }
 }
