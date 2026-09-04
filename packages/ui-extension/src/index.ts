@@ -21,6 +21,8 @@ export const makeExtensionRegistry = (definitions: DefinitionStore): ExtensionRe
       if (extension === undefined) return
       const old = previous.get(name)
       for (const component of extension.components ?? []) {
+        const current = definitions.getComponent(component.type)
+        if (current?.version !== component.version) continue
         definitions.unregisterComponent(component.type)
         const prior = old?.get(component.type)
         if (prior !== undefined) definitions.registerComponent(prior)

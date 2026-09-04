@@ -21,3 +21,12 @@ test("restores an overridden component on disable", () => {
   registry.disable("override")
   expect(definitions.getComponent("Text")?.version).toBe("base")
 })
+
+test("does not clobber a newer override", () => {
+  const definitions = makeDefinitionStore()
+  const registry = makeExtensionRegistry(definitions)
+  registry.enable({ manifest: { name: "a", version: "1", permissions: ["render"] }, components: [{ type: "Card", version: "a", category: "extension" }] })
+  registry.enable({ manifest: { name: "b", version: "1", permissions: ["render"] }, components: [{ type: "Card", version: "b", category: "extension" }] })
+  registry.disable("a")
+  expect(definitions.getComponent("Card")?.version).toBe("b")
+})
