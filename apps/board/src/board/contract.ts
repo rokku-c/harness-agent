@@ -29,6 +29,7 @@ export interface BoardApi {
   readonly bus: EventBus
   readonly governor: ResourceGovernor
   readonly probe: ProbeGateway
+  readonly persist: () => Effect.Effect<void>
   readonly state: () => Effect.Effect<BoardSnapshot>
   readonly createItem: (input: {
     title: string

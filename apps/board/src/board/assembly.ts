@@ -20,6 +20,7 @@ const buildApi = (deps: BoardDeps): BoardApi => {
   const ctx = makeCtx(deps)
   return {
     probe: deps.probe,
+    persist: () => persist(deps.dataFile, deps.tables),
     ...readsSlice(deps),
     ...createItemSlice(ctx),
     ...startSlice(ctx),
