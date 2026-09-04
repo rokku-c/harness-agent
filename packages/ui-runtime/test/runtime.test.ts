@@ -16,10 +16,10 @@ test("resolves bound props and nested canvas", () => {
 
 test("navigates into nested canvas and back", async () => {
   const actions = makeActions("root")
-  await actions.dispatch({ eventId: "e1", nodeId: "ref", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "child" } }] })
-  expect(actions.navigation()).toEqual({ current: "child", stack: ["root"] })
+  await actions.dispatch({ eventId: "e1", nodeId: "ref", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "child", userId: "u1" } }] })
+  expect(actions.navigation()).toEqual({ current: "child", stack: ["root"], params: { userId: "u1" } })
   await actions.dispatch({ eventId: "e2", nodeId: "child", type: "click", actions: [{ action: "go_back" }] })
-  expect(actions.navigation()).toEqual({ current: "root", stack: [] })
+  expect(actions.navigation()).toEqual({ current: "root", stack: [], params: {} })
 })
 
 test("routes definition changes and view through one runtime", () => {
