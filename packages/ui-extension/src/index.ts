@@ -11,5 +11,14 @@ export const makeExtensionRegistry = (definitions: DefinitionStore): ExtensionRe
     for (const component of extension.components ?? []) definitions.registerComponent(component)
     active.set(extension.manifest.name, extension)
   }
-  return { enable, disable: (name) => { active.delete(name) }, list: () => [...active.values()].map((item) => item.manifest) }
+  return {
+    enable,
+    disable: (name) => {
+      const extension = active.get(name)
+      if (extension === undefined) return
+      for (const component of extension.components ?? []) definitions.unregisterComponent(component.type)
+      active.delete(name)
+    },
+    list: () => [...active.values()].map((item) => item.manifest)
+  }
 }

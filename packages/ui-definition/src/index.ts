@@ -2,7 +2,7 @@ import { UIError, type CanvasDefinition, type ComponentDefinition, type UINode, 
 export { builtinComponents, registerBuiltins } from "./builtins.ts"
 
 export interface DefinitionSnapshot { readonly canvases: Readonly<Record<string, CanvasDefinition>>; readonly components: ReadonlyArray<ComponentDefinition> }
-export interface DefinitionStore { apply(command: UICommand): CanvasDefinition | undefined; getCanvas(id: string): CanvasDefinition | undefined; registerComponent(definition: ComponentDefinition): void; getComponent(type: string): ComponentDefinition | undefined; listComponents(): ReadonlyArray<ComponentDefinition>; snapshot(): DefinitionSnapshot }
+export interface DefinitionStore { apply(command: UICommand): CanvasDefinition | undefined; getCanvas(id: string): CanvasDefinition | undefined; registerComponent(definition: ComponentDefinition): void; unregisterComponent(type: string): void; getComponent(type: string): ComponentDefinition | undefined; listComponents(): ReadonlyArray<ComponentDefinition>; snapshot(): DefinitionSnapshot }
 
 const withNode = (canvas: CanvasDefinition, node: UINode, parentId?: string, definition?: ComponentDefinition): CanvasDefinition => {
   if (canvas.nodes[node.id] !== undefined) throw new UIError("invalid-tree", "duplicate node: " + node.id)
@@ -78,5 +78,6 @@ export const makeDefinitionStore = (initial: DefinitionSnapshot = { canvases: {}
     if (definition.template?.slot !== undefined && !(definition.slots ?? []).includes(definition.template.slot)) throw new UIError("invalid-tree", "undeclared slot: " + definition.template.slot)
     components = [...components.filter((item) => item.type !== definition.type), definition]
   }
-  return { apply, getCanvas: (id) => canvases[id], registerComponent, getComponent: (type) => components.find((item) => item.type === type), listComponents: () => [...components], snapshot: () => ({ canvases, components }) }
+  const unregisterComponent = (type: string): void => { components = components.filter((item) => item.type !== type) }
+  return { apply, getCanvas: (id) => canvases[id], registerComponent, unregisterComponent, getComponent: (type) => components.find((item) => item.type === type), listComponents: () => [...components], snapshot: () => ({ canvases, components }) }
 }
