@@ -71,7 +71,7 @@ test("records only successfully applied commands", () => {
 })
 
 test("replays a JSONL command journal", async () => {
-  const file = join(tmpdir(), `ui-journal-${crypto.randomUUID()}.jsonl`)
+  const file = join(tmpdir(), `ui-journal-${crypto.randomUUID()}`, "state", "ui.jsonl")
   const journal = makeUIJournal(file)
   await journal.append({ kind: "create-canvas", canvasId: "root", title: "Restored" })
   await journal.append({ kind: "set-theme", theme: "dark" })

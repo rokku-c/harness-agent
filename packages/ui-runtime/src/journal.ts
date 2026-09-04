@@ -1,4 +1,5 @@
-import { appendFile, readFile } from "node:fs/promises"
+import { appendFile, mkdir, readFile } from "node:fs/promises"
+import { dirname } from "node:path"
 import type { UICommand } from "@effect-agent/ui-protocol"
 import type { UIRuntime } from "./runtime.ts"
 import { makeUIRuntime } from "./runtime.ts"
@@ -28,6 +29,7 @@ export const makeUIJournal = (file: string): UIJournal => {
     }
   }
   const append = async (command: UICommand): Promise<void> => {
+    await mkdir(dirname(file), { recursive: true })
     await appendFile(file, JSON.stringify(command) + "\n", "utf8")
   }
   return { append, read, replay: async (runtime) => {
