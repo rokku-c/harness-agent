@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { makeDefinitionStore } from "@effect-agent/ui-definition"
 import { resolveCanvas } from "@effect-agent/ui-runtime"
-import { webRenderer, makeRendererRegistry, renderRuntime } from "../src/index.ts"
+import { webRenderer, makeRendererRegistry, renderRuntime, makeThemeRegistry } from "../src/index.ts"
 import { makeUIRuntime } from "@effect-agent/ui-runtime"
 
 test("web renderer renders resolved definition", () => {
@@ -21,4 +21,14 @@ test("renders the runtime's active theme", () => {
   runtime.setTheme("contrast")
   const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime)
   expect(html).toContain('data-theme="contrast"')
+})
+
+test("passes declarative theme tokens to the renderer", () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "set-theme", theme: "dark" })
+  const themes = makeThemeRegistry([{ id: "dark", tokens: { "color-text": "#fff" } }])
+  const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime, undefined, themes)
+  expect(html).toContain("--color-text:#fff")
 })

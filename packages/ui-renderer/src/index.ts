@@ -2,7 +2,7 @@ import type { ResolvedNode, ResolvedUITree } from "@effect-agent/ui-runtime"
 import type { UIRuntime } from "@effect-agent/ui-runtime"
 export { defaultThemes, makeThemeRegistry, type ThemeDefinition, type ThemeRegistry, type ThemeTokens } from "./theme.ts"
 
-export interface RendererContext { readonly onAction?: (action: string) => string; readonly theme?: string }
+export interface RendererContext { readonly onAction?: (action: string) => string; readonly theme?: string; readonly tokens?: ThemeTokens }
 export interface Renderer {
   readonly id: string
   render(tree: ResolvedUITree, context?: RendererContext): string
@@ -17,11 +17,12 @@ export const makeRendererRegistry = (initial: ReadonlyArray<Renderer> = []): Ren
   }
 }
 
-export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId?: string): string => {
+export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId?: string, themes?: ThemeRegistry): string => {
   const selected = rendererId ?? runtime.renderer()
   const renderer = registry.get(selected)
   if (renderer === undefined) throw new Error("renderer not found: " + selected)
-  return renderer.render(runtime.view(), { theme: runtime.theme() })
+  const theme = runtime.theme()
+  return renderer.render(runtime.view(), { theme, tokens: themes?.get(theme)?.tokens })
 }
 
 const escape = (value: unknown): string => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!)
@@ -38,5 +39,11 @@ const renderNode = (node: ResolvedNode, context: RendererContext): string => {
 
 export const webRenderer: Renderer = {
   id: "web-html",
-  render: (tree, context = {}) => `<main data-canvas="${escape(tree.canvasId)}" data-version="${tree.version}" data-theme="${escape(context.theme ?? "default")}"><h1>${escape(tree.title)}</h1>${tree.children.map((node) => renderNode(node, context)).join("")}</main>`
+  render: (tree, context = {}) => `<main data-canvas="${escape(tree.canvasId)}" data-version="${tree.version}" data-theme="${escape(context.theme ?? "default")}"${tokenStyle(context.tokens)}><h1>${escape(tree.title)}</h1>${tree.children.map((node) => renderNode(node, context)).join("")}</main>`
+}
+
+const tokenStyle = (tokens?: ThemeTokens): string => {
+  if (tokens === undefined) return ""
+  const css = Object.entries(tokens).map(([key, value]) => `--${key}:${escape(value)}`).join(";")
+  return ` style="${css}"`
 }
