@@ -1,4 +1,5 @@
 import type { ResolvedNode, ResolvedUITree } from "@effect-agent/ui-runtime"
+import type { UIRuntime } from "@effect-agent/ui-runtime"
 
 export interface RendererContext { readonly onAction?: (action: string) => string; readonly theme?: string }
 export interface Renderer {
@@ -13,6 +14,12 @@ export const makeRendererRegistry = (initial: ReadonlyArray<Renderer> = []): Ren
     get: (id) => renderers.get(id),
     list: () => [...renderers.keys()]
   }
+}
+
+export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId = "web-html"): string => {
+  const renderer = registry.get(rendererId)
+  if (renderer === undefined) throw new Error("renderer not found: " + rendererId)
+  return renderer.render(runtime.view(), { theme: runtime.theme() })
 }
 
 const escape = (value: unknown): string => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!)

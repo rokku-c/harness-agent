@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test"
 import { makeDefinitionStore } from "@effect-agent/ui-definition"
 import { resolveCanvas } from "@effect-agent/ui-runtime"
-import { webRenderer } from "../src/index.ts"
+import { webRenderer, makeRendererRegistry, renderRuntime } from "../src/index.ts"
+import { makeUIRuntime } from "@effect-agent/ui-runtime"
 
 test("web renderer renders resolved definition", () => {
   const store = makeDefinitionStore()
@@ -11,4 +12,13 @@ test("web renderer renders resolved definition", () => {
   expect(html).toContain("Hello &lt;world&gt;")
   expect(html).toContain('data-canvas="root"')
   expect(webRenderer.render(resolveCanvas(store, "root"), { theme: "dark" })).toContain('data-theme="dark"')
+})
+
+test("renders the runtime's active theme", () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Home" })
+  runtime.setTheme("contrast")
+  const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime)
+  expect(html).toContain('data-theme="contrast"')
 })
