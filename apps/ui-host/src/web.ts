@@ -1,6 +1,7 @@
 import { makeDefinitionStore, registerBuiltins } from "@effect-agent/ui-definition"
 import { makeUIRuntime } from "@effect-agent/ui-runtime"
 import { webRenderer } from "@effect-agent/ui-renderer"
+import type { UICommand } from "@effect-agent/ui-protocol"
 
 const definitions = registerBuiltins(makeDefinitionStore())
 const runtime = makeUIRuntime(definitions, "root")
@@ -15,7 +16,7 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
     if (url.pathname === "/api/canvas") return json(url.searchParams.has("canvasId") ? runtime.viewCanvas(url.searchParams.get("canvasId")!) : runtime.view())
     if (url.pathname === "/api/components") return json(definitions.listComponents())
     if (url.pathname === "/api/command" && request.method === "POST") {
-      try { runtime.apply(await request.json()); return json({ ok: true, canvas: runtime.view() }) }
+      try { runtime.apply(await request.json() as UICommand); return json({ ok: true, canvas: runtime.view() }) }
       catch (error) { return json({ ok: false, error: error instanceof Error ? error.message : String(error) }) }
     }
     if (url.pathname === "/") return new Response(webRenderer.render(runtime.view(), { theme: url.searchParams.get("theme") ?? "default" }), { headers: { "content-type": "text/html" } })
