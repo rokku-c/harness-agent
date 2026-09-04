@@ -6,7 +6,7 @@
  */
 import { Effect, Ref } from "effect"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
-import type { AgentInstance, BoardView, Executor, ExecutionRecord, Resource, WorkItem } from "./domain.ts"
+import type { AgentInstance, BoardView, ConsentRequest, Executor, ExecutionRecord, Resource, WorkItem } from "./domain.ts"
 
 export interface Tables {
   readonly items: Ref.Ref<ReadonlyMap<string, WorkItem>>
@@ -14,6 +14,7 @@ export interface Tables {
   readonly executors: Ref.Ref<ReadonlyMap<string, Executor>>
   readonly agents: Ref.Ref<ReadonlyMap<string, AgentInstance>>
   readonly executions: Ref.Ref<ReadonlyMap<string, ExecutionRecord>>
+  readonly consents: Ref.Ref<ReadonlyMap<string, ConsentRequest>>
   readonly views: Ref.Ref<ReadonlyArray<BoardView>>
 }
 
@@ -34,6 +35,7 @@ interface Snapshot {
   readonly executors?: unknown[]
   readonly agents?: unknown[]
   readonly executions?: unknown[]
+  readonly consents?: unknown[]
 }
 
 const loadSnapshot = (file: string | undefined): Snapshot => {
@@ -69,8 +71,11 @@ export const makeTables = (file?: string): Effect.Effect<Tables> =>
     const executions = yield* Ref.make<ReadonlyMap<string, ExecutionRecord>>(
       new Map(byIdRows(snap.executions, "runId") as Iterable<readonly [string, ExecutionRecord]>)
     )
+    const consents = yield* Ref.make<ReadonlyMap<string, ConsentRequest>>(
+      new Map(byIdRows(snap.consents, "askId") as Iterable<readonly [string, ConsentRequest]>)
+    )
     const views = yield* Ref.make<ReadonlyArray<BoardView>>([DEFAULT_VIEW])
-    return { items, resources, executors, agents, executions, views }
+    return { items, resources, executors, agents, executions, consents, views }
   })
 
 const saveSnapshot = (file: string | undefined, tables: Tables): Effect.Effect<void> => {
@@ -81,7 +86,8 @@ const saveSnapshot = (file: string | undefined, tables: Tables): Effect.Effect<v
     const executors = [...(yield* Ref.get(tables.executors)).values()]
     const agents = [...(yield* Ref.get(tables.agents)).values()]
     const executions = [...(yield* Ref.get(tables.executions)).values()]
-    writeFileSync(file, JSON.stringify({ items, resources, executors, agents, executions }, null, 2) + "\n", "utf-8")
+    const consents = [...(yield* Ref.get(tables.consents)).values()]
+    writeFileSync(file, JSON.stringify({ items, resources, executors, agents, executions, consents }, null, 2) + "\n", "utf-8")
   })
 }
 

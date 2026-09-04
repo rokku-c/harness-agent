@@ -15,6 +15,7 @@ export type { AgentChannel, AgentStatus, IsolationLevel, AgentCapabilities, Agen
 export { supportsLaunch, isOffline } from "./domain/agents.ts"
 export type { LaunchMode, MergePolicy, VerifyPolicy, ExecutionStatus, RunPolicy, LaunchIntent, ExecutionRecord } from "./domain/execution.ts"
 export { canRetry } from "./domain/execution.ts"
+export type { ConsentRequest } from "./domain/consent.ts"
 export type { ViewColumn, BoardView } from "./domain/views.ts"
 export type { Transition } from "./domain/machine.ts"
 export { TRANSITIONS, canTransition } from "./domain/machine.ts"

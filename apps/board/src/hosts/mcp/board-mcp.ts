@@ -11,6 +11,7 @@ import { Effect, Ref } from "effect"
 import { z } from "zod"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { BoardApi } from "../../board.ts"
+import type { ConsentRequest } from "../../domain.ts"
 import { coordinate } from "../../coordinator.ts"
 import type { Model } from "@effect-agent/builtin"
 import { isOffline } from "../../domain/agents.ts"
@@ -121,7 +122,7 @@ const tool = (
 export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const board = options.board
   const server = new McpServer({ name: options.name ?? "board", version: "0.1.0" })
-  const consents = new Map<string, { askId: string; runId: string; agentId: string; tool: string; input?: string; allow?: boolean; by?: string }>()
+  const consents = board.tables.consents
 
   tool(server, "board_state", "Full board snapshot: resources (with current usage), all work items, executors, views.", SCHEMA.state, async () =>
     json(await Effect.runPromise(board.state())))
@@ -191,16 +192,17 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_exec_failed", "Mark a probe execution failed and retain its result.", SCHEMA.terminal, terminalTool("failed"))
   tool(server, "board_consent_ask", "Ask an operator to approve a tool invocation.", SCHEMA.consentAsk, async (a) => {
     const askId = String(a.askId), ask = { askId, runId: String(a.runId), agentId: String(a.agentId), tool: String(a.tool), input: str(a, "input") }
-    if (!consents.has(askId)) consents.set(askId, ask)
+    await Effect.runPromise(Ref.update(consents, (all) => all.has(askId) ? all : new Map(all).set(askId, { ...ask, createdAt: Date.now() } as ConsentRequest)))
     return json({ ok: true, askId, pending: true })
   })
   tool(server, "board_consent_pending", "List unresolved operator consent requests.", SCHEMA.agents, async () =>
-    json({ ok: true, requests: [...consents.values()].filter((ask) => ask.allow === undefined) }))
+    json({ ok: true, requests: [...(await Effect.runPromise(Ref.get(consents))).values()].filter((ask) => ask.allow === undefined) }))
   tool(server, "board_consent_resolve", "Resolve an operator consent request; probes receive the decision on poll.", SCHEMA.consentResolve, async (a) => {
-    const askId = String(a.askId), ask = consents.get(askId)
+    const askId = String(a.askId), ask = (await Effect.runPromise(Ref.get(consents))).get(askId)
     if (!ask || ask.allow !== undefined) return json({ ok: false, detail: "consent already resolved or not found" })
     const allow = Boolean(a.allow), by = str(a, "by") ?? "operator"
-    consents.set(askId, { ...ask, allow, by })
+    await Effect.runPromise(Ref.update(consents, (all) => new Map(all).set(askId, { ...ask, allow, by, resolvedAt: Date.now() })))
+    await Effect.runPromise(board.persist())
     board.probe.submit({ id: `consent-${askId}`, agentId: ask.agentId, kind: "consent_resolve", runId: ask.runId, payload: { askId, allow, by }, createdAt: Date.now() })
     return json({ ok: true, askId, allow })
   })
