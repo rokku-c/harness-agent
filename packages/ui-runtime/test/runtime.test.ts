@@ -58,6 +58,17 @@ test("dispatches actions declared on the node when omitted by the caller", async
   expect(runtime.navigation().current).toBe("child")
 })
 
+test("declared set_data actions update the runtime store", async () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "insert-node", canvasId: "root", node: {
+    id: "save", type: "Button", events: { click: [{ action: "set_data", input: { path: "$.saved", value: "yes" } }] }
+  } })
+  await runtime.dispatch({ eventId: "click", nodeId: "save", type: "click" })
+  expect(runtime.data().get("saved")).toBe("yes")
+})
+
 test("restores parent parameters after nested navigation", async () => {
   const actions = makeActions("root")
   await actions.dispatch({ eventId: "e1", nodeId: "a", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "a", rootId: "r" } }] })

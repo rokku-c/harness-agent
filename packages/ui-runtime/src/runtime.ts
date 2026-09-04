@@ -21,8 +21,11 @@ export interface UIRuntime {
 export interface UIRuntimeOptions { readonly onCommand?: (command: UICommand) => void; readonly data?: UIDataStore }
 
 export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, options: UIRuntimeOptions = {}): UIRuntime => {
-  const actions = makeActions(initialCanvas)
   const data = options.data ?? makeUIDataStore()
+  const actions = makeActions(initialCanvas, (path, value) => {
+    data.set(path, value)
+    options.onCommand?.({ kind: "set-data", path, value })
+  })
   let activeTheme = "default"
   let activeRenderer = "web-html"
   return {

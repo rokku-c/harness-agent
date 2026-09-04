@@ -7,7 +7,7 @@ export interface RuntimeActions {
   readonly navigate: (canvasId: string, params?: Record<string, unknown>) => void
 }
 
-export const makeActions = (initialCanvas: string): RuntimeActions => {
+export const makeActions = (initialCanvas: string, onData?: (path: string, value: never) => void): RuntimeActions => {
   let current = initialCanvas
   let stack: string[] = []
   let paramStack: Array<Record<string, unknown>> = []
@@ -30,6 +30,10 @@ export const makeActions = (initialCanvas: string): RuntimeActions => {
         params = paramStack.at(-1) ?? {}
         paramStack = paramStack.slice(0, -1)
       }
+    } else if (action.action === "set_data") {
+      const path = action.input?.path
+      if (typeof path !== "string" || onData === undefined) throw new Error("set_data needs path")
+      onData(path, action.input?.value as never)
     }
   }
   return {
