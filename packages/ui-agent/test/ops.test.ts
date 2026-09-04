@@ -23,6 +23,7 @@ test("agent ops write auditable runtime data", () => {
   expect(runtime.data().get("user.name")).toBe("Ada")
 })
 
+
 test("lists declared building blocks", () => {
   const store = makeDefinitionStore()
   const runtime = makeUIRuntime(store, "root")

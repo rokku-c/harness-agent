@@ -33,6 +33,10 @@ export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore, ren
     const version = runtime.version(canvasId)
     runtime.apply({ kind: "bind-node", canvasId, nodeId, key, binding: { kind: "path", value: path }, expectedVersion: version }); return result({ ok: true, nodeId, key })
   })
+  server.registerTool("ui_set_data", { description: "Set a value in the UI runtime data store.", inputSchema: { path: z.string(), value: z.unknown() } }, async ({ path, value }) => {
+    runtime.apply({ kind: "set-data", path, value: value as never })
+    return result({ ok: true, path })
+  })
   server.registerTool("ui_remove_node", { description: "Remove a leaf node from a canvas.", inputSchema: { canvasId: z.string(), nodeId: z.string() } }, async ({ canvasId, nodeId }) => {
     const version = runtime.version(canvasId)
     runtime.apply({ kind: "remove-node", canvasId, nodeId }); return result({ ok: true, nodeId, version })
