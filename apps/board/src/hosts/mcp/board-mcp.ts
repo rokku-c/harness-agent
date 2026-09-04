@@ -119,7 +119,7 @@ const tool = (
 }
 
 export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
-  const board = options.board
+    const board = options.board
   const server = new McpServer({ name: options.name ?? "board", version: "0.1.0" })
   const consents = new Map<string, { askId: string; runId: string; agentId: string; tool: string; input?: string; allow?: boolean; by?: string }>()
 
@@ -190,6 +190,9 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
     const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
     if (!(await Effect.runPromise(board.getItem(nodeId)))) return json({ ok: false, detail: "node not found" })
+    const busy = await Effect.runPromise(Ref.get(board.tables.executions)).then((records) =>
+      [...records.values()].some((record) => record.nodeId === nodeId && (record.status === "queued" || record.status === "running")))
+    if (busy) return json({ ok: false, detail: "node already has an active execution", code: "busy-409" })
     const agent = (await Effect.runPromise(Ref.get(board.tables.agents))).get(agentId)
     if (!agent || agent.status === "offline") return json({ ok: false, detail: "probe is not online" })
     const isolation = mode === "isolated" ? (String(a.isolation ?? "env") as "env" | "workspace" | "sandbox") : undefined
