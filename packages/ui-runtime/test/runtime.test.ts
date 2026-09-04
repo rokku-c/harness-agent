@@ -3,7 +3,7 @@ import { makeDefinitionStore } from "@effect-agent/ui-definition"
 import { resolveCanvas } from "../src/index.ts"
 import { makeActions } from "../src/index.ts"
 import { makeUIRuntime } from "../src/index.ts"
-import { makeUIJournal } from "../src/index.ts"
+import { makeUIJournal, restoreUIRuntime } from "../src/index.ts"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 
@@ -81,6 +81,16 @@ test("replays a JSONL command journal", async () => {
   expect(runtime.view().title).toBe("Restored")
   expect(runtime.theme()).toBe("dark")
   expect(runtime.renderer()).toBe("canvas")
+})
+
+test("restore does not duplicate history and records new commands", async () => {
+  const file = join(tmpdir(), `ui-restore-${crypto.randomUUID()}`, "ui.jsonl")
+  const journal = makeUIJournal(file)
+  await journal.append({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  const runtime = await restoreUIRuntime(makeDefinitionStore(), "root", file)
+  runtime.apply({ kind: "set-theme", theme: "dark" })
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  expect((await makeUIJournal(file).read()).map((command) => command.kind)).toEqual(["create-canvas", "set-theme"])
 })
 
 test("expands a registered composite component", () => {

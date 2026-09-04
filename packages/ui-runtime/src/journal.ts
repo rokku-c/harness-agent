@@ -9,6 +9,7 @@ export interface UIJournal {
   readonly append: (command: UICommand) => Promise<void>
   readonly read: () => Promise<ReadonlyArray<UICommand>>
   readonly replay: (runtime: UIRuntime) => Promise<number>
+  readonly flush: () => Promise<void>
 }
 
 const decode = (line: string): UICommand | undefined => {
@@ -19,6 +20,7 @@ const decode = (line: string): UICommand | undefined => {
 }
 
 export const makeUIJournal = (file: string): UIJournal => {
+  let pending: Promise<void> = Promise.resolve()
   const read = async (): Promise<ReadonlyArray<UICommand>> => {
     try {
       const text = await readFile(file, "utf8")
@@ -29,10 +31,13 @@ export const makeUIJournal = (file: string): UIJournal => {
     }
   }
   const append = async (command: UICommand): Promise<void> => {
-    await mkdir(dirname(file), { recursive: true })
-    await appendFile(file, JSON.stringify(command) + "\n", "utf8")
+    pending = pending.then(async () => {
+      await mkdir(dirname(file), { recursive: true })
+      await appendFile(file, JSON.stringify(command) + "\n", "utf8")
+    })
+    await pending
   }
-  return { append, read, replay: async (runtime) => {
+  return { append, read, flush: () => pending, replay: async (runtime) => {
     const commands = await read()
     for (const command of commands) runtime.apply(command)
     return commands.length
