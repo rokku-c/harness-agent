@@ -75,10 +75,12 @@ test("replays a JSONL command journal", async () => {
   const journal = makeUIJournal(file)
   await journal.append({ kind: "create-canvas", canvasId: "root", title: "Restored" })
   await journal.append({ kind: "set-theme", theme: "dark" })
+  await journal.append({ kind: "set-renderer", renderer: "canvas" })
   const runtime = makeUIRuntime(makeDefinitionStore(), "root")
-  expect(await journal.replay(runtime)).toBe(2)
+  expect(await journal.replay(runtime)).toBe(3)
   expect(runtime.view().title).toBe("Restored")
   expect(runtime.theme()).toBe("dark")
+  expect(runtime.renderer()).toBe("canvas")
 })
 
 test("expands a registered composite component", () => {
