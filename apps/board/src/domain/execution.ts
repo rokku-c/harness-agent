@@ -32,6 +32,8 @@ export interface ExecutionRecord {
   readonly startedAt?: number
   readonly finishedAt?: number
   readonly result?: string
+  readonly progress?: number
+  readonly progressMessage?: string
 }
 
 export const canRetry = (status: ExecutionStatus): boolean => status === "failed" || status === "orphan"

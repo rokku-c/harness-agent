@@ -60,6 +60,7 @@ const SCHEMA = {
   agents: {} as z.ZodRawShape,
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
+  progress: { runId: z.string().min(1), progress: z.number().min(0).max(1), message: z.string().optional() } as z.ZodRawShape,
   launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]), isolation: z.enum(["env", "workspace", "sandbox"]).optional(), config: z.string().optional(), runPolicy: z.string().optional() } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
@@ -138,6 +139,15 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
       return next
     }))
     return json({ ok: true, acknowledged: ids })
+  })
+  tool(server, "board_report_progress", "Report progress for a queued or running probe execution.", SCHEMA.progress, async (a) => {
+    const runId = String(a.runId), percent = Number(a.progress)
+    const updated = await Effect.runPromise(Ref.modify(board.tables.executions, (records) => {
+      const record = records.get(runId)
+      if (!record || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
+      return [true, new Map(records).set(runId, { ...record, progress: percent, progressMessage: str(a, "message") })] as const
+    }))
+    return json({ ok: updated, runId, progress: percent })
   })
   tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
     const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
