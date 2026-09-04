@@ -10,4 +10,5 @@ test("enables an extension and registers its components", () => {
   expect(registry.list()[0]?.name).toBe("charts")
   registry.disable("charts")
   expect(registry.list()).toEqual([])
+  expect(definitions.getComponent("Chart")).toBeUndefined()
 })
