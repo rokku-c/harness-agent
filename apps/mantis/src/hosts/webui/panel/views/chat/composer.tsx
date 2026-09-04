@@ -20,7 +20,7 @@ export const Composer = ({ effective }: { effective: string }): JSX.Element => {
     try { await panel.send(text) } finally { setSending(false) }
   }
   return (
-    <div style={{ padding: "8px 10px", borderTop: "1px solid var(--mantine-color-dark-4)", display: "flex", gap: 8, alignItems: "flex-end", flex: "none" }}>
+    <div style={{ padding: "8px 10px", borderTop: "1px solid var(--mantine-color-gray-2)", display: "flex", gap: 8, alignItems: "flex-end", flex: "none" }}>
       <Textarea
         value={draft}
         onChange={(e) => setDraft(e.currentTarget.value)}

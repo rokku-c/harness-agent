@@ -29,7 +29,7 @@ export const makeMantis = (options: MantisOptions): Mantis => {
   for (const name of options.initialEnabled ?? []) supply.enable(name)
   const notes = options.notes ?? new NotesStore()
   const approvals = options.approvals ?? noApproval
-  const ops = makeMantisOps({ supply, notes, approvals, ui: options.ui, onEnabled: options.onEnabled })
+  const ops = makeMantisOps({ supply, notes, approvals, onEnabled: options.onEnabled })
   const toolsBinding: Binding = { uri: eaUri("svc", "mantis", "tools"), ops }
 
   const driver = EffectAgent.make({

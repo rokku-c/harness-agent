@@ -13,16 +13,16 @@ pm2 (see apps/mantis/ecosystem.config.cjs):
 
 ## Health / probes
     GET /api/health  -> {"ok":true,"startedAt":...,"approvalsOn":...}
-    GET /api/state   -> full snapshot (conversations, pending approvals, ui version)
+    GET /api/state   -> full snapshot (conversations, pending approvals)
 
 ## Data layout (all under one instance dir; isolate per instance)
-    MANTIS_UI_DIR            agent A2UI versions (git-tracked)   default apps/mantis/.ui
+    MANTIS_UI_DIR            instance data root (workspace + memory)  default apps/mantis/.ui
     MANTIS_WORKSPACE_FILE    shared durable workspace JSONL       default <uiDir>/workspace.jsonl
     MANTIS_MEMORY_DIR        durable conversation memory JSONL    default <uiDir>/memory
 
 Everything reloads on restart (records + conversation turns). Empty-string env
 disables the durable file (in-memory per-session mode). apps/mantis/.gitignore
-already excludes workspace.jsonl and memory/; the .ui version files stay tracked.
+already excludes workspace.jsonl and memory/.
 
 ## Approval gate (protected writes)
     MANTIS_PROTECTED=note_write,task_write   (comma-separated op names)
@@ -41,13 +41,11 @@ supported. Real model keys are picked up by the standard MANTIS_* config path.
 ## HTTP API (browser <-> MCP translation only)
     POST /api/message        {conversationId, text}
     GET  /api/conversation?conversationId=
-    GET  /api/state          pending approvals + ui.version
+    GET  /api/state          pending approvals
     GET  /api/workspace      resource declarations + records (sources: agent/ui)
     POST /api/workspace      {kind, text} operator write (stamped source "ui")
     PATCH /api/workspace     {recordId, text} operator update (source kept, new ts)
     DELETE /api/workspace?recordId=   operator delete (missing id -> graceful {ok:false,"no record..."})
-    POST /api/ui/action      {conversationId, action, values}  (form button clicks)
-    GET  /api/ui/latest | versions ; POST /api/ui/restore {version}
     POST /api/approval/resolve {callId, allow}
     GET  /api/events?after= ; GET /api/health
 

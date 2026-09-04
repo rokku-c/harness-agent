@@ -3,23 +3,18 @@
  * MantisHost -> bus/reply, approvals resolved by the page = operator), and
  * the HTTP surface (static panel + JSON API).
  */
+import { mkdtempSync, rmSync } from "node:fs"
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { mkdtempSync, rmSync, readdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import type { Model, WireMessage, WireTool } from "@effect-agent/builtin"
 import { makeLogger, noopLogger } from "@effect-agent/logger"
-import { UiStore } from "../src/hosts/webui/ui-store.ts"
-import { A2UI_BASIC_CATALOG, parseA2uiBatch, type A2uiMessage } from "../src/hosts/webui/a2ui.ts"
 import { WebConsole } from "../src/hosts/webui/console.ts"
 import { serveConsole } from "../src/hosts/webui/server.ts"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { makeMantisMcp } from "../src/hosts/mcp/mcp.ts"
-import { basicCatalog } from "@a2ui/react/v0_9"
-import { MessageProcessor } from "@a2ui/web_core/v0_9"
-import { makeMantis } from "../src/agent.ts"
 
 type Script = Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }>
 const scriptedModel = (script: Script): Model => {
@@ -45,69 +40,12 @@ const waitFor = async (condition: () => Promise<boolean> | boolean, timeoutMs = 
 }
 const tempDir = (prefix: string): string => mkdtempSync(join(tmpdir(), prefix))
 
-const a2uiBatch = (text: string): A2uiMessage[] => ([
-  { version: "v0.9", createSurface: { surfaceId: "main", catalogId: A2UI_BASIC_CATALOG } },
-  { version: "v0.9", updateComponents: { surfaceId: "main", components: [
-    { id: "title", component: "Text", text, variant: "h1" },
-    { id: "row", component: "Row", children: ["b1"] },
-    { id: "b1", component: "Button", child: "label1", action: { event: { name: "refresh" } } },
-    { id: "label1", component: "Text", text: "refresh" }
-  ] } }
-])
 
-describe("official A2UI validity", () => {
-  test("emitted batches are accepted by the OFFICIAL MessageProcessor", () => {
-    const processor = new MessageProcessor([basicCatalog])
-    expect(() => processor.processMessages(a2uiBatch("valid") as never[])).not.toThrow()
-    const messages: A2uiMessage[] = [
-      { version: "v0.9", createSurface: { surfaceId: "detail", catalogId: A2UI_BASIC_CATALOG } },
-      { version: "v0.9", updateComponents: { surfaceId: "detail", components: [
-        { id: "greet", component: "Text", text: "hello", variant: "body" },
-        { id: "btn", component: "Button", child: "goLabel", variant: "primary", action: { event: { name: "go", context: { page: "next" } } } },
-        { id: "goLabel", component: "Text", text: "Go" }
-      ] } }
-    ]
-    expect(() => processor.processMessages(messages as never[])).not.toThrow()
-  })
-
-  test("parseA2uiBatch accepts JSONL/arrays and rejects garbage", () => {
-    const batch = a2uiBatch("jsonl")
-    const jsonl = batch.map((m) => JSON.stringify(m)).join("\n")
-    expect(parseA2uiBatch(jsonl).error).toBeUndefined()
-    expect(parseA2uiBatch(JSON.stringify(batch)).error).toBeUndefined()
-    expect(parseA2uiBatch("not json").error).toBeDefined()
-    // a batch without createSurface is not a render
-    expect(parseA2uiBatch(JSON.stringify([{ version: "v0.9", updateComponents: { surfaceId: "main", components: [] } }])).error).toContain("createSurface")
-  })
-})
-
-describe("UiStore: agent-UI versions are persisted files", () => {
-  test("each push is the next version; latest + get + descending list", () => {
-    const dir = tempDir("mantis-ui-")
-    try {
-      const store = new UiStore(dir)
-      const v1 = store.push(a2uiBatch("v1"), "agent")
-      const v2 = store.push(a2uiBatch("v2"), "agent")
-      expect(v2.n).toBe(v1.n + 1)
-      const latest = store.latest()!
-      const latestTitle = latest.find((m) => "updateComponents" in m && typeof m.updateComponents === "object")
-      expect(JSON.stringify(latest)).toContain("v2")
-      expect(JSON.stringify(store.get(v1.n))).toContain("v1")
-      expect(store.versions()[0]!.n).toBe(v2.n)
-      expect(store.versions().length).toBe(2)
-      // every version is a real file (git-trackable)
-      expect(readdirSync(join(dir, "versions")).filter((f) => f.endsWith(".json"))).toHaveLength(2)
-    } finally {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-})
 
 describe("WebConsole wiring", () => {
   test("a message turns into a session reply on the bus + history", async () => {
     const web = new WebConsole({
       model: scriptedModel([finalJson("hello from mantis")]),
-      uiDir: tempDir("mantis-console-ui-"),
       logger: noopLogger()
     })
     await web.handleMessage("t1", "hi")
@@ -125,7 +63,6 @@ describe("WebConsole wiring", () => {
         { text: "", toolCalls: [{ id: "w1", name: "note_write", input: { text: "secret" } }] },
         finalJson("saved it")
       ]),
-      uiDir: tempDir("mantis-console-approve-"),
       protectedTools: ["note_write"],
       logger: noopLogger()
     })
@@ -142,35 +79,6 @@ describe("WebConsole wiring", () => {
     expect(web.host.session("t2").notes.all().some((n) => n.text === "secret")).toBe(true)
   })
 
-  test("agent ui_render lands as a versioned surface on the console", async () => {
-    const dir = tempDir("mantis-agent-ui-")
-    const web = new WebConsole({
-      model: scriptedModel([
-        { text: "", toolCalls: [{ id: "e1", name: "enable", input: { name: "ui_render" } }] },
-        { text: "", toolCalls: [{ id: "u1", name: "ui_render", input: { spec: JSON.stringify(a2uiBatch("agent board")) } }] },
-        finalJson("rendered")
-      ]),
-      uiDir: dir,
-      logger: noopLogger()
-    })
-    await web.handleMessage("t3", "render your board")
-    await waitFor(async () => web.ui.latest() !== undefined)
-    expect(JSON.stringify(web.ui.latest())).toContain("agent board")
-    expect(web.bus.history().some((e) => e.type === "ui.updated")).toBe(true)
-    rmSync(dir, { recursive: true, force: true })
-  })
-
-  test("ui_render without a console reports a clear tool error", async () => {
-    const mantis = makeMantis({
-      model: scriptedModel([
-        { text: "", toolCalls: [{ id: "e1", name: "enable", input: { name: "ui_render" } }] },
-        { text: "", toolCalls: [{ id: "u1", name: "ui_render", input: { spec: JSON.stringify(a2uiBatch("x")) } }] },
-        finalJson("recovered")
-      ])
-    })
-    const final = await Effect.runPromise(mantis.agent.run("render"))
-    expect(final.reply).toBe("recovered")
-  })
 })
 
 describe("HTTP surface (MCP-translated)", () => {
@@ -181,7 +89,6 @@ describe("HTTP surface (MCP-translated)", () => {
     dir = tempDir("mantis-http-ui-")
     web = new WebConsole({
       model: scriptedModel([finalJson("served")]),
-      uiDir: dir,
       logger: noopLogger()
     })
     // the panel talks to the mantis MCP server through an in-process client
@@ -276,17 +183,4 @@ describe("HTTP surface (MCP-translated)", () => {
     expect(rejected.ok).toBe(false)
   })
 
-  test("ui versions + restore round trip over http (via MCP)", async () => {
-    web.acceptUi(a2uiBatch("over http"), "test")
-    const versions = (await fetch(server.url + "/api/ui/versions").then((r) => r.json())) as { versions: Array<{ n: number; author: string; ts: string }> }
-    expect(versions.versions.length).toBeGreaterThan(0)
-    const first = versions.versions[0]!
-    const restored = (await fetch(server.url + "/api/ui/restore", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: first.n })
-    }).then((r) => r.json())) as { ok: boolean }
-    expect(restored.ok).toBe(true)
-    expect(((await fetch(server.url + "/api/ui/versions").then((r) => r.json())) as { versions: Array<{ n: number }> }).versions[0]!.n).toBe(first.n + 1)
-  })
 })

@@ -2,12 +2,11 @@
  * console/snapshot.ts - SNAPSHOT READERS over the console state.
  *
  * Concept: the panel never subscribes to an event stream - it polls
- * snapshots (conversations + counts, pending approvals, agent-UI latest/
- * versions, approvalsOn) and renders them. Readers are pure over the seams
+ * snapshots (conversations + counts, pending approvals,
+ * approvalsOn) and renders them. Readers are pure over the seams
  * they name; nothing reconnects or dedupes on the client.
  */
 import type { ManualGate, PendingApproval } from "@effect-agent/gate"
-import type { UiStore } from "../ui-store.ts"
 import type { MantisHost } from "../../dingtalk/host.ts"
 import type { WorkKind } from "../../../workspace.ts"
 import type { NotesStore } from "../../../tools.ts"
@@ -62,19 +61,11 @@ export const workspaceSurface = (host: MantisHost, notes: NotesStore | undefined
 export const consoleState = (
   host: MantisHost,
   ledger: TimelineLedger,
-  ui: UiStore,
   gate: ManualGate | undefined,
   startedAt: number
-) => {
-  const versions = ui.versions()
-  const latest = ui.latest()
-  return {
-    startedAt,
-    conversations: conversationsOf(host, ledger),
-    pending: pendingOf(gate).map((pending) => ({ callId: pending.callId, tool: pending.input.tool, input: pending.input.input, session: pending.input.session })),
-    ui: latest === undefined
-      ? { empty: true }
-      : { empty: false, version: versions[0]!.n, author: versions[0]!.author },
-    approvalsOn: gate !== undefined
-  }
-}
+) => ({
+  startedAt,
+  conversations: conversationsOf(host, ledger),
+  pending: pendingOf(gate).map((pending) => ({ callId: pending.callId, tool: pending.input.tool, input: pending.input.input, session: pending.input.session })),
+  approvalsOn: gate !== undefined
+})

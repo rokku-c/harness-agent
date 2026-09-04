@@ -76,7 +76,7 @@ describe("host shares ONE durable workspace across conversations + the human UI"
   beforeAll(async () => {
     dir = tempDir("mantis-shared-")
     file = join(dir, "workspace.jsonl")
-    web = new WebConsole({ model, uiDir: dir, workspaceFile: file, logger: noopLogger() })
+    web = new WebConsole({ model, workspaceFile: file, logger: noopLogger() })
     const mcpServer = makeMantisMcp({ console: web })
     const client = new Client({ name: "shared-test", version: "0.0.0" })
     const pair = InMemoryTransport.createLinkedPair()
@@ -103,7 +103,7 @@ describe("host shares ONE durable workspace across conversations + the human UI"
     expect(added.ok).toBe(true)
     expect(s1.notes.search("shared human note")).toHaveLength(1)
     // and it is on disk: a brand-new console on the same file reloads it
-    const rebooted = new WebConsole({ model, uiDir: dir, workspaceFile: file, logger: noopLogger() })
+    const rebooted = new WebConsole({ model, workspaceFile: file, logger: noopLogger() })
     expect(rebooted.host.session("any").notes.search("shared human note")).toHaveLength(1)
   })
 })
@@ -131,10 +131,10 @@ describe("durable conversation memory", () => {
           toolCalls: []
         })
     } as unknown as Model
-    const first = new WebConsole({ model: stub, uiDir: memDir, memoryDir: memDir, logger: noopLogger() })
+    const first = new WebConsole({ model: stub, memoryDir: memDir, logger: noopLogger() })
     const chat = await first.chatSync("mem-1", "remember: gate code 4711")
     expect(chat.ok).toBe(true)
-    const second = new WebConsole({ model: stub, uiDir: memDir, memoryDir: memDir, logger: noopLogger() })
+    const second = new WebConsole({ model: stub, memoryDir: memDir, logger: noopLogger() })
     // list shows the restored conversation (no live timeline on the new console)
     expect(second.conversations().some((c) => c.conversationId === "mem-1")).toBe(true)
     // timeline rebuilds from durable memory
@@ -177,10 +177,10 @@ describe("restored enabled tool surface across restarts", () => {
           toolCalls: []
         })
     } as unknown as Model
-    const first = new WebConsole({ model: enabling, uiDir: memDir, memoryDir: memDir, logger: noopLogger() })
+    const first = new WebConsole({ model: enabling, memoryDir: memDir, logger: noopLogger() })
     await first.chatSync("en1", "please enable note_read")
     expect(first.host.conversations.enabled("en1")).toContain("note_read")
-    const second = new WebConsole({ model: final, uiDir: memDir, memoryDir: memDir, logger: noopLogger() })
+    const second = new WebConsole({ model: final, memoryDir: memDir, logger: noopLogger() })
     const session = second.host.session("en1")
     expect(session.supply.visible()).toContain("note_read")
     expect(session.supply.catalog().some((c) => c.name === "note_read")).toBe(true)

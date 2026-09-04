@@ -9,7 +9,7 @@
 import { api } from "../api.ts"
 import { PanelCore } from "./core.ts"
 import { pollState, pollConversation, pollActive } from "./poll.ts"
-import { send, newConversation, selectConversation, resolveApproval, uiRestore, uiAction } from "./actions.ts"
+import { send, newConversation, selectConversation, resolveApproval } from "./actions.ts"
 
 export class PanelStore {
   readonly #core = new PanelCore()
@@ -53,6 +53,4 @@ export class PanelStore {
   readonly newConversation = (): void => newConversation(this.#core)
   readonly selectConversation = (conversationId: string): void => selectConversation(this.#core, conversationId)
   readonly resolveApproval = (callId: string, allow: boolean): Promise<void> => resolveApproval(this.#core, callId, allow)
-  readonly uiRestore = (version: number): Promise<void> => uiRestore(this.#core, version)
-  readonly uiAction = (action: string, values: Record<string, string>): void => uiAction(this.#core, action, values)
 }

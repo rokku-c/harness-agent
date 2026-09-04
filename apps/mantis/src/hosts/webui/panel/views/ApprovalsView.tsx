@@ -1,50 +1,56 @@
-/** Pending approvals: an operator gate card per waiting call */
+/** Pending approvals as a declarative UI document (R32).
+ *  The screen BUILDS a SpecDoc from state, the renderer catalog turns it
+ *  into views; button actions dispatch back to product code by name+data.
+ *  Visuals are unchanged from the pre-spec version. */
 import { type JSX } from "react"
-import { Badge, Button, Code, Group, Paper, Stack, Text } from "@mantine/core"
-import { IconCheck, IconX } from "@tabler/icons-react"
 import { panel, usePanel } from "../store.ts"
+import { renderNode } from "../schema/render.tsx"
+import { badge, button, code, col, paper, row, text } from "../schema/spec.ts"
+import type { PanelState } from "../store.ts"
+import type { SpecAction, SpecDoc } from "../schema/types.ts"
 import { shortId } from "../common.ts"
+
+const approvalsDocument = (state: PanelState): SpecDoc => {
+  const pending = state.pending
+  let body: SpecDoc["children"] = []
+  if (!state.approvalsOn && pending.length === 0) {
+    body = [text("off", "本实例未启用审批门：agent 写操作直接执行。", { size: "sm", c: "dimmed", center: true, mt: 40 })]
+  } else if (state.approvalsOn && pending.length === 0) {
+    body = [text("empty", "暂无待批请求——需要放行时会在这里出现卡片。", { size: "sm", c: "dimmed", center: true, mt: 40 })]
+  } else {
+    body = pending.map((p) => {
+      const meta = row("meta", [
+        badge("tool", p.tool, { size: "xs", variant: "light", color: "yellow" }),
+        text("id", shortId(p.callId), { size: "xs", c: "dimmed", mono: true }),
+        ...(p.session !== undefined && p.session !== "" ? [text("who", "来自会话 " + p.session, { size: "xs", c: "dimmed" })] : [])
+      ], { gap: 6 })
+      const head = row("head", [
+        meta,
+        text("waiting", "等待操作者", { size: "xs", c: "dimmed" })
+      ], { justify: "space-between", style: { marginBottom: 6 } })
+      const bodyCode = code("input", JSON.stringify(p.input, null, 2), { style: { fontSize: 11, maxHeight: 180, overflow: "auto" } })
+      const actions = row("actions", [
+        button("deny", "拒绝", "deny", { callId: p.callId }, { color: "red", variant: "light", icon: "x" }),
+        button("allow", "同意", "allow", { callId: p.callId }, { icon: "check" })
+      ], { justify: "flex-end", style: { marginTop: 8 } })
+      return paper("card-" + p.callId, [head, bodyCode, actions], {
+        p: "sm",
+        radius: "md",
+        style: { maxWidth: 640, alignSelf: "center", width: "100%" }
+      })
+    })
+  }
+  return col("approvals", body ?? [], { gap: "sm", style: { height: "100%", overflow: "auto", padding: 8 } })
+}
+
+const onSpecAction = (action: SpecAction): void => {
+  if (action.name !== "allow" && action.name !== "deny") return
+  const callId = (action.data as { callId?: string } | undefined)?.callId
+  if (callId === undefined) return
+  void panel.resolveApproval(callId, action.name === "allow")
+}
 
 export const ApprovalsView = (): JSX.Element => {
   const state = usePanel()
-  const pending = state.pending
-  return (
-    <Stack p="md" gap="sm" style={{ height: "100%", overflow: "auto" }}>
-      {!state.approvalsOn && pending.length === 0 && (
-        <Text size="sm" c="dimmed" ta="center" style={{ marginTop: 40 }}>
-          本实例未启用审批门：agent 写操作直接执行。
-        </Text>
-      )}
-      {state.approvalsOn && pending.length === 0 && (
-        <Text size="sm" c="dimmed" ta="center" style={{ marginTop: 40 }}>
-          暂无待批请求——需要放行时会在这里出现卡片。
-        </Text>
-      )}
-      {pending.map((p) => (
-        <Paper key={p.callId} p="sm" radius="md" withBorder style={{ maxWidth: 640, alignSelf: "center", width: "100%" }}>
-          <Group justify="space-between" mb={6}>
-            <Group gap={6}>
-              <Badge size="xs" variant="light" color="yellow">{p.tool}</Badge>
-              <Text size="xs" c="dimmed" style={{ fontFamily: "var(--mantine-font-family-monospace)" }}>{shortId(p.callId)}</Text>
-              {p.session !== undefined && p.session !== "" && (
-                <Text size="xs" c="dimmed">来自会话 <b>{p.session}</b></Text>
-              )}
-            </Group>
-            <Text size="xs" c="dimmed">等待操作者</Text>
-          </Group>
-          <Code block style={{ fontSize: 11, maxHeight: 180, overflow: "auto" }}>
-            {JSON.stringify(p.input, null, 2)}
-          </Code>
-          <Group justify="flex-end" mt={8}>
-            <Button color="red" variant="light" size="compact-sm" leftSection={<IconX size={13} />} onClick={() => void panel.resolveApproval(p.callId, false)}>
-              拒绝
-            </Button>
-            <Button size="compact-sm" leftSection={<IconCheck size={13} />} onClick={() => void panel.resolveApproval(p.callId, true)}>
-              同意
-            </Button>
-          </Group>
-        </Paper>
-      ))}
-    </Stack>
-  )
+  return <>{renderNode(approvalsDocument(state), { onAction: onSpecAction })}</>
 }

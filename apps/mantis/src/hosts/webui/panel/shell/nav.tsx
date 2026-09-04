@@ -18,7 +18,7 @@ const NAV_ITEMS: Array<{ key: TabKey; label: string; icon: JSX.Element }> = [
 export const TabBar = ({
   value, onChange, pendingCount
 }: { value: TabKey; onChange: (tab: TabKey) => void; pendingCount: number }): JSX.Element => (
-  <Tabs.List px="sm" pt={4} style={{ borderBottom: "1px solid var(--mantine-color-dark-4)", flex: "none" }}>
+  <Tabs.List px="sm" pt={4} style={{ borderBottom: "1px solid var(--mantine-color-gray-2)", flex: "none" }}>
     <Tabs.Tab value="chat">会话</Tabs.Tab>
     <Tabs.Tab value="workspace">工作区</Tabs.Tab>
     <Tabs.Tab value="approvals" rightSection={pendingCount > 0 ? <Badge size="xs" circle color="yellow">{pendingCount}</Badge> : undefined}>
@@ -34,7 +34,7 @@ export const BottomNav = ({
   <nav
     aria-label="console tabs"
     style={{
-      flex: "none", display: "flex", borderTop: "1px solid var(--mantine-color-dark-4)",
+      flex: "none", display: "flex", borderTop: "1px solid var(--mantine-color-gray-2)",
       background: "var(--mantine-color-body)", paddingBottom: "env(safe-area-inset-bottom, 0px)",
       position: "sticky", bottom: 0, zIndex: 5
     }}
@@ -51,7 +51,7 @@ export const BottomNav = ({
           style={{
             flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
             gap: 3, height: 56, padding: 0, border: "none", cursor: "pointer", touchAction: "manipulation",
-            background: "transparent", color: active ? "var(--mantine-color-brand-4)" : "var(--mantine-color-dimmed)"
+            background: "transparent", color: active ? "var(--mantine-color-brand-6)" : "var(--mantine-color-dimmed)"
           }}
         >
           <span style={{ position: "relative", display: "inline-flex" }}>

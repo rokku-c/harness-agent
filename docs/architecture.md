@@ -33,8 +33,7 @@ per-feature ops or per-feature copy twice (single-source rule).
 
 ## L3 surfaces - derived, no per-tool code
 - Human UI (webui/panel): renders from /api snapshots; Workspace view renders
-  resources + records + generic edit/delete from the declarations; A2UI
-  surfaces are rendered + versioned (ui-store).
+  resources + records + generic edit/delete from the declarations.
 - Agent surfaces: session ops (L1 impls) + MCP bridge (hosts/mcp) +
   HTTP shell (hosts/webui/server.ts) that is ONLY a browser<->MCP translator.
 - Approval seam: tools.ts wraps every op with the ApprovalPolicy; protecting

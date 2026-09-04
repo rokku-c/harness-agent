@@ -35,12 +35,7 @@ export class PanelCore {
       startedAt: snap.startedAt,
       approvalsOn: snap.approvalsOn,
       serverConversations: snap.conversations,
-      pending: snap.pending,
-      uiEmpty: snap.uiEmpty,
-      uiVersion: snap.uiVersion,
-      uiAuthor: snap.uiAuthor,
-      uiMessages: snap.uiMessages,
-      uiVersions: snap.uiVersions
+      pending: snap.pending
     })
   }
   readonly isConversationLoaded = (conversationId: string): boolean => this.#loadedConversations.has(conversationId)

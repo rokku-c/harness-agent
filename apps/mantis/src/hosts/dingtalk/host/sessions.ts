@@ -39,7 +39,6 @@ export class SessionRegistry {
         maxReflections: this.options.maxReflections,
         bindings: [this.conversations.historyBinding(conversationId)],
         approvals: makeApprovalPolicy(this.options.approval, conversationId),
-        ui: this.options.ui,
         hooks: [
           sessionLogHook(this.logger.child("session." + conversationId)),
           ...(this.options.extraHooks ?? [])

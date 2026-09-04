@@ -3,8 +3,8 @@
  *
  * Concept: what the host needs to run dingtalk sessions - a model, an
  * optional shared workspace store, durable conversation memory, an optional
- * approval console (shared ManualGate + which calls are protected), an
- * optional UI console connection, hooks and failure visibility. Channel
+ * approval console (shared ManualGate + which calls are protected), hooks and
+ * failure visibility. Channel
  * agnostic: only IncomingMessage/Reply cross this seam.
  */
 import type { Model } from "@effect-agent/builtin"
@@ -38,8 +38,6 @@ export interface MantisHostOptions {
   readonly logger?: Logger
   /** Approval console shared across conversations; omit to run unapproved. */
   readonly approval?: MantisHostApproval
-  /** Optional UI console connection: enables the ui_render tool on sessions. */
-  readonly ui?: { readonly push: (spec: unknown) => void }
   /**
    * Optional SHARED workspace store injected into every session (default:
    * each session keeps its own isolated store). One durable instance here

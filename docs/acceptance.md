@@ -42,14 +42,10 @@ Legend: [s] suite green · [L] verified live (this build) · [·] evidence link
 - [s] protected write waits; resolve allow/deny commits or denies                -> test/clawyp.test.ts
 - [s] approvals render + resolve over HTTP/MCP                                   -> test/webui.test.ts, test/mcp.test.ts
 
-## Agent UI (A2UI v0.9 official catalog)
-- [s] invalid renders sanitize: strict schema violations repair or degrade with a visible reason
-- [L] real-model render on the console is versioned and replayable               -> live (R2/R3)
-- [L] button events round trip: [ui.action] name + values back to the agent      -> smoke R5: real model renders a form
-  (TextField /form/task + Button submit_task), /api/ui/action click arrives as
-  [ui.action], agent records the typed task into the shared workspace
+## Agent UI - REMOVED in R31 (superseded by user direction; no A2UI surface)
 
 ## Release smoke (real model, one live instance)
+Legacy note: A2UI / ui_render were removed in R31; smokes below are historical.
 Last smoke: R5 (real model deepseek-v4-flash, live instance on 3750): catalog ->
 enable ui_render + task_write -> form render -> button click -> task_write -> 
 workspace has "冒烟测试任务-按钮回传". Evidence: SELFUSE.md R5.

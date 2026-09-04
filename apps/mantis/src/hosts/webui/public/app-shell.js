@@ -27208,9 +27208,9 @@ var consoleTheme = createTheme({
   colors: {
     brand: [
       "#e6effc",
-      "#cfe0f8",
-      "#a3c4f0",
-      "#74a6e6",
+      "#d3e2f8",
+      "#abc8ef",
+      "#7eabe4",
       "#4e8ad9",
       "#3f78c8",
       "#3263a8",
@@ -27223,23 +27223,252 @@ var consoleTheme = createTheme({
   fontFamilyMonospace: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
   fontSizes: { xs: "11px", sm: "12px", md: "13px", lg: "14px", xl: "16px" },
   lineHeights: { xs: "1.4", sm: "1.45", md: "1.45", lg: "1.5", xl: "1.5" },
-  headings: { fontWeight: "600" },
-  radius: { xs: "3px", sm: "5px", md: "8px", lg: "12px", xl: "16px" },
+  headings: { fontWeight: "650" },
+  radius: { xs: "2px", sm: "3px", md: "5px", lg: "8px", xl: "12px" },
   spacing: { xs: "4px", sm: "6px", md: "8px", lg: "12px", xl: "16px" },
-  defaultRadius: "md",
+  defaultRadius: "sm",
   primaryShade: 6,
   components: {
     Button: { defaultProps: { size: "compact-sm" } },
-    Badge: { defaultProps: { variant: "light" } },
-    TextInput: { defaultProps: { size: "xs" } }
+    Badge: { defaultProps: { variant: "outline" } },
+    TextInput: { defaultProps: { size: "xs" } },
+    Paper: { defaultProps: { radius: "sm" } }
   }
 });
 
 // src/hosts/webui/panel/App.tsx
-var import_react57 = __toESM(require_react(), 1);
+var import_react59 = __toESM(require_react(), 1);
+
+// src/hosts/webui/panel/api.ts
+var post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r2) => r2.json());
+var get = (path) => fetch(path).then((r2) => r2.json());
+var api = {
+  state: () => get("/api/state"),
+  conversation: (conversationId) => get("/api/conversation?conversationId=" + encodeURIComponent(conversationId)),
+  events: (after) => get("/api/events?after=" + after),
+  send: (conversationId, text) => post("/api/message", { conversationId, text }),
+  resolveApproval: (callId, allow) => post("/api/approval/resolve", { callId, allow }),
+  workspace: () => get("/api/workspace"),
+  workspaceAdd: (kind, text) => post("/api/workspace", { kind, text }),
+  workspaceUpdate: (recordId, text) => fetch("/api/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recordId, text }) }).then((r2) => r2.json()),
+  workspaceDelete: (recordId) => fetch("/api/workspace?recordId=" + encodeURIComponent(recordId), { method: "DELETE" }).then((r2) => r2.json())
+};
+
+// src/hosts/webui/panel/store/types.ts
+var EMPTY_SNAPSHOT = { conversations: [], pending: [], approvalsOn: false };
+var initialState = () => ({
+  pollOk: false,
+  polledAt: 0,
+  approvalsOn: false,
+  serverConversations: [],
+  timelines: {},
+  notes: {},
+  activeConversation: "",
+  pending: [],
+  rawEvents: []
+});
+var adaptEntry = (entry) => {
+  if (entry.kind === "msg")
+    return { kind: "msg", role: entry.role, text: entry.text, ts: entry.ts };
+  if (entry.kind === "note")
+    return { kind: "note", text: entry.text, ts: entry.ts };
+  return { kind: "tool", tool: entry.tool, state: entry.state, detail: entry.detail, ts: entry.ts };
+};
+
+// src/hosts/webui/panel/store/core.ts
+class PanelCore {
+  #listeners = new Set;
+  #state = initialState();
+  #loadedConversations = new Set;
+  #loadedDetail = {};
+  #fragment = EMPTY_SNAPSHOT;
+  getState = () => this.#state;
+  subscribe = (fn) => {
+    this.#listeners.add(fn);
+    return () => this.#listeners.delete(fn);
+  };
+  #notify() {
+    for (const fn of this.#listeners)
+      fn();
+  }
+  set = (partial) => {
+    this.#state = { ...this.#state, ...partial };
+    this.#notify();
+  };
+  applySnapshot = (snap) => {
+    this.#fragment = snap;
+    this.set({
+      pollOk: true,
+      polledAt: Date.now(),
+      startedAt: snap.startedAt,
+      approvalsOn: snap.approvalsOn,
+      serverConversations: snap.conversations,
+      pending: snap.pending
+    });
+  };
+  isConversationLoaded = (conversationId) => this.#loadedConversations.has(conversationId);
+  putTimeline = (conversationId, entries) => {
+    this.#loadedConversations.add(conversationId);
+    this.#loadedDetail[conversationId] = entries;
+    this.set({ timelines: { ...this.#loadedDetail } });
+  };
+  pushNote = (conversationId, text) => {
+    const notes = this.#state.notes[conversationId] ?? [];
+    this.set({ notes: { ...this.#state.notes, [conversationId]: [...notes.slice(-20), { text, ts: Date.now() }] } });
+  };
+}
+
+// src/hosts/webui/panel/store/poll.ts
+var pollState = async (core) => {
+  try {
+    const state = await api.state();
+    core.applySnapshot({
+      conversations: state.conversations,
+      pending: state.pending,
+      approvalsOn: state.approvalsOn,
+      startedAt: state.startedAt
+    });
+  } catch {
+    core.set({ pollOk: false, polledAt: Date.now() });
+  }
+};
+var pollConversation = async (core, conversationId) => {
+  try {
+    const snap = await api.conversation(conversationId);
+    core.putTimeline(conversationId, snap.entries.map((e) => adaptEntry(e)));
+  } catch {}
+};
+var pollActive = async (core) => {
+  const active = core.getState().activeConversation;
+  if (active === "")
+    return;
+  await pollConversation(core, active);
+};
+
+// src/hosts/webui/panel/store/actions.ts
+var send = async (core, text) => {
+  const conversationId = core.getState().activeConversation || "ui";
+  if (conversationId !== core.getState().activeConversation)
+    core.set({ activeConversation: conversationId });
+  try {
+    const result = await api.send(conversationId, text);
+    if (result.accepted !== true)
+      core.pushNote(conversationId, "(not accepted: " + (result.detail ?? "?") + ")");
+  } catch (error2) {
+    core.pushNote(conversationId, "(send failed: " + String(error2) + ")");
+  }
+  await pollConversation(core, conversationId);
+  pollState(core);
+};
+var newConversation = (core) => {
+  const conversationId = "web-" + Date.now().toString(36);
+  core.set({ activeConversation: conversationId });
+};
+var selectConversation = (core, conversationId) => {
+  if (conversationId === core.getState().activeConversation)
+    return;
+  core.set({ activeConversation: conversationId });
+  if (!core.isConversationLoaded(conversationId))
+    pollConversation(core, conversationId);
+};
+var resolveApproval = async (core, callId, allow) => {
+  try {
+    await api.resolveApproval(callId, allow);
+  } catch {}
+  pollState(core);
+};
+
+// src/hosts/webui/panel/store/panel.ts
+class PanelStore {
+  #core = new PanelCore;
+  #timer = null;
+  #eventsTimer = null;
+  #eventCursor = 0;
+  getState = () => this.#core.getState();
+  subscribe = (fn) => this.#core.subscribe(fn);
+  start = () => {
+    if (this.#timer !== null)
+      return () => {};
+    pollState(this.#core);
+    pollActive(this.#core);
+    this.#timer = setInterval(() => {
+      pollState(this.#core);
+      pollActive(this.#core);
+    }, 700);
+    this.#eventsTimer = setInterval(() => {
+      (async () => {
+        try {
+          const snap = await api.events(this.#eventCursor);
+          if (snap.events.length > 0) {
+            this.#eventCursor = Math.max(this.#eventCursor, ...snap.events.map((e) => e.ts));
+            const state = this.#core.getState();
+            const rawEvents = [...state.rawEvents, ...snap.events.map((e) => ({ ts: e.ts, type: e.type, text: e.text ?? "" }))].slice(-500);
+            this.#core.set({ rawEvents });
+          }
+        } catch {}
+      })();
+    }, 1300);
+    return () => {
+      if (this.#timer !== null)
+        clearInterval(this.#timer);
+      if (this.#eventsTimer !== null)
+        clearInterval(this.#eventsTimer);
+      this.#timer = null;
+      this.#eventsTimer = null;
+    };
+  };
+  send = (text) => send(this.#core, text);
+  newConversation = () => newConversation(this.#core);
+  selectConversation = (conversationId) => selectConversation(this.#core, conversationId);
+  resolveApproval = (callId, allow) => resolveApproval(this.#core, callId, allow);
+}
+
+// src/hosts/webui/panel/store/singleton.ts
+var panel = new PanelStore;
+// src/hosts/webui/panel/store/selectors.ts
+var import_react52 = __toESM(require_react(), 1);
+var usePanel = () => import_react52.useSyncExternalStore(panel.subscribe, panel.getState);
+var conversationList = (state) => [...state.serverConversations];
+var conversationItems = (state, conversationId) => {
+  const base = state.timelines[conversationId] ?? [];
+  const notes = state.notes[conversationId] ?? [];
+  if (notes.length === 0)
+    return base;
+  const merged = [...base];
+  for (const note of notes) {
+    const at = merged.findIndex((item) => item.ts > note.ts);
+    if (at === -1)
+      merged.push({ kind: "note", ...note });
+    else
+      merged.splice(at, 0, { kind: "note", ...note });
+  }
+  return merged;
+};
+// src/hosts/webui/panel/common.ts
+var import_react53 = __toESM(require_react(), 1);
+var fmtTime = (ts) => {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return hh + ":" + mm + ":" + ss;
+};
+var shortId = (id) => id.length > 22 ? id.slice(0, 10) + "…" + id.slice(-6) : id;
+var useCompactViewport = () => {
+  const query = "(max-width: 700px)";
+  const [compact, setCompact] = import_react53.useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  import_react53.useEffect(() => {
+    const mql = window.matchMedia(query);
+    const onChange = (e) => setCompact(e.matches);
+    mql.addEventListener("change", onChange);
+    setCompact(mql.matches);
+    return () => mql.removeEventListener("change", onChange);
+  }, [query]);
+  return compact;
+};
 
 // ../../node_modules/@tabler/icons-react/dist/esm/createReactComponent.mjs
-var import_react52 = __toESM(require_react(), 1);
+var import_react54 = __toESM(require_react(), 1);
 
 // ../../node_modules/@tabler/icons-react/dist/esm/defaultAttributes.mjs
 var defaultAttributes = {
@@ -27266,7 +27495,7 @@ var defaultAttributes = {
 
 // ../../node_modules/@tabler/icons-react/dist/esm/createReactComponent.mjs
 var createReactComponent = (type, iconName, iconNamePascal, iconNode) => {
-  const Component = import_react52.forwardRef(({ color = "currentColor", size: size4 = 24, stroke = 2, title, className, children, ...rest }, ref) => import_react52.createElement("svg", {
+  const Component = import_react54.forwardRef(({ color = "currentColor", size: size4 = 24, stroke = 2, title, className, children, ...rest }, ref) => import_react54.createElement("svg", {
     ref,
     ...defaultAttributes[type],
     width: size4,
@@ -27280,8 +27509,8 @@ var createReactComponent = (type, iconName, iconNamePascal, iconNode) => {
     },
     ...rest
   }, [
-    title && import_react52.createElement("title", { key: "svg-title" }, title),
-    ...iconNode.map(([tag, attrs]) => import_react52.createElement(tag, attrs)),
+    title && import_react54.createElement("title", { key: "svg-title" }, title),
+    ...iconNode.map(([tag, attrs]) => import_react54.createElement(tag, attrs)),
     ...Array.isArray(children) ? children : [children]
   ]));
   Component.displayName = `${iconNamePascal}`;
@@ -27319,352 +27548,24 @@ var IconTrash = createReactComponent("outline", "trash", "Trash", __iconNode7);
 // ../../node_modules/@tabler/icons-react/dist/esm/icons/IconX.mjs
 var __iconNode8 = [["path", { d: "M18 6l-12 12", key: "svg-0" }], ["path", { d: "M6 6l12 12", key: "svg-1" }]];
 var IconX = createReactComponent("outline", "x", "X", __iconNode8);
-// src/hosts/webui/panel/store.ts
-var import_react53 = __toESM(require_react(), 1);
-
-// src/hosts/webui/panel/api.ts
-var post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).then((r2) => r2.json());
-var get = (path) => fetch(path).then((r2) => r2.json());
-var api = {
-  state: () => get("/api/state"),
-  conversation: (conversationId) => get("/api/conversation?conversationId=" + encodeURIComponent(conversationId)),
-  events: (after) => get("/api/events?after=" + after),
-  send: (conversationId, text) => post("/api/message", { conversationId, text }),
-  resolveApproval: (callId, allow) => post("/api/approval/resolve", { callId, allow }),
-  uiAction: (conversationId, action, values2) => post("/api/ui/action", { conversationId, action, values: values2 }),
-  uiLatest: () => get("/api/ui/latest"),
-  uiVersions: () => get("/api/ui/versions"),
-  uiRestore: (version) => post("/api/ui/restore", { version }),
-  workspace: () => get("/api/workspace"),
-  workspaceAdd: (kind, text) => post("/api/workspace", { kind, text }),
-  workspaceUpdate: (recordId, text) => fetch("/api/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ recordId, text }) }).then((r2) => r2.json()),
-  workspaceDelete: (recordId) => fetch("/api/workspace?recordId=" + encodeURIComponent(recordId), { method: "DELETE" }).then((r2) => r2.json())
-};
-
-// src/hosts/webui/panel/store.ts
-var EMPTY = { conversations: [], pending: [], approvalsOn: false, uiEmpty: true, uiMessages: null, uiVersions: [] };
-
-class PanelStore {
-  #listeners = new Set;
-  #state = {
-    pollOk: false,
-    polledAt: 0,
-    approvalsOn: false,
-    serverConversations: [],
-    timelines: {},
-    notes: {},
-    activeConversation: "",
-    pending: [],
-    uiEmpty: true,
-    uiMessages: null,
-    uiVersions: [],
-    rawEvents: []
-  };
-  #timer = null;
-  #eventsTimer = null;
-  #eventCursor = 0;
-  #loadedConversations = new Set;
-  #loadedDetail = {};
-  #fragment = EMPTY;
-  getState = () => this.#state;
-  subscribe = (fn) => {
-    this.#listeners.add(fn);
-    return () => this.#listeners.delete(fn);
-  };
-  #set(partial) {
-    this.#state = { ...this.#state, ...partial };
-    for (const fn of this.#listeners)
-      fn();
-  }
-  #adapt(entry) {
-    if (entry.kind === "msg")
-      return { kind: "msg", role: entry.role, text: entry.text, ts: entry.ts };
-    if (entry.kind === "note")
-      return { kind: "note", text: entry.text, ts: entry.ts };
-    return { kind: "tool", tool: entry.tool, state: entry.state, detail: entry.detail, ts: entry.ts };
-  }
-  #applySnapshot(snap) {
-    this.#fragment = snap;
-    this.#set({
-      pollOk: true,
-      polledAt: Date.now(),
-      startedAt: snap.startedAt,
-      approvalsOn: snap.approvalsOn,
-      serverConversations: snap.conversations,
-      pending: snap.pending,
-      uiEmpty: snap.uiEmpty,
-      uiVersion: snap.uiVersion,
-      uiAuthor: snap.uiAuthor,
-      uiMessages: snap.uiMessages,
-      uiVersions: snap.uiVersions
-    });
-  }
-  #refreshState = async () => {
-    try {
-      const [state, uiLatest, uiVersions] = await Promise.all([api.state(), api.uiLatest(), api.uiVersions()]);
-      this.#applySnapshot({
-        conversations: state.conversations,
-        pending: state.pending,
-        approvalsOn: state.approvalsOn,
-        startedAt: state.startedAt,
-        uiEmpty: uiLatest.empty,
-        uiMessages: uiLatest.empty ? null : uiLatest.messages,
-        uiVersion: state.ui.version,
-        uiAuthor: state.ui.author,
-        uiVersions: uiVersions.versions
-      });
-      this.#set({ pollOk: true, polledAt: Date.now() });
-    } catch {
-      this.#set({ pollOk: false, polledAt: Date.now() });
-    }
-  };
-  #refreshConversation = async (conversationId) => {
-    try {
-      const snap = await api.conversation(conversationId);
-      const entries = snap.entries.map((e) => this.#adapt(e));
-      this.#loadedConversations.add(conversationId);
-      this.#loadedDetail[conversationId] = entries;
-      this.#set({ timelines: { ...this.#loadedDetail } });
-    } catch {}
-  };
-  #refreshActive = async () => {
-    const active = this.#state.activeConversation;
-    if (active === "")
-      return;
-    await this.#refreshConversation(active);
-  };
-  start = () => {
-    if (this.#timer === null) {
-      this.#refreshState();
-      this.#refreshActive();
-      this.#timer = setInterval(() => {
-        this.#refreshState();
-        this.#refreshActive();
-      }, 700);
-      this.#eventsTimer = setInterval(() => {
-        (async () => {
-          try {
-            const snap = await api.events(this.#eventCursor);
-            if (snap.events.length > 0) {
-              this.#eventCursor = Math.max(this.#eventCursor, ...snap.events.map((e) => e.ts));
-              const rawEvents = [...this.#state.rawEvents, ...snap.events.map((e) => ({ ts: e.ts, type: e.type, text: e.text ?? "" }))].slice(-500);
-              this.#set({ rawEvents });
-            }
-          } catch {}
-        })();
-      }, 1300);
-    }
-    return () => {
-      if (this.#timer !== null)
-        clearInterval(this.#timer);
-      if (this.#eventsTimer !== null)
-        clearInterval(this.#eventsTimer);
-      this.#timer = null;
-      this.#eventsTimer = null;
-    };
-  };
-  send = async (text) => {
-    const conversationId = this.#state.activeConversation || "ui";
-    if (conversationId !== this.#state.activeConversation)
-      this.#set({ activeConversation: conversationId });
-    try {
-      const result = await api.send(conversationId, text);
-      if (result.accepted !== true) {
-        this.#pushNote(conversationId, "(not accepted: " + (result.detail ?? "?") + ")");
-      }
-    } catch (error2) {
-      this.#pushNote(conversationId, "(send failed: " + String(error2) + ")");
-    }
-    await this.#refreshConversation(conversationId);
-    this.#refreshState();
-  };
-  #pushNote(conversationId, text) {
-    const notes = this.#state.notes[conversationId] ?? [];
-    this.#set({ notes: { ...this.#state.notes, [conversationId]: [...notes.slice(-20), { text, ts: Date.now() }] } });
-  }
-  newConversation = () => {
-    const conversationId = "web-" + Date.now().toString(36);
-    this.#set({ activeConversation: conversationId });
-  };
-  selectConversation = (conversationId) => {
-    if (conversationId === this.#state.activeConversation)
-      return;
-    this.#set({ activeConversation: conversationId });
-    if (!this.#loadedConversations.has(conversationId))
-      this.#refreshConversation(conversationId);
-  };
-  resolveApproval = async (callId, allow) => {
-    try {
-      await api.resolveApproval(callId, allow);
-    } catch {}
-    this.#refreshState();
-  };
-  uiRestore = async (version) => {
-    try {
-      await api.uiRestore(version);
-    } catch {}
-    this.#refreshState();
-  };
-  uiAction = (action, values2) => {
-    const conversationId = this.#state.activeConversation || "ui";
-    api.uiAction(conversationId, action, values2);
-  };
-}
-var panel = new PanelStore;
-var usePanel = () => import_react53.useSyncExternalStore(panel.subscribe, panel.getState);
-var conversationList = (state) => [...state.serverConversations];
-var conversationItems = (state, conversationId) => {
-  const base = state.timelines[conversationId] ?? [];
-  const notes = state.notes[conversationId] ?? [];
-  if (notes.length === 0)
-    return base;
-  const merged = [...base];
-  for (const note of notes) {
-    const at = merged.findIndex((item) => item.ts > note.ts);
-    if (at === -1)
-      merged.push({ kind: "note", ...note });
-    else
-      merged.splice(at, 0, { kind: "note", ...note });
-  }
-  return merged;
-};
-
-// src/hosts/webui/panel/common.ts
-var import_react54 = __toESM(require_react(), 1);
-var fmtTime = (ts) => {
-  const d = new Date(ts);
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  const ss = String(d.getSeconds()).padStart(2, "0");
-  return hh + ":" + mm + ":" + ss;
-};
-var shortId = (id) => id.length > 22 ? id.slice(0, 10) + "…" + id.slice(-6) : id;
-var useCompactViewport = () => {
-  const query = "(max-width: 700px)";
-  const [compact, setCompact] = import_react54.useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
-  import_react54.useEffect(() => {
-    const mql = window.matchMedia(query);
-    const onChange = (e) => setCompact(e.matches);
-    mql.addEventListener("change", onChange);
-    setCompact(mql.matches);
-    return () => mql.removeEventListener("change", onChange);
-  }, [query]);
-  return compact;
-};
-
-// src/hosts/webui/panel/views/ChatView.tsx
-var import_react55 = __toESM(require_react(), 1);
+// src/hosts/webui/panel/views/chat/rail.tsx
 var jsx_dev_runtime = __toESM(require_jsx_dev_runtime(), 1);
-var ToolRun = ({ item }) => {
-  const color = item.state === "ok" ? "var(--mantine-color-teal-4)" : item.state === "fail" ? "var(--mantine-color-red-4)" : "var(--mantine-color-brand-4)";
-  const dot = item.state === "ok" ? "✓" : item.state === "fail" ? "✕" : "·";
-  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-    style: { display: "flex", alignItems: "center", gap: 7, padding: "1px 0", fontFamily: "var(--mantine-font-family-monospace)", fontSize: 11, color: "var(--mantine-color-dimmed)", minWidth: 0 },
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-        style: { color, flex: "none", fontSize: 10, width: 12 },
-        children: dot
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Badge, {
-        size: "xs",
-        variant: "light",
-        color: item.state === "fail" ? "red" : item.state === "ok" ? "teal" : "brand",
-        style: { fontFamily: "inherit", flex: "none" },
-        children: item.tool
-      }, undefined, false, undefined, this),
-      item.detail !== undefined && item.detail.length > 0 && /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Tooltip, {
-        label: item.detail,
-        openDelay: 350,
-        children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-          style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "default", minWidth: 0 },
-          children: item.detail
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
-        style: { flex: "none", fontSize: 10, opacity: 0.65 },
-        children: item.state
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-var MessageRow = ({ item }) => {
-  if (item.kind === "tool")
-    return /* @__PURE__ */ jsx_dev_runtime.jsxDEV(ToolRun, {
-      item
-    }, undefined, false, undefined, this);
-  if (item.kind === "note") {
-    return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-      style: { fontSize: 11, color: "var(--mantine-color-dimmed)", fontStyle: "italic", padding: "2px 0" },
-      children: item.text
-    }, undefined, false, undefined, this);
-  }
-  const mine = item.role === "user";
-  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-    style: { display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", padding: "3px 0" },
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-        style: { fontSize: 10, color: "var(--mantine-color-dimmed)", opacity: 0.75, margin: "0 2px 2px" },
-        children: [
-          mine ? "你" : "mantis",
-          " · ",
-          fmtTime(item.ts)
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Paper, {
-        p: "xs",
-        radius: "md",
-        withBorder: !mine,
-        style: {
-          maxWidth: "85%",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          fontSize: 13,
-          lineHeight: 1.5,
-          background: mine ? "color-mix(in srgb, var(--mantine-color-brand-5) 16%, transparent)" : "var(--mantine-color-dark-6)",
-          borderColor: mine ? "color-mix(in srgb, var(--mantine-color-brand-5) 35%, transparent)" : undefined
-        },
-        children: item.text
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-var ChatView = () => {
-  const state = usePanel();
+var ConversationRail = ({
+  conversations,
+  effective,
+  loaded
+}) => {
   const compact = useCompactViewport();
-  const effective = state.activeConversation || (conversationList(state)[0]?.conversationId ?? "ui");
-  const items = conversationItems(state, effective);
-  const conversations = conversationList(state);
-  const [draft, setDraft] = import_react55.useState("");
-  const [sending, setSending] = import_react55.useState(false);
-  const scrollRef = import_react55.useRef(null);
-  import_react55.useEffect(() => {
-    const node = scrollRef.current;
-    if (node)
-      node.scrollTop = node.scrollHeight;
-  }, [items.length, effective]);
-  const submit = async () => {
-    const text = draft.trim();
-    if (text.length === 0 || sending)
-      return;
-    panel.selectConversation(effective);
-    setDraft("");
-    setSending(true);
-    try {
-      await panel.send(text);
-    } finally {
-      setSending(false);
-    }
-  };
-  const rail = /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
     style: {
       flex: compact ? "0 0 52px" : "none",
       width: compact ? "100%" : 236,
-      borderRight: compact ? "none" : "1px solid var(--mantine-color-dark-4)",
-      borderBottom: compact ? "1px solid var(--mantine-color-dark-4)" : "none",
+      borderRight: compact ? "none" : "1px solid var(--mantine-color-gray-2)",
+      borderBottom: compact ? "1px solid var(--mantine-color-gray-2)" : "none",
       display: "flex",
       flexDirection: compact ? "row" : "column",
       alignItems: "center",
-      background: "var(--mantine-color-dark-6)"
+      background: "var(--mantine-color-gray-0)"
     },
     children: [
       /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
@@ -27703,7 +27604,6 @@ var ChatView = () => {
           }, undefined, false, undefined, this),
           conversations.map((c) => {
             const selected = c.conversationId === effective;
-            const loaded = state.timelines[c.conversationId] !== undefined;
             return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
               onClick: () => panel.selectConversation(c.conversationId),
               style: {
@@ -27717,8 +27617,9 @@ var ChatView = () => {
                 cursor: "pointer",
                 border: "none",
                 borderRadius: compact ? 10 : 0,
-                background: selected ? "var(--mantine-color-brand-5)" : "transparent",
-                color: selected ? "#fff" : "var(--mantine-color-text)",
+                background: selected ? "var(--mantine-color-brand-1)" : "transparent",
+                color: "var(--mantine-color-text)",
+                fontWeight: selected ? 600 : undefined,
                 height: compact ? 34 : undefined,
                 alignSelf: "center"
               },
@@ -27729,7 +27630,7 @@ var ChatView = () => {
                     style: { overflow: "hidden", textOverflow: "ellipsis", maxWidth: compact ? 88 : undefined },
                     children: shortId(c.conversationId)
                   }, undefined, false, undefined, this),
-                  loaded && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
+                  loaded(c.conversationId) && /* @__PURE__ */ jsx_dev_runtime.jsxDEV("span", {
                     style: { fontSize: 9, opacity: 0.65, flex: "none" },
                     children: c.turns
                   }, undefined, false, undefined, this)
@@ -27741,81 +27642,221 @@ var ChatView = () => {
       }, undefined, true, undefined, this)
     ]
   }, undefined, true, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-    style: { display: "flex", flexDirection: compact ? "column" : "row", height: "100%", minHeight: 0 },
+};
+
+// src/hosts/webui/panel/views/chat/timeline.tsx
+var import_react55 = __toESM(require_react(), 1);
+
+// src/hosts/webui/panel/views/chat/rows.tsx
+var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+var ToolRun = ({ item }) => {
+  const color = item.state === "ok" ? "var(--mantine-color-teal-6)" : item.state === "fail" ? "var(--mantine-color-red-6)" : "var(--mantine-color-brand-6)";
+  const dot = item.state === "ok" ? "✓" : item.state === "fail" ? "✕" : "·";
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+    style: { display: "flex", alignItems: "center", gap: 7, padding: "1px 0", fontFamily: "var(--mantine-font-family-monospace)", fontSize: 11, color: "var(--mantine-color-dimmed)", minWidth: 0 },
     children: [
-      rail,
-      /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-        style: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 },
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+        style: { color, flex: "none", fontSize: 10, width: 12 },
+        children: dot
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Badge, {
+        size: "xs",
+        variant: "light",
+        color: item.state === "fail" ? "red" : item.state === "ok" ? "teal" : "brand",
+        style: { fontFamily: "inherit", flex: "none" },
+        children: item.tool
+      }, undefined, false, undefined, this),
+      item.detail !== undefined && item.detail.length > 0 && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Tooltip, {
+        label: item.detail,
+        openDelay: 350,
+        children: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+          style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "default", minWidth: 0 },
+          children: item.detail
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("span", {
+        style: { flex: "none", fontSize: 10, opacity: 0.65 },
+        children: item.state
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+var MessageRow = ({ item }) => {
+  if (item.kind === "tool")
+    return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(ToolRun, {
+      item
+    }, undefined, false, undefined, this);
+  if (item.kind === "note") {
+    return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+      style: { fontSize: 11, color: "var(--mantine-color-dimmed)", fontStyle: "italic", padding: "2px 0" },
+      children: item.text
+    }, undefined, false, undefined, this);
+  }
+  const mine = item.role === "user";
+  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+    style: { display: "flex", flexDirection: "column", alignItems: mine ? "flex-end" : "flex-start", padding: "3px 0" },
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("div", {
+        style: { fontSize: 10, color: "var(--mantine-color-dimmed)", opacity: 0.75, margin: "0 2px 2px" },
         children: [
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            style: { padding: "5px 12px", borderBottom: "1px solid var(--mantine-color-dark-4)", display: "flex", alignItems: "center", gap: 8, flex: "none" },
+          mine ? "你" : "mantis",
+          " · ",
+          fmtTime(item.ts)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Paper, {
+        p: "xs",
+        radius: "md",
+        withBorder: !mine,
+        style: {
+          maxWidth: "85%",
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontSize: 13,
+          lineHeight: 1.5,
+          background: mine ? "var(--mantine-color-gray-1)" : "var(--mantine-color-white)",
+          borderColor: mine ? undefined : "var(--mantine-color-gray-2)"
+        },
+        children: item.text
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/hosts/webui/panel/views/chat/timeline.tsx
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+var TimelinePane = ({
+  effective,
+  items
+}) => {
+  const scrollRef = import_react55.useRef(null);
+  import_react55.useEffect(() => {
+    const node = scrollRef.current;
+    if (node)
+      node.scrollTop = node.scrollHeight;
+  }, [items.length, effective]);
+  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+    style: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 },
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+        style: { padding: "5px 12px", borderBottom: "1px solid var(--mantine-color-gray-2)", display: "flex", alignItems: "center", gap: 8, flex: "none" },
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
+            size: "xs",
+            fw: 700,
+            style: { fontFamily: "var(--mantine-font-family-monospace)" },
+            children: shortId(effective)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
+            size: "xs",
+            c: "dimmed",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Text, {
-                size: "xs",
-                fw: 700,
-                style: { fontFamily: "var(--mantine-font-family-monospace)" },
-                children: shortId(effective)
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Text, {
-                size: "xs",
-                c: "dimmed",
-                children: [
-                  items.length,
-                  " 条"
-                ]
-              }, undefined, true, undefined, this)
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            ref: scrollRef,
-            style: { flex: 1, overflow: "auto", padding: "8px 12px", minHeight: 0 },
-            children: [
-              items.length === 0 && /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Text, {
-                size: "sm",
-                c: "dimmed",
-                ta: "center",
-                style: { marginTop: 48 },
-                children: "还没有消息——在下方给它派个活吧。"
-              }, undefined, false, undefined, this),
-              items.map((item, i) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV(MessageRow, {
-                item
-              }, i, false, undefined, this))
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", {
-            style: { padding: "8px 10px", borderTop: "1px solid var(--mantine-color-dark-4)", display: "flex", gap: 8, alignItems: "flex-end", flex: "none" },
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Textarea, {
-                value: draft,
-                onChange: (e) => setDraft(e.currentTarget.value),
-                placeholder: "给 mantis 派活…（Enter 发送）",
-                autosize: true,
-                minRows: 1,
-                maxRows: 4,
-                style: { flex: 1 },
-                styles: { input: { fontSize: 13, paddingTop: 6 } },
-                onKeyDown: (e) => {
-                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    submit();
-                  }
-                }
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Button, {
-                onClick: () => void submit(),
-                disabled: sending || draft.trim().length === 0,
-                "aria-label": "send",
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime.jsxDEV(IconSend, {
-                    size: 13,
-                    style: { marginRight: 5 }
-                  }, undefined, false, undefined, this),
-                  " 发送"
-                ]
-              }, undefined, true, undefined, this)
+              items.length,
+              " 条"
             ]
           }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV("div", {
+        ref: scrollRef,
+        style: { flex: 1, overflow: "auto", padding: "8px 12px", minHeight: 0 },
+        children: [
+          items.length === 0 && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
+            size: "sm",
+            c: "dimmed",
+            ta: "center",
+            style: { marginTop: 48 },
+            children: "还没有消息——在下方给它派个活吧。"
+          }, undefined, false, undefined, this),
+          items.map((item, i) => /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(MessageRow, {
+            item
+          }, i, false, undefined, this))
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/hosts/webui/panel/views/chat/composer.tsx
+var import_react56 = __toESM(require_react(), 1);
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+var Composer = ({ effective }) => {
+  const [draft, setDraft] = import_react56.useState("");
+  const [sending, setSending] = import_react56.useState(false);
+  const submit = async () => {
+    const text = draft.trim();
+    if (text.length === 0 || sending)
+      return;
+    panel.selectConversation(effective);
+    setDraft("");
+    setSending(true);
+    try {
+      await panel.send(text);
+    } finally {
+      setSending(false);
+    }
+  };
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+    style: { padding: "8px 10px", borderTop: "1px solid var(--mantine-color-gray-2)", display: "flex", gap: 8, alignItems: "flex-end", flex: "none" },
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Textarea, {
+        value: draft,
+        onChange: (e) => setDraft(e.currentTarget.value),
+        placeholder: "给 mantis 派活…（Enter 发送）",
+        autosize: true,
+        minRows: 1,
+        maxRows: 4,
+        style: { flex: 1 },
+        styles: { input: { fontSize: 13, paddingTop: 6 } },
+        onKeyDown: (e) => {
+          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            submit();
+          }
+        }
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Button, {
+        onClick: () => void submit(),
+        disabled: sending || draft.trim().length === 0,
+        "aria-label": "send",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(IconSend, {
+            size: 13,
+            style: { marginRight: 5 }
+          }, undefined, false, undefined, this),
+          " 发送"
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/hosts/webui/panel/views/ChatView.tsx
+var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
+var ChatView = () => {
+  const state = usePanel();
+  const compact = useCompactViewport();
+  const effective = state.activeConversation || (conversationList(state)[0]?.conversationId ?? "ui");
+  const items = conversationItems(state, effective);
+  const conversations = conversationList(state);
+  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+    style: { display: "flex", flexDirection: compact ? "column" : "row", height: "100%", minHeight: 0 },
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ConversationRail, {
+        conversations,
+        effective,
+        loaded: (id) => state.timelines[id] !== undefined
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+        style: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 },
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(TimelinePane, {
+            effective,
+            items
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Composer, {
+            effective
+          }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this)
     ]
@@ -27823,95 +27864,95 @@ var ChatView = () => {
 };
 
 // src/hosts/webui/panel/views/ApprovalsView.tsx
-var jsx_dev_runtime2 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
 var ApprovalsView = () => {
   const state = usePanel();
   const pending = state.pending;
-  return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Stack, {
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Stack, {
     p: "md",
     gap: "sm",
     style: { height: "100%", overflow: "auto" },
     children: [
-      !state.approvalsOn && pending.length === 0 && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Text, {
+      !state.approvalsOn && pending.length === 0 && /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text, {
         size: "sm",
         c: "dimmed",
         ta: "center",
         style: { marginTop: 40 },
         children: "本实例未启用审批门：agent 写操作直接执行。"
       }, undefined, false, undefined, this),
-      state.approvalsOn && pending.length === 0 && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Text, {
+      state.approvalsOn && pending.length === 0 && /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text, {
         size: "sm",
         c: "dimmed",
         ta: "center",
         style: { marginTop: 40 },
         children: "暂无待批请求——需要放行时会在这里出现卡片。"
       }, undefined, false, undefined, this),
-      pending.map((p) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Paper, {
+      pending.map((p) => /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Paper, {
         p: "sm",
         radius: "md",
         withBorder: true,
         style: { maxWidth: 640, alignSelf: "center", width: "100%" },
         children: [
-          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Group, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Group, {
             justify: "space-between",
             mb: 6,
             children: [
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Group, {
+              /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Group, {
                 gap: 6,
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Badge, {
+                  /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Badge, {
                     size: "xs",
                     variant: "light",
                     color: "yellow",
                     children: p.tool
                   }, undefined, false, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Text, {
+                  /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text, {
                     size: "xs",
                     c: "dimmed",
                     style: { fontFamily: "var(--mantine-font-family-monospace)" },
                     children: shortId(p.callId)
                   }, undefined, false, undefined, this),
-                  p.session !== undefined && p.session !== "" && /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Text, {
+                  p.session !== undefined && p.session !== "" && /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text, {
                     size: "xs",
                     c: "dimmed",
                     children: [
                       "来自会话 ",
-                      /* @__PURE__ */ jsx_dev_runtime2.jsxDEV("b", {
+                      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV("b", {
                         children: p.session
                       }, undefined, false, undefined, this)
                     ]
                   }, undefined, true, undefined, this)
                 ]
               }, undefined, true, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Text, {
+              /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Text, {
                 size: "xs",
                 c: "dimmed",
                 children: "等待操作者"
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Code, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Code, {
             block: true,
             style: { fontSize: 11, maxHeight: 180, overflow: "auto" },
             children: JSON.stringify(p.input, null, 2)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Group, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Group, {
             justify: "flex-end",
             mt: 8,
             children: [
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Button, {
+              /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Button, {
                 color: "red",
                 variant: "light",
                 size: "compact-sm",
-                leftSection: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconX, {
+                leftSection: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(IconX, {
                   size: 13
                 }, undefined, false, undefined, this),
                 onClick: () => void panel.resolveApproval(p.callId, false),
                 children: "拒绝"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Button, {
+              /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Button, {
                 size: "compact-sm",
-                leftSection: /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(IconCheck, {
+                leftSection: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(IconCheck, {
                   size: 13
                 }, undefined, false, undefined, this),
                 onClick: () => void panel.resolveApproval(p.callId, true),
@@ -27926,27 +27967,248 @@ var ApprovalsView = () => {
 };
 
 // src/hosts/webui/panel/views/WorkspaceView.tsx
-var import_react56 = __toESM(require_react(), 1);
-var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+var import_react58 = __toESM(require_react(), 1);
+
+// src/hosts/webui/panel/views/workspace/resource-paper.tsx
+var import_react57 = __toESM(require_react(), 1);
+var jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
+var ResourcePaper = ({
+  resource,
+  shown,
+  filterLabel,
+  editing,
+  rowBusy,
+  draftBusy,
+  onEditText,
+  onSave,
+  onCancel,
+  onDelete,
+  onAdd
+}) => {
+  const [draft, setDraft] = import_react57.useState("");
+  return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Paper, {
+    "data-kind": resource.kind,
+    p: "sm",
+    radius: "md",
+    withBorder: true,
+    style: { maxWidth: 720, width: "100%" },
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Group, {
+        justify: "space-between",
+        mb: 4,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Group, {
+            gap: 8,
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+                fw: 600,
+                size: "sm",
+                tt: "capitalize",
+                children: resource.label
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Badge, {
+                size: "xs",
+                variant: "light",
+                children: resource.write.name
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+            size: "xs",
+            c: "dimmed",
+            children: [
+              shown.length,
+              "/",
+              resource.records.length,
+              " shown"
+            ]
+          }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+        size: "xs",
+        c: "dimmed",
+        mb: "xs",
+        children: resource.write.description
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Stack, {
+        gap: 4,
+        mb: "xs",
+        children: [
+          resource.records.length === 0 && /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+            size: "xs",
+            c: "dimmed",
+            children: "(空)"
+          }, undefined, false, undefined, this),
+          shown.length === 0 && resource.records.length > 0 && /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+            size: "xs",
+            c: "dimmed",
+            children: [
+              "(没有 ",
+              filterLabel,
+              " 写的内容)"
+            ]
+          }, undefined, true, undefined, this),
+          shown.slice(-30).reverse().map((record) => {
+            const isEditing = editing[record.id] !== undefined;
+            const busy = rowBusy[record.id] === true;
+            return /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Group, {
+              gap: 8,
+              wrap: "nowrap",
+              style: { minWidth: 0 },
+              children: [
+                /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+                  size: "xs",
+                  c: "dimmed",
+                  style: { flex: "none" },
+                  children: fmtTime(record.ts)
+                }, undefined, false, undefined, this),
+                isEditing ? /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(TextInput, {
+                  size: "xs",
+                  style: { flex: 1, minWidth: 120 },
+                  value: editing[record.id] ?? record.text,
+                  autoFocus: true,
+                  disabled: busy,
+                  onChange: (event) => onEditText(record.id, event.currentTarget.value),
+                  onKeyDown: (event) => {
+                    if (event.key === "Enter")
+                      onSave(record.id);
+                    if (event.key === "Escape")
+                      onCancel(record.id);
+                  }
+                }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Text, {
+                  size: "sm",
+                  style: { minWidth: 0, flex: 1 },
+                  children: record.text
+                }, undefined, false, undefined, this),
+                record.source === "ui" && /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Badge, {
+                  size: "xs",
+                  variant: "outline",
+                  c: "dimmed",
+                  style: { flex: "none" },
+                  children: "ui"
+                }, undefined, false, undefined, this),
+                record.source === "agent" && /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Badge, {
+                  size: "xs",
+                  variant: "outline",
+                  color: "teal",
+                  style: { flex: "none" },
+                  children: "agent"
+                }, undefined, false, undefined, this),
+                isEditing ? /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(jsx_dev_runtime7.Fragment, {
+                  children: [
+                    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(ActionIcon, {
+                      size: "sm",
+                      variant: "subtle",
+                      color: "green",
+                      loading: busy,
+                      title: "save",
+                      "aria-label": "save edit",
+                      onClick: () => onSave(record.id),
+                      children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(IconCheck, {
+                        size: 14
+                      }, undefined, false, undefined, this)
+                    }, undefined, false, undefined, this),
+                    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(ActionIcon, {
+                      size: "sm",
+                      variant: "subtle",
+                      title: "cancel",
+                      "aria-label": "cancel edit",
+                      disabled: busy,
+                      onClick: () => onCancel(record.id),
+                      children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(IconX, {
+                        size: 14
+                      }, undefined, false, undefined, this)
+                    }, undefined, false, undefined, this)
+                  ]
+                }, undefined, true, undefined, this) : /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(jsx_dev_runtime7.Fragment, {
+                  children: [
+                    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(ActionIcon, {
+                      size: "sm",
+                      variant: "subtle",
+                      title: "edit",
+                      "aria-label": "edit " + record.id,
+                      disabled: busy,
+                      onClick: () => onEditText(record.id, record.text),
+                      children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(IconEdit, {
+                        size: 14
+                      }, undefined, false, undefined, this)
+                    }, undefined, false, undefined, this),
+                    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(ActionIcon, {
+                      size: "sm",
+                      variant: "subtle",
+                      color: "red",
+                      title: "delete",
+                      "aria-label": "delete " + record.id,
+                      loading: busy,
+                      onClick: () => onDelete(record.id),
+                      children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(IconTrash, {
+                        size: 14
+                      }, undefined, false, undefined, this)
+                    }, undefined, false, undefined, this)
+                  ]
+                }, undefined, true, undefined, this)
+              ]
+            }, record.id, true, undefined, this);
+          })
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Group, {
+        gap: 6,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(TextInput, {
+            size: "xs",
+            flex: 1,
+            placeholder: "记一条 " + resource.label + "…",
+            value: draft,
+            disabled: draftBusy,
+            onChange: (event) => setDraft(event.currentTarget.value),
+            onKeyDown: (event) => {
+              if (event.key === "Enter")
+                submitAdd();
+            }
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Button, {
+            size: "compact-sm",
+            leftSection: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(IconSend, {
+              size: 13
+            }, undefined, false, undefined, this),
+            loading: draftBusy,
+            onClick: () => void submitAdd(),
+            children: "添加"
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+  async function submitAdd() {
+    const text = draft.trim();
+    if (text === "")
+      return;
+    const ok = await onAdd(resource.kind, text);
+    if (ok)
+      setDraft("");
+  }
+};
+
+// src/hosts/webui/panel/views/WorkspaceView.tsx
+var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
 var WorkspaceView = () => {
-  const [snap, setSnap] = import_react56.useState(undefined);
-  const [error2, setError] = import_react56.useState(undefined);
-  const [drafts, setDrafts] = import_react56.useState({});
-  const [busy, setBusy] = import_react56.useState({});
-  const [editing, setEditing] = import_react56.useState({});
-  const [sourceFilter, setSourceFilter] = import_react56.useState("all");
-  const load = import_react56.useCallback(() => {
+  const [snap, setSnap] = import_react58.useState(undefined);
+  const [error2, setError] = import_react58.useState(undefined);
+  const [editing, setEditing] = import_react58.useState({});
+  const [busy, setBusy] = import_react58.useState({});
+  const [sourceFilter, setSourceFilter] = import_react58.useState("all");
+  const load = import_react58.useCallback(() => {
     api.workspace().then((value) => {
       setSnap(value);
       setError(undefined);
     }).catch(() => setError("工作区暂不可用"));
   }, []);
-  import_react56.useEffect(() => {
+  import_react58.useEffect(() => {
     load();
   }, [load]);
-  const beginEdit = (id, text) => {
-    setEditing((e) => ({ ...e, [id]: text }));
-  };
+  const beginEdit = (id, text) => setEditing((e) => ({ ...e, [id]: text }));
   const saveEdit = (id) => {
     const text = (editing[id] ?? "").trim();
     if (text === "") {
@@ -27957,15 +28219,13 @@ var WorkspaceView = () => {
     api.workspaceUpdate(id, text).then((result) => {
       if (!result.ok) {
         setError(result.detail ?? "update failed");
-        setBusy((b) => ({ ...b, [id]: false }));
         return;
       }
-      setBusy((b) => ({ ...b, [id]: false }));
       load();
-    }).catch(() => {
-      setError("update failed");
+    }).catch(() => setError("update failed")).finally(() => {
       setBusy((b) => ({ ...b, [id]: false }));
-    }).finally(() => setEditing((e) => ({ ...e, [id]: undefined })));
+      setEditing((e) => ({ ...e, [id]: undefined }));
+    });
   };
   const removeRecord = (id) => {
     if (!window.confirm("删除这条记录？"))
@@ -27974,40 +28234,33 @@ var WorkspaceView = () => {
     api.workspaceDelete(id).then((result) => {
       if (!result.ok) {
         setError(result.detail ?? "delete failed");
-        setBusy((b) => ({ ...b, [id]: false }));
         return;
       }
-      setBusy((b) => ({ ...b, [id]: false }));
       load();
-    }).catch(() => {
-      setError("delete failed");
-      setBusy((b) => ({ ...b, [id]: false }));
-    });
+    }).catch(() => setError("delete failed")).finally(() => setBusy((b) => ({ ...b, [id]: false })));
   };
-  const add = (kind, label) => {
-    const text = (drafts[kind] ?? "").trim();
-    if (text === "")
-      return;
+  const add = async (kind, text) => {
     setBusy((b) => ({ ...b, [kind]: true }));
-    api.workspaceAdd(kind, text).then((result) => {
+    try {
+      const result = await api.workspaceAdd(kind, text);
       if (!result.ok) {
         setError(result.detail ?? "write failed");
-        setBusy((b) => ({ ...b, [kind]: false }));
-        return;
+        return false;
       }
-      setDrafts((d) => ({ ...d, [kind]: "" }));
-      setBusy((b) => ({ ...b, [kind]: false }));
       load();
-    }).catch(() => {
+      return true;
+    } catch {
       setError("write failed");
+      return false;
+    } finally {
       setBusy((b) => ({ ...b, [kind]: false }));
-    });
+    }
   };
-  if (snap === undefined) {
-    return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Stack, {
+  if (snap === undefined)
+    return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Stack, {
       p: "md",
       style: { height: "100%", overflow: "auto" },
-      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Text, {
         size: "sm",
         c: "dimmed",
         ta: "center",
@@ -28015,16 +28268,15 @@ var WorkspaceView = () => {
         children: error2 ?? "加载工作区…"
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
-  }
-  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Stack, {
+  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Stack, {
     p: "md",
     gap: "md",
     style: { height: "100%", overflow: "auto" },
     children: [
-      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Group, {
+      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Group, {
         justify: "space-between",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(SegmentedControl, {
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(SegmentedControl, {
             size: "xs",
             value: sourceFilter,
             onChange: (value) => setSourceFilter(value),
@@ -28035,401 +28287,250 @@ var WorkspaceView = () => {
             ],
             "aria-label": "filter records by who wrote them"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(ActionIcon, {
+          /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(ActionIcon, {
             variant: "light",
             size: "sm",
             onClick: () => load(),
             title: "refresh",
-            children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(IconRefresh, {
+            children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(IconRefresh, {
               size: 14
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      error2 !== undefined && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
+      error2 !== undefined && /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Text, {
         size: "xs",
         c: "red",
         children: error2
       }, undefined, false, undefined, this),
       snap.resources.map((resource) => {
         const shown = sourceFilter === "all" ? resource.records : resource.records.filter((record) => (record.source ?? "agent") === sourceFilter);
-        return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Paper, {
-          "data-kind": resource.kind,
-          p: "sm",
-          radius: "md",
-          withBorder: true,
-          style: { maxWidth: 720, width: "100%" },
-          children: [
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Group, {
-              justify: "space-between",
-              mb: 4,
-              children: [
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Group, {
-                  gap: 8,
-                  children: [
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-                      fw: 600,
-                      size: "sm",
-                      tt: "capitalize",
-                      children: resource.label
-                    }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Badge, {
-                      size: "xs",
-                      variant: "light",
-                      children: resource.write.name
-                    }, undefined, false, undefined, this)
-                  ]
-                }, undefined, true, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-                  size: "xs",
-                  c: "dimmed",
-                  children: [
-                    shown.length,
-                    "/",
-                    resource.records.length,
-                    " shown"
-                  ]
-                }, undefined, true, undefined, this)
-              ]
-            }, undefined, true, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-              size: "xs",
-              c: "dimmed",
-              mb: "xs",
-              children: resource.write.description
-            }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Stack, {
-              gap: 4,
-              mb: "xs",
-              children: [
-                resource.records.length === 0 && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-                  size: "xs",
-                  c: "dimmed",
-                  children: "(空)"
-                }, undefined, false, undefined, this),
-                shown.length === 0 && resource.records.length > 0 && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-                  size: "xs",
-                  c: "dimmed",
-                  children: [
-                    "(没有 ",
-                    sourceFilter === "ui" ? "操作者" : "agent",
-                    " 写的内容)"
-                  ]
-                }, undefined, true, undefined, this),
-                shown.slice(-30).reverse().map((record) => {
-                  const isEditing = editing[record.id] !== undefined;
-                  const rowBusy = busy[record.id] === true;
-                  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Group, {
-                    gap: 8,
-                    wrap: "nowrap",
-                    style: { minWidth: 0 },
-                    children: [
-                      /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-                        size: "xs",
-                        c: "dimmed",
-                        style: { flex: "none" },
-                        children: fmtTime(record.ts)
-                      }, undefined, false, undefined, this),
-                      isEditing ? /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(TextInput, {
-                        size: "xs",
-                        style: { flex: 1, minWidth: 120 },
-                        value: editing[record.id] ?? record.text,
-                        autoFocus: true,
-                        disabled: rowBusy,
-                        onChange: (event) => setEditing((e) => ({ ...e, [record.id]: event.currentTarget.value })),
-                        onKeyDown: (event) => {
-                          if (event.key === "Enter")
-                            saveEdit(record.id);
-                          if (event.key === "Escape")
-                            setEditing((e) => ({ ...e, [record.id]: undefined }));
-                        }
-                      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Text, {
-                        size: "sm",
-                        style: { minWidth: 0, flex: 1 },
-                        children: record.text
-                      }, undefined, false, undefined, this),
-                      record.source === "ui" && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Badge, {
-                        size: "xs",
-                        variant: "outline",
-                        c: "dimmed",
-                        style: { flex: "none" },
-                        children: "ui"
-                      }, undefined, false, undefined, this),
-                      record.source === "agent" && /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Badge, {
-                        size: "xs",
-                        variant: "outline",
-                        color: "teal",
-                        style: { flex: "none" },
-                        children: "agent"
-                      }, undefined, false, undefined, this),
-                      isEditing ? /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(jsx_dev_runtime3.Fragment, {
-                        children: [
-                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(ActionIcon, {
-                            size: "sm",
-                            variant: "subtle",
-                            color: "green",
-                            loading: rowBusy,
-                            title: "save",
-                            "aria-label": "save edit",
-                            onClick: () => saveEdit(record.id),
-                            children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(IconCheck, {
-                              size: 14
-                            }, undefined, false, undefined, this)
-                          }, undefined, false, undefined, this),
-                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(ActionIcon, {
-                            size: "sm",
-                            variant: "subtle",
-                            title: "cancel",
-                            "aria-label": "cancel edit",
-                            disabled: rowBusy,
-                            onClick: () => setEditing((e) => ({ ...e, [record.id]: undefined })),
-                            children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(IconX, {
-                              size: 14
-                            }, undefined, false, undefined, this)
-                          }, undefined, false, undefined, this)
-                        ]
-                      }, undefined, true, undefined, this) : /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(jsx_dev_runtime3.Fragment, {
-                        children: [
-                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(ActionIcon, {
-                            size: "sm",
-                            variant: "subtle",
-                            title: "edit",
-                            "aria-label": "edit " + record.id,
-                            disabled: rowBusy,
-                            onClick: () => beginEdit(record.id, record.text),
-                            children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(IconEdit, {
-                              size: 14
-                            }, undefined, false, undefined, this)
-                          }, undefined, false, undefined, this),
-                          /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(ActionIcon, {
-                            size: "sm",
-                            variant: "subtle",
-                            color: "red",
-                            title: "delete",
-                            "aria-label": "delete " + record.id,
-                            loading: rowBusy,
-                            onClick: () => removeRecord(record.id),
-                            children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(IconTrash, {
-                              size: 14
-                            }, undefined, false, undefined, this)
-                          }, undefined, false, undefined, this)
-                        ]
-                      }, undefined, true, undefined, this)
-                    ]
-                  }, record.id, true, undefined, this);
-                })
-              ]
-            }, undefined, true, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Group, {
-              gap: 6,
-              children: [
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(TextInput, {
-                  size: "xs",
-                  flex: 1,
-                  placeholder: "记一条 " + resource.label + "…",
-                  value: drafts[resource.kind] ?? "",
-                  disabled: busy[resource.kind] === true,
-                  onChange: (event) => setDrafts((d) => ({ ...d, [resource.kind]: event.currentTarget.value })),
-                  onKeyDown: (event) => {
-                    if (event.key === "Enter")
-                      add(resource.kind, resource.label);
-                  }
-                }, undefined, false, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Button, {
-                  size: "compact-sm",
-                  leftSection: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(IconSend, {
-                    size: 13
-                  }, undefined, false, undefined, this),
-                  loading: busy[resource.kind] === true,
-                  onClick: () => add(resource.kind, resource.label),
-                  children: "添加"
-                }, undefined, false, undefined, this)
-              ]
-            }, undefined, true, undefined, this)
-          ]
-        }, resource.kind, true, undefined, this);
+        return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(ResourcePaper, {
+          resource,
+          shown,
+          filterLabel: sourceFilter === "ui" ? "操作者" : "agent",
+          editing,
+          rowBusy: busy,
+          draftBusy: busy[resource.kind] === true,
+          onEditText: (id, value) => setEditing((e) => ({ ...e, [id]: value })),
+          onSave: saveEdit,
+          onCancel: (id) => setEditing((e) => ({ ...e, [id]: undefined })),
+          onDelete: removeRecord,
+          onAdd: add
+        }, resource.kind, false, undefined, this);
       })
     ]
   }, undefined, true, undefined, this);
 };
 
-// src/hosts/webui/panel/App.tsx
-var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+// src/hosts/webui/panel/shell/header.tsx
+var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+var ConsoleHeader = ({ state, compact }) => {
+  const pendingCount = state.pending.length;
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("header", {
+    style: { height: 44, flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "0 14px", borderBottom: "1px solid var(--mantine-color-gray-2)" },
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Group, {
+        gap: 8,
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("span", {
+            style: { width: 9, height: 9, borderRadius: "50%", background: "var(--mantine-color-brand-5)", display: "inline-block" }
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text, {
+            fw: 700,
+            size: "md",
+            style: { letterSpacing: 0.2 },
+            children: [
+              "mantis ",
+              /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Text, {
+                span: true,
+                c: "dimmed",
+                fw: 500,
+                children: "console"
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("div", {
+        style: { flex: 1 }
+      }, undefined, false, undefined, this),
+      !compact && !state.approvalsOn && state.pending.length === 0 && /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Tooltip, {
+        label: "本实例未配置审批门：agent 的写操作直接执行",
+        children: /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Badge, {
+          size: "xs",
+          variant: "outline",
+          c: "dimmed",
+          children: "审批未启用"
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      state.approvalsOn && /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Badge, {
+        size: "xs",
+        color: pendingCount > 0 ? "yellow" : "teal",
+        variant: "light",
+        children: pendingCount > 0 ? pendingCount + " 条待批" : "审批已开启"
+      }, undefined, false, undefined, this),
+      !compact && /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(Badge, {
+        size: "xs",
+        variant: "dot",
+        color: state.pollOk ? "teal" : "gray",
+        c: state.pollOk ? undefined : "dimmed",
+        children: state.pollOk ? "已轮询" : "轮询中"
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/hosts/webui/panel/shell/nav.tsx
+var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
 var NAV_ITEMS = [
-  { key: "chat", label: "会话", icon: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(IconSend, {
+  { key: "chat", label: "会话", icon: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(IconSend, {
     size: 19
   }, undefined, false, undefined, this) },
-  { key: "workspace", label: "工作区", icon: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(IconHistory, {
+  { key: "workspace", label: "工作区", icon: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(IconHistory, {
     size: 19
   }, undefined, false, undefined, this) },
-  { key: "approvals", label: "审批", icon: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(IconCheck, {
+  { key: "approvals", label: "审批", icon: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(IconCheck, {
     size: 19
   }, undefined, false, undefined, this) }
 ];
+var TabBar = ({
+  value,
+  onChange,
+  pendingCount
+}) => /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Tabs.List, {
+  px: "sm",
+  pt: 4,
+  style: { borderBottom: "1px solid var(--mantine-color-gray-2)", flex: "none" },
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Tabs.Tab, {
+      value: "chat",
+      children: "会话"
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Tabs.Tab, {
+      value: "workspace",
+      children: "工作区"
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Tabs.Tab, {
+      value: "approvals",
+      rightSection: pendingCount > 0 ? /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Badge, {
+        size: "xs",
+        circle: true,
+        color: "yellow",
+        children: pendingCount
+      }, undefined, false, undefined, this) : undefined,
+      children: "审批"
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var BottomNav = ({
+  value,
+  onChange,
+  pendingCount
+}) => /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("nav", {
+  "aria-label": "console tabs",
+  style: {
+    flex: "none",
+    display: "flex",
+    borderTop: "1px solid var(--mantine-color-gray-2)",
+    background: "var(--mantine-color-body)",
+    paddingBottom: "env(safe-area-inset-bottom, 0px)",
+    position: "sticky",
+    bottom: 0,
+    zIndex: 5
+  },
+  children: NAV_ITEMS.map((item) => {
+    const active = value === item.key;
+    const badge = item.key === "approvals" && pendingCount > 0 ? pendingCount : undefined;
+    return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("button", {
+      "aria-label": item.label,
+      "aria-current": active ? "page" : undefined,
+      onClick: () => onChange(item.key),
+      style: {
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 3,
+        height: 56,
+        padding: 0,
+        border: "none",
+        cursor: "pointer",
+        touchAction: "manipulation",
+        background: "transparent",
+        color: active ? "var(--mantine-color-brand-6)" : "var(--mantine-color-dimmed)"
+      },
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("span", {
+          style: { position: "relative", display: "inline-flex" },
+          children: [
+            item.icon,
+            badge !== undefined && badge !== 0 && /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("span", {
+              style: { position: "absolute", top: -5, right: -9, fontSize: 8.5, lineHeight: "13px", minWidth: 13, padding: "0 3px", textAlign: "center", borderRadius: 7, color: "#fff", background: active ? "var(--mantine-color-brand-5)" : "var(--mantine-color-yellow-6)" },
+              children: badge
+            }, undefined, false, undefined, this)
+          ]
+        }, undefined, true, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("span", {
+          style: { fontSize: 9.5, lineHeight: 1 },
+          children: item.label
+        }, undefined, false, undefined, this)
+      ]
+    }, item.key, true, undefined, this);
+  })
+}, undefined, false, undefined, this);
+
+// src/hosts/webui/panel/App.tsx
+var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
 var App = () => {
   const state = usePanel();
-  const [tab, setTab] = import_react57.useState("chat");
+  const [tab, setTab] = import_react59.useState("chat");
   const compact = useCompactViewport();
-  import_react57.useEffect(() => panel.start(), []);
+  import_react59.useEffect(() => panel.start(), []);
   const pendingCount = state.pending.length;
-  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV("div", {
     style: { display: "flex", flexDirection: "column", height: "100%", minHeight: 0 },
     children: [
-      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("header", {
-        style: { height: 44, flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "0 14px", borderBottom: "1px solid var(--mantine-color-dark-4)" },
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Group, {
-            gap: 8,
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
-                style: { width: 9, height: 9, borderRadius: "50%", background: "var(--mantine-color-brand-5)", display: "inline-block" }
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text, {
-                fw: 700,
-                size: "md",
-                style: { letterSpacing: 0.2 },
-                children: [
-                  "mantis ",
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Text, {
-                    span: true,
-                    c: "dimmed",
-                    fw: 500,
-                    children: "console"
-                  }, undefined, false, undefined, this)
-                ]
-              }, undefined, true, undefined, this)
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
-            style: { flex: 1 }
-          }, undefined, false, undefined, this),
-          !compact && !state.approvalsOn && state.pending.length === 0 && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tooltip, {
-            label: "本实例未配置审批门：agent 的写操作直接执行",
-            children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Badge, {
-              size: "xs",
-              variant: "outline",
-              c: "dimmed",
-              children: "审批未启用"
-            }, undefined, false, undefined, this)
-          }, undefined, false, undefined, this),
-          state.approvalsOn && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Badge, {
-            size: "xs",
-            color: pendingCount > 0 ? "yellow" : "teal",
-            variant: "light",
-            children: pendingCount > 0 ? pendingCount + " 条待批" : "审批已开启"
-          }, undefined, false, undefined, this),
-          !compact && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Badge, {
-            size: "xs",
-            variant: "dot",
-            color: state.pollOk ? "teal" : "gray",
-            c: state.pollOk ? undefined : "dimmed",
-            children: state.pollOk ? "已轮询" : "轮询中"
-          }, undefined, false, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs, {
+      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(ConsoleHeader, {
+        state,
+        compact
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Tabs, {
         value: tab,
         onChange: (v) => setTab(v ?? "chat"),
         style: { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" },
         children: [
-          !compact && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.List, {
-            px: "sm",
-            pt: 4,
-            style: { borderBottom: "1px solid var(--mantine-color-dark-4)", flex: "none" },
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.Tab, {
-                value: "chat",
-                children: "会话"
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.Tab, {
-                value: "workspace",
-                children: "工作区"
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.Tab, {
-                value: "approvals",
-                rightSection: pendingCount > 0 ? /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Badge, {
-                  size: "xs",
-                  circle: true,
-                  color: "yellow",
-                  children: pendingCount
-                }, undefined, false, undefined, this) : undefined,
-                children: "审批"
-              }, undefined, false, undefined, this)
-            ]
-          }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+          !compact && /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(TabBar, {
+            value: tab,
+            onChange: setTab,
+            pendingCount
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime11.jsxDEV("div", {
             style: { flex: 1, minHeight: 0 },
             children: [
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.Panel, {
+              /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Tabs.Panel, {
                 value: "chat",
                 style: { height: "100%" },
-                children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(ChatView, {}, undefined, false, undefined, this)
+                children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(ChatView, {}, undefined, false, undefined, this)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.Panel, {
+              /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Tabs.Panel, {
                 value: "workspace",
                 style: { height: "100%" },
-                children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(WorkspaceView, {}, undefined, false, undefined, this)
+                children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(WorkspaceView, {}, undefined, false, undefined, this)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Tabs.Panel, {
+              /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(Tabs.Panel, {
                 value: "approvals",
                 style: { height: "100%" },
-                children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(ApprovalsView, {}, undefined, false, undefined, this)
+                children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(ApprovalsView, {}, undefined, false, undefined, this)
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          compact && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("nav", {
-            "aria-label": "console tabs",
-            style: {
-              flex: "none",
-              display: "flex",
-              borderTop: "1px solid var(--mantine-color-dark-4)",
-              background: "var(--mantine-color-body)",
-              paddingBottom: "env(safe-area-inset-bottom, 0px)",
-              position: "sticky",
-              bottom: 0,
-              zIndex: 5
-            },
-            children: NAV_ITEMS.map((item) => {
-              const active = tab === item.key;
-              const badge = item.key === "approvals" && pendingCount > 0 ? pendingCount : undefined;
-              return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("button", {
-                "aria-label": item.label,
-                "aria-current": active ? "page" : undefined,
-                onClick: () => setTab(item.key),
-                style: {
-                  flex: 1,
-                  minWidth: 0,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 3,
-                  height: 56,
-                  padding: 0,
-                  border: "none",
-                  cursor: "pointer",
-                  touchAction: "manipulation",
-                  background: "transparent",
-                  color: active ? "var(--mantine-color-brand-4)" : "var(--mantine-color-dimmed)"
-                },
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
-                    style: { position: "relative", display: "inline-flex" },
-                    children: [
-                      item.icon,
-                      badge !== undefined && badge !== 0 && /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
-                        style: { position: "absolute", top: -5, right: -9, fontSize: 8.5, lineHeight: "13px", minWidth: 13, padding: "0 3px", textAlign: "center", borderRadius: 7, color: "#fff", background: active ? "var(--mantine-color-brand-5)" : "var(--mantine-color-yellow-6)" },
-                        children: badge
-                      }, undefined, false, undefined, this)
-                    ]
-                  }, undefined, true, undefined, this),
-                  /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("span", {
-                    style: { fontSize: 9.5, lineHeight: 1 },
-                    children: item.label
-                  }, undefined, false, undefined, this)
-                ]
-              }, item.key, true, undefined, this);
-            })
+          compact && /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(BottomNav, {
+            value: tab,
+            onChange: setTab,
+            pendingCount
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this)
@@ -28438,12 +28539,12 @@ var App = () => {
 };
 
 // src/hosts/webui/panel/app-shell.tsx
-var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
 var root = document.getElementById("root");
 if (root === null)
   throw new Error("#root missing");
-import_client.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime5.jsxDEV(MantineProvider, {
+import_client.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime12.jsxDEV(MantineProvider, {
   theme: consoleTheme,
-  forceColorScheme: "dark",
-  children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(App, {}, undefined, false, undefined, this)
+  forceColorScheme: "light",
+  children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(App, {}, undefined, false, undefined, this)
 }, undefined, false, undefined, this));

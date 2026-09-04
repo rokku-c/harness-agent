@@ -32,7 +32,7 @@ const scripted = (holdMs = 0): Model => {
   return model
 }
 const withDirs = (dir: string, fn: (c: WebConsole) => Promise<void>, model: Model = scripted()): Promise<void> =>
-  fn(new WebConsole({ model, uiDir: join(dir, "ui"), workspaceFile: join(dir, "ws.jsonl"), memoryDir: join(dir, "mem"), logger: silentLogger }))
+  fn(new WebConsole({ model, workspaceFile: join(dir, "ws.jsonl"), memoryDir: join(dir, "mem"), logger: silentLogger }))
 /** final-answers with how many times it has seen a marker string in the thread */
 const countingModel = (marker: string): Model => {
   const model: any = {
@@ -50,7 +50,7 @@ const countingModel = (marker: string): Model => {
 }
 const withConsole = async (model: Model, fn: (c: WebConsole) => Promise<void>) => {
   const dir = mkdtempSync(join(tmpdir(), "mantis-console-"))
-  const c = new WebConsole({ model, uiDir: join(dir, "ui"), workspaceFile: join(dir, "ws.jsonl"), memoryDir: join(dir, "mem"), logger: silentLogger })
+  const c = new WebConsole({ model, workspaceFile: join(dir, "ws.jsonl"), memoryDir: join(dir, "mem"), logger: silentLogger })
   try { await fn(c) } finally { rmSync(dir, { recursive: true, force: true }) }
 }
 
@@ -101,17 +101,6 @@ describe("web console flow (scripted model)", () => {
         expect(c.workspace.remove(added.id)).toBe(true)
         expect(c.workspace.records("note").some((x) => x.id === added.id)).toBe(false)
         expect(c.workspace.remove("no-such-id")).toBe(false)
-      })
-    } finally { rmSync(dir, { recursive: true, force: true }) }
-  })
-  test("ui version snapshot contract: empty until pushed, restore of unknown fails soft", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "mantis-ui-contract-"))
-    try {
-      await withDirs(dir, async (c) => {
-        expect(c.ui.latest()).toBeUndefined()
-        expect(c.ui.versions().length).toBe(0)
-        const r = c.restoreUi(1)
-        expect(r.ok).toBe(false)
       })
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })

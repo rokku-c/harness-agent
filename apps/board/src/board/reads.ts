@@ -10,7 +10,7 @@ import type { BoardApi, BoardDeps } from "./contract.ts"
 import type { WorkItem } from "../domain.ts"
 import { rollup } from "../domain/rollup.ts"
 
-export const readsSlice = (deps: BoardDeps): Pick<BoardApi, "tables" | "bus" | "governor" | "state" | "getItem" | "listItems" | "viewItems" | "eventsAfter"> => {
+export const readsSlice = (deps: BoardDeps): Pick<BoardApi, "tables" | "bus" | "governor" | "state" | "getItem" | "listItems" | "tree" | "viewItems" | "eventsAfter"> => {
   const { tables, bus, governor } = deps
   return {
     tables,

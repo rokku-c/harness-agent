@@ -17,7 +17,7 @@ describe("turn failures are digested", () => {
       const model = {
         generate: (_s: string, _m: unknown[], _t: unknown[]) => Effect.succeed({ text: "this is prose, not JSON", toolCalls: [] })
       } as unknown as Model
-      const web = new WebConsole({ model, uiDir: dir, logger: noopLogger() })
+      const web = new WebConsole({ model, logger: noopLogger() })
       const result = await web.chatSync("fail-1", "hello") // would crash on an unhandled rejection
       expect(result.ok).toBe(true) // digested: no crash, no reply
       expect(result.reply).toBeUndefined()

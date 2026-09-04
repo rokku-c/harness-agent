@@ -27,8 +27,6 @@ export interface WebConsoleOptions {
   /** tool names that wait for the operator on this console (e.g. note_write) */
   readonly protectedTools?: ReadonlyArray<string>
   readonly approveTimeoutMs?: number
-  /** where agent A2UI versions are persisted (git-tracked) */
-  readonly uiDir: string
   /**
    * Append-only JSONL workspace file: when set the console owns ONE durable
    * workspace store shared by every conversation (human UI + agents) and it

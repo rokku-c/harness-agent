@@ -41,7 +41,6 @@ const web = new WebConsole({
   maxReflections: config.model.maxReflections,
   protectedTools: config.approvals.protectedTools,
   approveTimeoutMs: config.approvals.timeoutMs,
-  uiDir: envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui"),
   workspaceFile: envVar("WORKSPACE_FILE") ?? join(envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui"), "workspace.jsonl"),
   memoryDir: envVar("MEMORY_DIR") ?? join(envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui"), "memory"),
   logger

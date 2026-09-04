@@ -12,7 +12,6 @@ export type BusEvent =
   | { readonly type: "tool"; readonly conversationId: string; readonly tool: string; readonly state: "call" | "ok" | "fail"; readonly detail?: string }
   | { readonly type: "approval.pending"; readonly callId: string; readonly tool: string; readonly input: unknown }
   | { readonly type: "approval.resolved"; readonly callId: string; readonly allow: boolean }
-  | { readonly type: "ui.updated"; readonly version: number; readonly author: string }
   | { readonly type: "log"; readonly level: string; readonly scope: string; readonly message: string }
   | { readonly type: "conv.new"; readonly conversationId: string }
 

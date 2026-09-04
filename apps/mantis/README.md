@@ -104,23 +104,21 @@ timelines and serves them as snapshots (`mantis_conversation` / the
 and renders it. There is no event-stream subscription anywhere: nothing to
 reconnect, replay or dedupe. Views: a conversation timeline that folds the
 agent's tool steps (call/ok/fail + payload summaries) between messages,
-pending approval cards, the versioned agent-UI surface (rendered by the
-OFFICIAL A2UI renderer embedded in the same tree -
-`panel/a2ui/A2uiHost.tsx`) and an event ring read via stateless `?after`
+pending approval cards, an event ring read via stateless `?after`
 polls.
 
 ```bash
 bun run build:web        # bundle the React+Mantine panel into public/app-shell.{js,css} (after npm installs)
 bun apps/mantis/src/hosts/webui/main.ts        # http://127.0.0.1:3737
-# env: MANTIS_WEB_HOST / MANTIS_WEB_PORT / MANTIS_UI_DIR + the standard
+# env: MANTIS_WEB_HOST / MANTIS_WEB_PORT + the standard
 # MANTIS_* config/model/protected env of every host
 ```
 
 The web host shares the live config: same config.toml model, same
 `MANTIS_PROTECTED` policy. pm2: `mantis-web` in ecosystem.config.cjs.
 
-Try it end-to-end from the chat tab: “enable ui_render and render a status
-board” - the agent pushes a surface, the Agent UI tab shows it versioned.
+Try it end-to-end from the chat tab: give mantis a multi-step task and watch tool steps,
+workspace records land with provenance, and protected writes pause as approval cards.
 
 ## MCP server: other agents drive mantis as tools
 

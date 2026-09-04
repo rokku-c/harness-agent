@@ -8,7 +8,7 @@ import type { PanelState } from "../store.ts"
 export const ConsoleHeader = ({ state, compact }: { state: PanelState; compact: boolean }): JSX.Element => {
   const pendingCount = state.pending.length
   return (
-    <header style={{ height: 44, flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "0 14px", borderBottom: "1px solid var(--mantine-color-dark-4)" }}>
+    <header style={{ height: 44, flex: "none", display: "flex", alignItems: "center", gap: 12, padding: "0 14px", borderBottom: "1px solid var(--mantine-color-gray-2)" }}>
       <Group gap={8}>
         <span style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--mantine-color-brand-5)", display: "inline-block" }} />
         <Text fw={700} size="md" style={{ letterSpacing: 0.2 }}>

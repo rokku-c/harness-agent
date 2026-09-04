@@ -37,13 +37,3 @@ export const resolveApproval = async (core: PanelCore, callId: string, allow: bo
   try { await api.resolveApproval(callId, allow) } catch { /* poll settles */ }
   void pollState(core)
 }
-
-export const uiRestore = async (core: PanelCore, version: number): Promise<void> => {
-  try { await api.uiRestore(version) } catch { /* poll settles */ }
-  void pollState(core)
-}
-
-export const uiAction = (core: PanelCore, action: string, values: Record<string, string>): void => {
-  const conversationId = core.getState().activeConversation || "ui"
-  void api.uiAction(conversationId, action, values)
-}

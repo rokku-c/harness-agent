@@ -553,3 +553,46 @@ oversized update 不破坏原记录），套件 94→96 pass (377 expects)；sco
 - Verified: 254 tests / 43 files green; tsc baseline clean. Live model demos
   still paused (BAIZHI_API_KEY blocker unchanged).
 
+## Repo delivery (user-approved commit + push)
+- User approved committing everything: a0f9b92 pushed to
+  origin/rewrite-agent-connection (git@github.com:rokku-c/harness-agent).
+  360 files (mantis full stack R1-R29 + board/deck/agentdeck/script/state
+  ecosystem files + docs); temp tsconfig.*.tmp.json scratch kept out of the
+  commit. Working tree clean except the author's 5 untracked tmp tsconfigs.
+
+## Product goal R30 (UI -> simple-line minimal, light edition)
+- User direction (from a Qwen share on dynamic/JSON-driven UI): start with a
+  simple-line minimal look. Re-skin of the whole console (all screens):
+    theme.ts -> light line-minimal tokens (hairline borders, near-white,
+    radius 2-5px, one blue accent, weight 650 headings)
+    app-shell.tsx -> forceColorScheme="light"
+    style.css -> light palette + .a2ui mapping light
+    views -> dark-4/6 color vars -> gray hairline/surface vars; rail bg
+    gray-0, selected conversation brand-1 tint + semibold; bubbles: user
+    soft gray fill, mantis white + hairline; tool dots to -6 shades.
+  Rebuilt web bundle (bun run build:web).
+- Verified on the live console: DOM-asserted tab switches + seeded workspace
+  record; evidence /tmp/r31-1600-chat|workspace|approvals.png +
+  /tmp/r31-390-chat.png (desktop 1600 + mobile 390).
+- Note: mantis-web had vanished from pm2 (daemon reset) - relaunched via
+  ecosystem (now id5 on 127.0.0.1:3737). BAIZHI_API_KEY still missing.
+- Research on the Qwen share page: SSR cut after the Amis/Formily intro;
+  headless Chrome read only the header (title + date) - the conversation
+  body requires a logged-in session, so the page's full conclusion is not
+  reachable anonymously. Awaiting the user's pasted conclusion (if any).
+- Changes are NOT committed yet (awaiting approval after visual review).
+
+## Product goal R31 (A2UI removed - superseded by user direction)
+- User: "A2UI不需要了，太过时了". Removed the whole A2UI surface end-to-end:
+    tools: ui_render op + tools/build/ui.ts + capability decl/impl ui.render
+    store: UiStore + console/ui-ops.ts + a2ui/ parser dirs (webui + panel)
+    console: acceptUi/restoreUi/state.ui + snapshot consoleState cleanup
+    HTTP: /api/ui/{latest,versions,restore,action} routes gone (404)
+    MCP: mantis_ui_latest/versions/restore tools gone (surface = 11 mantis_*)
+    panel: AgentUiView/EventsView/A2uiHost deleted; api/poll/store ui fields out
+    other: bus ui.updated, MantisHostOptions.ui, agent MantisOptions.ui,
+    main.ts uiDir pass, style.css a2ui mapping, package deps usage (kept in
+    package.json to avoid an offline lockfile rewrite), README/docs updated.
+- Verified: tsc baseline clean; apps/mantis tests 87/87; repo suite 269 pass /
+  3 skip; bundle rebuilt; live 3737 state has no ui key, /api/ui/latest -> 404.
+

@@ -7,16 +7,13 @@
  * and are resolved with a click, and every mantis session event streams to
  * the page.
  *
- * Agent UI: sessions can call the extended ui_render tool to push A2UI-style
- * surfaces; every accepted surface is a versioned git-tracked file under
- * MANTIS_UI_DIR (default apps/mantis/.ui) - roll back from the page.
  *
  * The browser cannot speak MCP stdio, so this process maps every /api call
  * onto the in-process mantis MCP server (InMemoryTransport) - the web panel
  * IS an MCP client, like Claude Code; there is no other path into the host.
  *
  * Env: MANTIS_WEB_HOST (default 127.0.0.1), MANTIS_WEB_PORT (default 3737),
- * MANTIS_UI_DIR, plus the standard MANTIS_* env (config/model/protected).
+ * plus the standard MANTIS_* env (config/model/protected).
  *
  * Run: bun apps/mantis/src/hosts/webui/main.ts
  */
@@ -51,12 +48,12 @@ if (logFile !== undefined) sinks.push(jsonFileSink(logFile, { level: logLevel })
 const logger = makeLogger(compositeSink(...sinks), "mantis")
 for (const warning of config.warnings) logger.warn(warning)
 
-const uiDir = envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui")
+const dataDir = envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui")
 // durable shared workspace: one append-only JSONL next to the agent UI files
 // (override the location with MANTIS_WORKSPACE_FILE; empty string disables)
-const workspaceFile = envVar("WORKSPACE_FILE") === "" ? undefined : envVar("WORKSPACE_FILE") ?? join(uiDir, "workspace.jsonl")
+const workspaceFile = envVar("WORKSPACE_FILE") === "" ? undefined : envVar("WORKSPACE_FILE") ?? join(dataDir, "workspace.jsonl")
 // durable conversation memory: turns survive restarts (same data root)
-const memoryDir = envVar("MEMORY_DIR") === "" ? undefined : envVar("MEMORY_DIR") ?? join(uiDir, "memory")
+const memoryDir = envVar("MEMORY_DIR") === "" ? undefined : envVar("MEMORY_DIR") ?? join(dataDir, "memory")
 const web = new WebConsole({
   bus,
   model: buildModelFromConfig(config.model),
@@ -64,7 +61,6 @@ const web = new WebConsole({
   maxReflections: config.model.maxReflections,
   protectedTools: config.approvals.protectedTools,
   approveTimeoutMs: config.approvals.timeoutMs,
-  uiDir,
   workspaceFile,
   memoryDir,
   logger
@@ -84,7 +80,6 @@ const { url } = serveConsole({
   port: Number(envVar("WEB_PORT") ?? 3737)
 })
 logger.info("mantis web console live on " + url, {
-  uiDir,
   workspaceFile,
   memoryDir,
   protectedTools: config.approvals.protectedTools.join(",") || "none"

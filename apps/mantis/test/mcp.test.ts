@@ -48,7 +48,6 @@ describe("mantis MCP server", () => {
     try {
       const web = new WebConsole({
         model: scriptedModel([finalJson("hello from mcp")]),
-        uiDir: dir,
         logger: noopLogger()
       })
       const server = makeMantisMcp({ console: web })
@@ -88,7 +87,6 @@ describe("mantis MCP server", () => {
         { text: "", toolCalls: [{ id: "w1", name: "note_write", input: { text: "mcp write" } }] },
         finalJson("saved it")
       ]),
-      uiDir: dir,
       protectedTools: ["note_write"],
       logger: noopLogger()
     })
@@ -123,7 +121,6 @@ describe("workspace write length caps over MCP", () => {
     const dir = mkdtempSync(join(tmpdir(), "mantis-mcp-cap-"))
     const web = new WebConsole({
       model: scriptedModel([finalJson("unused")]),
-      uiDir: dir,
       logger: noopLogger()
     })
     const server = makeMantisMcp({ console: web })
@@ -172,7 +169,7 @@ describe("workspace write length caps over MCP", () => {
 describe("chat length guard over MCP", () => {
   const make = async (script: Script) => {
     const dir = mkdtempSync(join(tmpdir(), "mantis-mcp-chatlen-"))
-    const web = new WebConsole({ model: scriptedModel(script), uiDir: dir, logger: noopLogger() })
+    const web = new WebConsole({ model: scriptedModel(script), logger: noopLogger() })
     const server = makeMantisMcp({ console: web })
     const client = new Client({ name: "test", version: "0.0.0" })
     const pair = InMemoryTransport.createLinkedPair()

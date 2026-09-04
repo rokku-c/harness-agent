@@ -2,8 +2,7 @@
  * server/routes/message.ts - CHAT routes.
  *
  * Concept: post a user message (fire-and-forget; the reply streams back over
- * /api/events) or forward an A2UI button action as an [ui.action] message.
- * Both accept an optional conversationId and answer accepted/rejected.
+ * /api/events). Accepts an optional conversationId and answers accepted/rejected.
  */
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { callText, json } from "../helpers.ts"
@@ -24,20 +23,6 @@ export const routeMessage = async (url: URL, request: Request, client: Client): 
     const text = await callText(client, "mantis_chat", {
       conversationId: body.conversationId ?? "ui",
       text: body.text,
-      wait: false
-    })
-    return accepted(text)
-  }
-  if (path === "/api/ui/action") {
-    const body = (await request.json()) as { conversationId?: string; action?: string; values?: Record<string, string> }
-    if (body.action === undefined) return json({ ok: false, detail: "action required" }, 400)
-    const values = body.values ?? {}
-    const payload = Object.keys(values).length === 0
-      ? "[ui.action] " + body.action
-      : "[ui.action] " + body.action + " " + JSON.stringify(values)
-    const text = await callText(client, "mantis_chat", {
-      conversationId: body.conversationId ?? "ui",
-      text: payload,
       wait: false
     })
     return accepted(text)

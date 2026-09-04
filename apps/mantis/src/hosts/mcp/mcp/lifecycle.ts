@@ -56,7 +56,7 @@ export const registerLifecycle = (server: McpServer, web: WebConsole): void => {
 
   server.tool(
     "mantis_events",
-    "Events since a timestamp (ms epoch) - message.in / reply / approval.pending / approval.resolved / ui.updated / session.start / session.stop / log. Poll with the last seen ts; the console streams these to the browser.",
+    "Events since a timestamp (ms epoch) - message.in / reply / approval.pending / approval.resolved / session.start / session.stop / log. Poll with the last seen ts; the console streams these to the browser.",
     { after: z.number() },
     async ({ after }) => {
       const events = web.bus.after(after)

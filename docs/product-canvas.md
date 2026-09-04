@@ -31,7 +31,7 @@
 2. **工作区**：它写的所有记录按资源分组 + 来源过滤 + 可回溯；也能手记一条。
 3. **审批台**：待批卡（工具+输入+来自哪条线）同意/拒绝。
 4. **系统状态**：健康/审批开关（右上角最小）。
-> Agent UI（A2UI）、提醒、dingtalk、事件流全部隐藏/降级实验，不进首屏。
+> 提醒、dingtalk、事件流全部隐藏/降级实验，不进首屏；A2UI 已按你意见移除（R31，过时）。
 
 ## 5. 明确不做（anti-scope）
 - ❌ Claymorphism / 童趣视觉（已按你意见否决）
@@ -54,7 +54,7 @@
 | conversation timeline / durable memory | 会话台 |
 | enable + 工具面跨重启 | 会话台状态行（只读展示） |
 | approvals + session 上下文 | 审批台 |
-| ui_render (A2UI) | 实验区隐藏页 |
+| ~~ui_render (A2UI)~~ | 已移除（R31） |
 | set_reminder / dingtalk | 隐藏/实验 |
 | events/state API | 系统状态（右上角最小） |
 

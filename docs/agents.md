@@ -32,15 +32,13 @@ that is the unit of memory, approval origin, and tool-surface persistence.
 | mantis_workspace_delete | DELETE /api/workspace?recordId= | delete one record by id (missing id -> error) |
 | mantis_events | GET /api/events?after= | event ring since seq |
 | mantis_state | GET /api/state | full snapshot |
-| mantis_ui_latest/versions/restore | /api/ui/latest|versions|restore | agent-rendered A2UI surfaces |
 
 Inside a conversation, the session agent itself plans against a layered tool
 surface (not these bridge tools):
 
 - core (always visible): tools_catalog, enable, recall_notes
 - extended (visible after enable; persists across restarts per conversation):
-  note_read, note_write, task_write, set_reminder, update_record, delete_record,
-  ui_render
+  note_read, note_write, task_write, set_reminder, update_record, delete_record
 
 ## Semantics agents should rely on
 
@@ -53,8 +51,6 @@ surface (not these bridge tools):
   pauses and a pending card appears for the operator with the asking
   conversation (session field). Do not treat "protected" as "don't act" -
   proceed with the write; the operator approves or denies.
-- Form buttons from the operator arrive as [ui.action] NAME {values}: the
-  operator already decided, so act on them (a protected write auto-pauses).
 - Everything is declarative: kinds, write tools, catalog copy all come from
   the capability manifest + resource declarations - if the product grows a
   kind, the same APIs expose it.
@@ -81,5 +77,3 @@ surface (not these bridge tools):
 
 - One process owns a workspace/memory file (single writer). Run one mantis
   host per data root.
-- ui_render surfaces render to the operator console and are versioned; they
-  are an output channel, not a sandbox escape.

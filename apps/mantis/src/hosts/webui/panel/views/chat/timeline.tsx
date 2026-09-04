@@ -18,7 +18,7 @@ export const TimelinePane = ({
   }, [items.length, effective])
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}>
-      <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--mantine-color-dark-4)", display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
+      <div style={{ padding: "5px 12px", borderBottom: "1px solid var(--mantine-color-gray-2)", display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
         <Text size="xs" fw={700} style={{ fontFamily: "var(--mantine-font-family-monospace)" }}>{shortId(effective)}</Text>
         <Text size="xs" c="dimmed">{items.length} 条</Text>
       </div>

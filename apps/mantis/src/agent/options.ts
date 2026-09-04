@@ -3,8 +3,8 @@
  *
  * Concept: what a host may inject into one mantis session (model, shared
  * workspace store, prompt override, step/reflection limits, pre-enabled
- * extended tools, approval policy, extra bindings, observability hooks, the
- * optional UI console) and what a session returns (agent + the supply/
+ * extended tools, approval policy, extra bindings, observability hooks) and
+ * what a session returns (agent + the supply/
  * store/approvals it ran with).
  */
 import type { AgentError, AgentProgram, Binding, HarnessHook } from "@effect-agent/core"
@@ -53,11 +53,6 @@ export interface MantisOptions {
    * ./logging.ts, so every session event flows into a unified log.
    */
   readonly hooks?: ReadonlyArray<HarnessHook<never, never>>
-  /**
-   * Optional UI console connection (web console host): enables the ui_render
-   * tool, so a session can push A2UI-style surfaces onto the operator console.
-   */
-  readonly ui?: { readonly push: (spec: unknown) => void }
 }
 
 export interface Mantis {

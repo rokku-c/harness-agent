@@ -40,7 +40,9 @@ const main = async () => {
   })
   const state = await client.callTool({ name: "board_state", arguments: {} })
   await client.close()
-  const ok = reg.content[0] !== undefined && state.content[0] !== undefined
+  const hasContent = (value: unknown): boolean =>
+    Array.isArray((value as { content?: unknown[] }).content) && (value as { content: unknown[] }).content.length > 0
+  const ok = hasContent(reg) && hasContent(state)
   if (ok) {
     console.error("[board-preflight] OK: board reachable; executor claude-code declared")
     process.exit(0)

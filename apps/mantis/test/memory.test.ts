@@ -28,7 +28,7 @@ describe("conversation memory", () => {
           return Effect.succeed(finalJson("ok"))
         }
       } as unknown as Model
-      const web = new WebConsole({ model, uiDir: dir, logger: noopLogger() })
+      const web = new WebConsole({ model, logger: noopLogger() })
 
       await web.chatSync("mem-1", "记住这句话：alpha bravo")
       await web.chatSync("mem-1", "我上一句说了什么？")

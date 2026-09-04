@@ -9,20 +9,15 @@ import { api } from "../api.ts"
 import type { PanelCore } from "./core.ts"
 import { adaptEntry } from "./types.ts"
 
-/** poll the whole-console snapshot (state + agent-UI latest/versions) */
+/** poll the whole-console snapshot */
 export const pollState = async (core: PanelCore): Promise<void> => {
   try {
-    const [state, uiLatest, uiVersions] = await Promise.all([api.state(), api.uiLatest(), api.uiVersions()])
+    const state = await api.state()
     core.applySnapshot({
       conversations: state.conversations,
       pending: state.pending,
       approvalsOn: state.approvalsOn,
-      startedAt: state.startedAt,
-      uiEmpty: uiLatest.empty,
-      uiMessages: uiLatest.empty ? null : (uiLatest.messages as unknown[]),
-      uiVersion: state.ui.version,
-      uiAuthor: state.ui.author,
-      uiVersions: uiVersions.versions
+      startedAt: state.startedAt
     })
   } catch {
     core.set({ pollOk: false, polledAt: Date.now() })

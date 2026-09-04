@@ -3,7 +3,7 @@
  *
  * Concept: a thin Bun.serve translator - static panel assets on GET, every
  * /api call delegated to the per-family route modules (state/events, chat,
- * approvals, workspace, ui, conversation), and NOTHING else touches the
+ * approvals, workspace, conversation), and NOTHING else touches the
  * backend: the SSE stream polls mantis_events so live updates flow through
  * MCP too. Failures answer 500 with the readable cause.
  */
@@ -12,7 +12,6 @@ import { json, readAsset } from "./helpers.ts"
 import { routeState } from "./routes/state.ts"
 import { routeMessage } from "./routes/message.ts"
 import { routeWorkspace } from "./routes/workspace.ts"
-import { routeUi } from "./routes/ui.ts"
 import { routeApprovals } from "./routes/approvals.ts"
 import { routeConversation } from "./routes/conversation.ts"
 
@@ -51,7 +50,7 @@ export const serveConsole = (options: ServeOptions): { url: string; stop: () => 
         }
       }
       try {
-        const routes = [routeState, routeMessage, routeWorkspace, routeUi, routeApprovals, routeConversation]
+        const routes = [routeState, routeMessage, routeWorkspace, routeApprovals, routeConversation]
         for (const route of routes) {
           const response = await route(url, request, client)
           if (response !== undefined) return response

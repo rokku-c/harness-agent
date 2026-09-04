@@ -47,8 +47,7 @@ const makeConsole = (model: Model): { c: WebConsole; cleanup: () => void } => {
   const dir = mkdtempSync(join(tmpdir(), "mantis-approval-"))
   const c = new WebConsole({
     model,
-    uiDir: join(dir, "ui"),
-    workspaceFile: join(dir, "ws.jsonl"),
+        workspaceFile: join(dir, "ws.jsonl"),
     memoryDir: join(dir, "mem"),
     logger: silentLogger,
     protectedTools: ["note_write"]

@@ -49,12 +49,6 @@ export interface MantisToolsDeps {
   readonly notes: NotesStore
   /** which calls need approval (default: none - writes execute) */
   readonly approvals?: ApprovalPolicy
-  /**
-   * Optional UI console connection (the web console host): ui_render pushes
-   * an A2UI-style surface here; the console versions + renders it. When
-   * absent the tool fails with a clear error instead of silently no-op'ing.
-   */
-  readonly ui?: { readonly push: (spec: unknown) => void }
   /** called after an extended tool enable succeeds (host persists the surface) */
   readonly onEnabled?: (name: string) => void
 }

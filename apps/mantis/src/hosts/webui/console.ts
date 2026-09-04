@@ -2,7 +2,7 @@
  * Barrel: the mantis web console - the panel's STATE SOURCE, split by
  * CONCEPT (see ./console/). types.ts = contract; ledger.ts = conversation
  * timelines; event-hook.ts = session events; approvals.ts = the console as
- * operator; ui-ops.ts = A2UI versioning; host-builder.ts = MantisHost
+ * operator; host-builder.ts = MantisHost
  * wiring; snapshot.ts = polled snapshots; console.ts = the WebConsole class.
  */
 export type { ConsoleTimelineEntry, WebConsoleOptions } from "./console/types.ts"

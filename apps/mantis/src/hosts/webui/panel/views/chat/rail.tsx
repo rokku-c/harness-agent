@@ -17,10 +17,10 @@ export const ConversationRail = ({
     <div style={{
       flex: compact ? "0 0 52px" : "none",
       width: compact ? "100%" : 236,
-      borderRight: compact ? "none" : "1px solid var(--mantine-color-dark-4)",
-      borderBottom: compact ? "1px solid var(--mantine-color-dark-4)" : "none",
+      borderRight: compact ? "none" : "1px solid var(--mantine-color-gray-2)",
+      borderBottom: compact ? "1px solid var(--mantine-color-gray-2)" : "none",
       display: "flex", flexDirection: compact ? "row" : "column", alignItems: "center",
-      background: "var(--mantine-color-dark-6)"
+      background: "var(--mantine-color-gray-0)"
     }}>
       <div style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: 10, flex: "none" }}>
         <Text size="xs" fw={600} tt="uppercase" c="dimmed" style={{ display: compact ? "none" : undefined }}>工作线</Text>
@@ -49,8 +49,9 @@ export const ConversationRail = ({
                 padding: "4px 10px",
                 margin: compact ? 0 : undefined,
                 cursor: "pointer", border: "none", borderRadius: compact ? 10 : 0,
-                background: selected ? "var(--mantine-color-brand-5)" : "transparent",
-                color: selected ? "#fff" : "var(--mantine-color-text)",
+                background: selected ? "var(--mantine-color-brand-1)" : "transparent",
+                color: "var(--mantine-color-text)",
+                fontWeight: selected ? 600 : undefined,
                 height: compact ? 34 : undefined, alignSelf: "center"
               }}
             >

@@ -8,7 +8,7 @@ import type { TimelineItem } from "../../store.ts"
 import { fmtTime } from "../../common.ts"
 
 export const ToolRun = ({ item }: { item: TimelineItem & { kind: "tool" } }): JSX.Element => {
-  const color = item.state === "ok" ? "var(--mantine-color-teal-4)" : item.state === "fail" ? "var(--mantine-color-red-4)" : "var(--mantine-color-brand-4)"
+  const color = item.state === "ok" ? "var(--mantine-color-teal-6)" : item.state === "fail" ? "var(--mantine-color-red-6)" : "var(--mantine-color-brand-6)"
   const dot = item.state === "ok" ? "✓" : item.state === "fail" ? "✕" : "·"
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "1px 0", fontFamily: "var(--mantine-font-family-monospace)", fontSize: 11, color: "var(--mantine-color-dimmed)", minWidth: 0 }}>
@@ -41,8 +41,8 @@ export const MessageRow = ({ item }: { item: TimelineItem }): JSX.Element => {
         p="xs" radius="md" withBorder={!mine}
         style={{
           maxWidth: "85%", whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 13, lineHeight: 1.5,
-          background: mine ? "color-mix(in srgb, var(--mantine-color-brand-5) 16%, transparent)" : "var(--mantine-color-dark-6)",
-          borderColor: mine ? "color-mix(in srgb, var(--mantine-color-brand-5) 35%, transparent)" : undefined
+          background: mine ? "var(--mantine-color-gray-1)" : "var(--mantine-color-white)",
+          borderColor: mine ? undefined : "var(--mantine-color-gray-2)"
         }}
       >
         {item.text}

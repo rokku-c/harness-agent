@@ -18,7 +18,6 @@ export type CapabilityImpl =
   | "resource.append"  // append one record to a declared workspace resource
   | "resource.update"  // change one existing record's text (generic by id)
   | "resource.delete"  // delete one existing record (generic by id)
-  | "ui.render"        // render an A2UI v0.9 surface
 
 export interface CapabilityDecl {
   /** op name (unique) */

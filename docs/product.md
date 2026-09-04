@@ -10,7 +10,7 @@
 One workbench, two users, one shared reality:
 
 - **for humans** — a console where every agent action is visible, approvals
-  are cards you click, and agent-rendered surfaces (A2UI) are first-class output;
+  are cards you click, and every agent action lands as durable, revisable workspace records;
 - **for agents** — the SAME product facts and capabilities are reachable as a
   tool surface (session ops), an MCP surface, and declarative data bindings,
   so an agent and a human act on the same workspace without two models of truth.
@@ -22,7 +22,7 @@ One workbench, two users, one shared reality:
 | L0 core | Effect-Agent algebra: Agent/Until/Op/Binding/Driver, EventLog, Store, Gate | symbols + Tag/Layer (exists) |
 | L1 capabilities | what the product can do | capability manifest: name / tier / description / impl |
 | L2 session | one manifest entry -> op + catalog + approval metadata | impl branches in tools.ts (exists: capabilities.ts) |
-| L3 surfaces | human console, agent tool/MCP view, A2UI | derived from manifest + EventLog; no per-tool UI code |
+| L3 surfaces | human console, agent tool/MCP view | derived from manifest + EventLog; no per-tool UI code |
 | L4 channels | dingtalk robot/dws, web, future hosts | pure adapters over the same session agent |
 
 Round 1 state: the capability manifest exists and is the single source for
@@ -34,9 +34,9 @@ supply + session ops + catalog descriptions; tests prove no drift
 1. Resources: append + recall/read GENERATE from declarations (R2/R20);
    CRUD (update/delete) now exists as generic record capabilities (R20).
 2. UI from declarations: manifest -> automatic operator UI (resource panels,
-   A2UI write forms, catalog view) without hand-written React per tool.
+   catalog view) without hand-written React per tool.
 3. Agent usability loop: scriptedModel acceptance tests per capability + a
-   real-model smoke per release (chat, notes, reminders, ui_render, approvals).
+   real-model smoke per release (chat, notes, reminders, approvals).
 4. Naming: settle the product name + console branding (page title, header).
 5. Persistence: NotesStore is in-memory per process; promote to the
    EventLog/Store layer so console and hosts share one durable workspace.
@@ -72,6 +72,12 @@ supply + session ops + catalog descriptions; tests prove no drift
 - R5 (done): layered acceptance matrix (docs/acceptance.md) with per-row
   evidence; release smoke: real model catalog -> enable -> A2UI form render ->
   button click -> [ui.action] -> task_write lands in the shared workspace.
+- R31 (done): A2UI removed (user: 过时) - ui_render op, ui-store versioning,
+  /api/ui* + [ui.action] routes, MCP mantis_ui_* tools, panel A2uiHost,
+  @a2ui deps usage, bus ui.updated, docs claims; MCP surface = 11 mantis_* tools.
+- R30 (done): whole console re-skinned to simple-line minimal light
+  (hairline borders, gray fills, one accent; dark vars removed); bundle rebuilt,
+  live-verified with DOM assertions + screenshots; instance relaunched (id5).
 - R29 (done): MCP stdio external-agent contract pinned as an in-repo test
   (clean stdout JSON-RPC, full mantis_* surface, state round-trip w/o model);
   aligned Schema plain-text semantics to the author's fail-once contract;
