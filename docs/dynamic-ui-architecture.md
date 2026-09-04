@@ -69,8 +69,10 @@ renderer 只替换句柄，数据和节点 ID 不变。ThemeRegistry 提供全�
 ## Agent API 与落地顺序
 
 Agent 只调用命令：`registry.list/register`、`canvas.create/insert/link`、
-`node.patch/remove`、`binding.set`、`navigate`、`theme.set`。命令可审计、可回放，
-并由 `ui-agent` 映射为 MCP；未来 FastMCP bridge 也只做协议转换。
+`node.patch/remove`、`binding.set`、`set-data`、`navigate`、`theme.set`。命令可审计、可回放，
+并由 `ui-agent` 映射为 MCP；节点事件可用 `set_data` action 更新 DataStore，
+同样会转成 `set-data` 命令。主题 registry 将 token 注入 renderer context；未来
+FastMCP bridge 也只做协议转换。
 
 实施顺序：先冻结 protocol/definition schema → 补 runtime 事务与持久化 → 默认
 web renderer/CanvasRef 下钻 → theme 与 renderer 热插拔 → sandbox → 协作/远程插件。
