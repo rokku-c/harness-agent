@@ -4,7 +4,7 @@ export { makeActions, type NavigationState, type RuntimeActions } from "./action
 export { makeUIRuntime, type UIRuntime, type UIRuntimeOptions } from "./runtime.ts"
 export { makeUIJournal, restoreUIRuntime, type UIJournal } from "./journal.ts"
 
-export interface RuntimeContext { readonly state: Record<string, unknown>; readonly canvasId: string }
+export interface RuntimeContext { readonly state: Record<string, unknown>; readonly canvasId: string; readonly parent?: Record<string, unknown> }
 export interface ResolvedNode extends UINode { readonly resolvedProps: Record<string, unknown>; readonly resolvedChildren: ReadonlyArray<ResolvedNode> }
 export interface ResolvedUITree { readonly canvasId: string; readonly title: string; readonly children: ReadonlyArray<ResolvedNode>; readonly version: number }
 
@@ -19,9 +19,10 @@ const lookup = (state: unknown, path: string): unknown => {
 }
 
 export const resolveBinding = (expression: BindingExpression, context: RuntimeContext): unknown => {
-  if (expression.kind === "path") return lookup(context.state, expression.value)
-  if (expression.kind === "template") return expression.value.replace(/\{\{\s*([^{}]+?)\s*\}\}|\$[\w.]+/g, (token, inner) => String(lookup(context.state, inner ?? token) ?? ""))
-  return lookup(context.state, expression.value)
+  const read = (path: string): unknown => path.startsWith("$parent.") ? lookup(context.parent, path.slice(7)) : lookup(context.state, path)
+  if (expression.kind === "path") return read(expression.value)
+  if (expression.kind === "template") return expression.value.replace(/\{\{\s*([^{}]+?)\s*\}\}|\$[\w.]+/g, (token, inner) => String(read(inner ?? token) ?? ""))
+  return read(expression.value)
 }
 
 const resolveNode = (canvas: CanvasDefinition, node: UINode, context: RuntimeContext, all: DefinitionStore): ResolvedNode => {
@@ -44,7 +45,7 @@ const resolveNode = (canvas: CanvasDefinition, node: UINode, context: RuntimeCon
   const target = typeof node.props?.targetCanvasId === "string" ? all.getCanvas(node.props.targetCanvasId) : undefined
   if (target !== undefined) for (const id of target.rootNodeIds) {
     const child = target.nodes[id]
-    if (child !== undefined) children.push(resolveNode(target, child, { ...context, canvasId: target.canvasId }, all))
+    if (child !== undefined) children.push(resolveNode(target, child, { ...context, canvasId: target.canvasId, parent: context.state }, all))
   }
   return { ...node, resolvedProps, resolvedChildren: children }
 }
