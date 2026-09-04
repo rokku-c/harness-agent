@@ -66,6 +66,7 @@ const SCHEMA = {
   } as z.ZodRawShape,
   id: { itemId: z.string().min(1).max(200) } as z.ZodRawShape,
   list: {} as z.ZodRawShape,
+  tree: { nodeId: z.string().optional(), depth: z.number().int().nonnegative().optional() } as z.ZodRawShape,
   view: { view: z.string().optional() } as z.ZodRawShape,
   start: { itemId: z.string().min(1).max(200), executorId: z.string().min(1).max(200) } as z.ZodRawShape,
   report: { itemId: z.string().min(1).max(200), detail: z.string().max(8000).optional() } as z.ZodRawShape,
@@ -139,6 +140,11 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
 
   tool(server, "board_list", "Every work item (newest first).", SCHEMA.list, async () =>
     json({ ok: true, items: await Effect.runPromise(board.listItems()) }))
+
+  tool(server, "board_tree", "Read a task subtree in child order with leaf progress rollup.", SCHEMA.tree, async (a) => {
+    const depth = typeof a.depth === "number" ? a.depth : undefined
+    return json(await Effect.runPromise(board.tree(str(a, "nodeId"), depth)))
+  })
 
   tool(server, "board_view", "A kanban projection of the board: each column lists the item ids in its states (default view board; Todo/Doing/Blocked/Done/Cancelled).", SCHEMA.view, async (a) =>
     json(await Effect.runPromise(board.viewItems(str(a, "view")))))
