@@ -139,6 +139,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
       for (const id of ids) { const record = next.get(id); if (record?.status === "queued") next.set(id, { ...record, status: "running", startedAt }) }
       return next
     }))
+    await Effect.runPromise(board.persist())
     return json({ ok: true, acknowledged: ids })
   })
   tool(server, "board_report_progress", "Report progress for a queued or running probe execution.", SCHEMA.progress, async (a) => {
@@ -148,6 +149,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
       if (!record || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
       return [true, new Map(records).set(runId, { ...record, progress: percent, progressMessage: str(a, "message") })] as const
     }))
+    if (updated) await Effect.runPromise(board.persist())
     return json({ ok: updated, runId, progress: percent })
   })
   const terminalTool = (status: "done" | "failed") => async (a: Record<string, unknown>) => {
@@ -157,6 +159,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
       if (!record || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
       return [true, new Map(records).set(runId, { ...record, status, result: str(a, "result"), progress: status === "done" ? 1 : record.progress, finishedAt: Date.now() })] as const
     }))
+    if (updated) await Effect.runPromise(board.persist())
     return json({ ok: updated, runId, status })
   }
   tool(server, "board_exec_done", "Mark a probe execution done and retain its result.", SCHEMA.terminal, terminalTool("done"))
