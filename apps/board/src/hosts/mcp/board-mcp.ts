@@ -7,7 +7,7 @@
  * Schemas are declared as z.ZodRawShape (runtime zod, but annotated so the
  * SDK's type-level normalization stays shallow).
  */
-import { Effect } from "effect"
+import { Effect, Ref } from "effect"
 import { z } from "zod"
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { BoardApi } from "../../board.ts"
@@ -122,6 +122,9 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     let capabilities: Record<string, unknown> = {}
     if (raw !== undefined) { try { const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object") capabilities = parsed as Record<string, unknown> } catch { return json({ ok: false, detail: "capabilities must be JSON" }) } }
     const claims = Array.isArray(capabilities.claimKinds) ? capabilities.claimKinds.map(String) : []
+    const launches = Array.isArray(capabilities.launchKinds) ? capabilities.launchKinds.map(String) : []
+    const isolation = Array.isArray(capabilities.isolation) ? capabilities.isolation.map(String).filter((x): x is "env" | "workspace" | "sandbox" => ["env", "workspace", "sandbox"].includes(x)) : []
+    await Effect.runPromise(Ref.update(board.tables.agents, (m) => new Map(m).set(agentId, { agentId, kind: str(a, "agentKind") ?? kind ?? "agent", channel: kind === "probe" ? "probe" : "mcp-self", capabilities: { launchKinds: launches, claimKinds: claims, isolation }, status: "online", lastSeen: Date.now() })))
     const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
     return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: false, consent: false } })
   })
