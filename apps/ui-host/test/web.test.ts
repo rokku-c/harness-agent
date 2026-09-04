@@ -9,6 +9,8 @@ test("web host serves rendered canvas and component catalog", async () => {
     expect(page).toContain("UI Runtime ready")
     const canvas = await (await fetch(new URL("/api/canvas", base))).json() as { canvasId: string }
     expect(canvas.canvasId).toBe("root")
+    const runtimeState = await (await fetch(new URL("/api/runtime", base))).json() as { renderer: string }
+    expect(runtimeState.renderer).toBe("web-html")
     const selected = await (await fetch(new URL("/api/canvas?canvasId=root", base))).json() as { canvasId: string }
     expect(selected.canvasId).toBe("root")
     const components = await (await fetch(new URL("/api/components", base))).json() as Array<{ type: string }>

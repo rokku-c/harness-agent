@@ -16,6 +16,7 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
   fetch: async (request) => {
     const url = new URL(request.url)
     if (url.pathname === "/api/canvas") return json(url.searchParams.has("canvasId") ? runtime.viewCanvas(url.searchParams.get("canvasId")!) : runtime.view())
+    if (url.pathname === "/api/runtime") return json({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() })
     if (url.pathname === "/api/components") return json(definitions.listComponents())
     if (url.pathname === "/api/renderers") return json(renderers.list())
     if (url.pathname === "/api/canvases") return json(Object.values(definitions.snapshot().canvases).map((canvas) => ({ canvasId: canvas.canvasId, title: canvas.title, version: canvas.version })))
