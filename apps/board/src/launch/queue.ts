@@ -19,7 +19,7 @@ export const deserialize = (raw: string): CommandQueue => {
   const commands = value.commands.filter((item): item is BoardCommand => {
     if (!item || typeof item !== "object") return false
     const command = item as Record<string, unknown>
-    return typeof command.id === "string" && typeof command.agentId === "string" && typeof command.runId === "string"
+    return typeof command.id === "string" && typeof command.agentId === "string" && typeof command.runId === "string" && ["launch", "stop", "consent_resolve", "merge"].includes(String(command.kind))
   })
   return { commands }
 }
