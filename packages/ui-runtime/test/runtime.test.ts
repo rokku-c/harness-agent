@@ -94,6 +94,15 @@ test("uses the runtime data store with per-view overrides", () => {
   expect(runtime.view({ user: { name: "Lin" } }).children[0]!.resolvedProps.value).toBe("Lin")
 })
 
+test("audits data changes as replayable commands", () => {
+  const store = makeDefinitionStore()
+  const seen: string[] = []
+  const runtime = makeUIRuntime(store, "root", { onCommand: (command) => seen.push(command.kind) })
+  runtime.apply({ kind: "set-data", path: "$.count", value: 3 })
+  expect(runtime.data().get("count")).toBe(3)
+  expect(seen).toEqual(["set-data"])
+})
+
 test("switches theme without changing the canvas definition", () => {
   const store = makeDefinitionStore()
   const runtime = makeUIRuntime(store, "root")

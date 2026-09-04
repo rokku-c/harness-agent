@@ -12,7 +12,7 @@ export interface UIJournal {
   readonly flush: () => Promise<void>
 }
 
-const commandKinds = new Set(["create-canvas", "insert-node", "remove-node", "patch-node", "bind-node", "link-canvas", "set-theme", "set-renderer", "navigate"])
+const commandKinds = new Set(["create-canvas", "insert-node", "remove-node", "patch-node", "bind-node", "link-canvas", "set-theme", "set-renderer", "navigate", "set-data"])
 const decode = (line: string): UICommand | undefined => {
   try {
     const value = JSON.parse(line) as UICommand

@@ -48,4 +48,5 @@ export type UICommand =
   | { readonly kind: "set-theme"; readonly theme: string }
   | { readonly kind: "set-renderer"; readonly renderer: string }
   | { readonly kind: "navigate"; readonly canvasId: string; readonly params?: Record<string, Json> }
+  | { readonly kind: "set-data"; readonly path: string; readonly value: Json }
 export * from "./errors.ts"
