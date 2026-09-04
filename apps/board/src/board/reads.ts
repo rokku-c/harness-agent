@@ -21,6 +21,7 @@ export const readsSlice = (deps: BoardDeps): Pick<BoardApi, "tables" | "bus" | "
         const resources = [...(yield* Ref.get(tables.resources)).values()]
         const items = [...(yield* Ref.get(tables.items)).values()].sort((a, b) => b.createdAt - a.createdAt)
         const executors = [...(yield* Ref.get(tables.executors)).values()]
+        const agents = [...(yield* Ref.get(tables.agents)).values()]
         const views = yield* Ref.get(tables.views)
         const holdings = yield* governor.holdings()
         const usedOf = (resourceId: string): number => {
@@ -30,7 +31,7 @@ export const readsSlice = (deps: BoardDeps): Pick<BoardApi, "tables" | "bus" | "
         return {
           resources: resources.map((r) => ({ resourceId: r.resourceId, name: r.name, kind: r.kind, capacity: r.capacity, concurrency: r.concurrency, used: usedOf(r.resourceId) })),
           items,
-          executors: executors.map((e) => ({ executorId: e.executorId, name: e.name, kind: e.kind, status: e.status, capability: e.capability })),
+          executors: executors.map((e) => ({ executorId: e.executorId, name: e.name, kind: e.kind, status: e.status, capability: e.capability })), agents,
           views: views.map((v) => ({ name: v.name, columns: v.columns.map((c) => ({ id: c.id, title: c.title, states: [...c.states] })) }))
         }
       }),

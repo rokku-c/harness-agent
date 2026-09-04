@@ -3,7 +3,7 @@
  *  only through BoardApi; it is the only place allowed to combine Store +
  *  ResourceGovernor + EventBus. Options + snapshot shapes live here. */
 import { Effect } from "effect"
-import type { Concurrency, ExecutorKind, ResourceKind, WorkItem, WorkItemKind } from "../domain.ts"
+import type { AgentInstance, Concurrency, ExecutorKind, ResourceKind, WorkItem, WorkItemKind } from "../domain.ts"
 import type { Tables } from "../store.ts"
 import type { ResourceGovernor } from "../governor.ts"
 import type { EventBus, BoardEvent } from "../events.ts"
@@ -18,6 +18,7 @@ export interface BoardSnapshot {
   readonly resources: ReadonlyArray<{ resourceId: string; name: string; kind: ResourceKind; capacity: number; concurrency: Concurrency; used: number }>
   readonly items: ReadonlyArray<WorkItem>
   readonly executors: ReadonlyArray<{ executorId: string; name: string; kind: ExecutorKind; status: string; capability: ReadonlyArray<string> }>
+  readonly agents: ReadonlyArray<AgentInstance>
   readonly views: ReadonlyArray<{ name: string; columns: ReadonlyArray<{ id: string; title: string; states: ReadonlyArray<string> }> }>
 }
 

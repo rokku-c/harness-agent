@@ -6,12 +6,13 @@
  */
 import { Effect, Ref } from "effect"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
-import type { BoardView, Executor, Resource, WorkItem } from "./domain.ts"
+import type { AgentInstance, BoardView, Executor, Resource, WorkItem } from "./domain.ts"
 
 export interface Tables {
   readonly items: Ref.Ref<ReadonlyMap<string, WorkItem>>
   readonly resources: Ref.Ref<ReadonlyMap<string, Resource>>
   readonly executors: Ref.Ref<ReadonlyMap<string, Executor>>
+  readonly agents: Ref.Ref<ReadonlyMap<string, AgentInstance>>
   readonly views: Ref.Ref<ReadonlyArray<BoardView>>
 }
 
@@ -30,6 +31,7 @@ interface Snapshot {
   readonly items?: unknown[]
   readonly resources?: unknown[]
   readonly executors?: unknown[]
+  readonly agents?: unknown[]
 }
 
 const loadSnapshot = (file: string | undefined): Snapshot => {
@@ -59,8 +61,11 @@ export const makeTables = (file?: string): Effect.Effect<Tables> =>
     const executors = yield* Ref.make<ReadonlyMap<string, Executor>>(
       new Map<string, Executor>(byIdRows(snap.executors, "executorId") as Iterable<readonly [string, Executor]>)
     )
+    const agents = yield* Ref.make<ReadonlyMap<string, AgentInstance>>(
+      new Map(byIdRows(snap.agents, "agentId") as Iterable<readonly [string, AgentInstance]>)
+    )
     const views = yield* Ref.make<ReadonlyArray<BoardView>>([DEFAULT_VIEW])
-    return { items, resources, executors, views }
+    return { items, resources, executors, agents, views }
   })
 
 const saveSnapshot = (file: string | undefined, tables: Tables): Effect.Effect<void> => {
@@ -69,7 +74,8 @@ const saveSnapshot = (file: string | undefined, tables: Tables): Effect.Effect<v
     const items = [...(yield* Ref.get(tables.items)).values()]
     const resources = [...(yield* Ref.get(tables.resources)).values()]
     const executors = [...(yield* Ref.get(tables.executors)).values()]
-    writeFileSync(file, JSON.stringify({ items, resources, executors }, null, 2) + "\n", "utf-8")
+    const agents = [...(yield* Ref.get(tables.agents)).values()]
+    writeFileSync(file, JSON.stringify({ items, resources, executors, agents }, null, 2) + "\n", "utf-8")
   })
 }
 
