@@ -59,6 +59,7 @@ const SCHEMA = {
   agents: {} as z.ZodRawShape,
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
+  launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]) } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
     kind: z.enum(["goal", "group", "leaf"]).optional(),
@@ -130,6 +131,14 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const ids = str(a, "commandIds")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
     board.probe.ack(ids)
     return json({ ok: true, acknowledged: ids })
+  })
+  tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
+    const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
+    const agent = (await Effect.runPromise(Ref.get(board.tables.agents))).get(agentId)
+    if (!agent || agent.status === "offline") return json({ ok: false, detail: "probe is not online" })
+    const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    board.probe.submit({ id: runId, agentId, kind: "launch", runId, payload: { nodeId, kind, mode }, createdAt: Date.now() })
+    return json({ ok: true, runId, handoff: "queued" })
   })
 
   tool(server, "board_sync", "Register an agent or probe and negotiate board.v2 capabilities.", SCHEMA.sync, async (a) => {
