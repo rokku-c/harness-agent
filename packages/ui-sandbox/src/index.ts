@@ -1,5 +1,5 @@
 import type { ExtensionManifest, Json } from "@effect-agent/ui-protocol"
-import { IsolatedVmRuntime } from "@effect-agent/script"
+import { IsolatedVmRuntime, NodeVmRuntime } from "@effect-agent/script"
 import type { ScriptHost, ScriptRuntime, ToolApi } from "@effect-agent/script"
 
 export interface SandboxRequest { readonly code: string; readonly input?: Record<string, Json>; readonly extension: ExtensionManifest; readonly dependencies?: ReadonlyArray<string>; readonly capabilities?: ReadonlyArray<string> }
@@ -40,3 +40,4 @@ export const makeRuntimeSandbox = (runtime: ScriptRuntime, dependencies: Readonl
 })
 
 export const makeIsolatedSandbox = (dependencies: Readonly<Record<string, ToolApi>> = {}): UISandbox => makeRuntimeSandbox(IsolatedVmRuntime, dependencies)
+export const makeNodeSandbox = (dependencies: Readonly<Record<string, ToolApi>> = {}): UISandbox => makeRuntimeSandbox(NodeVmRuntime, dependencies)
