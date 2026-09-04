@@ -38,8 +38,14 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     viewCanvas: (canvasId, state = {}) => resolveCanvas(store, canvasId, state),
     version: (canvasId) => store.getCanvas(canvasId)?.version ?? 0,
     theme: () => activeTheme,
-    setTheme: (theme) => { activeTheme = theme },
+    setTheme: (theme) => {
+      activeTheme = theme
+      options.onCommand?.({ kind: "set-theme", theme })
+    },
     renderer: () => activeRenderer,
-    setRenderer: (renderer) => { activeRenderer = renderer }
+    setRenderer: (renderer) => {
+      activeRenderer = renderer
+      options.onCommand?.({ kind: "set-renderer", renderer })
+    }
   }
 }
