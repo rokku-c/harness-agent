@@ -7,6 +7,7 @@ import type { Concurrency, ExecutorKind, ResourceKind, WorkItem } from "../domai
 import type { Tables } from "../store.ts"
 import type { ResourceGovernor } from "../governor.ts"
 import type { EventBus, BoardEvent } from "../events.ts"
+import type { Rollup } from "../domain/rollup.ts"
 
 export interface BoardOptions {
   /** optional snapshot file for restart persistence (BOARD_DATA_FILE) */
@@ -37,6 +38,7 @@ export interface BoardApi {
   }) => Effect.Effect<{ itemId: string }>
   readonly getItem: (itemId: string) => Effect.Effect<WorkItem | undefined>
   readonly listItems: () => Effect.Effect<WorkItem[]>
+  readonly tree: (nodeId?: string, depth?: number) => Effect.Effect<{ ok: boolean; root?: WorkItem; nodes: WorkItem[]; summary?: Rollup; detail?: string }>
   readonly viewItems: (viewName?: string) => Effect.Effect<Record<string, unknown>>
   readonly start: (itemId: string, executorId: string) => Effect.Effect<{ ok: boolean; state: string; detail?: string }>
   readonly report: (itemId: string, outcome: "done" | "failed", detail?: string) => Effect.Effect<{ ok: boolean; detail?: string }>

@@ -7,6 +7,8 @@ import type { Tables } from "../store.ts"
 import type { ResourceGovernor } from "../governor.ts"
 import type { EventBus } from "../events.ts"
 import type { BoardApi, BoardDeps } from "./contract.ts"
+import type { WorkItem } from "../domain.ts"
+import { rollup } from "../domain/rollup.ts"
 
 export const readsSlice = (deps: BoardDeps): Pick<BoardApi, "tables" | "bus" | "governor" | "state" | "getItem" | "listItems" | "viewItems" | "eventsAfter"> => {
   const { tables, bus, governor } = deps
@@ -34,6 +36,20 @@ export const readsSlice = (deps: BoardDeps): Pick<BoardApi, "tables" | "bus" | "
       }),
     getItem: (itemId) => Ref.get(tables.items).pipe(Effect.map((m) => m.get(itemId))),
     listItems: () => Ref.get(tables.items).pipe(Effect.map((m) => [...m.values()])),
+    tree: (nodeId, depth = Number.POSITIVE_INFINITY) => Effect.gen(function* () {
+      const items = yield* Ref.get(tables.items)
+      const root = nodeId === undefined ? [...items.values()].find((item) => item.parentId === undefined) : items.get(nodeId)
+      if (!root) return { ok: false, nodes: [], detail: "node not found" }
+      const nodes: WorkItem[] = []
+      const visit = (id: string, level: number): void => {
+        const item = items.get(id)
+        if (!item || level > depth) return
+        nodes.push(item)
+        if (level < depth) item.children.forEach((child) => visit(child, level + 1))
+      }
+      visit(root.itemId, 0)
+      return { ok: true, root, nodes, summary: rollup(items, root.itemId) }
+    }),
     viewItems: (viewName) =>
       Effect.gen(function* () {
         const views = yield* Ref.get(tables.views)
