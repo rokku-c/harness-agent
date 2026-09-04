@@ -54,3 +54,14 @@ test("maps declared actions through the host callback", () => {
   const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime, undefined, undefined, (action) => `event:${action}`)
   expect(html).toContain('data-action="event:navigate_to_canvas"')
 })
+
+test("filters unsafe theme token values", () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "set-theme", theme: "custom" })
+  const themes = makeThemeRegistry([{ id: "custom", tokens: { bad: "red;--hacked:url(x)", good: "#fff" } }])
+  const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime, undefined, themes)
+  expect(html).not.toContain("hacked")
+  expect(html).toContain("--good:#fff")
+})

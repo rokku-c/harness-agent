@@ -47,6 +47,8 @@ export const webRenderer: Renderer = {
 
 const tokenStyle = (tokens?: ThemeTokens): string => {
   if (tokens === undefined) return ""
-  const css = Object.entries(tokens).map(([key, value]) => `--${key}:${escape(value)}`).join(";")
+  const css = Object.entries(tokens)
+    .filter(([key, value]) => safeKey(key) && /^[#\w().,% -]+$/.test(String(value)))
+    .map(([key, value]) => `--${key}:${escape(value)}`).join(";")
   return ` style="${css}"`
 }
