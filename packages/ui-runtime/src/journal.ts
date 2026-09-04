@@ -1,6 +1,8 @@
 import { appendFile, readFile } from "node:fs/promises"
 import type { UICommand } from "@effect-agent/ui-protocol"
 import type { UIRuntime } from "./runtime.ts"
+import { makeUIRuntime } from "./runtime.ts"
+import type { DefinitionStore } from "@effect-agent/ui-definition"
 
 export interface UIJournal {
   readonly append: (command: UICommand) => Promise<void>
@@ -33,4 +35,13 @@ export const makeUIJournal = (file: string): UIJournal => {
     for (const command of commands) runtime.apply(command)
     return commands.length
   } }
+}
+
+export const restoreUIRuntime = async (store: DefinitionStore, initialCanvas: string, file: string): Promise<UIRuntime> => {
+  const journal = makeUIJournal(file)
+  let replaying = true
+  const runtime = makeUIRuntime(store, initialCanvas, { onCommand: (command) => { if (!replaying) void journal.append(command) } })
+  await journal.replay(runtime)
+  replaying = false
+  return runtime
 }

@@ -24,6 +24,8 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
   let activeRenderer = "web-html"
   return {
     apply: (command) => {
+      if (command.kind === "set-theme") { activeTheme = command.theme; options.onCommand?.(command); return }
+      if (command.kind === "set-renderer") { activeRenderer = command.renderer; options.onCommand?.(command); return }
       store.apply(command)
       options.onCommand?.(command)
     },
