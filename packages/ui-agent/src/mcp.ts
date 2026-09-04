@@ -37,6 +37,9 @@ export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore): Mc
   server.registerTool("ui_set_theme", { description: "Switch the active UI theme.", inputSchema: { theme: z.string() } }, async ({ theme }) => {
     runtime.setTheme(theme); return result({ ok: true, theme })
   })
+  server.registerTool("ui_set_renderer", { description: "Switch the active UI renderer.", inputSchema: { renderer: z.string() } }, async ({ renderer }) => {
+    runtime.setRenderer(renderer); return result({ ok: true, renderer })
+  })
   server.registerTool("ui_enter_canvas", { description: "Navigate into a canvas with optional parameters.", inputSchema: { canvasId: z.string(), params: z.record(z.unknown()).optional() } }, async ({ canvasId, params }) => {
     await runtime.dispatch({ eventId: "mcp-enter", nodeId: "mcp", type: "navigate", actions: [{ action: "navigate_to_canvas", input: { canvasId, ...(params ?? {}) } }] })
     return result({ ok: true, navigation: runtime.navigation() })

@@ -12,6 +12,8 @@ export interface UIRuntime {
   readonly version: (canvasId: string) => number
   readonly theme: () => string
   readonly setTheme: (theme: string) => void
+  readonly renderer: () => string
+  readonly setRenderer: (renderer: string) => void
 }
 
 export interface UIRuntimeOptions { readonly onCommand?: (command: UICommand) => void }
@@ -19,6 +21,7 @@ export interface UIRuntimeOptions { readonly onCommand?: (command: UICommand) =>
 export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, options: UIRuntimeOptions = {}): UIRuntime => {
   const actions = makeActions(initialCanvas)
   let activeTheme = "default"
+  let activeRenderer = "web-html"
   return {
     apply: (command) => {
       store.apply(command)
@@ -33,6 +36,8 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     viewCanvas: (canvasId, state = {}) => resolveCanvas(store, canvasId, state),
     version: (canvasId) => store.getCanvas(canvasId)?.version ?? 0,
     theme: () => activeTheme,
-    setTheme: (theme) => { activeTheme = theme }
+    setTheme: (theme) => { activeTheme = theme },
+    renderer: () => activeRenderer,
+    setRenderer: (renderer) => { activeRenderer = renderer }
   }
 }

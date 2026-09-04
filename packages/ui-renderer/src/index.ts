@@ -16,9 +16,10 @@ export const makeRendererRegistry = (initial: ReadonlyArray<Renderer> = []): Ren
   }
 }
 
-export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId = "web-html"): string => {
-  const renderer = registry.get(rendererId)
-  if (renderer === undefined) throw new Error("renderer not found: " + rendererId)
+export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId?: string): string => {
+  const selected = rendererId ?? runtime.renderer()
+  const renderer = registry.get(selected)
+  if (renderer === undefined) throw new Error("renderer not found: " + selected)
   return renderer.render(runtime.view(), { theme: runtime.theme() })
 }
 
