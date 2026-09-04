@@ -61,6 +61,8 @@ const SCHEMA = {
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
   progress: { runId: z.string().min(1), agentId: z.string().min(1), progress: z.number().min(0).max(1), message: z.string().optional() } as z.ZodRawShape,
+  consentAsk: { askId: z.string().min(1), runId: z.string().min(1), agentId: z.string().min(1), tool: z.string().min(1), input: z.string().optional() } as z.ZodRawShape,
+  consentResolve: { askId: z.string().min(1), allow: z.boolean(), by: z.string().optional() } as z.ZodRawShape,
   terminal: { runId: z.string().min(1), agentId: z.string().min(1), result: z.string().optional() } as z.ZodRawShape,
   launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]), isolation: z.enum(["env", "workspace", "sandbox"]).optional(), config: z.string().optional(), runPolicy: z.string().optional() } as z.ZodRawShape,
   createItem: {
@@ -119,6 +121,7 @@ const tool = (
 export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   const board = options.board
   const server = new McpServer({ name: options.name ?? "board", version: "0.1.0" })
+  const consents = new Map<string, { askId: string; runId: string; agentId: string; tool: string; input?: string; allow?: boolean; by?: string }>()
 
   tool(server, "board_state", "Full board snapshot: resources (with current usage), all work items, executors, views.", SCHEMA.state, async () =>
     json(await Effect.runPromise(board.state())))
@@ -169,6 +172,21 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   }
   tool(server, "board_exec_done", "Mark a probe execution done and retain its result.", SCHEMA.terminal, terminalTool("done"))
   tool(server, "board_exec_failed", "Mark a probe execution failed and retain its result.", SCHEMA.terminal, terminalTool("failed"))
+  tool(server, "board_consent_ask", "Ask an operator to approve a tool invocation.", SCHEMA.consentAsk, async (a) => {
+    const askId = String(a.askId), ask = { askId, runId: String(a.runId), agentId: String(a.agentId), tool: String(a.tool), input: str(a, "input") }
+    if (!consents.has(askId)) consents.set(askId, ask)
+    return json({ ok: true, askId, pending: true })
+  })
+  tool(server, "board_consent_pending", "List unresolved operator consent requests.", SCHEMA.agents, async () =>
+    json({ ok: true, requests: [...consents.values()].filter((ask) => ask.allow === undefined) }))
+  tool(server, "board_consent_resolve", "Resolve an operator consent request; probes receive the decision on poll.", SCHEMA.consentResolve, async (a) => {
+    const askId = String(a.askId), ask = consents.get(askId)
+    if (!ask || ask.allow !== undefined) return json({ ok: false, detail: "consent already resolved or not found" })
+    const allow = Boolean(a.allow), by = str(a, "by") ?? "operator"
+    consents.set(askId, { ...ask, allow, by })
+    board.probe.submit({ id: `consent-${askId}`, agentId: ask.agentId, kind: "consent_resolve", runId: ask.runId, payload: { askId, allow, by }, createdAt: Date.now() })
+    return json({ ok: true, askId, allow })
+  })
   tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
     const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
     if (!(await Effect.runPromise(board.getItem(nodeId)))) return json({ ok: false, detail: "node not found" })
@@ -201,7 +219,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const isolation = Array.isArray(capabilities.isolation) ? capabilities.isolation.map(String).filter((x): x is "env" | "workspace" | "sandbox" => ["env", "workspace", "sandbox"].includes(x)) : []
     await Effect.runPromise(Ref.update(board.tables.agents, (m) => new Map(m).set(agentId, { agentId, kind: str(a, "agentKind") ?? kind ?? "agent", channel: kind === "probe" ? "probe" : "mcp-self", capabilities: { launchKinds: launches, claimKinds: claims, isolation }, status: "online", lastSeen: Date.now() })))
     const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
-    return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: true, consent: false } })
+    return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: true, consent: true } })
   })
 
   tool(server, "board_create_item",
