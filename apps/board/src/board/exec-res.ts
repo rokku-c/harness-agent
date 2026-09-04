@@ -21,7 +21,13 @@ export const execResSlice = (ctx: BoardCtx): Pick<BoardApi, "registerExecutor" |
       Effect.gen(function* () {
         const executors = yield* Ref.get(tables.executors)
         const current = executors.get(executorId)
-        if (current === undefined) return { ok: false }
+        if (current === undefined) {
+          const agent = (yield* Ref.get(tables.agents)).get(executorId)
+          if (agent === undefined) return { ok: false }
+          yield* Ref.update(tables.agents, (m) => new Map(m).set(executorId, { ...agent, status: "online", lastSeen: Date.now() }))
+          yield* save()
+          return { ok: true }
+        }
         yield* Ref.update(tables.executors, (m) => new Map(m).set(executorId, { ...current, lastSeen: Date.now() }))
         return { ok: true }
       }),
