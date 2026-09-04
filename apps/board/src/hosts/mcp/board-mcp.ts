@@ -57,6 +57,8 @@ const SCHEMA = {
   state: {} as z.ZodRawShape,
   sync: { agentId: z.string().min(1).max(200), kind: z.enum(["agent", "probe"]), agentKind: z.string().optional(), capabilities: z.string().optional() } as z.ZodRawShape,
   agents: {} as z.ZodRawShape,
+  poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
+  ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
     kind: z.enum(["goal", "group", "leaf"]).optional(),
@@ -118,6 +120,17 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     json(await Effect.runPromise(board.state())))
   tool(server, "board_agents", "List registered agents and probes with their capabilities and heartbeat state.", SCHEMA.agents, async () =>
     json({ ok: true, agents: [...(await Effect.runPromise(Ref.get(board.tables.agents))).values()].map((agent) => ({ ...agent, status: isOffline(agent, Date.now()) ? "offline" : agent.status })) }))
+  tool(server, "board_poll", "Probe heartbeat and pull pending commands; commands remain pending until acknowledged.", SCHEMA.poll, async (a) => {
+    const ack = str(a, "ack")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
+    board.probe.ack(ack)
+    const result = board.probe.poll(String(a.agentId ?? ""))
+    return json({ ok: true, ...result })
+  })
+  tool(server, "board_exec_ack", "Acknowledge commands after the probe has accepted them.", SCHEMA.ack, async (a) => {
+    const ids = str(a, "commandIds")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
+    board.probe.ack(ids)
+    return json({ ok: true, acknowledged: ids })
+  })
 
   tool(server, "board_sync", "Register an agent or probe and negotiate board.v2 capabilities.", SCHEMA.sync, async (a) => {
     const agentId = String(a.agentId ?? "")
