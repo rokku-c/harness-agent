@@ -3,6 +3,9 @@ import { makeDefinitionStore } from "@effect-agent/ui-definition"
 import { resolveCanvas } from "../src/index.ts"
 import { makeActions } from "../src/index.ts"
 import { makeUIRuntime } from "../src/index.ts"
+import { makeUIJournal } from "../src/index.ts"
+import { join } from "node:path"
+import { tmpdir } from "node:os"
 
 test("resolves bound props and nested canvas", () => {
   const store = makeDefinitionStore()
@@ -57,6 +60,15 @@ test("records only successfully applied commands", () => {
   runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
   expect(() => runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Again" })).toThrow()
   expect(recorded).toEqual(["create-canvas"])
+})
+
+test("replays a JSONL command journal", async () => {
+  const file = join(tmpdir(), `ui-journal-${crypto.randomUUID()}.jsonl`)
+  const journal = makeUIJournal(file)
+  await journal.append({ kind: "create-canvas", canvasId: "root", title: "Restored" })
+  const runtime = makeUIRuntime(makeDefinitionStore(), "root")
+  expect(await journal.replay(runtime)).toBe(1)
+  expect(runtime.view().title).toBe("Restored")
 })
 
 test("expands a registered composite component", () => {
