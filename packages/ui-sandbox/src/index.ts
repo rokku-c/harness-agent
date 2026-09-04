@@ -1,4 +1,5 @@
 import type { ExtensionManifest, Json } from "@effect-agent/ui-protocol"
+import type { ScriptHost, ScriptRuntime, ToolApi } from "@effect-agent/script"
 
 export interface SandboxRequest { readonly code: string; readonly input?: Record<string, Json>; readonly extension: ExtensionManifest; readonly dependencies?: ReadonlyArray<string>; readonly capabilities?: ReadonlyArray<string> }
 export interface SandboxResult { readonly ok: boolean; readonly value?: unknown; readonly error?: string }
@@ -24,5 +25,15 @@ export const guardedSandbox = (sandbox: UISandbox): UISandbox => ({
     const failure = validateSandboxRequest(request)
     if (failure !== undefined) return failure
     return sandbox.execute(request)
+  }
+})
+
+export const makeRuntimeSandbox = (runtime: ScriptRuntime, dependencies: Readonly<Record<string, ToolApi>> = {}): UISandbox => guardedSandbox({
+  execute: async (request) => {
+    const declared = new Set(request.dependencies ?? [])
+    const env = Object.fromEntries(Object.entries(dependencies).filter(([name]) => declared.has(name)))
+    const host: ScriptHost = { defineTool: () => undefined }
+    try { return { ok: true, value: await runtime.execute(request.code, env, host) } }
+    catch (error) { return { ok: false, error: error instanceof Error ? error.message : String(error) } }
   }
 })

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
-import { denySandbox, guardedSandbox, validateSandboxRequest } from "../src/index.ts"
+import type { ScriptRuntime } from "@effect-agent/script"
+import { denySandbox, guardedSandbox, makeRuntimeSandbox, validateSandboxRequest } from "../src/index.ts"
 
 const extension = { name: "demo", version: "1", permissions: ["execute:script"] as const }
 test("requires explicit script permission", () => {
@@ -20,4 +21,11 @@ test("guarded sandbox rejects before invoking the delegate", async () => {
 test("validates dependencies and capability permissions", () => {
   expect(validateSandboxRequest({ code: "1", dependencies: ["data.api", "data.api"], extension })).toMatchObject({ ok: false })
   expect(validateSandboxRequest({ code: "1", capabilities: ["emit:event"], extension })).toMatchObject({ ok: false })
+})
+
+test("runtime sandbox injects only declared dependencies", async () => {
+  const runtime: ScriptRuntime = { runtime: "node-vm", execute: async (_code, env) => Object.keys(env) }
+  const sandbox = makeRuntimeSandbox(runtime, { allowed: { name: "allowed", invoke: async () => 1 }, hidden: { name: "hidden", invoke: async () => 2 } })
+  const result = await sandbox.execute({ code: "", dependencies: ["allowed"], extension })
+  expect(result).toEqual({ ok: true, value: ["allowed"] })
 })
