@@ -40,6 +40,16 @@ test("routes definition changes and view through one runtime", () => {
   expect(runtime.view().children[0]!.resolvedProps.value).toBe("ok")
 })
 
+test("switches theme without changing the canvas definition", () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  const version = runtime.version("root")
+  runtime.setTheme("hand-drawn")
+  expect(runtime.theme()).toBe("hand-drawn")
+  expect(runtime.version("root")).toBe(version)
+})
+
 test("expands a registered composite component", () => {
   const store = makeDefinitionStore()
   store.registerComponent({ type: "Card", version: "1", category: "composite", template: { id: "body", type: "Text", props: { value: "inside" } } })

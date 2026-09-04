@@ -10,10 +10,13 @@ export interface UIRuntime {
   readonly view: (state?: Record<string, unknown>) => ResolvedUITree
   readonly viewCanvas: (canvasId: string, state?: Record<string, unknown>) => ResolvedUITree
   readonly version: (canvasId: string) => number
+  readonly theme: () => string
+  readonly setTheme: (theme: string) => void
 }
 
 export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string): UIRuntime => {
   const actions = makeActions(initialCanvas)
+  let activeTheme = "default"
   return {
     apply: (command) => {
       store.apply(command)
@@ -25,6 +28,8 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string): UI
       return resolveCanvas(store, nav.current, { ...state, ...nav.params })
     },
     viewCanvas: (canvasId, state = {}) => resolveCanvas(store, canvasId, state),
-    version: (canvasId) => store.getCanvas(canvasId)?.version ?? 0
+    version: (canvasId) => store.getCanvas(canvasId)?.version ?? 0,
+    theme: () => activeTheme,
+    setTheme: (theme) => { activeTheme = theme }
   }
 }
