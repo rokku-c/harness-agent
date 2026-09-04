@@ -17,6 +17,12 @@ test("agent ops compose and bind UI", () => {
   expect(runtime.renderer()).toBe("canvas")
 })
 
+test("agent ops write auditable runtime data", () => {
+  const runtime = makeUIRuntime(makeDefinitionStore(), "root")
+  makeUIAgentOps(runtime).setData("$.user.name", "Ada")
+  expect(runtime.data().get("user.name")).toBe("Ada")
+})
+
 test("lists declared building blocks", () => {
   const store = makeDefinitionStore()
   const runtime = makeUIRuntime(store, "root")

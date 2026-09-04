@@ -71,6 +71,13 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     output: Schema.Unknown,
     execute: ({ renderer }) => Effect.sync(() => runtime.apply({ kind: "set-renderer", renderer }))
   })
+  const data = Op.write({
+    name: "ui_set_data",
+    description: notationText("Set a value in the UI runtime data store."),
+    input: Schema.Struct({ path: Schema.String, value: Schema.Unknown }),
+    output: Schema.Unknown,
+    execute: ({ path, value }) => Effect.sync(() => runtime.apply({ kind: "set-data", path, value: value as never }))
+  })
   const remove = Op.write({
     name: "ui_remove_node",
     description: notationText("Remove a leaf node from a UI canvas."),
@@ -78,5 +85,5 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     output: Schema.Unknown,
     execute: ({ canvasId, nodeId }) => Effect.sync(() => runtime.apply({ kind: "remove-node", canvasId, nodeId }))
   })
-  return { uri: "ea://ui/runtime", ops: [create, insert, patch, bind, link, enter, remove, read, theme, renderer] }
+  return { uri: "ea://ui/runtime", ops: [create, insert, patch, bind, link, enter, remove, read, theme, renderer, data] }
 }
