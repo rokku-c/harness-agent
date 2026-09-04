@@ -9,6 +9,7 @@ export const makeExtensionRegistry = (definitions: DefinitionStore): ExtensionRe
   const previous = new Map<string, Map<string, ComponentDefinition | undefined>>()
   const enable = (extension: UIExtension): void => {
     if (active.has(extension.manifest.name)) throw new UIError("invalid-tree", "extension already enabled: " + extension.manifest.name)
+    if ((extension.components?.length ?? 0) > 0 && !extension.manifest.permissions.includes("render")) throw new UIError("invalid-tree", "extension needs render permission")
     const old = new Map<string, ComponentDefinition | undefined>()
     for (const component of extension.components ?? []) { old.set(component.type, definitions.getComponent(component.type)); definitions.registerComponent(component) }
     previous.set(extension.manifest.name, old)

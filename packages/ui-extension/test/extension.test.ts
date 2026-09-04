@@ -30,3 +30,8 @@ test("does not clobber a newer override", () => {
   registry.disable("a")
   expect(definitions.getComponent("Card")?.version).toBe("b")
 })
+
+test("requires render permission for component extensions", () => {
+  const registry = makeExtensionRegistry(makeDefinitionStore())
+  expect(() => registry.enable({ manifest: { name: "bad", version: "1", permissions: [] }, components: [{ type: "X", version: "1", category: "extension" }] })).toThrow("render permission")
+})
