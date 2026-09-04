@@ -12,3 +12,12 @@ test("enables an extension and registers its components", () => {
   expect(registry.list()).toEqual([])
   expect(definitions.getComponent("Chart")).toBeUndefined()
 })
+
+test("restores an overridden component on disable", () => {
+  const definitions = makeDefinitionStore()
+  definitions.registerComponent({ type: "Text", version: "base", category: "base" })
+  const registry = makeExtensionRegistry(definitions)
+  registry.enable({ manifest: { name: "override", version: "1", permissions: ["render"] }, components: [{ type: "Text", version: "ext", category: "extension" }] })
+  registry.disable("override")
+  expect(definitions.getComponent("Text")?.version).toBe("base")
+})
