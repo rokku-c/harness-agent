@@ -3,6 +3,7 @@ import type { DefinitionStore } from "@effect-agent/ui-definition"
 export { makeActions, type NavigationState, type RuntimeActions } from "./actions.ts"
 export { makeUIRuntime, type UIRuntime, type UIRuntimeOptions } from "./runtime.ts"
 export { makeUIJournal, restoreUIRuntime, type UIJournal } from "./journal.ts"
+export { makeUIDataStore, type UIDataStore } from "./data.ts"
 
 export interface RuntimeContext { readonly state: Record<string, unknown>; readonly canvasId: string; readonly parent?: Record<string, unknown> }
 export interface ResolvedNode extends UINode { readonly resolvedProps: Record<string, unknown>; readonly resolvedChildren: ReadonlyArray<ResolvedNode> }
