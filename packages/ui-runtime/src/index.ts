@@ -19,8 +19,8 @@ const lookup = (state: unknown, path: string): unknown => {
 
 export const resolveBinding = (expression: BindingExpression, context: RuntimeContext): unknown => {
   if (expression.kind === "path") return lookup(context.state, expression.value)
-  if (expression.kind === "template") return expression.value.replace(/\$[\w.]+/g, (path) => String(lookup(context.state, path) ?? ""))
-  return undefined
+  if (expression.kind === "template") return expression.value.replace(/\{\{\s*([^{}]+?)\s*\}\}|\$[\w.]+/g, (token, inner) => String(lookup(context.state, inner ?? token) ?? ""))
+  return lookup(context.state, expression.value)
 }
 
 const resolveNode = (canvas: CanvasDefinition, node: UINode, context: RuntimeContext, all: DefinitionStore): ResolvedNode => {

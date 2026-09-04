@@ -14,6 +14,16 @@ test("resolves bound props and nested canvas", () => {
   expect(tree.children[0]!.resolvedChildren[0]!.resolvedProps.value).toBe("Ada")
 })
 
+test("resolves safe path and template bindings", () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "text", type: "Text", bindings: {
+    value: { kind: "template", value: "Hello {{user.name}} ($.user.id)" }
+  } } })
+  expect(runtime.view({ user: { name: "Ada", id: 7 } }).children[0]!.resolvedProps.value).toBe("Hello Ada (7)")
+})
+
 test("navigates into nested canvas and back", async () => {
   const actions = makeActions("root")
   await actions.dispatch({ eventId: "e1", nodeId: "ref", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "child", userId: "u1" } }] })
