@@ -2,10 +2,12 @@ import { makeDefinitionStore, registerBuiltins } from "@effect-agent/ui-definiti
 import { makeUIRuntime } from "@effect-agent/ui-runtime"
 import { webRenderer, makeRendererRegistry, renderRuntime } from "@effect-agent/ui-renderer"
 import type { UICommand } from "@effect-agent/ui-protocol"
+import { makeExtensionRegistry } from "@effect-agent/ui-extension"
 
 const definitions = registerBuiltins(makeDefinitionStore())
 const runtime = makeUIRuntime(definitions, "root")
 const renderers = makeRendererRegistry([webRenderer])
+const extensions = makeExtensionRegistry(definitions)
 runtime.apply({ kind: "create-canvas", canvasId: "root", title: "UI Canvas" })
 runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "welcome", type: "Text", props: { value: "UI Runtime ready" } } })
 
@@ -18,6 +20,7 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
     if (url.pathname === "/api/canvas") return json(url.searchParams.has("canvasId") ? runtime.viewCanvas(url.searchParams.get("canvasId")!) : runtime.view())
     if (url.pathname === "/api/runtime") return json({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() })
     if (url.pathname === "/api/components") return json(definitions.listComponents())
+    if (url.pathname === "/api/extensions") return json(extensions.list())
     if (url.pathname === "/api/renderers") return json(renderers.list())
     if (url.pathname === "/api/canvases") return json(Object.values(definitions.snapshot().canvases).map((canvas) => ({ canvasId: canvas.canvasId, title: canvas.title, version: canvas.version })))
     if (url.pathname === "/api/command" && request.method === "POST") {
