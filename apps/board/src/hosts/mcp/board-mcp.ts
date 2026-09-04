@@ -61,6 +61,7 @@ const SCHEMA = {
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
   progress: { runId: z.string().min(1), progress: z.number().min(0).max(1), message: z.string().optional() } as z.ZodRawShape,
+  terminal: { runId: z.string().min(1), result: z.string().optional() } as z.ZodRawShape,
   launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]), isolation: z.enum(["env", "workspace", "sandbox"]).optional(), config: z.string().optional(), runPolicy: z.string().optional() } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
@@ -149,6 +150,17 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     }))
     return json({ ok: updated, runId, progress: percent })
   })
+  const terminalTool = (status: "done" | "failed") => async (a: Record<string, unknown>) => {
+    const runId = String(a.runId)
+    const updated = await Effect.runPromise(Ref.modify(board.tables.executions, (records) => {
+      const record = records.get(runId)
+      if (!record || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
+      return [true, new Map(records).set(runId, { ...record, status, result: str(a, "result"), progress: status === "done" ? 1 : record.progress, finishedAt: Date.now() })] as const
+    }))
+    return json({ ok: updated, runId, status })
+  }
+  tool(server, "board_exec_done", "Mark a probe execution done and retain its result.", SCHEMA.terminal, terminalTool("done"))
+  tool(server, "board_exec_failed", "Mark a probe execution failed and retain its result.", SCHEMA.terminal, terminalTool("failed"))
   tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
     const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
     if (!(await Effect.runPromise(board.getItem(nodeId)))) return json({ ok: false, detail: "node not found" })
