@@ -118,8 +118,12 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_sync", "Register an agent or probe and negotiate board.v2 capabilities.", SCHEMA.sync, async (a) => {
     const agentId = String(a.agentId ?? "")
     const kind = str(a, "kind")
-    const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", []))
-    return json({ ...result, agentId, registered: result.ok, server: { protocol: "board.v2@1", tree: true, launch: false, consent: false } })
+    const raw = str(a, "capabilities")
+    let capabilities: Record<string, unknown> = {}
+    if (raw !== undefined) { try { const parsed = JSON.parse(raw); if (parsed && typeof parsed === "object") capabilities = parsed as Record<string, unknown> } catch { return json({ ok: false, detail: "capabilities must be JSON" }) } }
+    const claims = Array.isArray(capabilities.claimKinds) ? capabilities.claimKinds.map(String) : []
+    const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
+    return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: false, consent: false } })
   })
 
   tool(server, "board_create_item",
