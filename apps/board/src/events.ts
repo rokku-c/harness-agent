@@ -9,6 +9,7 @@ export type BoardEventType =
   | "item.created" | "item.state" | "resource.created"
   | "resource.acquired" | "resource.released"
   | "executor.registered" | "coordinator.started" | "coordinator.finished"
+  | "consent.asked" | "consent.resolved"
 
 export interface BoardEvent {
   readonly type: BoardEventType

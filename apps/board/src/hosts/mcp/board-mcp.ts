@@ -193,6 +193,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_consent_ask", "Ask an operator to approve a tool invocation.", SCHEMA.consentAsk, async (a) => {
     const askId = String(a.askId), ask = { askId, runId: String(a.runId), agentId: String(a.agentId), tool: String(a.tool), input: str(a, "input") }
     await Effect.runPromise(Ref.update(consents, (all) => all.has(askId) ? all : new Map(all).set(askId, { ...ask, createdAt: Date.now() } as ConsentRequest)))
+    await Effect.runPromise(board.bus.push({ type: "consent.asked", itemId: ask.runId, message: `${ask.tool} requested by ${ask.agentId}` }))
     return json({ ok: true, askId, pending: true })
   })
   tool(server, "board_consent_pending", "List unresolved operator consent requests.", SCHEMA.agents, async () =>
@@ -203,6 +204,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const allow = Boolean(a.allow), by = str(a, "by") ?? "operator"
     await Effect.runPromise(Ref.update(consents, (all) => new Map(all).set(askId, { ...ask, allow, by, resolvedAt: Date.now() })))
     await Effect.runPromise(board.persist())
+    await Effect.runPromise(board.bus.push({ type: "consent.resolved", itemId: ask.runId, message: `${allow ? "allowed" : "denied"} by ${by}` }))
     board.probe.submit({ id: `consent-${askId}`, agentId: ask.agentId, kind: "consent_resolve", runId: ask.runId, payload: { askId, allow, by }, createdAt: Date.now() })
     return json({ ok: true, askId, allow })
   })
