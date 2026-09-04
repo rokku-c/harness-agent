@@ -36,6 +36,20 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     output: Schema.Unknown,
     execute: ({ canvasId, nodeId, key, path, expectedVersion }) => Effect.sync(() => runtime.apply({ kind: "bind-node", canvasId, nodeId, key, binding: { kind: "path", value: path }, expectedVersion }))
   })
+  const link = Op.write({
+    name: "ui_link_canvas",
+    description: notationText("Link a child canvas to a canvas node."),
+    input: Schema.Struct({ canvasId: Schema.String, nodeId: Schema.String, targetCanvasId: Schema.String }),
+    output: Schema.Unknown,
+    execute: ({ canvasId, nodeId, targetCanvasId }) => Effect.sync(() => runtime.apply({ kind: "link-canvas", canvasId, nodeId, targetCanvasId }))
+  })
+  const enter = Op.write({
+    name: "ui_enter_canvas",
+    description: notationText("Navigate into a canvas."),
+    input: Schema.Struct({ canvasId: Schema.String }),
+    output: Schema.Unknown,
+    execute: ({ canvasId }) => Effect.promise(() => runtime.dispatch({ eventId: "binding-enter", nodeId: "binding", type: "navigate", actions: [{ action: "navigate_to_canvas", input: { canvasId } }] }))
+  })
   const read = Op.read({
     name: "ui_get_canvas",
     description: notationText("Read the currently resolved UI canvas."),
@@ -64,5 +78,5 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     output: Schema.Unknown,
     execute: ({ canvasId, nodeId }) => Effect.sync(() => runtime.apply({ kind: "remove-node", canvasId, nodeId }))
   })
-  return { uri: "ea://ui/runtime", ops: [create, insert, patch, bind, remove, read, theme, renderer] }
+  return { uri: "ea://ui/runtime", ops: [create, insert, patch, bind, link, enter, remove, read, theme, renderer] }
 }
