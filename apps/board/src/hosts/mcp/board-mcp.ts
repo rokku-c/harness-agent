@@ -56,7 +56,7 @@ const splitRequires = (value: string | undefined): Array<{ resourceId: string; a
 
 const SCHEMA = {
   state: {} as z.ZodRawShape,
-  sync: { agentId: z.string().min(1).max(200), kind: z.enum(["agent", "probe"]), agentKind: z.string().optional(), capabilities: z.string().optional() } as z.ZodRawShape,
+  sync: { agentId: z.string().min(1).max(200), kind: z.enum(["agent", "probe"]), agentKind: z.string().optional(), capabilities: z.string().optional(), running: z.string().optional() } as z.ZodRawShape,
   agents: {} as z.ZodRawShape,
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
@@ -237,8 +237,20 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const claims = Array.isArray(capabilities.claimKinds) ? capabilities.claimKinds.map(String) : []
     const launches = Array.isArray(capabilities.launchKinds) ? capabilities.launchKinds.map(String) : []
     const isolation = Array.isArray(capabilities.isolation) ? capabilities.isolation.map(String).filter((x): x is "env" | "workspace" | "sandbox" => ["env", "workspace", "sandbox"].includes(x)) : []
+    const running = new Set((str(a, "running") ?? "").split(",").map((x) => x.trim()).filter(Boolean))
     await Effect.runPromise(Ref.update(board.tables.agents, (m) => new Map(m).set(agentId, { agentId, kind: str(a, "agentKind") ?? kind ?? "agent", channel: kind === "probe" ? "probe" : "mcp-self", capabilities: { launchKinds: launches, claimKinds: claims, isolation }, status: "online", lastSeen: Date.now() })))
     const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
+    if (running.size > 0) {
+      await Effect.runPromise(Ref.update(board.tables.executions, (records) => {
+      const next = new Map(records)
+      for (const runId of running) {
+        const record = next.get(runId)
+        if (record?.agentId === agentId && record.status === "orphan") next.set(runId, { ...record, status: "running", startedAt: record.startedAt ?? Date.now() })
+      }
+      return next
+      }))
+      await Effect.runPromise(board.persist())
+    }
     const orphans = await Effect.runPromise(Ref.get(board.tables.executions)).then((records) =>
       [...records.values()].filter((record) => record.agentId === agentId && record.status === "orphan"))
     return json({ ...result, agentId, registered: result.ok, capabilities, orphans, server: { protocol: "board.v2@1", tree: true, launch: true, consent: true } })
