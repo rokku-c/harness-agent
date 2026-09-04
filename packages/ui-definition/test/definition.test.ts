@@ -39,6 +39,12 @@ describe("ui definition store", () => {
     expect(() => store.apply({ kind: "insert-node", canvasId: "root", node: { id: "slot", type: "Slot" } })).toThrow("nested")
   })
 
+  test("rejects stale component versions", () => {
+    const store = registerBuiltins(makeDefinitionStore())
+    store.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+    expect(() => store.apply({ kind: "insert-node", canvasId: "root", node: { id: "text", type: "Text", version: "0" } })).toThrow("version is stale")
+  })
+
   test("removes leaf nodes and preserves tree invariants", () => {
     const store = makeDefinitionStore()
     store.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })

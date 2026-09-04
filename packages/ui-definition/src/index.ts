@@ -10,6 +10,7 @@ const withNode = (canvas: CanvasDefinition, node: UINode, parentId?: string, def
   if (definition?.capabilities?.acceptsChildren === false && (node.children?.length ?? 0) > 0) throw new UIError("invalid-tree", node.type + " cannot contain children")
   if (definition?.capabilities?.acceptsSlots === false && node.slots !== undefined) throw new UIError("invalid-tree", node.type + " cannot accept slots")
   if (definition?.capabilities?.requiresParent === true && parentId === undefined) throw new UIError("invalid-tree", node.type + " must be nested")
+  if (definition !== undefined && node.version !== undefined && node.version !== definition.version) throw new UIError("version-conflict", node.type + " version is stale")
   for (const key of definition?.capabilities?.requiredProps ?? []) if (node.props?.[key] === undefined) throw new UIError("invalid-tree", node.type + " needs " + key)
   const parent = parentId === undefined ? canvas.rootNodeIds : canvas.nodes[parentId]!.children ?? []
   const nextParent = [...parent, node.id]
