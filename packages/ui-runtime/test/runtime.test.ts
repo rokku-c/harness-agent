@@ -113,6 +113,14 @@ test("restore does not duplicate history and records new commands", async () => 
   expect((await makeUIJournal(file).read()).map((command) => command.kind)).toEqual(["create-canvas", "set-theme"])
 })
 
+test("journal skips malformed lines", async () => {
+  const file = join(tmpdir(), `ui-corrupt-${crypto.randomUUID()}`, "ui.jsonl")
+  const journal = makeUIJournal(file)
+  await journal.append({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  await Bun.write(file, (await Bun.file(file).text()) + "not-json\n{}\n")
+  expect((await journal.read()).map((command) => command.kind)).toEqual(["create-canvas"])
+})
+
 test("expands a registered composite component", () => {
   const store = makeDefinitionStore()
   store.registerComponent({ type: "Card", version: "1", category: "composite", template: { id: "body", type: "Text", props: { value: "inside" } } })
