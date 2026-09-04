@@ -154,6 +154,11 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   })
   const terminalTool = (status: "done" | "failed") => async (a: Record<string, unknown>) => {
     const runId = String(a.runId), agentId = String(a.agentId)
+    const before = await Effect.runPromise(Ref.get(board.tables.executions)).then((records) => records.get(runId))
+    if (before?.agentId === agentId && (before.status === "queued" || before.status === "running")) {
+      const item = await Effect.runPromise(board.getItem(before.nodeId))
+      if (item?.state === "doing") await Effect.runPromise(board.report(before.nodeId, status, str(a, "result")))
+    }
     const updated = await Effect.runPromise(Ref.modify(board.tables.executions, (records) => {
       const record = records.get(runId)
       if (!record || record.agentId !== agentId || (record.status !== "queued" && record.status !== "running")) return [false, records] as const
