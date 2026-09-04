@@ -135,7 +135,9 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
       const agentId = String(a.agentId ?? ""), current = agents.get(agentId)
       return current ? new Map(agents).set(agentId, { ...current, status: "online", lastSeen: result.heartbeatAt }) : agents
     }))
-    return json({ ok: true, ...result })
+    const running = await Effect.runPromise(Ref.get(board.tables.executions)).then((records) =>
+      [...records.values()].filter((record) => record.agentId === String(a.agentId ?? "") && (record.status === "queued" || record.status === "running")))
+    return json({ ok: true, ...result, running })
   })
   tool(server, "board_exec_ack", "Acknowledge commands after the probe has accepted them.", SCHEMA.ack, async (a) => {
     const ids = str(a, "commandIds")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
