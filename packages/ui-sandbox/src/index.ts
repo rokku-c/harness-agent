@@ -15,3 +15,11 @@ export const validateSandboxRequest = (request: SandboxRequest): SandboxResult |
   if (!request.extension.permissions.includes("execute:script")) return { ok: false, error: "extension lacks execute:script permission" }
   return undefined
 }
+
+export const guardedSandbox = (sandbox: UISandbox): UISandbox => ({
+  execute: async (request) => {
+    const failure = validateSandboxRequest(request)
+    if (failure !== undefined) return failure
+    return sandbox.execute(request)
+  }
+})
