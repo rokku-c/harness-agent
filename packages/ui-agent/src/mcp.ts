@@ -8,6 +8,7 @@ const result = (value: unknown) => ({ content: [{ type: "text" as const, text: J
 export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore, renderers?: RendererRegistry): McpServer => {
   const server = new McpServer({ name: "ui-runtime", version: "0.1.0" })
   server.registerTool("ui_get_canvas", { description: "Read a resolved UI canvas.", inputSchema: { canvasId: z.string().optional() } }, async ({ canvasId }) => result(canvasId === undefined ? runtime.view() : runtime.viewCanvas(canvasId)))
+  server.registerTool("ui_get_runtime_state", { description: "Read active canvas navigation and visual state.", inputSchema: {} }, async () => result({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() }))
   server.registerTool("ui_list_canvases", { description: "List all declared canvases.", inputSchema: {} }, async () => result(definitions === undefined ? [] : Object.values(definitions.snapshot().canvases).map((canvas) => ({ canvasId: canvas.canvasId, title: canvas.title, version: canvas.version }))))
   server.registerTool("ui_list_components", { description: "List declared UI components available as building blocks.", inputSchema: {} }, async () => result(definitions?.listComponents() ?? []))
   server.registerTool("ui_list_renderers", { description: "List available UI renderer implementations.", inputSchema: {} }, async () => result(renderers?.list() ?? []))
