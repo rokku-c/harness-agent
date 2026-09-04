@@ -17,12 +17,12 @@ export const makeRendererRegistry = (initial: ReadonlyArray<Renderer> = []): Ren
   }
 }
 
-export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId?: string, themes?: ThemeRegistry): string => {
+export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, rendererId?: string, themes?: ThemeRegistry, onAction?: (action: string) => string): string => {
   const selected = rendererId ?? runtime.renderer()
   const renderer = registry.get(selected)
   if (renderer === undefined) throw new Error("renderer not found: " + selected)
   const theme = runtime.theme()
-  return renderer.render(runtime.view(), { theme, tokens: themes?.get(theme)?.tokens })
+  return renderer.render(runtime.view(), { theme, tokens: themes?.get(theme)?.tokens, onAction })
 }
 
 const escape = (value: unknown): string => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!)

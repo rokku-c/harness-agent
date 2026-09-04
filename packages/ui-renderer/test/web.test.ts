@@ -43,3 +43,14 @@ test("ignores unsafe dynamic attribute names", () => {
   expect(html).not.toContain("onmouseover")
   expect(html).toContain("data-data-ok=\"yes\"")
 })
+
+test("maps declared actions through the host callback", () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "insert-node", canvasId: "root", node: {
+    id: "open", type: "Button", events: { click: [{ action: "navigate_to_canvas" }] }
+  } })
+  const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime, undefined, undefined, (action) => `event:${action}`)
+  expect(html).toContain('data-action="event:navigate_to_canvas"')
+})
