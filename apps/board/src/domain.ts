@@ -7,7 +7,7 @@
 export type { ResourceKind, Concurrency, Resource, ResourceClaim } from "./domain/resources.ts"
 export { WORK_ITEM_STATES } from "./domain/work.ts"
 export type { WorkItemState, Priority, WorkItemKind, WorkItem } from "./domain/work.ts"
-export { TreeInvariantError, isLeaf, assertParent, attachChild, descendants } from "./domain/task-tree.ts"
+export { TreeInvariantError, isLeaf, assertParent, attachChild, descendants, dependenciesReady, unblockDependents } from "./domain/task-tree.ts"
 export { rollup } from "./domain/rollup.ts"
 export type { Rollup } from "./domain/rollup.ts"
 export type { ExecutorKind, Executor } from "./domain/executors.ts"

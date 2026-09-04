@@ -5,6 +5,7 @@
 import { Effect, Ref } from "effect"
 import type { BoardApi } from "./contract.ts"
 import type { BoardCtx } from "./context.ts"
+import { unblockDependents } from "../domain.ts"
 
 export const outcomeSlice = (ctx: BoardCtx): Pick<BoardApi, "report" | "cancel" | "block" | "unblock"> => {
   const { tables, bus, governor, save, moveState, releaseAndCancelWait } = ctx
@@ -21,7 +22,8 @@ export const outcomeSlice = (ctx: BoardCtx): Pick<BoardApi, "report" | "cancel" 
         yield* Ref.update(tables.items, (m) => {
           const current = m.get(itemId)
           if (current === undefined) return m
-          return new Map(m).set(itemId, { ...current, result: detail, updatedAt: Date.now() })
+          const updated = new Map(m).set(itemId, { ...current, result: detail, updatedAt: Date.now() })
+          return outcome === "done" ? unblockDependents(updated, itemId) : updated
         })
         yield* save()
         return { ok: true, detail: outcome }

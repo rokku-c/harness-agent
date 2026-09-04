@@ -31,3 +31,15 @@ export const descendants = (items: ReadonlyMap<string, WorkItem>, rootId: string
     return child ? [child, ...descendants(items, id)] : []
   })
 }
+
+export const dependenciesReady = (items: ReadonlyMap<string, WorkItem>, item: WorkItem): boolean =>
+  item.dependencies.every((id) => items.get(id)?.state === "done")
+
+export const unblockDependents = (items: ReadonlyMap<string, WorkItem>, dependencyId: string): ReadonlyMap<string, WorkItem> => {
+  const next = new Map(items)
+  for (const item of items.values()) {
+    if (item.state === "blocked" && item.dependencies.includes(dependencyId) && dependenciesReady(items, item))
+      next.set(item.itemId, { ...item, state: "ready", blockedReason: undefined, updatedAt: Date.now(), version: (item.version ?? 0) + 1 })
+  }
+  return next
+}

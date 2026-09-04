@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { assertParent, attachChild, rollup, TreeInvariantError, type WorkItem } from "../src/domain.ts"
+import { assertParent, attachChild, rollup, unblockDependents, TreeInvariantError, type WorkItem } from "../src/domain.ts"
 
 const item = (itemId: string, state: WorkItem["state"], kind: WorkItem["kind"] = "leaf", parentId?: string): WorkItem => ({
   itemId, title: itemId, state, kind, parentId, priority: "normal", dependencies: [], children: [], labels: [], createdAt: 0, updatedAt: 0
@@ -24,5 +24,12 @@ describe("task tree domain", () => {
     const b = item("b", "doing", "leaf", "g")
     const map = new Map([["g", { ...root, children: ["a", "b"] }], ["a", a], ["b", b]])
     expect(rollup(map, "g")).toEqual({ state: "doing", leaves: 2, doneLeaves: 1, progress: 0.5 })
+  })
+
+  test("unblocks dependency waiters when all dependencies finish", () => {
+    const dep = item("dep", "done")
+    const waiter = { ...item("waiter", "blocked"), dependencies: ["dep"], blockedReason: "dependencies" }
+    const next = unblockDependents(new Map([["dep", dep], ["waiter", waiter]]), "dep")
+    expect(next.get("waiter")?.state).toBe("ready")
   })
 })
