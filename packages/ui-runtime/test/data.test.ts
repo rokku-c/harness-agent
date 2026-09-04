@@ -19,3 +19,8 @@ test("notifies subscribers and isolates snapshots", () => {
   expect(changes).toBe(1)
   expect(data.get("count")).toBe(1)
 })
+
+test("rejects prototype-polluting paths", () => {
+  const data = makeUIDataStore()
+  expect(() => data.set("$.constructor.prototype.bad", true)).toThrow("unsafe data path")
+})
