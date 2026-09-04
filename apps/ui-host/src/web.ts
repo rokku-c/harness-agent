@@ -24,7 +24,11 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
     if (url.pathname === "/api/renderers") return json(renderers.list())
     if (url.pathname === "/api/canvases") return json(Object.values(definitions.snapshot().canvases).map((canvas) => ({ canvasId: canvas.canvasId, title: canvas.title, version: canvas.version })))
     if (url.pathname === "/api/command" && request.method === "POST") {
-      try { runtime.apply(await request.json() as UICommand); return json({ ok: true, canvas: runtime.view() }) }
+      try {
+        const command = await request.json() as UICommand
+        if (command.kind === "set-renderer" && renderers.get(command.renderer) === undefined) return json({ ok: false, error: "renderer not found: " + command.renderer })
+        runtime.apply(command); return json({ ok: true, canvas: runtime.view() })
+      }
       catch (error) { return json({ ok: false, error: error instanceof Error ? error.message : String(error) }) }
     }
     if (url.pathname === "/api/render") {

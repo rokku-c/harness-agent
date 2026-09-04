@@ -23,6 +23,8 @@ test("web host serves rendered canvas and component catalog", async () => {
     expect(canvases.some((item) => item.canvasId === "root")).toBe(true)
     const command = await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "insert-node", canvasId: "root", node: { id: "from-http", type: "Text", props: { value: "HTTP" } } }) })
     expect((await command.json() as { ok: boolean }).ok).toBe(true)
+    const badRenderer = await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-renderer", renderer: "missing" }) })
+    expect((await badRenderer.json() as { ok: boolean }).ok).toBe(false)
     await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-theme", theme: "contrast" }) })
     const rendered = await (await fetch(new URL("/api/render", base))).text()
     expect(rendered).toContain('data-theme="contrast"')
