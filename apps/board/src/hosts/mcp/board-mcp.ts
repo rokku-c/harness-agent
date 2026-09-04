@@ -179,6 +179,8 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const parseObject = (key: string): Record<string, unknown> | undefined => { const raw = str(a, key); if (!raw) return undefined; try { const value = JSON.parse(raw); return value && typeof value === "object" ? value as Record<string, unknown> : undefined } catch { return undefined } }
     const config = parseObject("config")
     if (mode === "override" && config === undefined) return json({ ok: false, detail: "override mode requires JSON config" })
+    const started = await Effect.runPromise(board.start(nodeId, agentId))
+    if (!started.ok && started.state !== "blocked") return json({ ok: false, detail: started.detail ?? "unable to start node" })
     const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     await Effect.runPromise(Ref.update(board.tables.executions, (records) => new Map(records).set(runId, {
       runId, nodeId, agentId, channel: "probe", mode: mode as "direct" | "override" | "isolated", status: "queued", policy: parseObject("runPolicy") ?? {}, startedAt: undefined
@@ -199,7 +201,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const isolation = Array.isArray(capabilities.isolation) ? capabilities.isolation.map(String).filter((x): x is "env" | "workspace" | "sandbox" => ["env", "workspace", "sandbox"].includes(x)) : []
     await Effect.runPromise(Ref.update(board.tables.agents, (m) => new Map(m).set(agentId, { agentId, kind: str(a, "agentKind") ?? kind ?? "agent", channel: kind === "probe" ? "probe" : "mcp-self", capabilities: { launchKinds: launches, claimKinds: claims, isolation }, status: "online", lastSeen: Date.now() })))
     const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", claims))
-    return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: false, consent: false } })
+    return json({ ...result, agentId, registered: result.ok, capabilities, server: { protocol: "board.v2@1", tree: true, launch: true, consent: false } })
   })
 
   tool(server, "board_create_item",
