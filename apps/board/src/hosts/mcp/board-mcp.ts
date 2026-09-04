@@ -131,6 +131,10 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const ack = str(a, "ack")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
     board.probe.ack(ack)
     const result = board.probe.poll(String(a.agentId ?? ""))
+    await Effect.runPromise(Ref.update(board.tables.agents, (agents) => {
+      const agentId = String(a.agentId ?? ""), current = agents.get(agentId)
+      return current ? new Map(agents).set(agentId, { ...current, status: "online", lastSeen: result.heartbeatAt }) : agents
+    }))
     return json({ ok: true, ...result })
   })
   tool(server, "board_exec_ack", "Acknowledge commands after the probe has accepted them.", SCHEMA.ack, async (a) => {
