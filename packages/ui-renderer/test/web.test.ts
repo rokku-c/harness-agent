@@ -32,3 +32,14 @@ test("passes declarative theme tokens to the renderer", () => {
   const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime, undefined, themes)
   expect(html).toContain("--color-text:#fff")
 })
+
+test("ignores unsafe dynamic attribute names", () => {
+  const store = makeDefinitionStore()
+  store.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  store.apply({ kind: "insert-node", canvasId: "root", node: {
+    id: "x", type: "Box", props: { 'x" onmouseover="bad': "ignored", "data-ok": "yes" }
+  } })
+  const html = webRenderer.render(resolveCanvas(store, "root"))
+  expect(html).not.toContain("onmouseover")
+  expect(html).toContain("data-data-ok=\"yes\"")
+})

@@ -26,7 +26,10 @@ export const renderRuntime = (registry: RendererRegistry, runtime: UIRuntime, re
 }
 
 const escape = (value: unknown): string => String(value ?? "").replace(/[&<>\"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[char]!)
-const attrs = (props: Record<string, unknown>): string => Object.entries(props).filter(([key]) => key !== "targetCanvasId").map(([key, value]) => ` data-${key}="${escape(value)}"`).join("")
+const safeKey = (key: string): boolean => /^[a-zA-Z][\w-]*$/.test(key)
+const attrs = (props: Record<string, unknown>): string => Object.entries(props)
+  .filter(([key]) => key !== "targetCanvasId" && safeKey(key))
+  .map(([key, value]) => ` data-${key}="${escape(value)}"`).join("")
 const renderNode = (node: ResolvedNode, context: RendererContext): string => {
   const children = node.resolvedChildren.map((child) => renderNode(child, context)).join("")
   const action = node.events?.click?.[0]?.action
