@@ -14,6 +14,7 @@ import type { BoardApi } from "../../board.ts"
 import { coordinate } from "../../coordinator.ts"
 import type { Model } from "@effect-agent/builtin"
 import { isOffline } from "../../domain/agents.ts"
+import { supportsLaunch } from "../../domain/agents.ts"
 
 export interface BoardMcpOptions {
   readonly board: BoardApi
@@ -59,7 +60,7 @@ const SCHEMA = {
   agents: {} as z.ZodRawShape,
   poll: { agentId: z.string().min(1).max(200), ack: z.string().optional() } as z.ZodRawShape,
   ack: { commandIds: z.string().min(1).max(4000) } as z.ZodRawShape,
-  launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]) } as z.ZodRawShape,
+  launch: { nodeId: z.string().min(1), agentId: z.string().min(1), kind: z.string().min(1), mode: z.enum(["direct", "override", "isolated"]), isolation: z.enum(["env", "workspace", "sandbox"]).optional() } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
     kind: z.enum(["goal", "group", "leaf"]).optional(),
@@ -136,8 +137,10 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
     const agent = (await Effect.runPromise(Ref.get(board.tables.agents))).get(agentId)
     if (!agent || agent.status === "offline") return json({ ok: false, detail: "probe is not online" })
+    const isolation = mode === "isolated" ? (String(a.isolation ?? "env") as "env" | "workspace" | "sandbox") : undefined
+    if (!supportsLaunch(agent, kind, isolation)) return json({ ok: false, detail: "probe does not support requested launch" })
     const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    board.probe.submit({ id: runId, agentId, kind: "launch", runId, payload: { nodeId, kind, mode }, createdAt: Date.now() })
+    board.probe.submit({ id: runId, agentId, kind: "launch", runId, payload: { nodeId, kind, mode, isolation }, createdAt: Date.now() })
     return json({ ok: true, runId, handoff: "queued" })
   })
 
