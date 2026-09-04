@@ -53,6 +53,16 @@ test("restores parent parameters after nested navigation", async () => {
   expect(actions.navigation().params).toEqual({ rootId: "r" })
 })
 
+test("keeps parent data available after navigation", async () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "create-canvas", canvasId: "child", title: "Child" })
+  runtime.apply({ kind: "insert-node", canvasId: "child", node: { id: "text", type: "Text", bindings: { value: { kind: "path", value: "$parent.user" } } } })
+  await runtime.dispatch({ eventId: "e", nodeId: "ref", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "child" } }] })
+  expect(runtime.view({ user: "Ada" }).children[0]!.resolvedProps.value).toBe("Ada")
+})
+
 test("routes definition changes and view through one runtime", () => {
   const store = makeDefinitionStore()
   const runtime = makeUIRuntime(store, "root")

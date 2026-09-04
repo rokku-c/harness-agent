@@ -50,10 +50,10 @@ const resolveNode = (canvas: CanvasDefinition, node: UINode, context: RuntimeCon
   return { ...node, resolvedProps, resolvedChildren: children }
 }
 
-export const resolveCanvas = (store: DefinitionStore, canvasId: string, state: Record<string, unknown> = {}): ResolvedUITree => {
+export const resolveCanvas = (store: DefinitionStore, canvasId: string, state: Record<string, unknown> = {}, parent?: Record<string, unknown>): ResolvedUITree => {
   const canvas = store.getCanvas(canvasId)
   if (canvas === undefined) throw new Error("canvas not found: " + canvasId)
-  const context = { state, canvasId }
+  const context = { state, canvasId, parent }
   const children = canvas.rootNodeIds.map((id) => canvas.nodes[id]).filter((node): node is UINode => node !== undefined).map((node) => resolveNode(canvas, node, context, store))
   return { canvasId, title: canvas.title, children, version: canvas.version }
 }

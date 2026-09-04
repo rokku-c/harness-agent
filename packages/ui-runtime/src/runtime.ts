@@ -33,7 +33,7 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     navigation: actions.navigation,
     view: (state = {}) => {
       const nav = actions.navigation()
-      return resolveCanvas(store, nav.current, { ...state, ...nav.params })
+      return resolveCanvas(store, nav.current, { ...state, ...nav.params }, state)
     },
     viewCanvas: (canvasId, state = {}) => resolveCanvas(store, canvasId, state),
     version: (canvasId) => store.getCanvas(canvasId)?.version ?? 0,
