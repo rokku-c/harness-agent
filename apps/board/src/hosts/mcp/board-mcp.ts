@@ -144,6 +144,9 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     const config = parseObject("config")
     if (mode === "override" && config === undefined) return json({ ok: false, detail: "override mode requires JSON config" })
     const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await Effect.runPromise(Ref.update(board.tables.executions, (records) => new Map(records).set(runId, {
+      runId, nodeId, agentId, channel: "probe", mode: mode as "direct" | "override" | "isolated", status: "queued", policy: parseObject("runPolicy") ?? {}, startedAt: undefined
+    })))
     board.probe.submit({ id: runId, agentId, kind: "launch", runId, payload: { nodeId, kind, mode, isolation, config, runPolicy: parseObject("runPolicy") }, createdAt: Date.now() })
     return json({ ok: true, runId, handoff: "queued" })
   })
