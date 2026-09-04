@@ -175,6 +175,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
     await Effect.runPromise(Ref.update(board.tables.executions, (records) => new Map(records).set(runId, {
       runId, nodeId, agentId, channel: "probe", mode: mode as "direct" | "override" | "isolated", status: "queued", policy: parseObject("runPolicy") ?? {}, startedAt: undefined
     })))
+    await Effect.runPromise(board.persist())
     board.probe.submit({ id: runId, agentId, kind: "launch", runId, payload: { nodeId, kind, mode, isolation, config, runPolicy: parseObject("runPolicy") }, createdAt: Date.now() })
     return json({ ok: true, runId, handoff: "queued" })
   })
