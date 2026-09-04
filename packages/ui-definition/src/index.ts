@@ -23,6 +23,7 @@ export const makeDefinitionStore = (initial: DefinitionSnapshot = { canvases: {}
   let canvases = { ...initial.canvases }
   let components = [...initial.components]
   const apply = (command: UICommand): CanvasDefinition | undefined => {
+    if (command.kind === "set-theme" || command.kind === "set-renderer") return undefined
     if (command.kind === "create-canvas") {
       if (canvases[command.canvasId] !== undefined) throw new UIError("invalid-tree", "duplicate canvas: " + command.canvasId)
       const canvas: CanvasDefinition = { canvasId: command.canvasId, title: command.title, nodes: {}, rootNodeIds: [], version: 1 }
