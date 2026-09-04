@@ -48,14 +48,14 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     description: notationText("Switch the active renderer theme."),
     input: Schema.Struct({ theme: Schema.String }),
     output: Schema.Unknown,
-    execute: ({ theme }) => Effect.sync(() => runtime.setTheme(theme))
+    execute: ({ theme }) => Effect.sync(() => runtime.apply({ kind: "set-theme", theme }))
   })
   const renderer = Op.write({
     name: "ui_set_renderer",
     description: notationText("Switch the active UI renderer."),
     input: Schema.Struct({ renderer: Schema.String }),
     output: Schema.Unknown,
-    execute: ({ renderer }) => Effect.sync(() => runtime.setRenderer(renderer))
+    execute: ({ renderer }) => Effect.sync(() => runtime.apply({ kind: "set-renderer", renderer }))
   })
   const remove = Op.write({
     name: "ui_remove_node",

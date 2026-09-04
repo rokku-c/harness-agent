@@ -45,4 +45,6 @@ export type UICommand =
   | { readonly kind: "patch-node"; readonly canvasId: string; readonly nodeId: string; readonly props: Record<string, Json>; readonly expectedVersion: number }
   | { readonly kind: "bind-node"; readonly canvasId: string; readonly nodeId: string; readonly key: string; readonly binding: BindingExpression; readonly expectedVersion: number }
   | { readonly kind: "link-canvas"; readonly canvasId: string; readonly nodeId: string; readonly targetCanvasId: string; readonly parentId?: string }
+  | { readonly kind: "set-theme"; readonly theme: string }
+  | { readonly kind: "set-renderer"; readonly renderer: string }
 export * from "./errors.ts"
