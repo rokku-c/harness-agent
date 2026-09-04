@@ -15,7 +15,7 @@ export function TreeView({ items, onOpen }: { items: ReadonlyArray<WorkItem>; on
   }
   const render = (item: WorkItem, depth: number): JSX.Element => (
     <Stack key={item.itemId} gap={4} ml={depth * 18}>
-      <Paper withBorder p="xs" onClick={() => onOpen(item.itemId)} style={{ cursor: "pointer" }}>
+      <Paper withBorder p="xs" onClick={() => onOpen(item.itemId)} style={{ cursor: "pointer" }} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpen(item.itemId) }}>
         <Group justify="space-between"><Group gap={6}><ActionIcon size="sm" variant="subtle" disabled={item.children.length === 0} onClick={(event) => { event.stopPropagation(); setCollapsed((old) => { const next = new Set(old); next.has(item.itemId) ? next.delete(item.itemId) : next.add(item.itemId); return next }) }}>{item.children.length === 0 ? "·" : collapsed.has(item.itemId) ? "+" : "−"}</ActionIcon><Text size="sm" fw={item.kind !== "leaf" ? 600 : 400}>{item.title}</Text></Group><Group gap={8}><Text size="xs" c="dimmed">{Math.round(progress(item) * 100)}%</Text><Text size="xs" c={stateColor[item.state] ?? "dimmed"}>{item.state}</Text></Group></Group>
       </Paper>
       {!collapsed.has(item.itemId) && item.children.map((id) => { const child = byId.get(id); return child ? render(child, depth + 1) : null })}
