@@ -16,3 +16,8 @@ test("guarded sandbox rejects before invoking the delegate", async () => {
   expect(result.ok).toBe(false)
   expect(invoked).toBe(false)
 })
+
+test("validates dependencies and capability permissions", () => {
+  expect(validateSandboxRequest({ code: "1", dependencies: ["data.api", "data.api"], extension })).toMatchObject({ ok: false })
+  expect(validateSandboxRequest({ code: "1", capabilities: ["emit:event"], extension })).toMatchObject({ ok: false })
+})
