@@ -6,6 +6,7 @@ export interface ProbeGateway {
   readonly submit: (command: BoardCommand) => void
   readonly poll: (agentId: string) => ProbePoll
   readonly ack: (ids: ReadonlyArray<string>) => void
+  readonly lastSeen: (agentId: string) => number | undefined
 }
 
 export const makeProbeGateway = (): ProbeGateway => {
@@ -18,6 +19,7 @@ export const makeProbeGateway = (): ProbeGateway => {
       heartbeats.set(agentId, heartbeatAt)
       return { commands: queue.poll(agentId), heartbeatAt }
     },
-    ack: (ids) => queue.acknowledge(ids)
+    ack: (ids) => queue.acknowledge(ids),
+    lastSeen: (agentId) => heartbeats.get(agentId)
   }
 }

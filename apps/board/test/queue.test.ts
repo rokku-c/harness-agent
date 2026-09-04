@@ -31,6 +31,7 @@ describe("probe command queue", () => {
     gateway.submit(command("c4", "probe-a"))
     expect(gateway.poll("probe-b").commands).toHaveLength(0)
     expect(gateway.poll("probe-a").commands).toHaveLength(1)
+    expect(gateway.lastSeen("probe-a")).toBeDefined()
     gateway.ack(["c4"])
     expect(gateway.poll("probe-a").commands).toHaveLength(0)
   })
