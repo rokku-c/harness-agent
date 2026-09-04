@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import type { ScriptRuntime } from "@effect-agent/script"
-import { denySandbox, guardedSandbox, makeRuntimeSandbox, validateSandboxRequest } from "../src/index.ts"
+import { denySandbox, guardedSandbox, makeIsolatedSandbox, makeRuntimeSandbox, validateSandboxRequest } from "../src/index.ts"
 
 const extension = { name: "demo", version: "1", permissions: ["execute:script"] as const }
 test("requires explicit script permission", () => {
@@ -34,4 +34,9 @@ test("runtime failures return a readable sandbox result", async () => {
   const runtime: ScriptRuntime = { runtime: "node-vm", execute: async () => { throw new Error("script failed") } }
   const result = await makeRuntimeSandbox(runtime).execute({ code: "throw", extension })
   expect(result).toEqual({ ok: false, error: "script failed" })
+})
+
+test("isolated factory guards invalid requests before native loading", async () => {
+  const result = await makeIsolatedSandbox().execute({ code: "", extension: { ...extension, permissions: [] } })
+  expect(result.error).toContain("lacks execute:script")
 })
