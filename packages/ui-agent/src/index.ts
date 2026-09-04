@@ -27,7 +27,7 @@ export const makeUIAgentOps = (runtime: UIRuntime, definitions?: DefinitionStore
     const version = runtime.version(canvasId)
     runtime.apply({ kind: "bind-node", canvasId, nodeId, key, binding, expectedVersion: version })
   },
-  enterCanvas: (canvasId) => runtime.dispatch({ eventId: "agent-enter", nodeId: "agent", type: "navigate", actions: [{ action: "navigate_to_canvas", input: { canvasId } }] }),
+  enterCanvas: (canvasId) => Promise.resolve(runtime.apply({ kind: "navigate", canvasId })),
   listComponents: () => definitions?.listComponents() ?? [],
   linkCanvas: (canvasId, nodeId, targetCanvasId, parentId) => runtime.apply({ kind: "link-canvas", canvasId, nodeId, targetCanvasId, parentId }),
   setTheme: (theme) => runtime.apply({ kind: "set-theme", theme }),

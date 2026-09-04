@@ -26,6 +26,7 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     apply: (command) => {
       if (command.kind === "set-theme") { activeTheme = command.theme; options.onCommand?.(command); return }
       if (command.kind === "set-renderer") { activeRenderer = command.renderer; options.onCommand?.(command); return }
+      if (command.kind === "navigate") { actions.navigate(command.canvasId, command.params); options.onCommand?.(command); return }
       store.apply(command)
       options.onCommand?.(command)
     },

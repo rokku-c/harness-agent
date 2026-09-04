@@ -48,7 +48,7 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     description: notationText("Navigate into a canvas."),
     input: Schema.Struct({ canvasId: Schema.String }),
     output: Schema.Unknown,
-    execute: ({ canvasId }) => Effect.promise(() => runtime.dispatch({ eventId: "binding-enter", nodeId: "binding", type: "navigate", actions: [{ action: "navigate_to_canvas", input: { canvasId } }] }))
+    execute: ({ canvasId }) => Effect.sync(() => runtime.apply({ kind: "navigate", canvasId }))
   })
   const read = Op.read({
     name: "ui_get_canvas",

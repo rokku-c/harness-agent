@@ -4,6 +4,7 @@ export interface NavigationState { readonly current: string; readonly stack: Rea
 export interface RuntimeActions {
   readonly navigation: () => NavigationState
   readonly dispatch: (event: UIEvent) => Promise<void>
+  readonly navigate: (canvasId: string, params?: Record<string, unknown>) => void
 }
 
 export const makeActions = (initialCanvas: string): RuntimeActions => {
@@ -33,6 +34,7 @@ export const makeActions = (initialCanvas: string): RuntimeActions => {
   }
   return {
     navigation,
+    navigate: (target, next = {}) => { stack = [...stack, current]; paramStack = [...paramStack, params]; current = target; params = { ...next } },
     dispatch: async (event) => {
       for (const action of event.actions ?? []) await run(action)
     }
