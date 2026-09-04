@@ -131,6 +131,12 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   tool(server, "board_exec_ack", "Acknowledge commands after the probe has accepted them.", SCHEMA.ack, async (a) => {
     const ids = str(a, "commandIds")?.split(",").map((x) => x.trim()).filter(Boolean) ?? []
     board.probe.ack(ids)
+    const startedAt = Date.now()
+    await Effect.runPromise(Ref.update(board.tables.executions, (records) => {
+      const next = new Map(records)
+      for (const id of ids) { const record = next.get(id); if (record?.status === "queued") next.set(id, { ...record, status: "running", startedAt }) }
+      return next
+    }))
     return json({ ok: true, acknowledged: ids })
   })
   tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
