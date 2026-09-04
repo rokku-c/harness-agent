@@ -54,6 +54,7 @@ const splitRequires = (value: string | undefined): Array<{ resourceId: string; a
 
 const SCHEMA = {
   state: {} as z.ZodRawShape,
+  sync: { agentId: z.string().min(1).max(200), kind: z.enum(["agent", "probe"]), agentKind: z.string().optional(), capabilities: z.string().optional() } as z.ZodRawShape,
   createItem: {
     title: z.string().min(1).max(300),
     kind: z.enum(["goal", "group", "leaf"]).optional(),
@@ -113,6 +114,13 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
 
   tool(server, "board_state", "Full board snapshot: resources (with current usage), all work items, executors, views.", SCHEMA.state, async () =>
     json(await Effect.runPromise(board.state())))
+
+  tool(server, "board_sync", "Register an agent or probe and negotiate board.v2 capabilities.", SCHEMA.sync, async (a) => {
+    const agentId = String(a.agentId ?? "")
+    const kind = str(a, "kind")
+    const result = await Effect.runPromise(board.registerExecutor(agentId, kind === "probe" ? "builtin" : "external", str(a, "agentKind") ?? kind ?? "agent", []))
+    return json({ ...result, agentId, registered: result.ok, server: { protocol: "board.v2@1", tree: true, launch: false, consent: false } })
+  })
 
   tool(server, "board_create_item",
     "Create a work item (state todo). title required; priority one of " + PRIORITIES.join("|") + "; " +
