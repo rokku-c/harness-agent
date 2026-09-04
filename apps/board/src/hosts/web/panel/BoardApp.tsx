@@ -10,6 +10,7 @@ import { IconLayoutKanban, IconPlus, IconRefresh } from "@tabler/icons-react"
 import { Worktable } from "./Worktable.tsx"
 import { useBoard } from "./board/use-board.ts"
 import { Kanban } from "./board/kanban.tsx"
+import { TreeView } from "./board/tree.tsx"
 import { Resources, Executors, Activity } from "./board/side.tsx"
 import { ItemModal } from "./board/item-modal.tsx"
 import { NewItemModal } from "./board/new-item.tsx"
@@ -24,7 +25,7 @@ export function BoardApp(): JSX.Element {
   const [sel, setSel] = useState<string | null>(null)
   const [newItem, setNewItem] = useState(false)
   const [newRes, setNewRes] = useState(false)
-  const [view, setView] = useState<"table" | "board">("table")
+  const [view, setView] = useState<"tree" | "table" | "board">("tree")
   const item = sel ? snap.items.find((i) => i.itemId === sel) : undefined
 
   return (
@@ -40,7 +41,7 @@ export function BoardApp(): JSX.Element {
             {lastSync ? "synced " + tsText(lastSync) : "…"}
           </Text>
           <Tooltip label="refresh"><ActionIcon size="lg" variant="subtle" onClick={() => void refresh()}><IconRefresh size={15} /></ActionIcon></Tooltip>
-          <SegmentedControl size="xs" value={view} data={[{ value: "table", label: "Table" }, { value: "board", label: "Board" }]} onChange={(v) => setView(v as "table" | "board")} />
+          <SegmentedControl size="xs" value={view} data={[{ value: "tree", label: "Tree" }, { value: "table", label: "Table" }, { value: "board", label: "Board" }]} onChange={(v) => setView(v as "tree" | "table" | "board")} />
           <Divider orientation="vertical" />
           <Button size="xs" variant="default" leftSection={<IconPlus size={13} />} onClick={() => setNewRes(true)}>New resource</Button>
           <Button size="xs" leftSection={<IconPlus size={13} />} onClick={() => setNewItem(true)}>New item</Button>
@@ -48,6 +49,7 @@ export function BoardApp(): JSX.Element {
       </header>
       <div className="body">
         <main className="main">
+          <When c={view === "tree"}><TreeView items={snap.items} onOpen={setSel} /></When>
           <When c={view === "board"}><Kanban cols={cols} items={snap.items} onOpen={setSel} /></When>
           <When c={view === "table"}><Worktable cols={cols} items={snap.items} resources={snap.resources} onOpen={setSel} onRefresh={refresh} /></When>
         </main>
