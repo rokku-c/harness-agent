@@ -23,3 +23,14 @@ test("lists declared building blocks", () => {
   store.registerComponent({ type: "Text", version: "1", category: "base" })
   expect(makeUIAgentOps(runtime, store).listComponents().map((item) => item.type)).toEqual(["Text"])
 })
+
+test("agent ops link and enter a child canvas", async () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  const ops = makeUIAgentOps(runtime)
+  ops.createCanvas("root", "Root")
+  ops.createCanvas("child", "Child")
+  ops.linkCanvas("root", "child-ref", "child")
+  await ops.enterCanvas("child")
+  expect(runtime.navigation().current).toBe("child")
+})
