@@ -135,6 +135,7 @@ export const makeBoardMcp = (options: BoardMcpOptions): McpServer => {
   })
   tool(server, "board_launch", "Queue an asynchronous launch intent for a registered probe.", SCHEMA.launch, async (a) => {
     const agentId = String(a.agentId), nodeId = String(a.nodeId), kind = String(a.kind), mode = String(a.mode)
+    if (!(await Effect.runPromise(board.getItem(nodeId)))) return json({ ok: false, detail: "node not found" })
     const agent = (await Effect.runPromise(Ref.get(board.tables.agents))).get(agentId)
     if (!agent || agent.status === "offline") return json({ ok: false, detail: "probe is not online" })
     const isolation = mode === "isolated" ? (String(a.isolation ?? "env") as "env" | "workspace" | "sandbox") : undefined
