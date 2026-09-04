@@ -13,3 +13,15 @@ test("fetches an object data source and rejects invalid responses", async () => 
   try { expect(await fetchDataSource("https://data.test").read()).toEqual({ count: 2 }) }
   finally { globalThis.fetch = original }
 })
+
+test("reports HTTP and payload shape failures", async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = (async (_url, init) => {
+    if (init?.headers) return new Response("down", { status: 503 })
+    return new Response("[]", { status: 200 })
+  }) as typeof fetch
+  try {
+    await expect(fetchDataSource("https://data.test", { headers: { x: "1" } }).read()).rejects.toThrow("503")
+    await expect(fetchDataSource("https://data.test").read()).rejects.toThrow("JSON object")
+  } finally { globalThis.fetch = original }
+})
