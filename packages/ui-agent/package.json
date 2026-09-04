@@ -1,0 +1,11 @@
+{
+  "name": "@effect-agent/ui-agent",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@effect-agent/ui-protocol": "workspace:*",
+    "@effect-agent/ui-runtime": "workspace:*"
+  }
+}

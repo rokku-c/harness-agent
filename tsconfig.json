@@ -23,6 +23,13 @@
       "@effect-agent/schedule": ["./packages/schedule/src/index.ts"],
       "@effect-agent/assembly": ["./packages/assembly/src/index.ts"],
       "@effect-agent/agentdeck": ["./packages/agentdeck/src/index.ts"]
+      ,"@effect-agent/ui-protocol": ["./packages/ui-protocol/src/index.ts"]
+      ,"@effect-agent/ui-definition": ["./packages/ui-definition/src/index.ts"]
+      ,"@effect-agent/ui-runtime": ["./packages/ui-runtime/src/index.ts"]
+      ,"@effect-agent/ui-renderer": ["./packages/ui-renderer/src/index.ts"]
+      ,"@effect-agent/ui-agent": ["./packages/ui-agent/src/index.ts"]
+      ,"@effect-agent/ui-extension": ["./packages/ui-extension/src/index.ts"]
+      ,"@effect-agent/ui-sandbox": ["./packages/ui-sandbox/src/index.ts"]
     }
   },
   "include": [

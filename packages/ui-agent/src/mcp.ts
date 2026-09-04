@@ -1,0 +1,33 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { z } from "zod"
+import type { UIRuntime } from "@effect-agent/ui-runtime"
+import type { DefinitionStore } from "@effect-agent/ui-definition"
+
+const result = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] })
+export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore): McpServer => {
+  const server = new McpServer({ name: "ui-runtime", version: "0.1.0" })
+  server.registerTool("ui_get_canvas", { description: "Read a resolved UI canvas.", inputSchema: { canvasId: z.string().optional() } }, async ({ canvasId }) => result(canvasId === undefined ? runtime.view() : runtime.viewCanvas(canvasId)))
+  server.registerTool("ui_list_components", { description: "List declared UI components available as building blocks.", inputSchema: {} }, async () => result(definitions?.listComponents() ?? []))
+  server.registerTool("ui_create_canvas", { description: "Create a UI canvas.", inputSchema: { canvasId: z.string(), title: z.string() } }, async ({ canvasId, title }) => {
+    runtime.apply({ kind: "create-canvas", canvasId, title }); return result({ ok: true, canvasId })
+  })
+  server.registerTool("ui_insert_node", { description: "Insert a component node into a canvas.", inputSchema: { canvasId: z.string(), nodeId: z.string(), type: z.string(), value: z.unknown().optional() } }, async ({ canvasId, nodeId, type, value }) => {
+    runtime.apply({ kind: "insert-node", canvasId, node: { id: nodeId, type, props: value === undefined ? undefined : { value: value as never } } }); return result({ ok: true, nodeId })
+  })
+  server.registerTool("ui_patch_node", { description: "Patch a node value using the current canvas version.", inputSchema: { canvasId: z.string(), nodeId: z.string(), value: z.unknown() } }, async ({ canvasId, nodeId, value }) => {
+    const version = runtime.version(canvasId)
+    runtime.apply({ kind: "patch-node", canvasId, nodeId, props: { value: value as never }, expectedVersion: version }); return result({ ok: true, nodeId })
+  })
+  server.registerTool("ui_bind_data", { description: "Bind a node property to a state path.", inputSchema: { canvasId: z.string(), nodeId: z.string(), key: z.string(), path: z.string() } }, async ({ canvasId, nodeId, key, path }) => {
+    const version = runtime.version(canvasId)
+    runtime.apply({ kind: "bind-node", canvasId, nodeId, key, binding: { kind: "path", value: path }, expectedVersion: version }); return result({ ok: true, nodeId, key })
+  })
+  server.registerTool("ui_remove_node", { description: "Remove a leaf node from a canvas.", inputSchema: { canvasId: z.string(), nodeId: z.string() } }, async ({ canvasId, nodeId }) => {
+    const version = runtime.version(canvasId)
+    runtime.apply({ kind: "remove-node", canvasId, nodeId }); return result({ ok: true, nodeId, version })
+  })
+  server.registerTool("ui_link_canvas", { description: "Add a navigable child-canvas reference.", inputSchema: { canvasId: z.string(), nodeId: z.string(), targetCanvasId: z.string(), parentId: z.string().optional() } }, async ({ canvasId, nodeId, targetCanvasId, parentId }) => {
+    runtime.apply({ kind: "link-canvas", canvasId, nodeId, targetCanvasId, parentId }); return result({ ok: true, nodeId, targetCanvasId })
+  })
+  return server
+}

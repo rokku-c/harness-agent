@@ -1,0 +1,10 @@
+{
+  "name": "@effect-agent/ui-extension",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@effect-agent/ui-protocol": "workspace:*",
+    "@effect-agent/ui-definition": "workspace:*"
+  }
+}
