@@ -33,7 +33,13 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
       store.apply(command)
       options.onCommand?.(command)
     },
-    dispatch: (event) => actions.dispatch(event),
+    dispatch: (event) => {
+      if (event.actions !== undefined) return actions.dispatch(event)
+      const canvas = store.getCanvas(actions.navigation().current)
+      const node = canvas?.nodes[event.nodeId]
+      const actionsFromDefinition = node?.events?.[event.type]
+      return actions.dispatch({ ...event, actions: actionsFromDefinition })
+    },
     navigation: actions.navigation,
     view: (state = {}) => {
       const nav = actions.navigation()

@@ -46,6 +46,18 @@ test("navigates into nested canvas and back", async () => {
   expect(actions.navigation()).toEqual({ current: "root", stack: [], params: {} })
 })
 
+test("dispatches actions declared on the node when omitted by the caller", async () => {
+  const store = makeDefinitionStore()
+  const runtime = makeUIRuntime(store, "root")
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  runtime.apply({ kind: "create-canvas", canvasId: "child", title: "Child" })
+  runtime.apply({ kind: "insert-node", canvasId: "root", node: {
+    id: "open", type: "Button", events: { click: [{ action: "navigate_to_canvas", input: { canvasId: "child" } }] }
+  } })
+  await runtime.dispatch({ eventId: "click-1", nodeId: "open", type: "click" })
+  expect(runtime.navigation().current).toBe("child")
+})
+
 test("restores parent parameters after nested navigation", async () => {
   const actions = makeActions("root")
   await actions.dispatch({ eventId: "e1", nodeId: "a", type: "click", actions: [{ action: "navigate_to_canvas", input: { canvasId: "a", rootId: "r" } }] })
