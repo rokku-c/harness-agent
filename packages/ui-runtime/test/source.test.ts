@@ -33,3 +33,10 @@ test("caches data until the TTL expires", async () => {
   clock = 11
   expect(await source.read()).toEqual({ calls: 2 }); expect(calls).toBe(2)
 })
+
+test("allows immediate cache invalidation", async () => {
+  let calls = 0
+  const source = cachedDataSource({ read: async () => ({ calls: ++calls }) }, 1000)
+  await source.read(); source.invalidate?.();
+  expect(await source.read()).toEqual({ calls: 2 })
+})

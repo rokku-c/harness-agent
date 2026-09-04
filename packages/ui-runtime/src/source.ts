@@ -2,6 +2,7 @@ import type { UIDataStore } from "./data.ts"
 
 export interface UIDataSource {
   read(signal?: AbortSignal): Promise<Record<string, unknown>>
+  invalidate?(): void
 }
 
 export interface UIDataSync {
@@ -30,7 +31,8 @@ export const cachedDataSource = (source: UIDataSource, ttlMs: number, now = () =
       cached = structuredClone(value)
       expires = now() + Math.max(0, ttlMs)
       return structuredClone(value)
-    }
+    },
+    invalidate: () => { cached = undefined; expires = 0 }
   }
 }
 
