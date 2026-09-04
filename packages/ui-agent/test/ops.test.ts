@@ -10,7 +10,11 @@ test("agent ops compose and bind UI", () => {
   ops.createCanvas("root", "Root")
   ops.insertNode("root", { id: "name", type: "Text" })
   ops.bindNode("root", "name", "value", { kind: "path", value: "$.user.name" })
+  ops.setTheme("dark")
+  ops.setRenderer("canvas")
   expect(runtime.view({ user: { name: "Ada" } }).children[0]!.resolvedProps.value).toBe("Ada")
+  expect(runtime.theme()).toBe("dark")
+  expect(runtime.renderer()).toBe("canvas")
 })
 
 test("lists declared building blocks", () => {

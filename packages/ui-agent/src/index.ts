@@ -12,6 +12,8 @@ export interface UIAgentOps {
   enterCanvas(canvasId: string): Promise<void>
   listComponents(): ReadonlyArray<import("@effect-agent/ui-protocol").ComponentDefinition>
   linkCanvas(canvasId: string, nodeId: string, targetCanvasId: string, parentId?: string): void
+  setTheme(theme: string): void
+  setRenderer(renderer: string): void
 }
 
 export const makeUIAgentOps = (runtime: UIRuntime, definitions?: DefinitionStore): UIAgentOps => ({
@@ -27,5 +29,7 @@ export const makeUIAgentOps = (runtime: UIRuntime, definitions?: DefinitionStore
   },
   enterCanvas: (canvasId) => runtime.dispatch({ eventId: "agent-enter", nodeId: "agent", type: "navigate", actions: [{ action: "navigate_to_canvas", input: { canvasId } }] }),
   listComponents: () => definitions?.listComponents() ?? [],
-  linkCanvas: (canvasId, nodeId, targetCanvasId, parentId) => runtime.apply({ kind: "link-canvas", canvasId, nodeId, targetCanvasId, parentId })
+  linkCanvas: (canvasId, nodeId, targetCanvasId, parentId) => runtime.apply({ kind: "link-canvas", canvasId, nodeId, targetCanvasId, parentId }),
+  setTheme: (theme) => runtime.apply({ kind: "set-theme", theme }),
+  setRenderer: (renderer) => runtime.apply({ kind: "set-renderer", renderer })
 })
