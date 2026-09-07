@@ -2,31 +2,43 @@ import { appendFile, mkdir, readFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import type { JsonPatch, Spec } from "@json-render/core"
 import { makeSpecStreamAdapter, type SpecStreamAdapter } from "./spec-stream.ts"
+import { decodeSpecRecord, recoveryOf, type SpecJournalRecord, type SpecRecovery } from "./spec-session.ts"
 
 export interface SpecJournal {
-  append(patch: JsonPatch): Promise<void>
+  start(streamId: string): Promise<void>
+  append(patch: JsonPatch, streamId?: string): Promise<void>
+  done(streamId: string): Promise<void>
   read(): Promise<ReadonlyArray<JsonPatch>>
+  records(): Promise<ReadonlyArray<SpecJournalRecord>>
   replay(adapter: SpecStreamAdapter): Promise<number>
-}
-
-const decode = (line: string): JsonPatch | undefined => {
-  try {
-    const value = JSON.parse(line) as JsonPatch
-    return typeof value?.op === "string" && typeof value?.path === "string" ? value : undefined
-  } catch { return undefined }
+  recover(adapter: SpecStreamAdapter): Promise<SpecRecovery>
 }
 
 export const makeSpecJournal = (file: string): SpecJournal => {
   let pending: Promise<void> = Promise.resolve()
-  const read = async () => {
-    try { return (await readFile(file, "utf8")).split("\n").map(decode).filter((p): p is JsonPatch => p !== undefined) }
+  const records = async () => {
+    try { return (await readFile(file, "utf8")).split("\n").map(decodeSpecRecord).filter((r): r is SpecJournalRecord => r !== undefined) }
     catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return []; throw error }
   }
-  const append = async (patch: JsonPatch) => {
-    pending = pending.then(async () => { await mkdir(dirname(file), { recursive: true }); await appendFile(file, JSON.stringify(patch) + "\n") })
+  const write = async (record: SpecJournalRecord) => {
+    pending = pending.then(async () => { await mkdir(dirname(file), { recursive: true }); await appendFile(file, JSON.stringify(record) + "\n") })
     await pending
   }
-  return { append, read, replay: async (adapter) => { const patches = await read(); patches.forEach(adapter.apply); return patches.length } }
+  const read = async () => (await records()).filter((r) => r.kind === "patch").map((r) => r.patch)
+  const recover = async (adapter: SpecStreamAdapter) => {
+    const rows = await records()
+    const patches = rows.filter((r) => r.kind === "patch")
+    patches.forEach((row) => adapter.apply(row.patch))
+    return recoveryOf(rows, patches.length)
+  }
+  return {
+    start: (streamId) => write({ kind: "start", streamId }),
+    append: (patch, streamId) => write({ kind: "patch", streamId, patch }),
+    done: (streamId) => write({ kind: "done", streamId }),
+    read, records,
+    replay: async (adapter) => (await recover(adapter)).applied,
+    recover
+  }
 }
 
 export const restoreSpec = async (file: string, initial: Spec): Promise<SpecStreamAdapter> => {

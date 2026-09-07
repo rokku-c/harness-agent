@@ -8,6 +8,7 @@ export { cachedDataSource, fetchDataSource, syncDataSource, type UIDataSource, t
 export { toJsonRenderSpec } from "./json-render.ts"
 export { makeSpecStreamAdapter, type SpecStreamAdapter } from "./spec-stream.ts"
 export { makeSpecJournal, restoreSpec, type SpecJournal } from "./spec-journal.ts"
+export { decodeSpecRecord, recoveryOf, type SpecJournalRecord, type SpecRecovery } from "./spec-session.ts"
 
 export interface RuntimeContext { readonly state: Record<string, unknown>; readonly canvasId: string; readonly parent?: Record<string, unknown> }
 export interface ResolvedNode extends UINode { readonly resolvedProps: Record<string, unknown>; readonly resolvedChildren: ReadonlyArray<ResolvedNode> }
