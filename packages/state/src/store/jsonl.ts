@@ -1,5 +1,5 @@
 /**
- * store/jsonl.ts - JsonlStore: the production-ish default.
+ * store/jsonl.ts - JsonlStore: legacy explicit compatibility adapter.
  *
  * Concept: one append-only JSONL file per store (rewrite-on-write keeps one
  * row per key). Loads existing rows at construction; swap MemoryStore for

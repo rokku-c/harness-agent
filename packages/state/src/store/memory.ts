@@ -1,5 +1,5 @@
 /**
- * store/memory.ts - MemoryStore: the open-box default.
+ * store/memory.ts - MemoryStore: explicit ephemeral/test implementation.
  *
  * Concept: an in-memory Ref map implementing the Store seam (M1). Nothing is
  * durable and no transaction machinery is needed - transaction is identity.

@@ -3,7 +3,7 @@
  *
  * Concept: per-conversation turns (user/assistant) plus the conversation's
  * meta (extended tools it had enabled). Durability is optional: with a dir,
- * every mutation appends one line to conversations.jsonl and prior lines
+ * every mutation is committed to SQLite and prior rows
  * reload on construction, so memory survives restarts.
  */
 export interface Turn {

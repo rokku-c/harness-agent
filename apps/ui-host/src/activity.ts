@@ -15,7 +15,7 @@ export const makeActivityStore = (file = process.env.UI_DATABASE ?? ".effect-age
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true })
   const database = new Database(file, { create: true })
   database.run("CREATE TABLE IF NOT EXISTS ui_activity (id TEXT PRIMARY KEY, agent TEXT, status TEXT, at INTEGER)")
-  const all = () => database.query("SELECT id, agent, status, at FROM ui_activity ORDER BY at DESC LIMIT 100").all() as AgentActivity[]
+  const all = () => database.query("SELECT id, agent, status, at FROM ui_activity ORDER BY at DESC, rowid DESC LIMIT 100").all() as AgentActivity[]
   return {
     setStatus: (agent, status) => {
       const event = { id: crypto.randomUUID(), agent, status, at: Date.now() }
