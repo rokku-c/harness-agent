@@ -11,7 +11,7 @@ let base = ""
 let stop: (() => void) | undefined
 
 beforeAll(async () => {
-  const { server, base: b } = startDeckServer({ launchers: [{ kind: "demo", label: "演示评审" }] })
+  const { server, base: b } = startDeckServer({ configFile: ":memory:", launchers: [{ kind: "demo", label: "演示评审" }] })
   base = b
   stop = () => server.stop(true)
 })
@@ -77,17 +77,15 @@ describe("deckconsole control room", () => {
   test("launcher CRUD persists to the config file across restarts", async () => {
     const { tmpdir } = await import("node:os")
     const { join } = await import("node:path")
-    const { mkdtempSync, rmSync, readFileSync } = await import("node:fs")
+    const { mkdtempSync, rmSync } = await import("node:fs")
     const dir = mkdtempSync(join(tmpdir(), "deck-"))
-    const file = join(dir, "deck.json")
+    const file = join(dir, "deck.sqlite")
     try {
       const first = startDeckServer({ configFile: file })
       const j1 = await fetch(first.base + "/api/launchers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "custom", label: "巡检员" }) }).then((r) => r.json())
       expect(j1.ok).toBe(true)
       expect(j1.launchers.some((l: any) => l.label === "巡检员")).toBe(true)
       first.server.stop(true)
-      const disk = JSON.parse(readFileSync(file, "utf-8"))
-      expect(disk.launchers.some((l: any) => l.label === "巡检员")).toBe(true)
       const second = startDeckServer({ configFile: file })
       const d2 = await fetch(second.base + "/api/deck").then((r) => r.json())
       expect(d2.launchers.some((l: any) => l.label === "巡检员")).toBe(true)
@@ -173,7 +171,7 @@ describe("deckconsole effect-ops loop (approval steers execution through the pro
   let opsBase = ""
   let opsStop: (() => void) | undefined
   beforeAll(async () => {
-    const { server, base } = startDeckServer({ effectModel: opsModelFactory })
+    const { server, base } = startDeckServer({ configFile: ":memory:", effectModel: opsModelFactory })
     opsBase = base
     opsStop = () => server.stop(true)
   })

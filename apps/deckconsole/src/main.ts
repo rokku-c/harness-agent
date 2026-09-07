@@ -12,7 +12,8 @@ import {
   makeClaudeSdkGateway, makeEffectOpsGateway, cliPresets as builtinCliPresets, type UnifiedAgentConfig, type SessionGateway
 } from "@effect-agent/agentdeck"
 import type { Model, ClaudeCodeOptions } from "@effect-agent/builtin"
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs"
+import { Database } from "bun:sqlite"
+import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 
 export interface DeckServerOptions {
@@ -24,7 +25,7 @@ export interface DeckServerOptions {
   readonly claudeSdk?: { readonly query: NonNullable<ClaudeCodeOptions["query"]> }
   /** one-click launch entries shown in the product (env DECK_AGENTS JSON too) */
   readonly launchers?: ReadonlyArray<{ kind: string; label: string; config?: unknown }>
-  /** json state file for launcher persistence (env DECK_FILE too) */
+  /** SQLite state file for launcher persistence (env DECK_FILE too) */
   readonly configFile?: string
 }
 
@@ -72,7 +73,10 @@ const envLaunchers = (): Array<{ kind: string; label: string; config?: unknown }
 
 export const startDeckServer = (options: DeckServerOptions = {}) => {
   const deck = new AgentDeck()
-  const configFile = options.configFile ?? process.env.DECK_FILE
+  const configFile = options.configFile ?? process.env.DECK_FILE ?? ".effect-agent/deckconsole.sqlite"
+  if (configFile !== ":memory:") mkdirSync(dirname(configFile), { recursive: true })
+  const database = new Database(configFile, { create: true })
+  database.run("CREATE TABLE IF NOT EXISTS deck_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
   const launchers: Array<{ kind: string; label: string; config?: unknown }> = []
   const seedLauncher = (kind: string, label: string, config?: unknown): void => {
     const key = kind + "\u0000" + label
@@ -84,20 +88,15 @@ export const startDeckServer = (options: DeckServerOptions = {}) => {
   if (options.claudeSdk !== undefined) seedLauncher("claude-cc", "claude-cc（SDK 进程内）")
   if (options.effectModel !== undefined) seedLauncher("effect-ops", "effect-ops（审批执行循环）")
   const persistLaunchers = (): void => {
-    if (configFile === undefined) return
     try {
-      mkdirSync(dirname(configFile), { recursive: true })
-      writeFileSync(configFile, JSON.stringify({ launchers }, null, 2), "utf-8")
+      database.run("INSERT OR REPLACE INTO deck_config VALUES ('launchers', ?)", [JSON.stringify(launchers)])
     } catch (error) {
       console.error("deckconsole persist failed:", error instanceof Error ? error.message : String(error))
     }
   }
-  if (configFile !== undefined) {
-    try {
-      const saved = JSON.parse(readFileSync(configFile, "utf-8")) as { launchers?: Array<{ kind: string; label: string }> }
-      for (const l of saved.launchers ?? []) seedLauncher(l.kind, l.label)
-    } catch { /* first boot: no file yet */ }
-  }
+  const saved = database.query("SELECT value FROM deck_config WHERE key = 'launchers'").get() as { value: string } | null
+  for (const launcher of saved === null ? [] : JSON.parse(saved.value) as Array<{ kind: string; label: string; config?: unknown }>)
+    seedLauncher(launcher.kind, launcher.label, launcher.config)
   // per-session consent policy (autoApproveTools / defaultDecision from the
   // unified config) - recorded for the demo agent whose asks it can auto-settle
   const sessionPolicy = new Map<string, { auto: ReadonlySet<string>; mode: "ask" | "allow" | "deny" }>()

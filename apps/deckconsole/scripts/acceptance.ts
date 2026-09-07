@@ -14,7 +14,7 @@ const check = (name: string, cond: boolean, extra = "") => {
   else { console.error("  FAIL " + name + (extra ? " :: " + extra : "")); process.exitCode = 1 }
 }
 
-const { server, base } = startDeckServer({})
+const { server, base } = startDeckServer({ configFile: ":memory:" })
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 for (let i = 0; i < 80; i++) { try { if ((await fetch(base + "/api/deck")).ok) break } catch {} await sleep(250) }
 
