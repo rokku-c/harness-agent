@@ -2,11 +2,10 @@
  * conversation/store.ts - the ConversationStore.
  *
  * Concept: in-memory per-conversation logs + enabled-tool meta behind the
- * same durability seam. Each conversation's turns are appended as JSONL ops
- * (turn / enabled) and reloaded into maps at construction; corrupted lines
- * are skipped so a bad write never destroys the rest of the memory log.
+ * same SQLite durability seam.
  */
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
+import { Database } from "bun:sqlite"
+import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 import { Effect } from "effect"
 import { eaUri } from "@effect-agent/core"
@@ -17,45 +16,20 @@ import { historyBinding as makeHistoryBinding, renderHistory } from "./binding.t
 export class ConversationStore {
   readonly #log = new Map<string, Turn[]>()
   readonly #meta = new Map<string, string[]>()
-  readonly #dir?: string
+  readonly #database: Database
 
   constructor(options: ConversationStoreOptions = {}) {
-    this.#dir = options.dir
-    if (options.dir === undefined) return
-    try {
-      mkdirSync(options.dir, { recursive: true })
-    } catch {
-      // memory degrades to in-memory when the directory is unusable
+    const file = options.dir === undefined ? ":memory:" : join(options.dir, "conversations.sqlite")
+    if (options.dir !== undefined) mkdirSync(options.dir, { recursive: true })
+    this.#database = new Database(file, { create: true })
+    this.#database.run("CREATE TABLE IF NOT EXISTS mantis_turns (id INTEGER PRIMARY KEY, conversation_id TEXT, role TEXT, text TEXT, ts INTEGER)")
+    this.#database.run("CREATE TABLE IF NOT EXISTS mantis_meta (conversation_id TEXT PRIMARY KEY, names TEXT)")
+    for (const row of this.#database.query("SELECT conversation_id, role, text, ts FROM mantis_turns ORDER BY id").all() as Array<{ conversation_id: string } & Turn>) {
+      const turns = this.#log.get(row.conversation_id) ?? []
+      turns.push({ role: row.role, text: row.text, ts: row.ts }); this.#log.set(row.conversation_id, turns)
     }
-    let text: string
-    try {
-      text = readFileSync(join(options.dir, "conversations.jsonl"), "utf-8")
-    } catch {
-      return // first run: no memory file yet
-    }
-    for (const line of text.split("\n")) {
-      if (line.trim() === "") continue
-      try {
-        const entry = JSON.parse(line) as Record<string, unknown>
-        const conversationId = entry["conversationId"]
-        if (entry["kind"] === "enabled" && Array.isArray(entry["names"]) && typeof conversationId === "string") {
-          this.#meta.set(conversationId, (entry["names"] as unknown[]).filter((n) => typeof n === "string") as string[])
-          continue
-        }
-        if (
-          typeof conversationId === "string" &&
-          (entry["role"] === "user" || entry["role"] === "assistant") &&
-          typeof entry["text"] === "string" &&
-          typeof entry["ts"] === "number"
-        ) {
-          const turns = this.#log.get(conversationId) ?? []
-          turns.push({ role: entry["role"] as Turn["role"], text: entry["text"] as string, ts: entry["ts"] as number })
-          this.#log.set(conversationId, turns)
-        }
-      } catch {
-        // skip corrupted line and keep the rest of the memory log
-      }
-    }
+    for (const row of this.#database.query("SELECT conversation_id, names FROM mantis_meta").all() as Array<{ conversation_id: string; names: string }>)
+      this.#meta.set(row.conversation_id, JSON.parse(row.names) as string[])
   }
 
   readonly conversationIds = (): ReadonlyArray<string> => [...this.#log.keys(), ...this.#meta.keys()].filter((id, i, all) => all.indexOf(id) === i)
@@ -69,19 +43,15 @@ export class ConversationStore {
     if (current.includes(name)) return
     const next = [...current, name]
     this.#meta.set(conversationId, next)
-    if (this.#dir !== undefined) {
-      appendFileSync(join(this.#dir, "conversations.jsonl"), JSON.stringify({ conversationId, kind: "enabled", names: next, ts: Date.now() }) + "\n")
-    }
+    this.#database.run("INSERT OR REPLACE INTO mantis_meta VALUES (?, ?)", [conversationId, JSON.stringify(next)])
   }
 
   readonly add = (conversationId: string, role: Turn["role"], text: string): void => {
     const turns = this.#log.get(conversationId) ?? []
     turns.push({ role, text, ts: Date.now() })
     this.#log.set(conversationId, turns)
-    if (this.#dir !== undefined) {
-      const turn = turns[turns.length - 1]!
-      appendFileSync(join(this.#dir, "conversations.jsonl"), JSON.stringify({ conversationId, role: turn.role, text: turn.text, ts: turn.ts }) + "\n")
-    }
+    const turn = turns[turns.length - 1]!
+    this.#database.run("INSERT INTO mantis_turns (conversation_id, role, text, ts) VALUES (?, ?, ?, ?)", [conversationId, turn.role, turn.text, turn.ts])
   }
   readonly history = (conversationId: string): ReadonlyArray<Turn> => [...(this.#log.get(conversationId) ?? [])]
 
@@ -89,4 +59,3 @@ export class ConversationStore {
   readonly historyBinding = (conversationId: string, maxTurns = 30): Binding<never, never, never> =>
     makeHistoryBinding(conversationId, () => renderHistory(this.history(conversationId), maxTurns))
 }
-

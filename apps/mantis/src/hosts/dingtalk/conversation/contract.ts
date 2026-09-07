@@ -13,7 +13,7 @@ export interface Turn {
 }
 
 export interface ConversationStoreOptions {
-  /** directory holding one append-only JSONL (conversations.jsonl) - turns
+  /** directory holding the SQLite conversation database - turns
    *  persist and reload on construction, so conversation memory survives
    *  process restarts. Omit to keep the store in memory only. */
   readonly dir?: string

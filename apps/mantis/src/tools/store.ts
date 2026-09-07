@@ -1,70 +1,38 @@
 /**
  * tools/store.ts - NotesStore: the SHARED WORKSPACE.
  *
- * Concept: every declared resource kind lives in one append log with search
- * (a single durable store shared by humans and agents). With an optional
- * JSONL file, each add/update/delete appends one op line and prior lines
- * reload on construction - id sequence continues across restarts. Store
+ * Concept: every declared resource kind lives in one SQLite workspace with search.
  * errors (limit exceeded) throw; ops convert them to explicit failures.
  */
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs"
+import { Database } from "bun:sqlite"
+import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { MAX_RECORD_TEXT, overRecordLimit, type Entry, type EntrySource } from "./contract.ts"
 
 export interface NotesStoreOptions {
-  /** append-only JSONL file: records persist and reload on construction */
+  /** SQLite database; :memory: keeps tests isolated. */
   readonly file?: string
 }
 
 export class NotesStore {
   readonly #entries: Entry[] = []
   private seq = 0
-  readonly #file?: string
+  readonly #database: Database
 
   constructor(options: NotesStoreOptions = {}) {
-    this.#file = options.file
-    if (options.file === undefined) return
-    try {
-      mkdirSync(dirname(options.file), { recursive: true })
-    } catch {
-      // workspace degrades to in-memory when the directory is unusable
-    }
-    let text: string
-    try {
-      text = readFileSync(options.file, "utf-8")
-    } catch {
-      return // first run: no file yet
-    }
-    for (const line of text.split("\n")) {
-      if (line.trim() === "") continue
-      try {
-        const raw = JSON.parse(line) as Partial<Entry> & { op?: string }
-        if (raw.op === "update" && typeof raw.id === "string" && typeof raw.text === "string" && typeof raw.ts === "number") {
-          const index = this.#entries.findIndex((e) => e.id === raw.id)
-          if (index !== -1) this.#entries[index] = { ...this.#entries[index]!, text: raw.text, ts: raw.ts }
-          continue
-        }
-        if (raw.op === "delete" && typeof raw.id === "string") {
-          const index = this.#entries.findIndex((e) => e.id === raw.id)
-          if (index !== -1) this.#entries.splice(index, 1)
-          continue
-        }
-        if (typeof raw.id === "string" && typeof raw.text === "string" && typeof raw.ts === "number" && typeof raw.kind === "string") {
-          this.#entries.push({ id: raw.id, kind: raw.kind as Entry["kind"], text: raw.text, ts: raw.ts, source: raw.source === "ui" ? "ui" : "agent" })
-          const n = Number(raw.id.slice(1))
-          if (Number.isFinite(n) && n > this.seq) this.seq = n
-        }
-      } catch {
-        // skip corrupted line and keep the rest of the log
-      }
-    }
+    const file = options.file ?? ":memory:"
+    if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true })
+    this.#database = new Database(file, { create: true })
+    this.#database.run("CREATE TABLE IF NOT EXISTS mantis_notes (id TEXT PRIMARY KEY, kind TEXT NOT NULL, text TEXT NOT NULL, ts INTEGER NOT NULL, source TEXT NOT NULL)")
+    this.#entries.push(...this.#database.query("SELECT id, kind, text, ts, source FROM mantis_notes ORDER BY CAST(SUBSTR(id, 2) AS INTEGER)").all() as Entry[])
+    this.seq = Math.max(0, ...this.#entries.map((entry) => Number(entry.id.slice(1))))
   }
   readonly add = (kind: Entry["kind"], text: string, source: EntrySource = "agent"): Entry => {
     const over = overRecordLimit(text)
     if (over !== undefined) throw new Error(over)
     const entry: Entry = { id: "e" + ++this.seq, kind, text, ts: Date.now(), source }
     this.#entries.push(entry)
-    if (this.#file !== undefined) appendFileSync(this.#file, JSON.stringify(entry) + "\n")
+    this.#database.run("INSERT INTO mantis_notes VALUES (?, ?, ?, ?, ?)", [entry.id, entry.kind, entry.text, entry.ts, entry.source])
     return entry
   }
   /** replace one record's text (provenance source unchanged; a new ts is stamped) */
@@ -75,7 +43,7 @@ export class NotesStore {
     if (index === -1) return undefined
     const updated: Entry = { ...this.#entries[index]!, text, ts: Date.now() }
     this.#entries[index] = updated
-    if (this.#file !== undefined) appendFileSync(this.#file, JSON.stringify({ op: "update", id, text, ts: updated.ts }) + "\n")
+    this.#database.run("UPDATE mantis_notes SET text = ?, ts = ? WHERE id = ?", [text, updated.ts, id])
     return updated
   }
 
@@ -84,7 +52,7 @@ export class NotesStore {
     const index = this.#entries.findIndex((e) => e.id === id)
     if (index === -1) return false
     this.#entries.splice(index, 1)
-    if (this.#file !== undefined) appendFileSync(this.#file, JSON.stringify({ op: "delete", id }) + "\n")
+    this.#database.run("DELETE FROM mantis_notes WHERE id = ?", [id])
     return true
   }
 

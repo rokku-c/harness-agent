@@ -45,7 +45,7 @@ export interface MantisHostOptions {
    */
   readonly workspace?: NotesStore
   /**
-   * Optional directory for DURABLE conversation memory (append-only JSONL).
+   * Optional directory for durable SQLite conversation memory.
    * When set, every conversation's turns reload on restart and each session
    * agent still remembers its prior turns. Omit for in-memory memory.
    */

@@ -114,7 +114,7 @@ describe("durable conversation memory", () => {
     first.add("conv-a", "user", "hello there")
     first.add("conv-a", "assistant", "hi back")
     first.add("conv-b", "user", "other thread")
-    expect(existsSync(join(dir, "conversations.jsonl"))).toBe(true)
+    expect(existsSync(join(dir, "conversations.sqlite"))).toBe(true)
     const second = new ConversationStore({ dir })
     expect(second.history("conv-a").map((t) => t.role + ":" + t.text)).toEqual(["user:hello there", "assistant:hi back"])
     expect(second.history("conv-b")).toHaveLength(1)

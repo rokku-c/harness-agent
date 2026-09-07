@@ -28,7 +28,7 @@ export interface WebConsoleOptions {
   readonly protectedTools?: ReadonlyArray<string>
   readonly approveTimeoutMs?: number
   /**
-   * Append-only JSONL workspace file: when set the console owns ONE durable
+   * SQLite workspace file: when set the console owns ONE durable
    * workspace store shared by every conversation (human UI + agents) and it
    * reloads on start. Omit to keep per-session in-memory stores.
    */
