@@ -2,11 +2,11 @@
  * Board tables: resources, work items, executors and views live in Ref-backed
  * maps (single process). Mutations run through Effect; when BOARD_DATA_FILE
  * is set every mutation is persisted as a full JSON snapshot, so the board
- * survives restarts without a database.
+ * survives restarts in SQLite.
  */
 import { Effect, Ref } from "effect"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import type { AgentInstance, BoardView, ConsentRequest, Executor, ExecutionRecord, Resource, WorkItem } from "./domain.ts"
+import { loadBoardSnapshot, saveBoardSnapshot } from "./sqlite.ts"
 
 export interface Tables {
   readonly items: Ref.Ref<ReadonlyMap<string, WorkItem>>
@@ -29,24 +29,6 @@ const DEFAULT_VIEW: BoardView = {
   ]
 }
 
-interface Snapshot {
-  readonly items?: unknown[]
-  readonly resources?: unknown[]
-  readonly executors?: unknown[]
-  readonly agents?: unknown[]
-  readonly executions?: unknown[]
-  readonly consents?: unknown[]
-}
-
-const loadSnapshot = (file: string | undefined): Snapshot => {
-  if (file === undefined || !existsSync(file)) return {}
-  try {
-    return JSON.parse(readFileSync(file, "utf-8")) as Snapshot
-  } catch {
-    return {}
-  }
-}
-
 const byIdRows = (rows: unknown[] | undefined, key: string): ReadonlyArray<readonly [string, unknown]> =>
   (rows ?? []).map((row) => {
     const item = row as Record<string, unknown>
@@ -55,7 +37,7 @@ const byIdRows = (rows: unknown[] | undefined, key: string): ReadonlyArray<reado
 
 export const makeTables = (file?: string): Effect.Effect<Tables> =>
   Effect.gen(function* () {
-    const snap = loadSnapshot(file)
+    const snap = loadBoardSnapshot(file)
     const items = yield* Ref.make<ReadonlyMap<string, WorkItem>>(
       new Map<string, WorkItem>(byIdRows(snap.items, "itemId") as Iterable<readonly [string, WorkItem]>)
     )
@@ -87,7 +69,7 @@ const saveSnapshot = (file: string | undefined, tables: Tables): Effect.Effect<v
     const agents = [...(yield* Ref.get(tables.agents)).values()]
     const executions = [...(yield* Ref.get(tables.executions)).values()]
     const consents = [...(yield* Ref.get(tables.consents)).values()]
-    writeFileSync(file, JSON.stringify({ items, resources, executors, agents, executions, consents }, null, 2) + "\n", "utf-8")
+    saveBoardSnapshot(file, { items, resources, executors, agents, executions, consents })
   })
 }
 
