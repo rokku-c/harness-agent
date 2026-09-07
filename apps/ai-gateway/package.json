@@ -1,0 +1,7 @@
+{
+  "name": "@effect-agent/ai-gateway-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@effect-agent/ai-gateway": "workspace:*" }
+}

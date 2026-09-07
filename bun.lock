@@ -8,6 +8,13 @@
         "pm2": "^7.0.4",
       },
     },
+    "apps/ai-gateway": {
+      "name": "@effect-agent/ai-gateway-app",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ai-gateway": "workspace:*",
+      },
+    },
     "apps/board": {
       "name": "app-board",
       "version": "0.0.0",
@@ -93,6 +100,10 @@
         "@effect-agent/gate": "*",
         "effect": "^3.22.1",
       },
+    },
+    "packages/ai-gateway": {
+      "name": "@effect-agent/ai-gateway",
+      "version": "0.0.0",
     },
     "packages/assembly": {
       "name": "@effect-agent/assembly",
@@ -280,6 +291,10 @@
     "@babel/runtime": ["@babel/runtime@7.29.7", "https://registry.npmmirror.com/@babel/runtime/-/runtime-7.29.7.tgz", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
 
     "@effect-agent/agentdeck": ["@effect-agent/agentdeck@workspace:packages/agentdeck"],
+
+    "@effect-agent/ai-gateway": ["@effect-agent/ai-gateway@workspace:packages/ai-gateway"],
+
+    "@effect-agent/ai-gateway-app": ["@effect-agent/ai-gateway-app@workspace:apps/ai-gateway"],
 
     "@effect-agent/assembly": ["@effect-agent/assembly@workspace:packages/assembly"],
 
