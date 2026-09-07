@@ -13,6 +13,7 @@ import type { GateService } from "@effect-agent/gate"
 import type { SchedulerService } from "@effect-agent/schedule"
 
 export interface AssembleOptions {
+  readonly database?: string
   readonly model?: Model
   readonly store?: StoreService
   readonly eventLog?: EventLogService

@@ -1,9 +1,10 @@
 import { expect, test } from "bun:test"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { EntitySchema } from "typeorm"
-import { TypeOrmStore } from "../src/index.ts"
+import { EventLog, Store } from "@effect-agent/state"
+import { TypeOrmPersistenceLayer, TypeOrmStore } from "../src/index.ts"
 
 test("uses SQLite by default and persists dynamic values", async () => {
   const database = join(tmpdir(), `effect-agent-${crypto.randomUUID()}.sqlite`)
@@ -37,4 +38,17 @@ test("registers additional EntitySchema definitions at runtime", async () => {
   await repository.save({ id: "n1", text: "dynamic" })
   expect(await repository.findOneBy({ id: "n1" })).toEqual({ id: "n1", text: "dynamic" })
   await store.close()
+})
+
+test("shares SQLite between Store and durable EventLog layers", async () => {
+  const layer = TypeOrmPersistenceLayer({ database: ":memory:" })
+  const result = await Effect.runPromise(Effect.gen(function* () {
+    const store = yield* Store
+    const events = yield* EventLog
+    yield* store.put("k", { type: "note" })
+    yield* events.append("s", "created", { key: "k" })
+    return { value: yield* store.get("k"), events: yield* events.stream("s") }
+  }).pipe(Effect.provide(layer)))
+  expect(result.value).toEqual({ type: "note" })
+  expect(result.events[0]?.seq).toBe(1)
 })

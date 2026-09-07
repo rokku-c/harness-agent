@@ -1,3 +1,6 @@
 export { storedEntity, type StoredEntity } from "./entity.ts"
+export { eventEntity, type EventEntity } from "./event-entity.ts"
+export { typeOrmEventLog } from "./eventlog.ts"
+export { TypeOrmPersistenceLayer } from "./layer.ts"
 export { sqliteOptions, type TypeOrmStoreOptions } from "./options.ts"
 export { TypeOrmStore, TypeOrmStoreLayer } from "./store.ts"

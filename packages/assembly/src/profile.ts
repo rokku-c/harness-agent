@@ -11,7 +11,7 @@ import type { AssembleOptions } from "./options.ts"
 
 export interface Profile {
   readonly model?: { readonly provider?: string }
-  readonly store?: { readonly kind?: "memory" | "jsonl"; readonly path?: string }
+  readonly store?: { readonly kind?: "sqlite" | "memory" | "jsonl"; readonly path?: string }
   readonly channel?: { readonly kind?: "memory" | "dingtalk" | "http" }
   readonly gate?: { readonly kind?: "allow" | "deny-writes"; readonly allowedSessions?: ReadonlyArray<string> }
 }
@@ -27,6 +27,8 @@ export const profileToOptions = (profile: Profile): AssembleOptions => {
     readonly channel?: unknown
     readonly gate?: unknown
   } = {}
+  if (profile.store?.kind === undefined || profile.store.kind === "sqlite")
+    (options as { database?: string }).database = profile.store?.path ?? ".effect-agent/state.sqlite"
   if (profile.store?.kind === "jsonl")
     (options as { store?: unknown }).store = new JsonlStore(profile.store.path ?? "./agent.jsonl")
   if (profile.channel?.kind === "memory")

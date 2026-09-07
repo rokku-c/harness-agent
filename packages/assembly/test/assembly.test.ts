@@ -40,7 +40,7 @@ describe("assembly", () => {
     })
 
     // one assembled instance: the same MemoryChannel across runs
-    const app = assemble()
+    const app = assemble({ database: ":memory:" })
     const answer = await app.run(program)
     expect(String(answer)).toContain("note")
 
@@ -63,7 +63,7 @@ describe("assembly", () => {
         yield* store.put("k", { type: "note", text: "v" })
         yield* log.append("s", "test.event", { ok: true })
         return { stored: yield* store.get("k"), events: yield* log.all() }
-      }).pipe(Effect.provide(defaultLayers()))
+      }).pipe(Effect.provide(defaultLayers({ database: ":memory:" })))
     )
     expect(result.stored).toEqual({ type: "note", text: "v" })
     expect(result.events).toHaveLength(1)
@@ -78,7 +78,7 @@ describe("assembly", () => {
         .implementedBy(effectAgent)
       return yield* AgentProgram.run("hello")
     })
-    const withEcho = await assemble().run(program)
+    const withEcho = await assemble({ database: ":memory:" }).run(program)
     expect(String(withEcho)).toContain("hello")
     const withStub = await assemble({
       model: { id: "stub", capabilities: {}, generate: () => Effect.succeed({ text: "stubbed", toolCalls: [] }) }

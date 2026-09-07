@@ -6,6 +6,7 @@ import { Effect, Exit, Layer, type Cause } from "effect"
 import { DataSource, MoreThanOrEqual, type EntityManager } from "typeorm"
 import { Store, deriveMeta, type QuerySpec, type StoreService } from "@effect-agent/state"
 import { storedEntity, type StoredEntity } from "./entity.ts"
+import { eventEntity } from "./event-entity.ts"
 import { sqliteOptions, type TypeOrmStoreOptions } from "./options.ts"
 
 export class TypeOrmStore implements StoreService {
@@ -19,7 +20,7 @@ export class TypeOrmStore implements StoreService {
       await mkdir(dirname(String(config.database)), { recursive: true })
     }
     const configured = config.entities === undefined ? [] : Array.isArray(config.entities) ? config.entities : Object.values(config.entities)
-    const source = new DataSource({ ...config, entities: [storedEntity, ...(options.entities ?? []), ...configured] } as typeof config)
+    const source = new DataSource({ ...config, entities: [storedEntity, eventEntity, ...(options.entities ?? []), ...configured] } as typeof config)
     await source.initialize()
     return new TypeOrmStore(source)
   }

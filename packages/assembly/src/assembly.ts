@@ -14,17 +14,18 @@ import { ScopedMemory, Memory } from "@effect-agent/memory"
 import { MemoryToolRegistry, ToolRegistry } from "@effect-agent/tools"
 import { IntervalScheduler, Scheduler } from "@effect-agent/schedule"
 import { EventLog, MemoryEventLog, MemoryStore, Store } from "@effect-agent/state"
+import { TypeOrmPersistenceLayer } from "@effect-agent/storage-typeorm"
 import type { AssembleOptions, DriverOptions } from "./options.ts"
 
 export const defaultLayers = (options: AssembleOptions = {}): Layer.Layer<
   ModelTag | Store | EventLog | Memory | Ingress | Delivery | ToolRegistry | Gate | Scheduler
 > => {
   const modelLayer = Layer.succeed(ModelTag, options.model ?? echoModel)
-  const storeLayer = Layer.effect(Store, options.store === undefined ? MemoryStore : Effect.succeed(options.store))
-  const eventLogLayer = Layer.effect(
-    EventLog,
-    options.eventLog === undefined ? MemoryEventLog : Effect.succeed(options.eventLog)
-  )
+  const defaults = options.store === undefined && options.eventLog === undefined
+    ? TypeOrmPersistenceLayer({ database: options.database ?? process.env.EFFECT_AGENT_DATABASE ?? ".effect-agent/state.sqlite" })
+    : undefined
+  const storeLayer = defaults ?? Layer.effect(Store, options.store === undefined ? MemoryStore : Effect.succeed(options.store))
+  const eventLogLayer = defaults ?? Layer.effect(EventLog, options.eventLog === undefined ? MemoryEventLog : Effect.succeed(options.eventLog))
   const channel = options.channel ?? new MemoryChannel()
   const channelLayer = Layer.merge(
     Layer.succeed(Ingress, channel.ingress),

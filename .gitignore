@@ -4,3 +4,4 @@ config.toml
 *.out.log
 *.err.log
 .board-data/
+.effect-agent/
