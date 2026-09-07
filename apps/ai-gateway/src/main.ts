@@ -3,5 +3,6 @@ import { startAiGateway } from "./server.ts"
 
 export { gatewayConfig } from "./config.ts"
 export { startAiGateway, type AiGatewayServerOptions } from "./server.ts"
+export { typeOrmRecorder, type StoredGatewayRecorder } from "./recorder.ts"
 
 if (import.meta.main) startAiGateway(gatewayConfig())

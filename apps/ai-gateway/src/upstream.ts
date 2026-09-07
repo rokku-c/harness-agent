@@ -10,6 +10,6 @@ export const httpUpstream = (baseURL: string, apiKey?: string, send: typeof fetc
     headers.delete("x-agent-id")
     headers.delete("x-session-id")
     if (apiKey !== undefined) headers.set("authorization", "Bearer " + apiKey)
-    return send(new Request(target, { method: request.method, headers, body: request.body }))
+    return send(new Request(target.toString(), { method: request.method, headers, body: request.body }))
   }
 })

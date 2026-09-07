@@ -3,5 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "dependencies": { "@effect-agent/ai-gateway": "workspace:*" }
+  "dependencies": {
+    "@effect-agent/ai-gateway": "workspace:*",
+    "@effect-agent/storage-typeorm": "workspace:*",
+    "effect": "^3.22.1"
+  }
 }

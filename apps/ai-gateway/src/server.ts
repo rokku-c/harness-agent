@@ -1,12 +1,13 @@
-import { makeAiGateway, type GatewayRule } from "@effect-agent/ai-gateway"
-import { jsonlRecorder } from "./recorder.ts"
+import { makeAiGateway, type GatewayRecorder, type GatewayRule } from "@effect-agent/ai-gateway"
+import { typeOrmRecorder } from "./recorder.ts"
 import { httpUpstream } from "./upstream.ts"
 
 export interface AiGatewayServerOptions {
   readonly port?: number
   readonly upstreamBase: string
   readonly apiKey?: string
-  readonly auditFile: string
+  readonly database: string
+  readonly recorder?: GatewayRecorder
   readonly captureBodies?: boolean
   readonly rules?: ReadonlyArray<GatewayRule>
   readonly send?: typeof fetch
@@ -17,7 +18,7 @@ const json = (value: unknown, status = 200) => Response.json(value, { status })
 export const startAiGateway = (options: AiGatewayServerOptions) => {
   const gateway = makeAiGateway({
     upstream: httpUpstream(options.upstreamBase, options.apiKey, options.send),
-    recorder: jsonlRecorder(options.auditFile),
+    recorder: options.recorder ?? typeOrmRecorder(options.database),
     captureBodies: options.captureBodies,
     rules: options.rules
   })

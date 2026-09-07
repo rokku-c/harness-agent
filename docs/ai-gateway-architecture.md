@@ -13,8 +13,12 @@ AI Gateway 位于 Agent/Model 与模型提供商之间，代理请求并提供�
    - `gateway`：固定执行顺序，不包含产品规则。
 2. `apps/ai-gateway`：部署外壳。
    - OpenAI/Anthropic HTTP 路由、身份提取、配置加载、健康检查。
-   - 组装规则、上游、记录器；以后可替换为数据库或消息队列。
-3. 现有 `@effect-agent/model`：保持模型客户端职责，只需把 `baseURL` 指向 Gateway。
+   - 组装规则、上游、记录器；默认通过 TypeORM 写入 SQLite。
+3. `@effect-agent/storage-typeorm`：通用动态存储适配层。
+   - 实现现有 `StoreService`，默认使用 TypeORM `sqljs` SQLite 驱动。
+   - 支持运行时追加 `EntitySchema`，也可传入其他 TypeORM `DataSourceOptions`。
+   - checkpoint、memory、UI 和 Gateway 均可复用，不进入领域核心。
+4. 现有 `@effect-agent/model`：保持模型客户端职责，只需把 `baseURL` 指向 Gateway。
 
 ## 请求链
 

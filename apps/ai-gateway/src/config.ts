@@ -11,7 +11,7 @@ export const gatewayConfig = (env: Record<string, string | undefined> = process.
   port: Number(env.AI_GATEWAY_PORT ?? 4890),
   upstreamBase: env.AI_GATEWAY_UPSTREAM ?? "https://api.openai.com",
   apiKey: env.AI_GATEWAY_API_KEY,
-  auditFile: env.AI_GATEWAY_AUDIT_FILE ?? ".effect-agent/ai-gateway.jsonl",
+  database: env.AI_GATEWAY_DATABASE ?? ".effect-agent/ai-gateway.sqlite",
   captureBodies: env.AI_GATEWAY_CAPTURE_BODIES === "true",
   rules: rules(env.AI_GATEWAY_RULES)
 })

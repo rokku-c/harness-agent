@@ -1,0 +1,13 @@
+{
+  "name": "@effect-agent/storage-typeorm",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@effect-agent/state": "workspace:*",
+    "effect": "^3.22.1",
+    "reflect-metadata": "^0.2.2",
+    "sql.js": "^1.13.0",
+    "typeorm": "^0.3.26"
+  }
+}
