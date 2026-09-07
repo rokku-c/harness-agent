@@ -4,7 +4,9 @@
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "dependencies": {
+    "@effect-agent/storage-typeorm": "workspace:*",
     "@effect-agent/ui-protocol": "workspace:*",
-    "@json-render/core": "^0.20.0"
+    "@json-render/core": "^0.20.0",
+    "effect": "^3.22.1"
   }
 }

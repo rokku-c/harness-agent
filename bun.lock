@@ -262,8 +262,10 @@
       "name": "@effect-agent/ui-runtime",
       "version": "0.0.0",
       "dependencies": {
+        "@effect-agent/storage-typeorm": "workspace:*",
         "@effect-agent/ui-protocol": "workspace:*",
         "@json-render/core": "^0.20.0",
+        "effect": "^3.22.1",
       },
     },
     "packages/ui-sandbox": {
