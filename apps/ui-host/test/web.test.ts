@@ -17,6 +17,7 @@ test("web host serves rendered canvas and component catalog", async () => {
     expect(components.some((item) => item.type === "CanvasRef")).toBe(true)
     const renderers = await (await fetch(new URL("/api/renderers", base))).json() as string[]
     expect(renderers).toContain("web-html")
+    expect(renderers).toContain("json-render-react")
     const extensions = await (await fetch(new URL("/api/extensions", base))).json() as unknown[]
     expect(extensions).toEqual([])
     const canvases = await (await fetch(new URL("/api/canvases", base))).json() as Array<{ canvasId: string }>
@@ -28,5 +29,8 @@ test("web host serves rendered canvas and component catalog", async () => {
     await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-theme", theme: "contrast" }) })
     const rendered = await (await fetch(new URL("/api/render", base))).text()
     expect(rendered).toContain('data-theme="contrast"')
+    await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-renderer", renderer: "json-render-react" }) })
+    const official = await (await fetch(new URL("/api/render", base))).text()
+    expect(official).toContain("UI Runtime ready")
   } finally { server.stop(true) }
 })

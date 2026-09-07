@@ -1,12 +1,12 @@
 import { makeDefinitionStore, registerBuiltins } from "@effect-agent/ui-definition"
 import { makeUIRuntime } from "@effect-agent/ui-runtime"
-import { webRenderer, makeRendererRegistry, renderRuntime } from "@effect-agent/ui-renderer"
+import { jsonReactRenderer, webRenderer, makeRendererRegistry, renderRuntime } from "@effect-agent/ui-renderer"
 import type { UICommand } from "@effect-agent/ui-protocol"
 import { makeExtensionRegistry } from "@effect-agent/ui-extension"
 
 const definitions = registerBuiltins(makeDefinitionStore())
 const runtime = makeUIRuntime(definitions, "root")
-const renderers = makeRendererRegistry([webRenderer])
+const renderers = makeRendererRegistry([webRenderer, jsonReactRenderer])
 const extensions = makeExtensionRegistry(definitions)
 runtime.apply({ kind: "create-canvas", canvasId: "root", title: "UI Canvas" })
 runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "welcome", type: "Text", props: { value: "UI Runtime ready" } } })

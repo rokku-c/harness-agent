@@ -2,6 +2,7 @@ import type { ResolvedNode, ResolvedUITree } from "@effect-agent/ui-runtime"
 import type { UIRuntime } from "@effect-agent/ui-runtime"
 import type { ThemeRegistry, ThemeTokens } from "./theme.ts"
 export { defaultThemes, makeThemeRegistry, type ThemeDefinition, type ThemeRegistry, type ThemeTokens } from "./theme.ts"
+export { jsonReactRenderer } from "./json-react.ts"
 
 export interface RendererContext { readonly onAction?: (action: string) => string; readonly theme?: string; readonly tokens?: ThemeTokens }
 export interface Renderer {

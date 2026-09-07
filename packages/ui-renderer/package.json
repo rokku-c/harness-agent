@@ -4,6 +4,11 @@
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "dependencies": {
-    "@effect-agent/ui-runtime": "workspace:*"
+    "@effect-agent/ui-runtime": "workspace:*",
+    "@json-render/core": "^0.20.0",
+    "@json-render/react": "^0.20.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "zod": "^4.3.6"
   }
 }
