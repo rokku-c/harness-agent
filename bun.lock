@@ -16,9 +16,24 @@
         "@effect-agent/core": "workspace:*",
         "@effect-agent/gate": "workspace:*",
         "@effect-agent/model": "workspace:*",
+        "@mantine/core": "^9.6.0",
         "@modelcontextprotocol/sdk": "^1.30.0",
+        "@tabler/icons-react": "^3.46.0",
         "effect": "^3.22.1",
+        "react": "^19.2.8",
+        "react-dom": "^19.2.8",
         "zod": "^3.25.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.2.18",
+        "@types/react-dom": "^19.2.5",
+      },
+    },
+    "apps/deckconsole": {
+      "name": "deckconsole",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/agentdeck": "*",
       },
     },
     "apps/mantis": {
@@ -55,6 +70,27 @@
         "@effect-agent/assembly": "workspace:*",
         "@effect-agent/core": "workspace:*",
         "@effect-agent/model": "workspace:*",
+        "effect": "^3.22.1",
+      },
+    },
+    "apps/ui-host": {
+      "name": "app-ui-host",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ui-agent": "workspace:*",
+        "@effect-agent/ui-definition": "workspace:*",
+        "@effect-agent/ui-extension": "workspace:*",
+        "@effect-agent/ui-runtime": "workspace:*",
+        "@modelcontextprotocol/sdk": "^1.25.2",
+      },
+    },
+    "packages/agentdeck": {
+      "name": "@effect-agent/agentdeck",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/builtin": "*",
+        "@effect-agent/core": "*",
+        "@effect-agent/gate": "*",
         "effect": "^3.22.1",
       },
     },
@@ -156,6 +192,58 @@
         "effect": "^3.22.1",
       },
     },
+    "packages/ui-agent": {
+      "name": "@effect-agent/ui-agent",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ui-protocol": "workspace:*",
+        "@effect-agent/ui-renderer": "workspace:*",
+        "@effect-agent/ui-runtime": "workspace:*",
+        "@modelcontextprotocol/sdk": "^1.25.2",
+      },
+    },
+    "packages/ui-definition": {
+      "name": "@effect-agent/ui-definition",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ui-protocol": "workspace:*",
+      },
+    },
+    "packages/ui-extension": {
+      "name": "@effect-agent/ui-extension",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ui-definition": "workspace:*",
+        "@effect-agent/ui-protocol": "workspace:*",
+      },
+    },
+    "packages/ui-protocol": {
+      "name": "@effect-agent/ui-protocol",
+      "version": "0.0.0",
+    },
+    "packages/ui-renderer": {
+      "name": "@effect-agent/ui-renderer",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ui-runtime": "workspace:*",
+      },
+    },
+    "packages/ui-runtime": {
+      "name": "@effect-agent/ui-runtime",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/ui-protocol": "workspace:*",
+        "@json-render/core": "^0.20.0",
+      },
+    },
+    "packages/ui-sandbox": {
+      "name": "@effect-agent/ui-sandbox",
+      "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/script": "workspace:*",
+        "@effect-agent/ui-protocol": "workspace:*",
+      },
+    },
   },
   "packages": {
     "@a2ui/markdown-it": ["@a2ui/markdown-it@0.1.1", "https://registry.npmmirror.com/@a2ui/markdown-it/-/markdown-it-0.1.1.tgz", { "dependencies": { "dompurify": "3.4.11", "markdown-it": "^14.2.0" }, "peerDependencies": { "@a2ui/web_core": "^0.10.6" } }, "sha512-ZqHLdzwtIQk6J04SiUW0GXiCt/vThL3wtAf5rXT7MKT4zNRd+pZ/TrIFpqMwdTvFNor1oAjCRQbm41E3ZE0MyA=="],
@@ -186,6 +274,8 @@
 
     "@babel/runtime": ["@babel/runtime@7.29.7", "https://registry.npmmirror.com/@babel/runtime/-/runtime-7.29.7.tgz", {}, "sha512-Nq8OhGWiZIZGV6hLHoyAKLLcJihP/xFeBMGJoUrxTX2psI8dCifzLhZISFb+VWS3wFMRDmCGw5R+dOySCqPLhw=="],
 
+    "@effect-agent/agentdeck": ["@effect-agent/agentdeck@workspace:packages/agentdeck"],
+
     "@effect-agent/assembly": ["@effect-agent/assembly@workspace:packages/assembly"],
 
     "@effect-agent/builtin": ["@effect-agent/builtin@workspace:packages/builtin"],
@@ -210,6 +300,20 @@
 
     "@effect-agent/tools": ["@effect-agent/tools@workspace:packages/tools"],
 
+    "@effect-agent/ui-agent": ["@effect-agent/ui-agent@workspace:packages/ui-agent"],
+
+    "@effect-agent/ui-definition": ["@effect-agent/ui-definition@workspace:packages/ui-definition"],
+
+    "@effect-agent/ui-extension": ["@effect-agent/ui-extension@workspace:packages/ui-extension"],
+
+    "@effect-agent/ui-protocol": ["@effect-agent/ui-protocol@workspace:packages/ui-protocol"],
+
+    "@effect-agent/ui-renderer": ["@effect-agent/ui-renderer@workspace:packages/ui-renderer"],
+
+    "@effect-agent/ui-runtime": ["@effect-agent/ui-runtime@workspace:packages/ui-runtime"],
+
+    "@effect-agent/ui-sandbox": ["@effect-agent/ui-sandbox@workspace:packages/ui-sandbox"],
+
     "@floating-ui/core": ["@floating-ui/core@1.8.0", "https://registry.npmmirror.com/@floating-ui/core/-/core-1.8.0.tgz", { "dependencies": { "@floating-ui/utils": "^0.2.12" } }, "sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ=="],
 
     "@floating-ui/dom": ["@floating-ui/dom@1.8.0", "https://registry.npmmirror.com/@floating-ui/dom/-/dom-1.8.0.tgz", { "dependencies": { "@floating-ui/core": "^1.8.0", "@floating-ui/utils": "^0.2.12" } }, "sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg=="],
@@ -221,6 +325,8 @@
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "https://registry.npmmirror.com/@floating-ui/utils/-/utils-0.2.12.tgz", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
     "@hono/node-server": ["@hono/node-server@2.1.1", "https://registry.npmmirror.com/@hono/node-server/-/node-server-2.1.1.tgz", { "peerDependencies": { "hono": "^4" } }, "sha512-ELuehkj5VCBdgEw9zs+ivkKwyzzUCSQuE96YmiPvn1ECBoZCczbFXJLeEGMTYjphP6gydh4pHMqEYPVMYUVgQg=="],
+
+    "@json-render/core": ["@json-render/core@0.20.0", "https://registry.npmmirror.com/@json-render/core/-/core-0.20.0.tgz", { "dependencies": { "zod": "^4.3.6" } }, "sha512-cXAXn7h3QaylefQgh85AEGPuVq4C8SJ3k9JqigWLJhaBSozF1Fmsrm43DP16RmkqNiVgj5pBRdmB48lEO5qlow=="],
 
     "@mantine/core": ["@mantine/core@9.6.0", "https://registry.npmmirror.com/@mantine/core/-/core-9.6.0.tgz", { "dependencies": { "@floating-ui/react": "^0.27.20", "clsx": "^2.1.1", "react-number-format": "^5.4.5", "react-remove-scroll": "^2.7.2", "type-fest": "^5.8.0" }, "peerDependencies": { "@mantine/hooks": "9.6.0", "react": "^19.2.0", "react-dom": "^19.2.0" } }, "sha512-WpdtSv9q2k4RrAVUxBlABMyEul4vv94EkjoVuQglBBC7jVmLhBBgI64HltE6di/l6zvj9D7k1vgkbVjyxQsn1g=="],
 
@@ -279,6 +385,8 @@
     "app-mantis": ["app-mantis@workspace:apps/mantis"],
 
     "app-playground": ["app-playground@workspace:apps/playground"],
+
+    "app-ui-host": ["app-ui-host@workspace:apps/ui-host"],
 
     "argparse": ["argparse@2.0.1", "https://registry.npmmirror.com/argparse/-/argparse-2.0.1.tgz", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
@@ -343,6 +451,8 @@
     "dayjs": ["dayjs@1.11.15", "https://registry.npmmirror.com/dayjs/-/dayjs-1.11.15.tgz", {}, "sha512-MC+DfnSWiM9APs7fpiurHGCoeIx0Gdl6QZBy+5lu8MbYKN5FZEXqOgrundfibdfhGZ15o9hzmZ2xJjZnbvgKXQ=="],
 
     "debug": ["debug@4.4.3", "https://registry.npmmirror.com/debug/-/debug-4.4.3.tgz", { "dependencies": { "ms": "^2.1.3" } }, "sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA=="],
+
+    "deckconsole": ["deckconsole@workspace:apps/deckconsole"],
 
     "degenerator": ["degenerator@5.0.1", "https://registry.npmmirror.com/degenerator/-/degenerator-5.0.1.tgz", { "dependencies": { "ast-types": "^0.13.4", "escodegen": "^2.1.0", "esprima": "^4.0.1" } }, "sha512-TllpMR/t0M5sqCXfj85i4XaAzxmS5tVA16dqvdkMwGmzI+dXLXnw3J+3Vdv7VKw+ThlTMboK6i9rnZ6Nntj5CQ=="],
 
