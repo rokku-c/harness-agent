@@ -3,11 +3,13 @@ import { makeUIRuntime } from "@effect-agent/ui-runtime"
 import { jsonReactRenderer, webRenderer, makeRendererRegistry, renderRuntime } from "@effect-agent/ui-renderer"
 import type { UICommand } from "@effect-agent/ui-protocol"
 import { makeExtensionRegistry } from "@effect-agent/ui-extension"
+import { makeActivityStore } from "./activity.ts"
 
 const definitions = registerBuiltins(makeDefinitionStore())
 const runtime = makeUIRuntime(definitions, "root")
 const renderers = makeRendererRegistry([webRenderer, jsonReactRenderer])
 const extensions = makeExtensionRegistry(definitions)
+const activity = makeActivityStore()
 runtime.apply({ kind: "create-canvas", canvasId: "root", title: "UI Canvas" })
 runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "welcome", type: "Text", props: { value: "UI Runtime ready" } } })
 
@@ -21,6 +23,12 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
     if (url.pathname === "/api/runtime") return json({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() })
     if (url.pathname === "/api/components") return json(definitions.listComponents())
     if (url.pathname === "/api/extensions") return json(extensions.list())
+    if (url.pathname === "/api/activity") return json({ statuses: activity.statuses(), events: activity.list() })
+    if (url.pathname === "/api/status" && request.method === "POST") {
+      const body = await request.json() as { agent?: string; status?: string }
+      if (typeof body.agent !== "string" || typeof body.status !== "string") return json({ ok: false, error: "agent and status are required" })
+      return json({ ok: true, event: activity.setStatus(body.agent, body.status) })
+    }
     if (url.pathname === "/api/renderers") return json(renderers.list())
     if (url.pathname === "/api/canvases") return json(Object.values(definitions.snapshot().canvases).map((canvas) => ({ canvasId: canvas.canvasId, title: canvas.title, version: canvas.version })))
     if (url.pathname === "/api/command" && request.method === "POST") {

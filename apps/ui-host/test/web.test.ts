@@ -20,6 +20,9 @@ test("web host serves rendered canvas and component catalog", async () => {
     expect(renderers).toContain("json-render-react")
     const extensions = await (await fetch(new URL("/api/extensions", base))).json() as unknown[]
     expect(extensions).toEqual([])
+    await fetch(new URL("/api/status", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent: "Codex", status: "Building" }) })
+    const activity = await (await fetch(new URL("/api/activity", base))).json() as { statuses: Record<string, string> }
+    expect(activity.statuses.Codex).toBe("Building")
     const canvases = await (await fetch(new URL("/api/canvases", base))).json() as Array<{ canvasId: string }>
     expect(canvases.some((item) => item.canvasId === "root")).toBe(true)
     const command = await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "insert-node", canvasId: "root", node: { id: "from-http", type: "Text", props: { value: "HTTP" } } }) })

@@ -5,9 +5,10 @@ import type { DefinitionStore } from "@effect-agent/ui-definition"
 import type { RendererRegistry } from "@effect-agent/ui-renderer"
 import type { ExtensionManifest } from "@effect-agent/ui-protocol"
 type ExtensionSource = { list(): ReadonlyArray<ExtensionManifest> }
+type ActivitySource = { setStatus(agent: string, status: string): unknown; list(): ReadonlyArray<unknown> }
 
 const result = (value: unknown) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }] })
-export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore, renderers?: RendererRegistry, extensions?: ExtensionSource): McpServer => {
+export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore, renderers?: RendererRegistry, extensions?: ExtensionSource, activity?: ActivitySource): McpServer => {
   const server = new McpServer({ name: "ui-runtime", version: "0.1.0" })
   server.registerTool("ui_get_canvas", { description: "Read a resolved UI canvas.", inputSchema: { canvasId: z.string().optional() } }, async ({ canvasId }) => result(canvasId === undefined ? runtime.view() : runtime.viewCanvas(canvasId)))
   server.registerTool("ui_get_runtime_state", { description: "Read active canvas navigation and visual state.", inputSchema: {} }, async () => result({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() }))
@@ -15,6 +16,8 @@ export const makeUIMcp = (runtime: UIRuntime, definitions?: DefinitionStore, ren
   server.registerTool("ui_list_components", { description: "List declared UI components available as building blocks.", inputSchema: {} }, async () => result(definitions?.listComponents() ?? []))
   server.registerTool("ui_list_renderers", { description: "List available UI renderer implementations.", inputSchema: {} }, async () => result(renderers?.list() ?? []))
   server.registerTool("ui_list_extensions", { description: "List enabled UI extensions.", inputSchema: {} }, async () => result(extensions?.list() ?? []))
+  server.registerTool("ui_set_status", { description: "Announce what this agent is doing on the canvas; send an empty status when done.", inputSchema: { agent: z.string(), status: z.string() } }, async ({ agent, status }) => result(activity?.setStatus(agent, status) ?? { ok: false, error: "activity unavailable" }))
+  server.registerTool("ui_list_activity", { description: "Read recent agent activity on the canvas.", inputSchema: {} }, async () => result(activity?.list() ?? []))
   server.registerTool("ui_register_component", { description: "Register a declarative component definition; no code is executed.", inputSchema: { type: z.string(), version: z.string(), category: z.enum(["base", "composite", "canvas", "extension"]), acceptsChildren: z.boolean().optional(), acceptsSlots: z.boolean().optional() } }, async ({ type, version, category, acceptsChildren, acceptsSlots }) => {
     if (definitions === undefined) return result({ ok: false, error: "definition store unavailable" })
     definitions.registerComponent({ type, version, category, capabilities: { acceptsChildren, acceptsSlots } }); return result({ ok: true, type, version })
