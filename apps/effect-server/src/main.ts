@@ -6,7 +6,7 @@ import { bootRuntime } from "./boot/runtime.ts"
 import { csv, type EffectServer, type EffectServerOptions } from "./boot/options.ts"
 export type { EffectServer, EffectServerOptions } from "./boot/options.ts"
 
-const DEFAULT_PLANES = ["ai-gateway", "board", "mcp"]
+const DEFAULT_PLANES = ["ai-gateway", "board"]
 export const startEffectServerYaml = async (
   yamlPath: string, options: EffectServerOptions = {},
 ): Promise<EffectServer> => {

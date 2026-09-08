@@ -5,13 +5,11 @@ import type { EffectPluginHost } from "@effect-agent/effect-host"
 import type { EffectRegistry } from "@effect-agent/effect-interface"
 import type { ConfigRegistry } from "@effect-agent/effect-config"
 import type { EffectUiView } from "@effect-agent/effect-ui"
-import type { McpServer } from "@effect-agent/mcp-registry"
 import type { ConfigRuntime } from "../config-runtime/types.ts"
 
 export interface EffectServerOptions {
   readonly planes?: readonly string[]
   readonly control?: boolean
-  readonly mcpServers?: readonly McpServer[]
   readonly configFile?: string
   readonly network?: unknown
 }

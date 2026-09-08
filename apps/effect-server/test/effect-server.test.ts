@@ -4,7 +4,6 @@ import { makePluginHost } from "@effect-agent/effect-host"
 import { makeAiGatewayEffectPlugin } from "../../ai-gateway/src/effect-plugin.ts"
 import { createBoardPlugin } from "../../board/src/effect/plugin.ts"
 import { createUiHostPlugin } from "../../ui-host/src/effect-plugin.ts"
-import { makeMcpPlugin } from "../src/mcp-plugin.ts"
 
 const req = (path: string, init?: RequestInit) => new Request("http://127.0.0.1" + path, init)
 const json = async <T>(response: Response): Promise<T> => (await response.json()) as T
@@ -43,30 +42,6 @@ test("board plugin serves the real board web surface", async () => {
   expect(state.status).toBe(200)
   const root = await host.handle(req("/board/"))
   expect(root.headers.get("content-type")?.split(";")[0]).toBe("text/html")
-  await host.close()
-})
-
-test("mcp infra plugin serves registry health and catalog", async () => {
-  const host = makePluginHost()
-  await host.register(
-    makeMcpPlugin({
-      servers: [
-        {
-          serverId: "effect-board",
-          name: "effect-board",
-          version: "v0.13.0",
-          era: "modern",
-          transport: { kind: "stdio" },
-          capabilities: { tools: 41 },
-        },
-      ],
-    }),
-  )
-
-  const health = await host.handle(req("/mcp/health"))
-  expect((await json<{ servers: number }>(health)).servers).toBe(1)
-  const list = await host.handle(req("/mcp/servers"))
-  expect((await json<Array<{ serverId: string }>>(list))[0].serverId).toBe("effect-board")
   await host.close()
 })
 

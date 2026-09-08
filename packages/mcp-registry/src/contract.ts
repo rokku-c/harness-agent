@@ -8,6 +8,7 @@ import type { RegistryAuth } from "./auth.ts"
 
 export type ProtocolEra = "modern" | "auto" | "legacy"
 export type ServerStatus = "healthy" | "warn" | "offline"
+export type RegistryLease = "static" | "dynamic"
 
 export interface McpServerTransport {
   readonly kind: "stdio" | "streamable-http"
@@ -48,12 +49,15 @@ export interface StaticRegistrationOptions {
   readonly ownerId?: string
 }
 
-export interface RegistryOptions {
+export interface RegistryConfig {
   readonly heartbeatTtlMs?: number
   readonly offlineAfterMs?: number
-  readonly now?: () => number
   /** Required by the authenticated announce/heartbeat/withdraw controls. */
   readonly auth?: RegistryAuth
+}
+
+export interface RegistryOptions extends RegistryConfig {
+  readonly now?: () => number
 }
 
 export const ERA_RANK: Readonly<Record<ProtocolEra, number>> = {
@@ -62,7 +66,14 @@ export const ERA_RANK: Readonly<Record<ProtocolEra, number>> = {
   legacy: 2,
 }
 
-export function statusFor(lastSeen: number, now: number, healthyUntilMs: number, offlineAfterMs: number): ServerStatus {
+export function statusFor(
+  lastSeen: number,
+  now: number,
+  healthyUntilMs: number,
+  offlineAfterMs: number,
+  lease: RegistryLease = "dynamic",
+): ServerStatus {
+  if (lease === "static") return "healthy"
   const age = Math.max(0, now - lastSeen)
   if (age >= offlineAfterMs) return "offline"
   if (age >= healthyUntilMs) return "warn"

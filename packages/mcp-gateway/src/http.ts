@@ -1,10 +1,8 @@
 import { identityFromHeaders } from "./identity.ts"
 import type { McpGateway } from "./gateway.ts"
 
-/** Canonical agent-facing ingress; identity comes from headers, never the body. */
 export const makeGatewayHandler = (gateway: McpGateway) => async (request: Request): Promise<Response> => {
-  const path = new URL(request.url).pathname
-  if (path !== "/mcp-gateway/call" || request.method !== "POST") return Response.json({ ok: false, error: "Not found" }, { status: 404 })
+  if (new URL(request.url).pathname !== "/mcp-gateway/call" || request.method !== "POST") return Response.json({ ok: false, error: "Not found" }, { status: 404 })
   let body: unknown
   try { body = await request.json() } catch { return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 }) }
   if (!body || typeof body !== "object" || Array.isArray(body)) return Response.json({ ok: false, error: "Invalid call" }, { status: 400 })

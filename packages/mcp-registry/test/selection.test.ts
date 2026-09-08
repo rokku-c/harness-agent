@@ -2,13 +2,13 @@ import { expect, test } from "bun:test"
 import { makeRegistry, type McpServer } from "../src/index.ts"
 const T = 1_000_000
 const board: McpServer = { serverId: "effect-board", name: "board", version: "1", era: "modern", transport: { kind: "stdio" }, capabilities: { apps: 1 } }
-const registry = () => makeRegistry({ now: () => T })
+const registry = () => makeRegistry({ now: () => T, auth: { authorize: (token) => token === "secret" } })
 const legacyShim: McpServer = { serverId: "legacy-shim", name: "legacy", version: "1", era: "legacy", transport: { kind: "stdio" } }
 
 test("choose routes to the modern healthy server first", () => {
   const reg = registry()
-  reg.register(legacyShim)
-  reg.register(board)
+  reg.announce(legacyShim, "secret")
+  reg.announce(board, "secret")
 
   expect(reg.choose()?.serverId).toBe("effect-board")
 

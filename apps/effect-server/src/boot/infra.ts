@@ -1,4 +1,3 @@
-import { makeMcpPlugin } from "../mcp-plugin.ts"
 import { makeConfigPlugin } from "../config-plugin.ts"
 import { makeConsolePlugin } from "../console-plugin.ts"
 import { makeAppsPlane } from "../apps-plane.ts"
@@ -10,7 +9,6 @@ export const registerInfra = async (
   app: EffectServer, enabled: ReadonlySet<string>, options: EffectServerOptions,
 ): Promise<void> => {
   const { host, registry, configs, configRuntime, uiViews, uiHtml } = app
-  if (enabled.has("mcp")) await host.register(makeMcpPlugin({ servers: options.mcpServers ?? [] }))
   if (enabled.has("config")) await host.register(makeConfigPlugin(configs))
   if (enabled.has("console")) await host.register(makeConsolePlugin({ registry, configs, configRuntime, uiViews, uiHtml }))
   const shared = {

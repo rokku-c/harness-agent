@@ -12,7 +12,6 @@ enabled:
   - ai-gateway
   - board
   - ui-host
-  - mcp
   - agentd
   - config
   - console

@@ -16,7 +16,7 @@
 `packages/effect-host`(EffectPlugin 注册/热插拔)、`packages/effect-interface`
 (zod schema 接口注册)、`packages/effect-config`、`packages/effect-ui`+`UiDocument`
 (声明式 UI,语言无关)、`packages/mcp-registry`(server 目录/心跳)、
-`apps/effect-server`(组合根+发现+`registrar` inproc/stdio/http、mcp-http、console)。
+`apps/effect-server`(组合根+发现+`registrar` inproc/stdio/http、console)。
 
 ---
 

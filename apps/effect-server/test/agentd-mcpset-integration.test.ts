@@ -10,6 +10,12 @@ test("effect-server loads agentd and MCP Gateway as port-free platform apps", as
   const app = await startEffectServerYaml(yaml, { configFile: join(dir, "config.sqlite") })
   try {
     expect((await app.host.handle(new Request("http://host/agentd"))).status).toBe(200)
+    const registry = await app.host.handle(new Request("http://host/mcp-registry"))
+    expect(registry.status).toBe(200)
+    expect((await registry.json()).app).toBe("mcp-registry")
+    const servers = await app.host.handle(new Request("http://host/-/registry/servers"))
+    expect((await servers.json()).servers).toEqual([])
+    expect((await app.host.handle(new Request("http://host/mcp"))).status).toBe(404)
     expect((await app.host.handle(new Request("http://host/mcp-gateway"))).status).toBe(200)
     expect(app.listeners()).toEqual([])
     const tools = app.registry.tools().map((tool) => tool.key)

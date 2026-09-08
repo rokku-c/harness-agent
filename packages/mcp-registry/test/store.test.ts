@@ -60,9 +60,9 @@ test("register/list/get and heartbeat transitions", () => {
   reg.touch("effect-board", T - 1_000)
   expect(reg.get("effect-board", T)?.status).toBe("healthy")
 
-  // A server that stops heartbeating ages out past the offline window.
+  // Static registrations remain available without heartbeat expiry.
   reg.touch("legacy-shim", 0)
-  expect(reg.get("legacy-shim", T)?.status).toBe("offline")
+  expect(reg.get("legacy-shim", T)?.status).toBe("healthy")
 
   expect(reg.unregister("effect-board")).toBe(true)
   expect(reg.get("effect-board")).toBeUndefined()

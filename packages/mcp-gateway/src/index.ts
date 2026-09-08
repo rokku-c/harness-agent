@@ -1,13 +1,12 @@
 export * from "./contract.ts"
 export * from "./gateway.ts"
 export * from "./identity.ts"
+export * from "./mcp-server.ts"
+export { makeGatewayHandler } from "./http.ts"
 export * from "./redaction.ts"
 export * from "./rules.ts"
 export * from "./sets.ts"
 export * from "./registry-upstream.ts"
-
-export { makeGatewayHandler } from "./http.ts"
-
 export { makeStreamableHttpUpstream } from "./upstream-http.ts"
 export type { McpHttpServer, McpHttpUpstreamOptions } from "./upstream-http.ts"
 export { makeStdioUpstream } from "./upstream-stdio.ts"
