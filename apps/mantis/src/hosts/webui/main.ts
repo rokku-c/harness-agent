@@ -50,10 +50,9 @@ for (const warning of config.warnings) logger.warn(warning)
 
 const dataDir = envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui")
 // durable shared workspace: one SQLite database next to the agent UI files
-// (override the location with MANTIS_WORKSPACE_FILE; empty string disables)
-const workspaceFile = envVar("WORKSPACE_FILE") === "" ? undefined : envVar("WORKSPACE_FILE") ?? join(dataDir, "workspace.sqlite")
+const workspaceFile = join(dataDir, "workspace.sqlite")
 // durable conversation memory: turns survive restarts (same data root)
-const memoryDir = envVar("MEMORY_DIR") === "" ? undefined : envVar("MEMORY_DIR") ?? join(dataDir, "memory")
+const memoryDir = undefined
 const web = new WebConsole({
   bus,
   model: buildModelFromConfig(config.model),

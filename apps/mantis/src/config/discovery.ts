@@ -1,8 +1,8 @@
 /**
  * config/discovery.ts - FINDING and PREPARING the raw document.
  *
- * Concept: where config.toml lives (explicit env override, this repo's
- * config.toml, then the sibling original clawyp repo) and how the document
+ * Concept: where config.toml lives (explicit env override or this repo's
+ * config.toml) and how the document
  * is prepared before audit: every "$NAME" value is expanded from the
  * environment exactly like the original loader.
  */
@@ -25,8 +25,7 @@ export const expandEnv = (value: unknown): unknown => {
 
 export const candidateConfigPaths = (): string[] => [
   envVar("CONFIG_FILE") ?? "",
-  resolve(import.meta.dir, "../../config.toml"),
-  resolve(import.meta.dir, "../../../../mantis/config.toml")
+  resolve(import.meta.dir, "../../config.toml")
 ].filter((path) => path !== "")
 
 /** find the first existing config file, or undefined */

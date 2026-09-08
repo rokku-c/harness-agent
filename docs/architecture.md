@@ -40,9 +40,8 @@ per-feature ops or per-feature copy twice (single-source rule).
   an op is an explicit config choice, never implied by access=write.
 
 ## L4 channels / hosts
-- WebConsole (webui/console.ts): state source; owns ONE shared NotesStore
-  (workspaceFile) + conversation memory (memoryDir); single writer per data
-  root. dingtalk host is a peer channel over the same session engine.
+- WebConsole (webui/console.ts): state source; owns ONE shared SQLite NotesStore
+  (workspaceFile); dingtalk host is a peer channel over the same session engine.
 
 ## Declarations you can read to see the whole product
 - capabilities.ts (manifest) -> workspace.ts (kinds) -> tools.ts (impls) ->

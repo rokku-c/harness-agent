@@ -6,7 +6,6 @@
  * the searched paths so operators can fix it fast.
  */
 import { findConfigPath, readDocument, candidateConfigPaths, type Toml } from "./discovery.ts"
-import { auditAgent, auditDingtalk, auditTop } from "./audit.ts"
 import { mapToConfig } from "./map.ts"
 import type { MantisConfig } from "./types.ts"
 
@@ -19,9 +18,5 @@ export const loadConfig = (): MantisConfig => {
       "MANTIS_CONFIG_FILE to a current Mantis config."
     )
   const cfg = readDocument(configPath)
-  const warnings: string[] = []
-  auditTop(cfg, warnings)
-  auditDingtalk((cfg.dingtalk ?? {}) as Toml, warnings)
-  auditAgent((cfg.agent ?? {}) as Toml, warnings)
-  return mapToConfig(cfg, warnings)
+  return mapToConfig(cfg, [])
 }

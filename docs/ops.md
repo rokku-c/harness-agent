@@ -16,13 +16,10 @@ pm2 (see apps/mantis/ecosystem.config.cjs):
     GET /api/state   -> full snapshot (conversations, pending approvals)
 
 ## Data layout (all under one instance dir; isolate per instance)
-    MANTIS_UI_DIR            instance data root (workspace + memory)  default apps/mantis/.ui
-    MANTIS_WORKSPACE_FILE    legacy workspace override (deprecated)
-    MANTIS_MEMORY_DIR        legacy memory override (deprecated)
+    MANTIS_UI_DIR            instance data root (SQLite workspace)  default apps/mantis/.ui
 
-Everything reloads on restart (records + conversation turns). Production state is
-stored in SQLite under the configured data directory; use `:memory:` only for
-isolated tests.
+Everything reloads on restart. Production workspace state is stored in SQLite
+under the configured data directory; use `:memory:` only for isolated tests.
 
 ## Approval gate (protected writes)
     MANTIS_PROTECTED=note_write,task_write   (comma-separated op names)

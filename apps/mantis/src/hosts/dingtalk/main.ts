@@ -7,6 +7,7 @@
  *   bun apps/mantis/src/hosts/dingtalk/main.ts
  */
 import { envVar } from "../../env.ts"
+import { join } from "node:path"
 import { NotesStore } from "../../tools.ts"
 import { MantisHost } from "./host.ts"
 import { setupRuntime } from "./main/setup.ts"
@@ -28,11 +29,9 @@ const onCard: CardActionHandler = (action) => {
 const channel = makeChannel(config, onCard)
 const approval = makeApproval(config, cardDeliverer, logger)
 
-const workspaceFile = envVar("WORKSPACE_FILE")
-const memoryDir = envVar("MEMORY_DIR")
+const workspaceFile = join(envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui"), "workspace.sqlite")
 host = new MantisHost({
-  workspace: workspaceFile === undefined || workspaceFile === "" ? undefined : new NotesStore({ file: workspaceFile }),
-  memoryDir: memoryDir === undefined || memoryDir === "" ? undefined : memoryDir,
+  workspace: new NotesStore({ file: workspaceFile }),
   model,
   maxSteps: config.model.maxSteps,
   maxReflections: config.model.maxReflections,
