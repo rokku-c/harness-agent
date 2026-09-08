@@ -37,7 +37,7 @@ one runnable instance. See [docs/layers.md](docs/layers.md) for the map.
 | L1 base | `@effect-agent/model` | the Model contract (wire types + capabilities), openai/anthropic providers, config-driven model catalog |
 | L1 base | `@effect-agent/channel` | Ingress / Delivery adapters (inbound + outbound); MemoryChannel is the open-box default |
 | L1 base | `@effect-agent/tools` | the API-as-data tool registry (ToolDescriptor -> any surface) + MCP session adapter |
-| L2 state | `@effect-agent/state` | Store (memory/jsonl), EventLog (append-only, model-visible = logged), checkpoint persistence |
+| L2 state | `@effect-agent/state` | Store, EventLog (append-only, model-visible = logged), checkpoint persistence; production defaults use SQLite via `storage-typeorm` |
 | L2 state | `@effect-agent/memory` | remember / recall / promote: long-term memory with a pluggable learning gate |
 | L4 orchestration | `@effect-agent/gate` | pre-execution approval: AllowAll / DenyWrites / Manual (operator-confirmed) |
 | L4 orchestration | `@effect-agent/schedule` | Interval / At triggers; process-local default, external cron can implement the same service |

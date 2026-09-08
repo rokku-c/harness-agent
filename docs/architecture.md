@@ -27,7 +27,7 @@ per-feature ops or per-feature copy twice (single-source rule).
 - Records: { id ("e<seq>"), kind, text, ts, source: "agent"|"ui" } in the
   shared NotesStore (tools.ts). Mutations update_record / delete_record are
   GENERIC record capabilities (by id) declared once in the manifest.
-- Durability: append-only JSONL (workspace.jsonl). Lines are records or op
+- Durability: SQLite-backed append-only records. Production storage is provided by TypeORM/SQLite.
   lines {op:"update"|"delete",...}; reload replays in order. Corrupted lines
   are skipped, id sequence continues.
 

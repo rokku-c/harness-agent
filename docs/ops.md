@@ -17,12 +17,12 @@ pm2 (see apps/mantis/ecosystem.config.cjs):
 
 ## Data layout (all under one instance dir; isolate per instance)
     MANTIS_UI_DIR            instance data root (workspace + memory)  default apps/mantis/.ui
-    MANTIS_WORKSPACE_FILE    shared durable workspace JSONL       default <uiDir>/workspace.jsonl
-    MANTIS_MEMORY_DIR        durable conversation memory JSONL    default <uiDir>/memory
+    MANTIS_WORKSPACE_FILE    legacy workspace override (deprecated)
+    MANTIS_MEMORY_DIR        legacy memory override (deprecated)
 
 Everything reloads on restart (records + conversation turns). Empty-string env
 disables the durable file (in-memory per-session mode). apps/mantis/.gitignore
-already excludes workspace.jsonl and memory/.
+the runtime stores durable state in SQLite under the configured data directory.
 
 ## Approval gate (protected writes)
     MANTIS_PROTECTED=note_write,task_write   (comma-separated op names)

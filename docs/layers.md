@@ -50,7 +50,7 @@ composed by assembly into a runnable instance.
 | E6 Model | model | contract + openai/anthropic providers + config catalog |
 | E7 Channel | channel | Ingress/Delivery contract + in-memory default |
 | E8 ToolTransport | tools | Op registry (API-as-data) + MCP client adapter |
-| E4 State + E9 EventLog + E11 Checkpoint storage | state | Store contract + memory/JSONL + checkpoint persistence |
+| E4 State + E9 EventLog + E11 Checkpoint storage | state | Store contract + SQLite persistence + checkpoint persistence |
 | E10 Memory | memory | memory contract + simple implementation (promote hook) |
 | E12 Gate | gate | approval/confirmation (AllowAll/Ask implementations) |
 | E13 Scheduler | schedule | timers/reminders (Interval/At triggers) |
