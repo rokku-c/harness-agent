@@ -1,6 +1,6 @@
 /**
  * Checkpoint persistence (E11): a Store-backed implementation of the core
- * CheckpointStore protocol. Any Store (memory/jsonl/sqlite) can back it -
+ * CheckpointStore protocol. Any Store (memory/sqlite) can back it -
  * swap the Store, keep the checkpoint semantics.
  */
 import { Effect } from "effect"

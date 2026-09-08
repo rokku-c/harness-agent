@@ -4,14 +4,13 @@
  * of code. Real products extend the profile with product sections.
  */
 import { existsSync, readFileSync } from "node:fs"
-import { JsonlStore } from "@effect-agent/state"
 import { MemoryChannel } from "@effect-agent/channel"
 import { AllowAllGate, DenyWritesGate } from "@effect-agent/gate"
 import type { AssembleOptions } from "./options.ts"
 
 export interface Profile {
   readonly model?: { readonly provider?: string }
-  readonly store?: { readonly kind?: "sqlite" | "memory" | "jsonl"; readonly path?: string }
+  readonly store?: { readonly kind?: "sqlite" | "memory"; readonly path?: string }
   readonly channel?: { readonly kind?: "memory" | "dingtalk" | "http" }
   readonly gate?: { readonly kind?: "allow" | "deny-writes"; readonly allowedSessions?: ReadonlyArray<string> }
 }
@@ -29,8 +28,6 @@ export const profileToOptions = (profile: Profile): AssembleOptions => {
   } = {}
   if (profile.store?.kind === undefined || profile.store.kind === "sqlite")
     (options as { database?: string }).database = profile.store?.path ?? ".effect-agent/state.sqlite"
-  if (profile.store?.kind === "jsonl")
-    (options as { store?: unknown }).store = new JsonlStore(profile.store.path ?? "./agent.jsonl")
   if (profile.channel?.kind === "memory")
     (options as { channel?: unknown }).channel = new MemoryChannel()
   if (profile.gate?.kind === "deny-writes")

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import { Effect } from "effect"
-import { EventLog, MemoryEventLog, JsonlStore, MemoryStore, StoreBackedCheckpointStore } from "@effect-agent/state"
-import { mkdtempSync } from "node:fs"
-import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { EventLog, MemoryEventLog, MemoryStore, StoreBackedCheckpointStore } from "@effect-agent/state"
 
 const run = <A>(effect: Effect.Effect<A>) => Effect.runPromise(effect)
 
@@ -17,15 +14,6 @@ describe("Store", () => {
     expect(await run(store.query({ type: "checkpoint" }))).toHaveLength(0)
   })
 
-  it("JsonlStore persists and reloads from disk", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "effect-agent-"))
-    const path = join(dir, "store.jsonl")
-    const first = new JsonlStore(path)
-    await run(first.put("k", { type: "memo", text: "persisted" }))
-    const second = new JsonlStore(path)
-    expect(await run(second.get("k"))).toEqual({ type: "memo", text: "persisted" })
-    expect(await run(second.query({ type: "memo" }))).toHaveLength(1)
-  })
 })
 
 describe("EventLog", () => {
