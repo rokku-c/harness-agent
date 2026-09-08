@@ -119,3 +119,13 @@ endpoint 变化会销毁旧 MCP Client 并懒重建。Gateway 不缓存 Registry
 
 `mcp-registry` App 现在是无端口运行时插件，提供 `/mcp-registry` 查询和 `/-/registry/*`
 租约控制路由。端口仍由平台 listener manager 管理。
+
+## Shared Registry end-to-end status（2026-09-08）
+
+当前平台组合根创建一个共享 Registry，并通过 AppRuntimeContext 注入 `mcp-registry` 与
+`mcp-gateway`。Gateway 配置只保存 `sets`/`bindings`/policy，不保存 server endpoint；
+server topology 由 Registry App 管理，Gateway 每次调用实时解析。
+
+标准 Agent MCP 配置的入口是 `/mcp-gateway`：`tools/list` 暴露 `mcp_gateway_call`，
+`tools/call` 读取传输层身份，再按 binding→set→server 执行。旧的自定义
+`/mcp-gateway/call` 与 effect-server `/mcp` 双轨已删除。

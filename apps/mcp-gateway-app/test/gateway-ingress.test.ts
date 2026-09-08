@@ -12,8 +12,7 @@ test("gateway resolves a server from the shared registry and exposes topology", 
   await host.register(createMcpGatewayPlugin(() => config, { mcpRegistry: registry, fetch }))
   const topology = await host.handle(new Request("http://host/mcp-gateway"))
   expect(await topology.json()).toMatchObject({ servers: [{ serverId: "files" }], sets: config.sets, bindings: config.bindings })
-  const call = await host.handle(new Request("http://host/mcp-gateway/call", { method: "POST", headers: { "content-type": "application/json", "x-agent-id": "agent-1" }, body: JSON.stringify({ setId: "safe", tool: "read" }) }))
-  expect(await call.json()).toMatchObject({ status: 403, serverId: "files", setId: "safe" })
+  expect((await host.handle(new Request("http://host/mcp-gateway/call", { method: "POST" }))).status).toBe(404)
   await host.close()
 })
 

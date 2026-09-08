@@ -17,6 +17,7 @@ export const buildMcpGatewayServer = (gateway: McpGateway): Server => {
   const server = new Server({ name: "effect-agent-mcp-gateway", version: "0.0.0" }, { capabilities: { tools: {} } })
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: [tool] }))
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    if (request.params.name !== tool.name) throw new McpError(ErrorCode.InvalidParams, "Unknown gateway tool")
     const parsed = validator(request.params.arguments ?? {})
     if (!parsed.valid) throw new McpError(ErrorCode.InvalidParams, parsed.errorMessage)
     const identity = identityFromRequest({ authInfo: extra.authInfo, headers: extra.requestInfo?.headers })

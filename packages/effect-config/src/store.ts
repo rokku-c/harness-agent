@@ -17,6 +17,6 @@ export interface ConfigStore {
 }
 
 export interface SqliteConfigStoreOptions {
-  /** Defaults to .effect-agent/config.sqlite; :memory: is supported. */
+  /** Defaults to .effect-agent/config-v2.sqlite; :memory: is supported for tests. */
   readonly file?: string
 }

@@ -52,7 +52,7 @@ describe("effect-observe", () => {
   })
 
   test("frames() filters by perspective and target", () => {
-    const store = createObservationStore() // default: ":memory:"
+    const store = createObservationStore(":memory:")
     store.record(snap("app", "a", 1, 1))
     store.record(snap("agent", "a", 2, 2))
     store.record(snap("global", "a", 3, 3))

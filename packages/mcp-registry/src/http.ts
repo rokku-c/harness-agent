@@ -1,30 +1,35 @@
-import type { McpServer } from "./contract.ts"
 import type { Registry } from "./store.ts"
+import { announceSchema, heartbeatSchema } from "./http-validation.ts"
 
-export interface RegistryHttpOptions { tokenFor?(serverId: string): string | undefined }
-const json = (value: unknown, status = 200) => Response.json(value, { status })
-const token = (request: Request): string | undefined => {
-  const value = request.headers.get("authorization")
-  return value?.startsWith("Bearer ") ? value.slice(7) : undefined
-}
-const failure = (error: unknown): Response => json({ ok: false, error: error instanceof Error ? error.message : "registry request failed" }, 400)
-export const makeRegistryHandler = (registry: Registry, options: RegistryHttpOptions = {}) => async (request: Request): Promise<Response> => {
-  const url = new URL(request.url), path = url.pathname
-  try {
-    if (request.method === "GET" && path === "/-/registry/servers") return json({ servers: registry.list() })
-    const auth = token(request)
-    if (!auth) return json({ ok: false, error: "registry authorization required" }, 401)
-    if (request.method === "POST" && path === "/-/registry/announce") {
-      const server = await request.json() as McpServer
-      if (options.tokenFor && options.tokenFor(server.serverId) !== auth) return json({ ok: false, error: "unauthorized" }, 401)
-      return json(registry.announce(server, auth), 201)
-    }
-    if (request.method === "POST" && path === "/-/registry/heartbeat") {
-      const body = await request.json() as { serverId?: string; at?: number }
-      return registry.heartbeat(body.serverId ?? "", auth, body.at) ? json({ ok: true }) : json({ ok: false, error: "unknown or unauthorized server" }, 403)
-    }
-    const match = path.match(/^\/-\/registry\/([^/]+)$/)
-    if (request.method === "DELETE" && match) return registry.withdraw(decodeURIComponent(match[1]), auth) ? new Response(null, { status: 204 }) : json({ ok: false, error: "unknown or unauthorized server" }, 403)
-    return json({ ok: false, error: "not found" }, 404)
-  } catch (error) { return failure(error) }
+const fail = (status: number, error: string) => Response.json({ ok: false, error }, { status })
+/** HTTP validates requests; the shared registry is the sole authority for credentials. */
+export const makeRegistryHandler = (registry: Registry) => async (request: Request): Promise<Response> => {
+  const path = new URL(request.url).pathname
+  if (request.method === "GET" && path === "/-/registry/servers") return Response.json({ servers: registry.list() })
+  const action = path === "/-/registry/announce" ? "announce" : path === "/-/registry/heartbeat" ? "heartbeat" : undefined
+  const deletion = path.match(/^\/-\/registry\/([^/]+)$/)
+  if (!action && !(request.method === "DELETE" && deletion)) return fail(404, "unknown registry route")
+  if (action && request.method !== "POST") return fail(405, "POST required")
+  const header = request.headers.get("authorization")
+  if (!header?.startsWith("Bearer ") || !header.slice(7).trim()) return fail(401, "registry authorization required")
+  const token = header.slice(7)
+  if (!action && deletion) {
+    let id: string
+    try { id = decodeURIComponent(deletion[1]) } catch { return fail(400, "invalid server id") }
+    if (!registry.get(id)) return fail(404, "server not found")
+    return registry.withdraw(id, token) ? new Response(null, { status: 204 }) : fail(403, "unauthorized registry operation")
+  }
+  let body: unknown
+  try { body = await request.json() } catch { return fail(400, "invalid JSON") }
+  if (action === "heartbeat") {
+    const parsed = heartbeatSchema.safeParse(body)
+    if (!parsed.success) return fail(400, "expected {serverId}; heartbeat time is set by the server")
+    if (!registry.get(parsed.data.serverId)) return fail(404, "server not found")
+    return registry.heartbeat(parsed.data.serverId, token) ? Response.json({ ok: true }) : fail(403, "unauthorized registry operation")
+  }
+  const parsed = announceSchema.safeParse(body)
+  if (!parsed.success) return fail(400, "invalid server declaration")
+  const existed = !!registry.get(parsed.data.serverId)
+  try { return Response.json(registry.announce(parsed.data, token), { status: existed ? 200 : 201 }) }
+  catch { return fail(403, "unauthorized registry operation") }
 }

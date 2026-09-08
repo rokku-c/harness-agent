@@ -9,7 +9,8 @@
     "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/effect-apps": "workspace:*",
     "@effect-agent/mcp-gateway": "workspace:*",
-    "@effect-agent/mcp-registry": "workspace:*"
+    "@effect-agent/mcp-registry": "workspace:*",
+    "@effect-agent/effect-mcp-http": "workspace:*"
   },
   "scripts": {
     "test": "bun test"

@@ -111,9 +111,10 @@
         "@effect-agent/effect-apps": "workspace:*",
         "@effect-agent/effect-config": "workspace:*",
         "@effect-agent/effect-host": "workspace:*",
-        "@effect-agent/effect-network": "workspace:*",
+        "@effect-agent/effect-mcp-http": "workspace:*",
         "@effect-agent/effect-ui": "workspace:*",
         "@effect-agent/mcp-gateway": "workspace:*",
+        "@effect-agent/mcp-registry": "workspace:*",
       },
     },
     "apps/mcp-registry-app": {

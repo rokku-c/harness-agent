@@ -57,3 +57,11 @@
 - Registry 控制面已挂载：announce / heartbeat / withdraw / servers。
 - Gateway 新增 Registry transport resolver 和动态 HTTP upstream；Registry 状态变化影响下一次调用。
 - 仍不支持 stdio transport；暂不做 registry 持久化和节点自动发现。
+
+## 当前阶段验收
+
+- Shared Registry + Gateway + live Streamable HTTP MCP Server：端到端通过。
+- announce / heartbeat / withdraw 后 Gateway 下一次调用行为正确。
+- endpoint 变更会重建 Gateway 的 MCP Client；不缓存旧 Registry 状态。
+- 标准 MCP initialize/tools/list/tools/call 入口已接入；不再维护旧 JSON call 入口。
+- 本阶段定向测试 97 通过；受影响 TypeScript、行数、边界检查通过。

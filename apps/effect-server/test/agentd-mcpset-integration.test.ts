@@ -6,7 +6,7 @@ import { startEffectServerYaml } from "../src/main.ts"
 
 test("effect-server loads agentd and MCP Gateway as port-free platform apps", async () => {
   const dir = mkdtempSync(join(tmpdir(), "agentd-mcpset-")), yaml = join(dir, "effect.yaml")
-  writeFileSync(yaml, `roots:\n  - ${resolve(import.meta.dir, "../../../")}/apps\nenabled:\n  - agentd\n  - mcp-gateway\n  - config\n  - console\n  - effect-apps\nnetwork:\n  role: main\n  listeners: []\n`)
+  writeFileSync(yaml, `roots:\n  - ${resolve(import.meta.dir, "../../../")}/apps\nenabled:\n  - agentd\n  - mcp-registry\n  - mcp-gateway\n  - config\n  - console\n  - effect-apps\nnetwork:\n  role: main\n  listeners: []\n`)
   const app = await startEffectServerYaml(yaml, { configFile: join(dir, "config.sqlite") })
   try {
     expect((await app.host.handle(new Request("http://host/agentd"))).status).toBe(200)

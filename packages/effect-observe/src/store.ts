@@ -64,7 +64,7 @@ const select = (query: FrameQuery): { sql: string; params: SQLQueryBindings[] } 
 }
 
 export const createObservationStore = (file?: string): ObservationStore => {
-  const database = open(file ?? ":memory:")
+  const database = open(file ?? ".effect-agent/observe.sqlite")
   const insert = database.prepare<unknown, [number, Perspective, string, string]>(
     "INSERT INTO observation_frames (at, perspective, target, data) VALUES (?, ?, ?, ?)",
   )
