@@ -11,9 +11,9 @@ const text = (value: unknown): string => Array.isArray(value) ? value.map((item)
 }).join("\n") : ""
 const call = async (name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> => {
   const result = await client.callTool({ name, arguments: args }), raw = text(result.content)
-  return JSON.parse(raw || "{}") as Record<string, unknown>
+  try { return JSON.parse(raw || "{}") as Record<string, unknown> } catch { throw new Error(`${name} failed: ${raw}`) }
 }
-const created = await call("app_call", { ns: "ops", appId: "board", tool: "board_create", arguments: { title, body } })
+const created = await call("app_call", { ns: "ops", appId: "board", tool: "board_create", arguments: { title, body, state: "todo", dependsOn: [] } })
 const task = (created.task ?? created) as { id?: string }
 if (!task.id) throw new Error(`board_create returned no task id: ${JSON.stringify(created)}`)
 await call("app_call", { ns: "ops", appId: "board", tool: "board_update", arguments: { id: task.id, patch: { state: "doing" } } })
