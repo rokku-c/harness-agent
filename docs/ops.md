@@ -20,9 +20,9 @@ pm2 (see apps/mantis/ecosystem.config.cjs):
     MANTIS_WORKSPACE_FILE    legacy workspace override (deprecated)
     MANTIS_MEMORY_DIR        legacy memory override (deprecated)
 
-Everything reloads on restart (records + conversation turns). Empty-string env
-disables the durable file (in-memory per-session mode). apps/mantis/.gitignore
-the runtime stores durable state in SQLite under the configured data directory.
+Everything reloads on restart (records + conversation turns). Production state is
+stored in SQLite under the configured data directory; use `:memory:` only for
+isolated tests.
 
 ## Approval gate (protected writes)
     MANTIS_PROTECTED=note_write,task_write   (comma-separated op names)
