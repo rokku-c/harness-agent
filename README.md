@@ -4,7 +4,8 @@
 
 Start the platform with `bun run up`, then configure Codex's MCP entry as
 `http://127.0.0.1:8080/effect-apps`. Development work can be exercised through
-`bun run codex:session`, which records a Board task and its lifecycle. Use the
+`bun run codex:session`, which records a Board task and leaves it in `doing`;
+set `CODEX_COMPLETE=1` after implementation to close it. Use the
 same MCP surface for `agentd` identity/config state, Gateway policy calls, and
 observe/monitor data so implementation and verification share one runtime.
 

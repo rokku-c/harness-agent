@@ -20,6 +20,8 @@ await call("app_call", { ns: "ops", appId: "board", tool: "board_update", argume
 const state = await call("app_call", { ns: "ops", appId: "board", tool: "board_state", arguments: {} })
 const agentd = await call("app_call", { ns: "ops", appId: "agentd", tool: "agentd_status", arguments: {} })
 const gateway = await call("app_call", { ns: "ops", appId: "mcp-gateway", tool: "mcp_gateway_topology", arguments: {} })
-await call("app_call", { ns: "ops", appId: "board", tool: "board_update", arguments: { id: task.id, patch: { state: "done", body: JSON.stringify({ worker: "codex", state }) } } })
-console.log(JSON.stringify({ ok: true, taskId: task.id, state, agentd, gateway }))
+if (process.env.CODEX_COMPLETE === "1") {
+  await call("app_call", { ns: "ops", appId: "board", tool: "board_update", arguments: { id: task.id, patch: { state: "done", body: JSON.stringify({ worker: "codex", state, agentd, gateway }) } } })
+}
+console.log(JSON.stringify({ ok: true, taskId: task.id, state, agentd, gateway, complete: process.env.CODEX_COMPLETE === "1" }))
 await client.close()
