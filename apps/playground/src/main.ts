@@ -42,7 +42,7 @@ const noteBinding: Binding = {
 }
 
 const main = Effect.gen(function* () {
-  // ---- L4/L5 assembly: default composition (in-memory store / echo model / in-memory channel / allow-all gate) ----
+  // ---- L4/L5 assembly: default composition (SQLite-capable store / echo model / in-memory channel / allow-all gate) ----
   const registry = yield* ToolRegistry
   yield* registry.register(weatherTool)
   const bindings = yield* registry.asBindings()

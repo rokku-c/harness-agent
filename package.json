@@ -13,6 +13,7 @@
     "test": "bun test",
     "examples": "bun scripts/run-examples.ts",
     "examples:live": "bun scripts/run-examples.ts --live",
+    "dogfood": "bun scripts/dogfood-agent.ts",
     "mantis:pm2:start": "pm2 start apps/mantis/ecosystem.config.cjs",
     "mantis:pm2:robot": "pm2 start apps/mantis/ecosystem.config.cjs --only mantis-robot",
     "mantis:pm2:dws": "pm2 start apps/mantis/ecosystem.config.cjs --only mantis-dws",
