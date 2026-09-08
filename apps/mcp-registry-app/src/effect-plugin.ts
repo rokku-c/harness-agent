@@ -3,15 +3,10 @@ import { makeRegistryHandler, makeRegistryAuth, type Registry } from "@effect-ag
 import { effectConfig } from "./effect-config.ts"
 import { registerServers, revokeServers, toMcpServer } from "./servers.ts"
 
-const routes = [
-  { path: "/mcp-registry", match: "prefix" as const },
-  { path: "/-/registry", match: "prefix" as const },
-]
-
 type RegistryConfig = ReturnType<typeof effectConfig.schema.parse>
 
 export const createMcpRegistryPlugin = (getConfig: () => unknown, registry: Registry): EffectPlugin => ({
-  id: "mcp-registry", routes, priority: 19,
+  id: "mcp-registry", priority: 19,
   load: async (): Promise<LoadedPlane> => {
     const config: RegistryConfig = effectConfig.schema.parse(getConfig())
     const restoreConfig = registry.configure({ heartbeatTtlMs: config.heartbeatTtlMs, offlineAfterMs: config.offlineAfterMs, auth: makeRegistryAuth(config.registrationTokens) })

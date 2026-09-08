@@ -13,7 +13,7 @@ const tools = (control: AgentdControl): readonly EffectTool[] => [
   tool("agentd_bind", z.object({ agentId: z.string(), setIds: z.array(z.string()) }).strict(), (args) => { const value = args as { agentId: string; setIds: string[] }; return control.bindAgent(value.agentId, value.setIds) }),
 ]
 export const createAgentdPlugin = (): EffectPlugin => ({
-  id: "agentd", routes: [{ path: "/agentd", match: "prefix" }],
+  id: "agentd",
   load: async (): Promise<LoadedPlane> => {
     const control = makeAgentdControl()
     return { tools: tools(control), handle: async (request) => Response.json({ app: "agentd", status: control.status() }) }

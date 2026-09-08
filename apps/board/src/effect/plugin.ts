@@ -5,7 +5,7 @@ import { makeBoardWeb } from "../hosts/web/server.ts"
 import { effectConfig } from "../effect-config.ts"
 
 export const createBoardPlugin = (getConfig: () => unknown): EffectPlugin => ({
-  id: "board", routes: [{ path: "/board", match: "prefix" }],
+  id: "board",
   load: async () => {
     const board = makeBoard(effectConfig.schema.parse(getConfig()) as { dataFile: string })
     const handle = makeBoardWeb(board, "/board/")

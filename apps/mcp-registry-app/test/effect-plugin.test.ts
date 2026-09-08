@@ -13,7 +13,7 @@ test("uses the injected registry for both catalog and registry routes", async ()
   registry.register({ serverId: "external", name: "External", version: "1", era: "modern", transport: { kind: "streamable-http", endpoint: "https://external.example.test" } })
   const host = makePluginHost()
   const plugin = effectApp.createPlugin?.(() => config, { fetch, mcpRegistry: registry })
-  await host.register(plugin!)
+  await host.register({ ...plugin!, routes: effectApp.routes })
 
   const catalog = await host.handle(new Request("http://host/mcp-registry"))
   const servers = await host.handle(new Request("http://host/-/registry/servers"))
