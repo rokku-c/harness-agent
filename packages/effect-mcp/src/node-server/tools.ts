@@ -1,0 +1,4 @@
+import { invoke, type EffectRegistry } from "@effect-agent/effect-interface"
+import { zodShape, type JsonSchema } from "./schema.js"
+const sanitize = (name: string): string => name.replace(/[^A-Za-z0-9_-]+/g, "_")
+export const registerTools = (server: any, registry: EffectRegistry): void => { const register = server.registerTool.bind(server) as any; for (const { tool } of registry.tools()) register(sanitize(tool.name), { title: tool.title ?? tool.name, description: tool.description ?? tool.name, inputSchema: zodShape(tool.inputSchema as JsonSchema | undefined) }, async (args: Record<string, unknown>) => { try { return { content: [{ type: "text", text: JSON.stringify(await invoke(tool, args ?? {})) }] } } catch (error) { return { content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }], isError: true } } }) }
