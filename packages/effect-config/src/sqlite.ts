@@ -7,6 +7,8 @@ import { readRecord, writeRecord } from "./sqlite-record.ts"
 import type { ConfigStore, SqliteConfigStoreOptions } from "./store.ts"
 
 export function makeSqliteConfigStore(options: SqliteConfigStoreOptions = {}): ConfigStore {
+  // Versioned filename makes the active schema explicit; incompatible stores
+  // fail during initialization and must be rebuilt by the operator.
   const file = options.file ?? ".effect-agent/config.sqlite"
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true })
   const db = new Database(file)
