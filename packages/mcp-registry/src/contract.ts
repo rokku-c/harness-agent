@@ -12,6 +12,9 @@ export type ServerStatus = "healthy" | "warn" | "offline"
 export interface McpServerTransport {
   readonly kind: "stdio" | "streamable-http"
   readonly endpoint?: string
+  readonly command?: string
+  readonly args?: readonly string[]
+  readonly env?: Readonly<Record<string, string>>
 }
 
 export interface McpServerCapabilities {
