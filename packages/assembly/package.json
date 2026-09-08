@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@effect-agent/core": "workspace:*",
     "@effect-agent/builtin": "workspace:*",
     "@effect-agent/channel": "workspace:*",
     "@effect-agent/gate": "workspace:*",

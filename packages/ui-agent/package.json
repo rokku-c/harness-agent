@@ -4,6 +4,8 @@
   "type": "module",
   "exports": { ".": "./src/index.ts" },
   "dependencies": {
+    "@effect-agent/core": "workspace:*",
+    "@effect-agent/ui-definition": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.25.2",
     "@effect-agent/ui-protocol": "workspace:*",
     "@effect-agent/ui-runtime": "workspace:*",

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@effect-agent/builtin": "workspace:*",
     "@effect-agent/agentdeck": "*",
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
