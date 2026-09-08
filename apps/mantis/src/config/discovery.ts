@@ -26,8 +26,6 @@ export const expandEnv = (value: unknown): unknown => {
 export const candidateConfigPaths = (): string[] => [
   envVar("CONFIG_FILE") ?? "",
   resolve(import.meta.dir, "../../config.toml"),
-  // sibling original clawyp repo (this monorepo lives next to repos/clawyp)
-  resolve(import.meta.dir, "../../../../../clawyp/clawyp/config.toml"),
   resolve(import.meta.dir, "../../../../mantis/config.toml")
 ].filter((path) => path !== "")
 

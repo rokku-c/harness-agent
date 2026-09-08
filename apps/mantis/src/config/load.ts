@@ -15,8 +15,8 @@ export const loadConfig = (): MantisConfig => {
   if (configPath === undefined)
     throw new Error(
       "no config.toml found. Looked at:\n  " + candidateConfigPaths().join("\n  ") +
-      "\nCopy apps/mantis/config.example.toml to apps/mantis/config.toml, or point " +
-      "MANTIS_CONFIG_FILE at your original clawyp config."
+      "\nCopy apps/mantis/config.example.toml to apps/mantis/config.toml, or set " +
+      "MANTIS_CONFIG_FILE to a current Mantis config."
     )
   const cfg = readDocument(configPath)
   const warnings: string[] = []
