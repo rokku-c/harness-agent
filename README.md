@@ -1,5 +1,13 @@
 # effect-agent
 
+## Codex dogfood
+
+Start the platform with `bun run up`, then configure Codex's MCP entry as
+`http://127.0.0.1:8080/effect-apps`. Development work can be exercised through
+`bun run codex:session`, which records a Board task and its lifecycle. Use the
+same MCP surface for `agentd` identity/config state, Gateway policy calls, and
+observe/monitor data so implementation and verification share one runtime.
+
 > A unified agent programming model on Effect. The system does not treat the
 > LLM as a base concept: a model call, a full tool loop, or an external agent
 > like Claude Code - all of it is just an Agent.
