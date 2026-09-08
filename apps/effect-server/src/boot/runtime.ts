@@ -22,7 +22,8 @@ export const bootRuntime = async (
   const host = makePluginHost({ control: options.control })
   const registry = makeEffectRegistry()
   const mcpRegistry = makeRegistry()
-  const store = makeSqliteConfigStore({ file: options.configFile ?? process.env.EFFECT_CONFIG_FILE })
+  const configFile = options.configFile ?? process.env.EFFECT_CONFIG_FILE ?? ".effect-agent/config-v2.sqlite"
+  const store = makeSqliteConfigStore({ file: configFile })
   const configs = makeConfigRegistry({ store })
   let cleanup = async () => { await host.close(); store.close() }
   try {
