@@ -35,20 +35,11 @@ const call = async (name: string, args: Record<string, unknown>) => {
 console.log("\n[agent] apps_list →")
 console.log(text((await client.callTool({ name: "apps_list", arguments: {} })).content))
 
-console.log("\n[agent] app_read board ui →")
-console.log((await call("app_read", { ns: "ops", appId: "board", part: "ui" })).slice(0, 220))
-
-console.log("\n[agent] app_read board config →")
-console.log((await call("app_read", { ns: "ops", appId: "board", part: "config" })).slice(0, 260))
-
-console.log("\n[agent] app_read board state (live data) →")
-console.log((await call("app_read", { ns: "ops", appId: "board", part: "state" })).slice(0, 260))
-
 console.log("\n[agent] app_call board_state →")
 console.log((await call("app_call", { ns: "ops", appId: "board", tool: "board_state", arguments: {} })).slice(0, 240))
 
-console.log("\n[agent] app_call board_view (kanban) →")
-console.log((await call("app_call", { ns: "ops", appId: "board", tool: "board_view", arguments: { view: "board" } })).slice(0, 200))
+console.log("\n[agent] app_call board_tree →")
+console.log((await call("app_call", { ns: "ops", appId: "board", tool: "board_tree", arguments: {} })).slice(0, 200))
 
 await client.close()
 console.log("\n[agent] done")
