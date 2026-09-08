@@ -1,21 +1,51 @@
-/**
- * loop/execute.ts - TOOL PRIMITIVES: decode, run, and feed a result back.
- *
- * Concept: the atomic act of one op call. A model tool call is decoded
- * against the op's schema, executed, and the outcome is reduced to a
- * readable { ok } - plus feedBack, which writes a failure into the thread,
- * the context and the event bus exactly like a provider tool result, so the
- * model can self-correct on the next step.
- */
-import { Effect } from "effect"
+/** Tool primitives: safe decode diagnostics, unchanged business execution, and tool feedback. */
+import { Effect, ParseResult, type SchemaAST } from "effect"
 import { decode, type AgentEvent, type Op } from "@effect-agent/core"
 import type { RunBox } from "./types.ts"
 import type { WireToolCall } from "../wire.ts"
 
-/** readable failure detail for one decode/execute error */
+/** Schema-owned labels only: no actual values, literal values, annotations, or custom messages. */
+const typeNames: Partial<Record<SchemaAST.AST["_tag"], string>> = {
+  StringKeyword: "string", NumberKeyword: "number", BooleanKeyword: "boolean", BigIntKeyword: "bigint",
+  TypeLiteral: "object", TupleType: "array", Literal: "declared literal", Union: "declared union",
+  Enums: "declared enum", Refinement: "refined value", Transformation: "transformed value"
+}
+const typeLabel = (ast: SchemaAST.AST): string => typeNames[ast._tag] ?? "declared type"
+
+/** Dynamic record keys can contain credentials; only declared fields and array indices are printable. */
+const fieldPath = (path: ParseResult.Path, parent?: SchemaAST.AST): string => {
+  const keys: ReadonlyArray<PropertyKey> = Array.isArray(path) ? path : [path as PropertyKey]
+  return keys.map((key) => {
+    const property = parent?._tag === "TypeLiteral" ? parent.propertySignatures.find((p) => p.name === key) : undefined
+    const index = parent?._tag === "TupleType" && typeof key === "number" && Number.isSafeInteger(key) && key >= 0
+    parent = property?.type
+    return property && typeof key !== "symbol" ? "." + key : index ? `[${key}]` : "[key]"
+  }).join("")
+}
+
+/** Reduce native parse issues to bounded field/type diagnostics, never stringify a decode failure. */
 export const causeDetail = (error: unknown): string => {
   const cause = (error as { cause?: unknown })?.cause
-  return JSON.stringify(cause ?? error).slice(0, 400)
+  if (!ParseResult.isParseError(cause)) return "Tool input does not match the declared schema"
+  const details: string[] = []
+  const visit = (issue: ParseResult.ParseIssue, path = "$", parent?: SchemaAST.AST): void => {
+    if (details.length >= 4) return
+    switch (issue._tag) {
+      case "Pointer": return visit(issue.issue, path + fieldPath(issue.path, parent), parent)
+      case "Composite": {
+        const children = "_tag" in issue.issues ? [issue.issues] : issue.issues
+        for (const child of children) visit(child, path, issue.ast)
+        return
+      }
+      case "Refinement": case "Transformation": return visit(issue.issue, path, issue.ast.from)
+      case "Type": details.push(`${path}: expected ${typeLabel(issue.ast)}`); return
+      case "Missing": details.push(`${path}: missing required field`); return
+      case "Unexpected": details.push(`${path}: unexpected field`); return
+      case "Forbidden": details.push(`${path}: value cannot be decoded`)
+    }
+  }
+  visit(cause.issue)
+  return "Invalid tool input: " + details.join("; ")
 }
 
 export interface FeedbackEnv {

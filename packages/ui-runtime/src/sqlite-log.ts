@@ -17,6 +17,6 @@ export const makeSQLiteLog = <T>(database: string, type: string): SQLiteLog<T> =
       next = Promise.resolve(order + 1)
       await Effect.runPromise((await store).put(`${type}/${order.toString().padStart(12, "0")}`, { type, order, value }))
     },
-    read: async () => (await rows()).sort((a, b) => a.order - b.order).map((row) => row.value)
+    read: async () => [...(await rows())].sort((a, b) => a.order - b.order).map((row) => row.value)
   }
 }

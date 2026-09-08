@@ -1,4 +1,6 @@
-const secret = /^(authorization|api[-_]?key|token|secret)$/i
+const secret = /(^|[-_])(authorization|api[-_]?key|token|secret|cookies?|credentials?)([-_]|$)/i
+
+export const isCredentialHeader = (name: string): boolean => secret.test(name)
 
 export const redact = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(redact)

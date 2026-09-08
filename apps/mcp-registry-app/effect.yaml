@@ -1,0 +1,15 @@
+id: mcp-registry
+title: mcp-registry console (/mcp-registry)
+transport: inproc
+module: ./src/effect-app.ts
+requires: []
+apps:
+  - id: console
+    title: mcp-registry console
+    description: catalog of MCP servers & apps (heartbeat status, era tags, ui:// resources)
+    resourceUri: ui://mcp-registry/console
+    path: /mcp-registry
+config:
+  heartbeatTtlMs: 2500
+  servers: []
+  registrationTokens: {}

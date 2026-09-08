@@ -1,0 +1,25 @@
+# effect-agent unified server — declared config
+# auto-discovers plugin manifests under `roots` and boots the `enabled` ones.
+network:
+  role: main
+  listeners:
+    - id: main
+      hostname: 127.0.0.1
+      port: 8080
+roots:
+  - apps
+enabled:
+  - ai-gateway
+  - board
+  - ui-host
+  - mcp
+  - agentd
+  - config
+  - console
+  - effect-apps
+  - mcp-registry
+  - mcp-gateway
+  - mantis
+  - monitor
+bundles:
+  - board

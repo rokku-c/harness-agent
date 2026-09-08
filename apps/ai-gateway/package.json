@@ -6,6 +6,9 @@
   "dependencies": {
     "@effect-agent/ai-gateway": "workspace:*",
     "@effect-agent/storage-typeorm": "workspace:*",
-    "effect": "^3.22.1"
+    "effect": "^3.22.1",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-apps": "workspace:*"
   }
 }

@@ -1,53 +1,47 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { AgentContext, Until, decodeJson } from "@effect-agent/core"
-import { EffectAgent, type Model } from "@effect-agent/builtin"
+import { AgentContext, Until } from "@effect-agent/core"
+import { EffectAgent } from "@effect-agent/builtin"
+import { scriptedModel } from "./loop-fixture.ts"
 
-type Script = Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }>
-const scriptedModel = (script: Script): Model & { calls: number } => {
-  const queue = [...script]
-  const model: { calls: number; generate: (s: string, m: unknown[], t: unknown[]) => Effect.Effect<unknown> } = {
-    calls: 0,
-    generate: () => {
-      model.calls++
-      return Effect.succeed(queue.shift() ?? { text: "done" })
-    }
-  }
-  return model as unknown as Model & { calls: number }
-}
+const Out = Schema.Struct({ reply: Schema.String })
+const asTool = { name: "submit_reply", description: "Return the structured reply" }
 
 describe("structured-output robustness", () => {
-  test("decodeJson extracts a JSON object from a fenced code block", async () => {
-    const Out = Schema.Struct({ reply: Schema.String })
-    const decoded = await Effect.runPromise(decodeJson(Out, "Sure!\n```json\n{\"reply\":\"done\"}\n```"))
-    expect(decoded.reply).toBe("done")
-  })
-  test("decodeJson falls back to the last balanced object in prose", async () => {
-    const Out = Schema.Struct({ ok: Schema.Boolean })
-    const decoded = await Effect.runPromise(decodeJson(Out, "Here you go: {\"ok\": true} hope that helps"))
-    expect(decoded.ok).toBe(true)
-  })
-  test("a plain-text reply that does not decode fails once with a readable cause", async () => {
-    const Out = Schema.Struct({ reply: Schema.String })
-    const model = scriptedModel([{ text: "just some prose" }])
-    const driver = EffectAgent.make({ model })
-    const result = await Effect.runPromise((driver.run({ context: AgentContext.text("go"), until: Until.schema(Out), access: [] }) as Effect.Effect<unknown>).pipe(Effect.either))
+  for (const text of ['{"reply":"sensitive-model-text"}', '```json\n{"reply":"sensitive-model-text"}\n```',
+    "sensitive-model-text", ""]) test(`text reply ${JSON.stringify(text)} fails immediately without leaking it`, async () => {
+    const model = scriptedModel([{ text }])
+    const driver = EffectAgent.make({ model, decodeRetries: 5 })
+    const result = await Effect.runPromise(driver.run<typeof Out.Type, never>({ context: AgentContext.text("go"),
+      until: Until.schema(Out, asTool), access: [] }).pipe(Effect.either))
     expect(result._tag).toBe("Left")
-    const cause = JSON.stringify((result as { left: { cause: unknown } }).left.cause)
-    expect(cause).toContain("did not decode")
+    if (result._tag === "Left") expect(result.left.cause)
+      .toBe("Structured result requires the declared asTool tool call; plain-text replies are not accepted")
     expect(model.calls).toBe(1)
   })
-  test("a malformed structured-result tool call fails after the decode budget", async () => {
-    const Out = Schema.Struct({ reply: Schema.String })
-    const badCall = { text: "", toolCalls: [{ id: "c1", name: "final_answer", input: {} }] }
+
+  for (const decodeRetries of [0, 2]) test(`malformed tool input fails after exactly ${decodeRetries} retries`, async () => {
+    const badCall = { text: "", toolCalls: [{ id: "c", name: asTool.name, input: {} }] }
     const model = scriptedModel([badCall, badCall, badCall])
-    const driver = EffectAgent.make({ model, decodeRetries: 2 })
-    const result = await Effect.runPromise((driver.run({
-      context: AgentContext.text("go"),
-      until: Until.schema(Out, { name: "final_answer", description: "structured result" }),
-      access: []
-    }) as Effect.Effect<unknown>).pipe(Effect.either))
+    const driver = EffectAgent.make({ model, decodeRetries })
+    const result = await Effect.runPromise(driver.run<typeof Out.Type, never>({ context: AgentContext.text("go"),
+      until: Until.schema(Out, asTool), access: [] }).pipe(Effect.either))
     expect(result._tag).toBe("Left")
-    expect(model.calls).toBe(3)
+    expect(model.calls).toBe(decodeRetries + 1)
+  })
+
+  test("a malformed result recovers through tool feedback, without synthetic user retries", async () => {
+    const model = scriptedModel([
+      { text: "", toolCalls: [{ id: "bad", name: asTool.name, input: {} }] },
+      { text: "", toolCalls: [{ id: "good", name: asTool.name, input: { reply: "done" } }] },
+    ])
+    const driver = EffectAgent.make({ model, decodeRetries: 1 })
+    const result = await Effect.runPromise(driver.run<typeof Out.Type, never>({ context: AgentContext.text("go"),
+      until: Until.schema(Out, asTool), access: [] }))
+    expect(result).toEqual({ reply: "done" })
+    expect(model.calls).toBe(2)
+    expect(model.lastThread?.filter((message) => message.role === "user")).toHaveLength(1)
+    const feedback = model.lastThread?.find((message) => message.role === "tool")
+    expect(feedback?.role === "tool" && feedback.id).toBe("bad")
   })
 })

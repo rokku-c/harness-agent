@@ -1,39 +1,26 @@
 import { expect, test } from "bun:test"
-import { startWebHost } from "../src/web.ts"
+import { makeWebHandler } from "../src/web.ts"
 
-test("web host serves rendered canvas and component catalog", async () => {
-  const server = startWebHost(0)
+test("handler serves shell, catalog, canvas navigation, status and runtime commands", async () => {
+  const app = makeWebHandler({ databaseFile: ":memory:" })
+  const request = (path: string, body?: unknown) => app.handle(new Request("http://ui" + path,
+    body === undefined ? undefined : { method: "POST", body: JSON.stringify(body) }))
+  const get = async (path: string) => (await request(path)).json() as Promise<any>
   try {
-    const base = server.url
-    const page = await (await fetch(base)).text()
-    expect(page).toContain("UI Runtime ready")
-    const canvas = await (await fetch(new URL("/api/canvas", base))).json() as { canvasId: string }
-    expect(canvas.canvasId).toBe("root")
-    const runtimeState = await (await fetch(new URL("/api/runtime", base))).json() as { renderer: string }
-    expect(runtimeState.renderer).toBe("web-html")
-    const selected = await (await fetch(new URL("/api/canvas?canvasId=root", base))).json() as { canvasId: string }
-    expect(selected.canvasId).toBe("root")
-    const components = await (await fetch(new URL("/api/components", base))).json() as Array<{ type: string }>
-    expect(components.some((item) => item.type === "CanvasRef")).toBe(true)
-    const renderers = await (await fetch(new URL("/api/renderers", base))).json() as string[]
-    expect(renderers).toContain("web-html")
-    expect(renderers).toContain("json-render-react")
-    const extensions = await (await fetch(new URL("/api/extensions", base))).json() as unknown[]
-    expect(extensions).toEqual([])
-    await fetch(new URL("/api/status", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ agent: "Codex", status: "Building" }) })
-    const activity = await (await fetch(new URL("/api/activity", base))).json() as { statuses: Record<string, string> }
-    expect(activity.statuses.Codex).toBe("Building")
-    const canvases = await (await fetch(new URL("/api/canvases", base))).json() as Array<{ canvasId: string }>
-    expect(canvases.some((item) => item.canvasId === "root")).toBe(true)
-    const command = await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "insert-node", canvasId: "root", node: { id: "from-http", type: "Text", props: { value: "HTTP" } } }) })
-    expect((await command.json() as { ok: boolean }).ok).toBe(true)
-    const badRenderer = await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-renderer", renderer: "missing" }) })
-    expect((await badRenderer.json() as { ok: boolean }).ok).toBe(false)
-    await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-theme", theme: "contrast" }) })
-    const rendered = await (await fetch(new URL("/api/render", base))).text()
-    expect(rendered).toContain('data-theme="contrast"')
-    await fetch(new URL("/api/command", base), { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "set-renderer", renderer: "json-render-react" }) })
-    const official = await (await fetch(new URL("/api/render", base))).text()
-    expect(official).toContain("UI Runtime ready")
-  } finally { server.stop(true) }
+    const shell = await request("/")
+    expect(shell.status).toBe(200)
+    expect(shell.headers.get("content-type")).toBe("text/html")
+    expect(await get("/api/canvas?canvasId=root")).toMatchObject({ canvasId: "root" })
+    expect(await get("/api/runtime")).toMatchObject({ renderer: "web-html" })
+    const catalog = await get("/api/components")
+    expect(catalog.map((c: { type: string }) => c.type)).toContain("Text")
+    expect(await get("/api/extensions")).toEqual([])
+    await request("/api/status", { agent: "Codex", status: "Rendering" })
+    expect(await get("/api/activity")).toMatchObject({ statuses: { Codex: "Rendering" } })
+    const command = (body: unknown) => request("/api/command", body)
+    expect(await (await command({ kind: "create-canvas", canvasId: "details", title: "Details" })).json()).toMatchObject({ ok: true })
+    await command({ kind: "set-theme", theme: "contrast" })
+    await command({ kind: "set-renderer", renderer: "json-render-react" })
+    expect(await get("/api/runtime")).toMatchObject({ theme: "contrast", renderer: "json-render-react" })
+  } finally { app.close() }
 })

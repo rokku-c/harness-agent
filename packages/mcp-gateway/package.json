@@ -1,0 +1,14 @@
+{
+  "name": "@effect-agent/mcp-gateway",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/mcp-registry": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@effect-agent/effect-network": "workspace:*",
+    "@effect-agent/effect-mcp-http": "workspace:*"
+  }
+}

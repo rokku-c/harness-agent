@@ -9,7 +9,7 @@
  */
 import { Effect, Option, PubSub } from "effect"
 import {
-  AgentContext, AgentSession, CheckpointStore, materialize, requireUntil,
+  AgentContext, AgentFailure, AgentSession, CheckpointStore, materialize, requireUntil,
   type AgentEvent, type Content, type Driver, type RunRequest
 } from "@effect-agent/core"
 import { recoveryContent } from "../checkpoint.ts"
@@ -52,7 +52,11 @@ export const EffectAgent = {
           const boundary = request.until._tag === "Schema"
             ? { schema: request.until.schema, asTool: request.until.asTool }
             : undefined
-          const finalTool = finalToolFor(boundary, byName)
+          const finalTool = yield* Effect.try({
+            try: () => finalToolFor(boundary, byName),
+            catch: (error) => new AgentFailure({ agent: driver.id,
+              cause: error instanceof Error ? error.message : "Invalid structured result tool declaration" })
+          })
           const store = Option.isSome(session) ? yield* Effect.serviceOption(CheckpointStore) : Option.none()
           const runId = Option.isSome(session) ? session.value.runId : undefined
           const box: RunBox = { context: prepared.context, thread: [], usedTools: [], retries: 0 }

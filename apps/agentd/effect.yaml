@@ -1,0 +1,5 @@
+id: agentd
+title: agentd configuration center
+transport: inproc
+module: ./src/effect-app.ts
+requires: []

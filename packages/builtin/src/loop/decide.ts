@@ -3,13 +3,11 @@
  *
  * Concept: a turn that produced no executable tool calls ends the run the
  * way the agent declared (until). Text/Stop return the text; ToolCall
- * returns the first call; Thinking is not exposed. A Schema result that was
- * NOT delivered as the protocol tool is the legacy path: plain-text JSON is
- * accepted silently when it decodes, otherwise the run fails cleanly with
- * the readable cause - one attempt, no fabricated user retry prompts.
+ * returns the first call; Thinking is not exposed. Structured results must
+ * arrive through the declared protocol tool, never through reply text.
  */
 import { Effect } from "effect"
-import { AgentFailure, decodeJson, type Until } from "@effect-agent/core"
+import { AgentFailure, type Until } from "@effect-agent/core"
 import type { WireToolCall } from "../wire.ts"
 
 export const decide = <A>(
@@ -29,20 +27,11 @@ export const decide = <A>(
           return yield* Effect.fail(new AgentFailure({ agent: agentId, cause: "No tool call produced" }))
         return { _tag: "ToolCall", id: call.id, name: call.name, input: call.input } as A
       }
-      case "Schema": {
-        const decoded = yield* decodeJson(until.schema, resultText).pipe(Effect.either)
-        if (decoded._tag === "Left") {
-          const raw = decoded.left as { cause?: unknown }
-          const expected = until.asTool !== undefined
-            ? "expected a " + until.asTool.name + " tool call carrying the structured result; "
-            : ""
-          return yield* Effect.fail(new AgentFailure({
-            agent: agentId,
-            cause: expected + "the plain-text reply did not decode: " + JSON.stringify(raw.cause).slice(0, 200)
-          }))
-        }
-        return decoded.right as A
-      }
+      case "Schema":
+        return yield* Effect.fail(new AgentFailure({
+          agent: agentId,
+          cause: "Structured result requires the declared asTool tool call; plain-text replies are not accepted"
+        }))
       case "Thinking":
         return yield* Effect.fail(new AgentFailure({ agent: agentId, cause: "thinking not exposed" }))
     }

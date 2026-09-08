@@ -1,0 +1,16 @@
+{
+  "name": "@effect-agent/effect-bundle",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-interface": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*",
+    "@effect-agent/effect-network": "workspace:*",
+    "@effect-agent/mcp-registry": "workspace:*"
+  }
+}

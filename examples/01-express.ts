@@ -20,7 +20,7 @@ const scriptedDriver = (answers: unknown[]): Driver => ({
   capabilities: {
     provider: { _tag: "Configurable" }, granularity: "run", thinking: false, cancel: true,
     pause: true, resume: false, fork: "none", tools: "native", toolCalls: "intercept",
-    structuredOutput: "text", sandbox: "none"
+    structuredOutput: "native", sandbox: "none"
   },
   run: <A, R>(request: RunRequest<A, R>) =>
     Effect.gen(function* () {
@@ -51,7 +51,7 @@ const issueTracker: Binding = {
 // the sentence: define -> returns -> uses -> writes -> implementedBy
 const Planner = Agent
   .define("planner", (task: string) => AgentContext.text("Plan this task: " + task))
-  .returns(Until.schema(Plan))
+  .returns(Until.schema(Plan, { name: "submit_plan", description: "Return the completed plan" }))
   .uses(notes)
   .writes(issueTracker)
   .implementedBy(scriptedDriver([{ goal: "ship v2", steps: [{ title: "cut release", doneWhen: "CI green" }] }]))
@@ -69,7 +69,7 @@ const observed = Harness.withHooks(
 )
 const plan3 = await Effect.runPromise(observed.run({
   context: AgentContext.text("Plan this task: cut the v3 release"),
-  until: Until.schema(Plan),
+  until: Until.schema(Plan, { name: "submit_plan", description: "Return the completed plan" }),
   access: [{ binding: notes, write: false }, { binding: issueTracker, write: true }]
 }))
 console.log("observed plan:", plan3.goal)

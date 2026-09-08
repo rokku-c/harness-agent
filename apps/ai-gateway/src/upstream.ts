@@ -1,15 +1,15 @@
 import type { GatewayUpstream } from "@effect-agent/ai-gateway"
+import type { GatewayProvider } from "./providers.ts"
+import { upstreamHeaders } from "./upstream-headers.ts"
+import { upstreamURL } from "./upstream-url.ts"
 
-export const httpUpstream = (baseURL: string, apiKey?: string, send: typeof fetch = fetch): GatewayUpstream => ({
-  send: (request) => {
-    const source = new URL(request.url)
-    const target = new URL(source.pathname + source.search, baseURL.endsWith("/") ? baseURL : baseURL + "/")
-    const headers = new Headers(request.headers)
-    headers.delete("host")
-    headers.delete("content-length")
-    headers.delete("x-agent-id")
-    headers.delete("x-session-id")
-    if (apiKey !== undefined) headers.set("authorization", "Bearer " + apiKey)
-    return send(new Request(target.toString(), { method: request.method, headers, body: request.body }))
-  }
+export type HttpSend = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
+
+export const httpUpstream = (provider: GatewayProvider, send: HttpSend = fetch): GatewayUpstream => ({
+  send: (request) => send(new Request(upstreamURL(provider.baseURL, new URL(request.url)).toString(), {
+    method: request.method,
+    headers: upstreamHeaders(request.headers, provider),
+    body: request.body,
+    redirect: "manual",
+  })),
 })

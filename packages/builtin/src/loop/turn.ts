@@ -5,8 +5,8 @@
  * the same law: decode -> guard -> execute -> readable result or recoverable
  * tool error. The protocol final tool is the single boundary that can END
  * the run: a valid one returns its decoded value, a malformed one is a tool
- * error retried up to the decode budget before the run fails with the real
- * diagnostic.
+ * error retried up to the decode budget before the run fails with a safe
+ * field/type diagnostic, never the model's arguments.
  */
 import { Effect } from "effect"
 import { AgentFailure, decode, type Op } from "@effect-agent/core"
@@ -45,7 +45,7 @@ export const runTurnCalls = <A>(
         if (box.retries >= env.decodeRetries)
           return yield* Effect.fail(new AgentFailure({ agent: env.driverId, cause: decoded.detail }))
         box.retries += 1
-        yield* feedBack(env, box, call, env.finalTool.name + " error: " + decoded.detail)
+        yield* feedBack(env, box, call, decoded.detail)
         continue
       }
       const op = env.byName.get(call.name)

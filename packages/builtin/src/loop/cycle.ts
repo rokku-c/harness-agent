@@ -6,8 +6,8 @@
  * reflection when the last step failed a tool, generate, then route the
  * result: tool calls go to turn semantics (turn.ts), a call-less turn goes
  * to termination (decide.ts). Exhausted steps fail. Schema structured
- * results travel as the protocol tool (turn.ts); plain-text JSON is only a
- * single-shot legacy accept handled by decide.ts - no retry nag here.
+ * results must arrive as the protocol tool (turn.ts); call-less replies are
+ * rejected by decide.ts without text decoding or synthetic retry prompts.
  */
 import { Effect, Option, Queue } from "effect"
 import { AgentFailure, AgentPaused, type AgentEvent, type Op, type Until } from "@effect-agent/core"

@@ -1,0 +1,7 @@
+id: board
+title: Task board
+transport: inproc
+module: ./src/effect-app.ts
+requires: []
+config:
+  dataFile: .effect-agent/board.sqlite

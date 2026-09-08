@@ -19,7 +19,9 @@
     "mantis:pm2:restart": "pm2 restart apps/mantis/ecosystem.config.cjs",
     "mantis:pm2:stop": "pm2 stop apps/mantis/ecosystem.config.cjs",
     "mantis:pm2:logs": "pm2 logs mantis-robot mantis-dws",
-    "lint:lines": "bun scripts/check-lines.ts"
+    "lint:lines": "bun scripts/check-lines.ts",
+    "check:boundary": "bun scripts/check-boundary.ts",
+    "up": "bun apps/effect-server/src/up.ts"
   },
   "devDependencies": {
     "pm2": "^7.0.4"

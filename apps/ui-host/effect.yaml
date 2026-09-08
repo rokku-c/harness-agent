@@ -1,0 +1,14 @@
+id: ui-host
+title: ui runtime host (/ui)
+transport: inproc
+module: ./src/effect-app.ts
+requires: []
+apps:
+  - id: console
+    title: UI Canvas
+    description: ui-host SSR console
+    resourceUri: ui://ui-host/console
+    path: /ui
+config:
+  port: 4875
+  theme: dusk

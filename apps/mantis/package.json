@@ -23,7 +23,10 @@
     "effect": "^3.22.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "smol-toml": "^1.8.0"
+    "smol-toml": "^1.8.0",
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*"
   },
   "scripts": {
     "start": "bun src/hosts/dingtalk/main.ts",

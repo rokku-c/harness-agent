@@ -43,9 +43,11 @@ console.log("answer:", answer)
 const Plan = Schema.Struct({ city: Schema.String, headline: Schema.String })
 const Planner = Agent
   .define("weather-planner", (question: string) => AgentContext.text(question))
-  .returns(Until.schema(Plan))
+  .returns(Until.schema(Plan, { name: "submit_plan", description: "Return the completed plan" }))
   .implementedBy(EffectAgent.make({
-    model: { generate: () => Effect.succeed({ text: '{"city":"Shanghai","headline":"24C sunny"}', toolCalls: [] }) }
+    model: { generate: () => Effect.succeed({ text: "", toolCalls: [{
+      id: "plan", name: "submit_plan", input: { city: "Shanghai", headline: "24C sunny" }
+    }] }) }
   }))
 const plan = await Effect.runPromise(Planner.run("summarize Shanghai weather"))
 console.log("plan:", JSON.stringify(plan))

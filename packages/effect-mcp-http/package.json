@@ -1,0 +1,12 @@
+{
+  "name": "@effect-agent/effect-mcp-http",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/effect-mcp": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  }
+}

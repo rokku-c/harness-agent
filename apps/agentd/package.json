@@ -1,0 +1,13 @@
+{
+  "name": "@effect-agent/agentd-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@effect-agent/agentd": "workspace:*",
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-interface": "workspace:*"
+  }
+}

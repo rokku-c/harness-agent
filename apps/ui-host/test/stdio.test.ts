@@ -26,7 +26,7 @@ const rpc = (child: ReturnType<typeof spawn>) => {
 }
 
 test("ui host advertises the external MCP surface", async () => {
-  const child = spawn("bun", ["run", "apps/ui-host/src/main.ts"], { cwd: root, stdio: ["pipe", "pipe", "pipe"] })
+  const child = spawn("bun", ["run", "apps/ui-host/src/main.ts"], { cwd: root, env: { ...process.env, UI_DATABASE: ":memory:" }, stdio: ["pipe", "pipe", "pipe"] })
   const call = rpc(child)
   try {
     const init = await call("initialize", { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "test", version: "1" } }, 1)

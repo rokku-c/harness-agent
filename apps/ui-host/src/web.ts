@@ -4,21 +4,37 @@ import { jsonReactRenderer, webRenderer, makeRendererRegistry, renderRuntime } f
 import type { UICommand } from "@effect-agent/ui-protocol"
 import { makeExtensionRegistry } from "@effect-agent/ui-extension"
 import { makeActivityStore } from "./activity.ts"
-
-const definitions = registerBuiltins(makeDefinitionStore())
-const runtime = makeUIRuntime(definitions, "root")
-const renderers = makeRendererRegistry([webRenderer, jsonReactRenderer])
-const extensions = makeExtensionRegistry(definitions)
-const activity = makeActivityStore()
-runtime.apply({ kind: "create-canvas", canvasId: "root", title: "UI Canvas" })
-runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "welcome", type: "Text", props: { value: "UI Runtime ready" } } })
+import { shell } from "./shell.ts"
 
 const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } })
-const shell = (body: string): string => `<!doctype html><html><head><meta charset="utf-8"><title>UI Canvas</title><style>body{font:16px system-ui;margin:2rem}section[data-canvas-ref]{cursor:pointer;padding:.5rem;border:1px dashed #888}#back{margin-bottom:1rem}</style></head><body><button id="back" hidden>Back</button><div id="app">${body}</div><script>const app=document.querySelector('#app'),back=document.querySelector('#back'),history=[];async function show(id){const html=await (await fetch('/api/render?canvasId='+encodeURIComponent(id))).text();app.innerHTML=html;back.hidden=history.length===0;app.querySelectorAll('[data-canvas-ref]').forEach(e=>e.onclick=()=>{history.push(id);show(e.dataset.canvasRef)});}back.onclick=()=>{const id=history.pop();if(id)show(id)};app.querySelectorAll('[data-canvas-ref]').forEach(e=>e.onclick=()=>{history.push('${"root"}');show(e.dataset.canvasRef)});</script></body></html>`
-export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.serve({
-  port,
-  fetch: async (request) => {
+export interface WebHandlerOptions {
+  readonly theme?: string
+  readonly renderer?: string
+  readonly databaseFile?: string
+  readonly basePath?: string
+}
+
+/** Each load gets isolated state, so an apply/reload cannot reuse the old runtime. */
+export const makeWebHandler = (options: WebHandlerOptions = {}) => {
+  const definitions = registerBuiltins(makeDefinitionStore())
+  const runtime = makeUIRuntime(definitions, "root")
+  const renderers = makeRendererRegistry([webRenderer, jsonReactRenderer])
+  const extensions = makeExtensionRegistry(definitions)
+  runtime.apply({ kind: "create-canvas", canvasId: "root", title: "UI Canvas" })
+  runtime.apply({ kind: "insert-node", canvasId: "root", node: { id: "welcome", type: "Text", props: { value: "UI Runtime ready" } } })
+
+  // Runtime accepts theme identifiers. warm-paper/dusk have no registered palette;
+  // web-html emits the identifier only and json-render-react does not consume themes.
+  runtime.setTheme(options.theme ?? "default")
+  const renderer = options.renderer ?? "web-html"
+  if (renderers.get(renderer) === undefined) throw new Error("renderer not found: " + renderer)
+  runtime.setRenderer(renderer)
+  const activity = makeActivityStore(options.databaseFile)
+  let closed = false
+  const handle = async (request: Request): Promise<Response> => {
+    if (closed) return new Response("UI closed", { status: 503 })
     const url = new URL(request.url)
+    if (url.pathname === "/canvas.js") return new Response(Bun.file(new URL("../public/canvas.js", import.meta.url)), { headers: { "content-type": "text/javascript" } })
     if (url.pathname === "/api/canvas") return json(url.searchParams.has("canvasId") ? runtime.viewCanvas(url.searchParams.get("canvasId")!) : runtime.view())
     if (url.pathname === "/api/runtime") return json({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() })
     if (url.pathname === "/api/components") return json(definitions.listComponents())
@@ -41,12 +57,11 @@ export const startWebHost = (port = Number(process.env.UI_PORT ?? 4870)) => Bun.
     }
     if (url.pathname === "/api/render") {
       const canvasId = url.searchParams.get("canvasId")
-      const html = canvasId === null ? renderRuntime(renderers, runtime) : webRenderer.render(runtime.viewCanvas(canvasId), { theme: runtime.theme() })
+      const html = canvasId === null ? renderRuntime(renderers, runtime) : renderers.get(runtime.renderer())!.render(runtime.viewCanvas(canvasId), { theme: runtime.theme() })
       return new Response(html, { headers: { "content-type": "text/html" } })
     }
-    if (url.pathname === "/") return new Response(shell(renderRuntime(renderers, runtime)), { headers: { "content-type": "text/html" } })
+    if (url.pathname === "/") return new Response(shell(renderRuntime(renderers, runtime), options.basePath ?? ""), { headers: { "content-type": "text/html" } })
     return new Response("Not Found", { status: 404 })
   }
-})
-
-if (import.meta.main) startWebHost()
+  return { handle, close: () => { closed = true; activity.close() } }
+}

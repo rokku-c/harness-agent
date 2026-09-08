@@ -1,0 +1,15 @@
+id: mcp-gateway
+title: MCP Gateway
+transport: inproc
+module: ./src/effect-app.ts
+requires: [mcp-registry]
+apps:
+  - id: console
+    title: MCP Gateway
+    resourceUri: ui://mcp-gateway/console
+    path: /mcp-gateway
+config:
+  sets: []
+  bindings: []
+  defaultAction: deny
+  captureArgs: false

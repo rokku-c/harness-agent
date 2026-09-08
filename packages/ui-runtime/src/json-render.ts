@@ -13,7 +13,7 @@ const element = (node: UINode): UIElement => {
     type: node.type,
     props,
     children: node.children === undefined ? undefined : [...node.children],
-    slots: node.slots === undefined ? undefined : { ...node.slots },
+    slots: node.slots === undefined ? undefined : Object.fromEntries(Object.entries(node.slots).map(([key, ids]) => [key, [...ids]])),
     on: Object.keys(on).length === 0 ? undefined : on
   }
 }

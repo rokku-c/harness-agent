@@ -17,16 +17,19 @@ export const makeAiGateway = (options: GatewayOptions) => ({
   handle: async (request: Request, context: GatewayContext): Promise<Response> => {
     const started = performance.now()
     try {
-      const body = await request.json() as Record<string, unknown>
-      const rules = matchingRules(options.rules ?? [], { ...context, model: typeof body.model === "string" ? body.model : context.model })
-      const controlled = injectOpenAi(body, rules)
+      const inspect = options.captureBodies || (context.path === "/v1/chat/completions" && options.rules?.length)
+      const body = inspect ? await request.clone().json() as Record<string, unknown> : undefined
+      const rules = context.path === "/v1/chat/completions" ? matchingRules(options.rules ?? [], {
+        ...context, model: typeof body?.model === "string" ? body.model : context.model,
+      }) : []
+      const controlled = body ? injectOpenAi(body, rules) : body
       await options.recorder?.record(event(context, "request", { headers: safeHeaders(request.headers), body: options.captureBodies ? redact(body) : undefined }))
-      for (const rule of rules) await options.recorder?.record(event(context, "injection", {
+      for (const rule of controlled !== body ? rules : []) await options.recorder?.record(event(context, "injection", {
         ruleId: rule.ruleId,
         position: rule.inject.position ?? "system-prefix",
         contentDigest: await digestText(rule.inject.content)
       }))
-      const upstream = new Request(request.url, { method: request.method, headers: request.headers, body: JSON.stringify(controlled) })
+      const upstream = controlled === body ? request : new Request(request, { body: JSON.stringify(controlled) })
       const response = await options.upstream.send(upstream)
       await options.recorder?.record(event(context, "response", { status: response.status, durationMs: performance.now() - started }))
       return response

@@ -5,3 +5,4 @@ config.toml
 *.err.log
 .board-data/
 .effect-agent/
+.effect-bundles

@@ -9,14 +9,19 @@ export interface ActivityStore {
   setStatus(agent: string, status: string): AgentActivity
   list(): ReadonlyArray<AgentActivity>
   statuses(): Readonly<Record<string, string>>
+  close(): void
 }
 
-export const makeActivityStore = (file = process.env.UI_DATABASE ?? ".effect-agent/ui.sqlite"): ActivityStore => {
+export const makeActivityStore = (file = ".effect-agent/ui.sqlite"): ActivityStore => {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true })
   const database = new Database(file, { create: true })
-  database.run("CREATE TABLE IF NOT EXISTS ui_activity (id TEXT PRIMARY KEY, agent TEXT, status TEXT, at INTEGER)")
+  try { database.run("CREATE TABLE IF NOT EXISTS ui_activity (id TEXT PRIMARY KEY, agent TEXT, status TEXT, at INTEGER)")
+    database.query("SELECT id, agent, status, at FROM ui_activity LIMIT 0").all()
+  } catch (error) { database.close(); throw error }
+  let closed = false
   const all = () => database.query("SELECT id, agent, status, at FROM ui_activity ORDER BY at DESC, rowid DESC LIMIT 100").all() as AgentActivity[]
   return {
+    close: () => { if (!closed) { closed = true; database.close() } },
     setStatus: (agent, status) => {
       const event = { id: crypto.randomUUID(), agent, status, at: Date.now() }
       database.run("INSERT INTO ui_activity VALUES (?, ?, ?, ?)", [event.id, event.agent, event.status, event.at])

@@ -20,21 +20,25 @@ export interface FinalTool {
   readonly schema: unknown
 }
 
-/** structured-result boundary data as the agent declared it (asTool?) */
+/** structured-result boundary data; missing declarations are rejected */
 export interface StructuredBoundary {
   readonly schema: unknown
   readonly asTool?: { readonly name: string; readonly description?: string }
 }
 
-/** derive the protocol tool from the boundary, unless the name is taken */
+/** derive the protocol tool; invalid declarations fail before model generation */
 export const finalToolFor = (
   boundary: StructuredBoundary | undefined,
   byName: Map<string, Op<any, any, any, any>>
 ): FinalTool | undefined => {
-  if (boundary === undefined || boundary.asTool === undefined || byName.has(boundary.asTool.name)) return undefined
+  if (boundary === undefined) return undefined
+  if (boundary.asTool === undefined || typeof boundary.asTool.name !== "string" || !boundary.asTool.name.trim())
+    throw new Error("EffectAgent structured output requires Until.schema with a named asTool declaration")
+  if (byName.has(boundary.asTool.name))
+    throw new Error("Structured result asTool name conflicts with a granted operation")
   return {
     name: boundary.asTool.name,
-    description: boundary.asTool.description ?? "Return the run's structured final result (this tool's input schema is the required output).",
+    description: boundary.asTool.description ?? "",
     schema: boundary.schema
   }
 }

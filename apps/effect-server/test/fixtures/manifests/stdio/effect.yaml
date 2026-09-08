@@ -1,0 +1,7 @@
+id: apps/time-server
+title: Time server
+transport: stdio
+command: bun
+args:
+  - ../../time-server.ts
+requires: []

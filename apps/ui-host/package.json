@@ -2,12 +2,21 @@
   "name": "app-ui-host",
   "version": "0.0.0",
   "type": "module",
-  "scripts": { "start": "bun src/main.ts", "start:web": "bun src/web.ts" },
+  "scripts": {
+    "start": "bun src/main.ts",
+    "start:web": "bun src/standalone.ts"
+  },
   "dependencies": {
     "@effect-agent/ui-agent": "workspace:*",
     "@effect-agent/ui-definition": "workspace:*",
     "@effect-agent/ui-extension": "workspace:*",
     "@effect-agent/ui-runtime": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.25.2"
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*",
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/ui-renderer": "workspace:*",
+    "@effect-agent/ui-protocol": "workspace:*"
   }
 }

@@ -1,0 +1,11 @@
+{
+  "bundleId": "io.effect-agent.app-one@0.1.0",
+  "appId": "app-one",
+  "abi": "effect-1",
+  "namespace": "ops",
+  "transport": "inproc",
+  "entry": "./src/index.ts",
+  "provides": {
+    "interfaces": [{ "name": "app-one.echo", "description": "echo text back" }]
+  }
+}

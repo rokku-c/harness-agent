@@ -1,0 +1,11 @@
+{
+  "name": "@effect-agent/effect-mesh",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/effect-interface": "workspace:*"
+  }
+}

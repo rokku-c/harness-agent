@@ -1,0 +1,8 @@
+id: demo-inproc
+title: Demo inproc
+transport: inproc
+module: ./plugin.ts
+apps:
+  - id: console
+    title: Demo console
+    resourceUri: ui://demo-inproc/console

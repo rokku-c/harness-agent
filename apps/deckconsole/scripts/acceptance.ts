@@ -5,7 +5,7 @@
  * present and authorised.
  * Run: bun apps/deckconsole/scripts/acceptance.ts   (optionally REAL=1)
  */
-import { startDeckServer } from "../src/main.ts"
+import { startDeckServer } from "../src/standalone.ts"
 
 const real = process.env.REAL === "1"
 let passed = 0
@@ -14,19 +14,19 @@ const check = (name: string, cond: boolean, extra = "") => {
   else { console.error("  FAIL " + name + (extra ? " :: " + extra : "")); process.exitCode = 1 }
 }
 
-const { server, base } = startDeckServer({ configFile: ":memory:" })
+const { close, base } = startDeckServer({ port: 0, configFile: ":memory:" })
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 for (let i = 0; i < 80; i++) { try { if ((await fetch(base + "/api/deck")).ok) break } catch {} await sleep(250) }
 
-const post = async (path: string, body: unknown) => (await fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()
-const get = async (path: string) => (await fetch(base + path)).json()
+const post = async (path: string, body: unknown): Promise<any> => (await fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()
+const get = async (path: string): Promise<any> => (await fetch(base + path)).json()
 
 const page = await fetch(base + "/")
 check("page served", page.ok)
 const open = await post("/api/session", { kind: "demo", sessionId: "acc-1", config: { label: "验收" } })
 check("open session", open.ok === true, JSON.stringify(open))
 const hi = await post("/api/session/acc-1/send", { text: "hi" })
-check("demo turn answers", hi.ok === true && typeof hi.text === "string" && hi.text.length > 0)
+check("demo turn answers", hi.ok === true && hi.text === "demo:验收 <- hi")
 const ask = await post("/api/session/acc-1/send", { text: 'ask:read {"path":"/acceptance"}' })
 check("ask raises pending", ask.ok === true && typeof ask.text === "string" && ask.text.includes("asked 1 consent"), JSON.stringify(ask))
 const d1 = await get("/api/deck")
@@ -35,7 +35,7 @@ check("flow shows the pending ask", pending !== undefined)
 const approve = await post("/api/consent/" + pending.callId, { allow: true })
 check("approve settles", approve.ok === true)
 const d2 = await get("/api/deck")
-check("mapping reflects allowed entry", (d2.mapping.find((x: any) => x.sessionId === "acc-1")?.entries ?? 0) >= 1)
+check("mapping reflects allowed entry", d2.mapping.find((x: any) => x.sessionId === "acc-1")?.allowed === 1)
 const preview = await get("/api/config/preview?kind=claude-code&raw=" + encodeURIComponent(JSON.stringify({ model: "opus" })))
 check("claude-code preview plan", preview.ok === true && preview.invocation?.file === "claude" && preview.invocation.argv.includes("<prompt>"))
 const reg = await post("/api/presets", { kind: "accnew", file: "acc", args: ["-p"] })
@@ -58,5 +58,5 @@ if (real) {
   }
 }
 
-await server.stop(true)
+await close()
 console.log(passed + " checks passed" + (process.exitCode ? " (with failures)" : " - ACCEPTANCE GREEN"))

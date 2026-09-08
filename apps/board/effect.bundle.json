@@ -1,0 +1,23 @@
+{
+  "bundleId": "io.effect-agent.board@1.0.0",
+  "appId": "board",
+  "abi": "effect-1",
+  "namespace": "ops",
+  "transport": "inproc",
+  "requires": [],
+  "entry": "./src/effect-bundle-entry.ts",
+  "assets": [
+    {
+      "from": "./src/hosts/web/public",
+      "to": "./public"
+    }
+  ],
+  "provides": {
+    "interfaces": [
+      {
+        "name": "board",
+        "description": "Task data and events"
+      }
+    ]
+  }
+}

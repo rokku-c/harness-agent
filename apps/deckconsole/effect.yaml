@@ -1,0 +1,14 @@
+id: deckconsole
+title: deckconsole control room (/deck)
+transport: inproc
+module: ./src/effect-app.ts
+requires: []
+apps:
+  - id: console
+    title: Deck control room
+    description: agent sessions + consent console
+    resourceUri: ui://deckconsole/console
+    path: /deck
+config:
+  host: 0.0.0.0
+  port: 4860

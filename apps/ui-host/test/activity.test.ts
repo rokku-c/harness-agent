@@ -8,4 +8,5 @@ test("tracks current agent status and bounded activity", () => {
   activity.setStatus("Codex", "")
   expect(activity.statuses()).toEqual({})
   expect(activity.list()).toHaveLength(2)
+  activity.close()
 })

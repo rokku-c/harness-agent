@@ -1,0 +1,28 @@
+{
+  "comment": "Import-boundary allowances. Apps must reach other apps only through repo abstractions (effect-interface contracts, effect-host, or a package's own export \".\"), and feature apps must not call bun/node fs/network/process APIs directly. Legacy system/connector apps are grandfathered here (TODO: move their I/O into abstraction packages).",
+  "allowEscapeTo": [
+    {
+      "from": "apps/effect-server",
+      "to": [
+        "apps/*/src/effect-plugin.ts",
+        "apps/*/src/effect/plugin.ts",
+        "packages/*/src/effect-plugin.ts"
+      ]
+    }
+  ],
+  "allowDeepWorkspaceImports": [],
+  "allowCrossAppImports": [],
+  "ioExemptApps": [
+    "app-board",
+    "app-mantis",
+    "deckconsole",
+    "app-ui-host",
+    "@effect-agent/ai-gateway-app",
+    "app-playground"
+  ],
+  "allowSystemIoFrom": [
+    "apps/effect-server/src/main.ts",
+    "apps/effect-server/src/**"
+  ],
+  "allowNodeBuiltinsFrom": ["apps/effect-server/src/**"]
+}

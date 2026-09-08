@@ -9,6 +9,20 @@ Agent<Input, Output, Error, Requirements>
     = Input -> Effect<Output, Error, Requirements>
 ```
 
+## Current platform boundary
+
+- Built-in apps are port-free handlers. The app SDK registers routes and instance tools;
+  platform listeners expose the same service table unless explicitly filtered.
+- `@effect-agent/effect-network` owns managed listeners and application egress
+  (`main-first` default, `local-first`, `local-only`, `main-only`). Upstream selection
+  is separate from exit-node selection.
+- AI Gateway supports multiple named upstreams, including several of the same API type.
+- Board is a task board, not an agent scheduler or a Claude configuration installer.
+  Machine/agent MCP configuration belongs to the future agentd + MCP Gateway/mcpset center.
+- No backward compatibility or automatic data migration. See `AGENTS.md`.
+
+Current contracts: `docs/platform-network.md` and `docs/config-providers.md`.
+
 ## Packages (layered by change axis)
 
 The core stays minimal and stable; everything else is a replaceable seam
@@ -30,7 +44,7 @@ one runnable instance. See [docs/layers.md](docs/layers.md) for the map.
 | capability sandbox | `@effect-agent/script` | self-bootstrapping TS/JS tool sandbox: scripts compose toolcalls into higher tools; closure visibility + content-addressed versions + graded compatibility + one Policy type (see [docs/script-sandbox.md](docs/script-sandbox.md)) |
 | cross-cutting | `@effect-agent/assembly` | the composition root: defaultLayers(), driver(), profile-driven assembly |
 | L5 app | `app-playground` | wires all layers into a runnable agent (bun apps/playground/src/main.ts) |
-| L5 app | `app-board` | the multi-agent **board** (gitlab-workitem style): layered domain / store / resource governor (all-or-nothing atomic claims, exclusive & shared, priority wake) / builtin coordinator agent / MCP surface (`board_*` tools, stdio or in-process) / web panel whose backend IS the board MCP server - independent, depends only on the bottom abstractions. bun apps/board/src/hosts/mcp/main.ts | bun apps/board/src/hosts/web/main.ts |
+| L5 app | `app-board` | Standalone task board: task CRUD, states, hierarchy/dependencies, events, SQLite, MCP and web view. No governor, coordinator agent, machine launch or Claude configuration. |
 | L5 app | `app-mantis` | mantis on effect-agent: the session agent (tool supply / explicit ApprovalPolicy / reflection / FinalReply) **plus two live hosts**: the dingtalk host (dws user identity + robot bot identity, interactive approval cards, original-clawyp config.toml compatible) and the **web console** (observability + browser chat + approvals + versioned agent UI) - bun apps/mantis/src/hosts/dingtalk/main.ts | bun apps/mantis/src/hosts/webui/main.ts | |
 
 ## The loop as a sentence
@@ -42,7 +56,7 @@ loop, or Claude Code - unchanged.
 ```ts
 const Planner = Agent
   .define("planner", (task: string) => AgentContext.text("Plan: " + task))
-  .returns(Until.schema(Plan))     // the loop's termination = the output type
+  .returns(Until.schema(Plan, { name: "return_plan", description: "Return the plan" }))     // the loop's termination = the output type
   .uses(notes)                     // capability access: read
   .writes(issueTracker)            // capability access: write
   .implementedBy(EffectAgent.make({ model }))   // swap the driver freely

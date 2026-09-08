@@ -1,0 +1,13 @@
+{
+  "name": "@effect-agent/effect-parity",
+  "version": "0.0.0",
+  "type": "module",
+  "description": "machine-parity view of an effect app: same declarative view, same live state, same agent tool set, rendered as text + interactive forms",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-interface": "workspace:*"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@effect-agent/mcp-gateway-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*",
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/mcp-gateway": "workspace:*",
+    "@effect-agent/mcp-registry": "workspace:*"
+  },
+  "scripts": {
+    "test": "bun test"
+  }
+}
