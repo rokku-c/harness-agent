@@ -4,6 +4,7 @@ import { makeAgentdControl, type AgentdControl } from "@effect-agent/agentd"
 import type { EffectTool } from "@effect-agent/effect-interface"
 
 const tool = (name: string, input: z.ZodType, handler: (args: unknown) => unknown): EffectTool => ({ name, input, handler })
+let runtimeControl: AgentdControl | undefined
 const tools = (control: AgentdControl): readonly EffectTool[] => [
   tool("agentd_status", z.object({}).strict(), () => control.status()),
   tool("agentd_register_machine", z.record(z.string(), z.unknown()), (args) => control.registerMachine(args as never)),
@@ -15,7 +16,7 @@ const tools = (control: AgentdControl): readonly EffectTool[] => [
 export const createAgentdPlugin = (): EffectPlugin => ({
   id: "agentd",
   load: async (): Promise<LoadedPlane> => {
-    const control = makeAgentdControl()
+    const control = runtimeControl ??= makeAgentdControl()
     return { tools: tools(control), handle: async (request) => Response.json({ app: "agentd", status: control.status() }) }
   },
 })
