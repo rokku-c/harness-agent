@@ -17,6 +17,8 @@ import type { EffectServer, EffectServerOptions } from "./options.ts"
 export const bootRuntime = async (
   roots: readonly string[], enabled: ReadonlySet<string>, options: EffectServerOptions,
 ): Promise<EffectServer> => {
+  const active = new Set(enabled)
+  if (active.has("mcp-gateway")) active.add("mcp-registry")
   const host = makePluginHost({ control: options.control })
   const registry = makeEffectRegistry()
   const mcpRegistry = makeRegistry()
@@ -62,8 +64,8 @@ export const bootRuntime = async (
     disposers = await bootManifests({ host, registry, mcpRegistry, configs, uiViews, uiHtml, network,
       initializeConfig,
       activeConfig: (id) => configRuntime.active(id),
-    }, roots, enabled)
-    await registerInfra(app, enabled, options)
+    }, roots, active)
+    await registerInfra(app, active, options)
     return app
   } catch (error) { await cleanup(); throw error }
 }
