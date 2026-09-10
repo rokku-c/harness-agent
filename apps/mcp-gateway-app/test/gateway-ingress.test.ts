@@ -9,7 +9,7 @@ const config = { sets: [{ setId: "safe", name: "Safe", servers: ["files"] }], bi
 test("gateway resolves a server from the shared registry and exposes topology", async () => {
   const registry = makeRegistry(), host = makePluginHost()
   registry.register(server)
-  await host.register(createMcpGatewayPlugin(() => config, { mcpRegistry: registry, fetch }))
+  await host.register({ ...createMcpGatewayPlugin(() => config, { mcpRegistry: registry, fetch }), routes: [{ path: "/mcp-gateway", match: "prefix" }] })
   const topology = await host.handle(new Request("http://host/mcp-gateway"))
   expect(await topology.json()).toMatchObject({ servers: [{ serverId: "files" }], sets: config.sets, bindings: config.bindings })
   expect((await host.handle(new Request("http://host/mcp-gateway/call", { method: "POST" }))).status).toBe(404)

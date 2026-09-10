@@ -1,14 +1,16 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
-import { StreamableHTTPClientTransport, type FetchLike } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import type { McpGatewayServer, McpUpstream } from "./contract.ts"
 
+/** Structural match for the SDK's FetchLike, which is not exported from streamableHttp.js. */
+export type FetchLike = (url: string | URL, init?: RequestInit) => Promise<Response>
 export interface McpHttpServer extends McpGatewayServer {
   readonly transport: "streamable-http" | "stdio"
   readonly endpoint: string
   readonly headers?: Readonly<Record<string, string>>
 }
 export interface McpHttpUpstreamOptions { readonly servers: readonly McpHttpServer[]; readonly fetch?: FetchLike }
-const text = (result: { content?: readonly unknown[] }): string => (result.content ?? []).map((item) => {
+const text = (result: { content?: readonly unknown[]; [key: string]: unknown }): string => (result.content ?? []).map((item) => {
   const value = item as { type?: string; text?: string }; return value.type === "text" ? value.text ?? "" : ""
 }).join("\n")
 

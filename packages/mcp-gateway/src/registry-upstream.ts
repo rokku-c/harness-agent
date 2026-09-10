@@ -1,7 +1,6 @@
 import type { Registry } from "@effect-agent/mcp-registry"
-import type { FetchLike } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 import type { McpGatewayServer, McpUpstream } from "./contract.ts"
-import { makeStreamableHttpUpstream, type McpHttpServer } from "./upstream-http.ts"
+import { makeStreamableHttpUpstream, type FetchLike, type McpHttpServer } from "./upstream-http.ts"
 import { makeStdioUpstream } from "./upstream-stdio.ts"
 
 export interface McpTransportResolver { resolve(serverId: string): McpHttpServer | undefined | Promise<McpHttpServer | undefined> }

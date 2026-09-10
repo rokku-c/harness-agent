@@ -1,4 +1,4 @@
-import type { MeshAnnounce, MeshEntry, MeshNode } from "./types"
+import type { MeshAnnounce, MeshEntry, MeshNode } from "./types.ts"
 
 export const makeStore = () => {
   const nodes = new Map<string, MeshEntry>()

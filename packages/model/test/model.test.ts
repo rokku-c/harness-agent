@@ -40,17 +40,22 @@ describe("model contract", () => {
   })
 
   it("anthropicModel builds a messages request", async () => {
+    const originalFetch = globalThis.fetch
     globalThis.fetch = (async () =>
       new Response(
         JSON.stringify({ content: [{ type: "text", text: "hi" }, { type: "tool_use", id: "t1", name: "f", input: {} }] }),
         { status: 200 }
       )
     ) as typeof fetch
-    const model = anthropicModel({ api: "anthropic.messages", model: "claude-3-7", apiKey: "k" })
-    expect(model.capabilities.thinking).toBe(true)
-    const result = await Effect.runPromise(model.generate("sys", [{ role: "user", content: "hi" }], []))
-    expect(result.text).toBe("hi")
-    expect(result.toolCalls).toEqual([{ id: "t1", name: "f", input: {} }])
+    try {
+      const model = anthropicModel({ api: "anthropic.messages", model: "claude-3-7", apiKey: "k" })
+      expect(model.capabilities.thinking).toBe(true)
+      const result = await Effect.runPromise(model.generate("sys", [{ role: "user", content: "hi" }], []))
+      expect(result.text).toBe("hi")
+      expect(result.toolCalls).toEqual([{ id: "t1", name: "f", input: {} }])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 
   it("ModelLayer.require fails loud on missing capability (M3)", () => {

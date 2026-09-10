@@ -1,6 +1,6 @@
 import { invoke } from "@effect-agent/effect-interface"
-import type { MeshCall, MeshDiscover, MeshEntry, MeshOptions } from "./types"
-import { toolKey } from "./types"
+import type { MeshCall, MeshDiscover, MeshEntry, MeshOptions } from "./types.ts"
+import { toolKey } from "./types.ts"
 
 export const discover = (nodes: Map<string, MeshEntry>, q: MeshDiscover) => [...nodes.entries()]
   .filter(([, e]) => q.ns === undefined || e.announce.ns === q.ns)

@@ -1,7 +1,7 @@
-import { makeStore } from "./store"
-import { callNode, discover } from "./operations"
-export * from "./types"
-import type { EffectMesh, MeshAnnounce, MeshCall, MeshDiscover, MeshOptions } from "./types"
+import { makeStore } from "./store.ts"
+import { callNode, discover } from "./operations.ts"
+export * from "./types.ts"
+import type { EffectMesh, MeshAnnounce, MeshCall, MeshDiscover, MeshOptions } from "./types.ts"
 
 export const makeMesh = (options: MeshOptions = {}): EffectMesh => {
   const store = makeStore(), grants = new Set<string>()
