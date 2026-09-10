@@ -10,22 +10,22 @@ export function createFormRenderer(controls: FormControls) {
     if (node.kind === "object") return `<fieldset class="cfg-object"><legend>${label}</legend>${node.fields.map(render).join("")}</fieldset>`
     if (node.kind === "array") {
       const blocks = node.rows.map((row, index) => {
-        const heading = `<b>#${index + 1}</b><button type="button" data-remove="${node.id}" data-index="${index}">移除</button>`
+        const heading = `<b>#${index + 1}</b><button type="button" data-remove="${node.id}" data-index="${index}">Remove</button>`
         const content = row.kind === "object" ? row.fields.map(render).join("") : render(row)
         return `<div class="cfg-block"><div class="cfg-block-top">${heading}</div>` +
           `<fieldset class="cfg-block-fields">${content}</fieldset></div>`
       }).join("")
-      const add = `<button type="button" data-add="${node.id}"${node.rows.length >= (node.schema.maxItems ?? Infinity) ? " disabled" : ""}>添加一项</button>`
+      const add = `<button type="button" data-add="${node.id}"${node.rows.length >= (node.schema.maxItems ?? Infinity) ? " disabled" : ""}>Add item</button>`
       return `<section class="cfg-array" data-array="${node.id}"><div class="cfg-top"><h3>${label}</h3>${badge(node)}</div>${description}${blocks}${add}</section>`
     }
     return `<div class="cfg-field"><div class="cfg-top"><label for="${node.id}">${label}</label>${badge(node)}` +
       `<code>${node.required ? "required" : "optional"} · ${esc(node.kind)}</code></div>${input(node)}${description}</div>`
   }
   const html = (form: FormDocument): string => `<form class="cfg" data-config-app="${esc(form.appId)}" novalidate>` +
-    (form.declared ? `<fieldset class="cfg-editor">${form.root.fields.map(render).join("")}</fieldset>` : '<p class="cfg-empty">未声明配置 schema</p>') +
-    `<div class="cfg-actions"><button type="button" data-action="reload">重新读取</button>` +
-    `<button type="submit" data-action="save" data-strategy="apply"${form.declared ? "" : " disabled"}>保存并应用</button>` +
-    `<button type="submit" data-action="save" data-strategy="restart"${form.declared ? "" : " disabled"}>保存待重启</button></div></form>`
+    (form.declared ? `<fieldset class="cfg-editor">${form.root.fields.map(render).join("")}</fieldset>` : '<p class="cfg-empty">No configuration schema declared</p>') +
+    `<div class="cfg-actions"><button type="button" data-action="reload">Reload</button>` +
+    `<button type="submit" data-action="save" data-strategy="apply"${form.declared ? "" : " disabled"}>Save and Apply</button>` +
+    `<button type="submit" data-action="save" data-strategy="restart"${form.declared ? "" : " disabled"}>Save for Restart</button></div></form>`
   return { html }
 }
 export type FormRenderer = ReturnType<typeof createFormRenderer>

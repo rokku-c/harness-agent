@@ -17,6 +17,6 @@ export const networkSchema = z.object({
   })
 })
 export const networkConfig: ConfigDeclaration = {
-  appId: "platform-network", title: "平台网络", schema: networkSchema,
-  description: "监听入口、共享路由、出口节点彼此独立；内置应用不监听端口。",
+  appId: "platform-network", title: "Platform Network", schema: networkSchema,
+  description: "Listeners, shared routes, and egress nodes are independent; built-in apps do not listen on ports.",
 }

@@ -15,7 +15,7 @@ export function createFormControls() {
     const attrs = `id="${node.id}" data-field="${esc(node.key)}" data-node="${node.id}" name="${node.id}"`
     if (type === "select") {
       const options = node.kind === "enum" ? node.schema.enum! : [true, false]
-      const blank = `<option value=""${value === undefined ? " selected" : ""}>${node.required ? "请选择" : "未设置（使用 schema 默认）"}</option>`
+      const blank = `<option value=""${value === undefined ? " selected" : ""}>${node.required ? "Select an option" : "Unset (use schema default)"}</option>`
       return `<select ${attrs}>${blank}${options.map((option, i) =>
         `<option value="${i}"${Object.is(option, value) ? " selected" : ""}>${esc(option)}</option>`).join("")}</select>`
     }

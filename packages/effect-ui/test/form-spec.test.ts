@@ -12,6 +12,7 @@ test("json spec preserves scalar control semantics and exposes explicit strategi
   expect(field("captureBodies").checked).toBe(true)
   expect(field("optionalKey").inputType).toBe("password")
   expect(field("optionalFlag").unset).toBe(true)
+  expect(field("webPort").fieldPath).toBe("webPort")
   expect(field("coordinator").options).toEqual(["none", "deepseek"])
   expect(elements.filter(element => element.type === "Button").map(element => element.props.strategy)).toEqual(["apply", "restart"])
 })

@@ -26,10 +26,10 @@ export function createConfigApi(fetcher: ConfigFetch) {
     const response = await fetcher(url, { cache: "no-store", ...init })
     const text = await response.text()
     let data: unknown
-    try { data = JSON.parse(text) } catch { throw new Error(`HTTP ${response.status}: 响应不是有效 JSON`) }
+    try { data = JSON.parse(text) } catch { throw new Error(`HTTP ${response.status}: response is not valid JSON`) }
     if (!response.ok || !record(data) || data.ok === false) {
       const detail = record(data) ? data.error ?? data.detail : undefined
-      throw Object.assign(new Error(`HTTP ${response.status}: ${typeof detail === "string" ? detail : "配置请求失败"}`),
+      throw Object.assign(new Error(`HTTP ${response.status}: ${typeof detail === "string" ? detail : "config request failed"}`),
         { status: response.status, data: record(data) ? data : {} })
     }
     return data
@@ -38,20 +38,20 @@ export function createConfigApi(fetcher: ConfigFetch) {
   const get = async (id: string): Promise<ConfigDescription> => {
     const data = await request(path(id))
     if (data.kind !== "config" || data.id !== id || data.ok !== true || !record(data.schema) ||
-      !record(data.value) || !record(data.sources) || typeof data.pendingRestart !== "boolean") throw new Error("配置响应契约不完整")
+      !record(data.value) || !record(data.sources) || typeof data.pendingRestart !== "boolean") throw new Error("config response contract is incomplete")
     return data as unknown as ConfigDescription
   }
   const mutation = async (id: string, applyOnly: boolean, body?: object): Promise<ConfigState> => {
     const data = await request(path(id) + (applyOnly ? "/apply" : ""), {
       method: "POST", ...(body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}),
     })
-    if (data.ok !== true || data.appId !== id || typeof data.pendingRestart !== "boolean") throw new Error("保存响应契约不完整；请重新读取确认状态")
+    if (data.ok !== true || data.appId !== id || typeof data.pendingRestart !== "boolean") throw new Error("save response contract is incomplete; reload to confirm state")
     return data as unknown as ConfigState
   }
   return {
     get,
     save: (id: string, override: Record<string, unknown>, strategy: SaveStrategy, unset: readonly string[] = []) => {
-      if (strategy !== "apply" && strategy !== "restart") throw new Error("必须选择 apply 或 restart")
+      if (strategy !== "apply" && strategy !== "restart") throw new Error("strategy must be apply or restart")
       return mutation(id, false, { override, strategy, unset })
     },
     apply: (id: string) => mutation(id, true),

@@ -45,7 +45,7 @@ test("GET errors, invalid JSON, malformed success and network failures stay acti
   await expect(createConfigApi(async () => new Response("unavailable", { status: 503 })).get("x"))
     .rejects.toThrow("HTTP 503")
   await expect(createConfigApi(async () => Response.json({ ok: true })).save("x", {}, "restart"))
-    .rejects.toThrow("保存响应契约不完整")
+    .rejects.toThrow("save response contract is incomplete")
   await expect(createConfigApi(async () => { throw new Error("offline") }).get("x")).rejects.toThrow("offline")
 })
 

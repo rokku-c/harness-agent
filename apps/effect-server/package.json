@@ -9,22 +9,27 @@
   "scripts": {
     "start": "bun src/main.ts",
     "dev": "bun --watch src/main.ts",
-    "up": "bun apps/effect-server/src/up.ts"
+    "up": "bun apps/effect-server/src/up.ts",
+    "build:client": "bun build src/client/effect-ui-client.tsx --outfile public/effect-ui-client.js --target browser",
+    "typecheck:client": "tsc -p tsconfig.client.json --noEmit"
   },
   "dependencies": {
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-bundle": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",
-    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-mcp-http": "workspace:*",
+    "@effect-agent/effect-network": "workspace:*",
+    "@effect-agent/effect-observe": "workspace:*",
+    "@effect-agent/effect-parity": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/mcp-registry": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-switch": "^1.2.5",
     "yaml": "^2.4.0",
-    "zod": "^3.25.0",
-    "@effect-agent/effect-bundle": "workspace:*",
-    "@effect-agent/effect-apps": "workspace:*",
-    "@effect-agent/effect-mcp-http": "workspace:*",
-    "@effect-agent/effect-observe": "workspace:*",
-    "@effect-agent/effect-parity": "workspace:*",
-    "@effect-agent/effect-network": "workspace:*"
+    "zod": "^3.25.0"
   }
 }

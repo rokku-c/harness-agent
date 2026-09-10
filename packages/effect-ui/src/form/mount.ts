@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import type { FormDocument } from "./types.ts"
 import type { FormModel } from "./model.ts"
 import type { FormRenderer } from "./render.ts"

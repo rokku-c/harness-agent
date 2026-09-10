@@ -4,6 +4,7 @@ import { consolePage } from "./console-page.ts"
 import { makeConfigRuntime } from "./config-runtime/runtime.ts"
 import { configRoute } from "./console/config-route.ts"
 import { viewRoute } from "./console/view-route.ts"
+import { consoleSystemUi } from "./console/system-ui.ts"
 import type { ConsoleOptions } from "./console/options.ts"
 export type { ConsoleOptions } from "./console/options.ts"
 
@@ -24,6 +25,7 @@ export const makeConsolePlugin = (options: ConsoleOptions): EffectPlugin => ({
         if (path === "/-/apps") return Response.json({
           ui: options.registry.apps().map((a) => ({ interfaceId: a.interfaceId, ...a.app })),
           views: [...options.uiViews?.keys() ?? []],
+          systemUi: consoleSystemUi({ ui: options.registry.apps().map((a) => ({ interfaceId: a.interfaceId, title: a.app.title })), views: [...options.uiViews?.keys() ?? []], config: options.configs.list().map((c) => ({ appId: c.appId, title: c.title })) }),
           config: options.configs.list().map((c) => ({ appId: c.appId, title: c.title ?? c.appId, hasSchema: true })),
         })
         const config = path.match(/^\/console\/api\/config\/([^/]+)(\/apply)?$/)

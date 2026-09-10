@@ -1,0 +1,15 @@
+import type { RoleName } from "./role-registry.ts"
+
+export const roleRecipeClass: Record<RoleName, string> = {
+  Stack: "ui-role-stack", Text: "ui-role-text", Button: "ui-role-button", Input: "ui-role-input",
+  Switch: "ui-role-switch", Select: "ui-role-select", Springboard: "ui-role-springboard", Dock: "ui-role-dock",
+  SettingsGroup: "ui-role-settings", BottomTab: "ui-role-bottom-tab", TopBar: "ui-role-top-bar",
+}
+export const roleRecipeTokens = {
+  gap: "8px", radius: "10px", fieldPadding: "8px 12px", switchWidth: "36px", switchHeight: "22px",
+  switchThumb: "18px", transition: "160ms",
+} as const
+const semanticTokens = `:root{--ui-bg:var(--bg,#f5f5f7);--ui-surface:var(--surface,#fff);--ui-surface-muted:var(--surface-2,#f2f2f7);--ui-ink:var(--ink,#1d1d1f);--ui-muted:var(--muted,#6e6e73);--ui-line:var(--line,#d2d2d7);--ui-field:var(--field,var(--ui-surface));--ui-field-line:var(--field-line,var(--ui-line));--ui-accent:var(--accent,#178a5c);--ui-accent-ink:var(--accent-ink,#fff);--ui-gap:${roleRecipeTokens.gap};--ui-radius:${roleRecipeTokens.radius};--ui-field-padding:${roleRecipeTokens.fieldPadding};--ui-switch-width:${roleRecipeTokens.switchWidth};--ui-switch-height:${roleRecipeTokens.switchHeight};--ui-switch-thumb:${roleRecipeTokens.switchThumb};--ui-motion-fast:${roleRecipeTokens.transition}}`
+const componentCss = (): string => `
+.ui-role-stack{display:flex;flex-direction:column;gap:var(--ui-gap);width:100%}.ui-role-stack[data-dir=horizontal]{flex-direction:row}.ui-role-text{color:var(--ui-ink)}.ui-role-button,.ui-role-input input,.ui-role-input select,.ui-role-select [data-radix-select-trigger]{font:inherit;border:1px solid var(--ui-field-line);border-radius:var(--ui-radius);padding:var(--ui-field-padding);background:var(--ui-field);color:var(--ui-ink)}.ui-role-button{cursor:pointer;background:var(--ui-accent);color:var(--ui-accent-ink)}.ui-role-input,.ui-role-select{display:flex;flex-direction:column;gap:4px;min-width:120px;color:var(--ui-muted)}.ui-role-input input,.ui-role-input select{width:100%}.ui-role-input input[type=checkbox]{width:16px}.ui-role-switch{display:inline-flex;align-items:center;gap:var(--ui-gap);color:var(--ui-ink)}.ui-role-switch-control{width:var(--ui-switch-width);height:var(--ui-switch-height);border:0;border-radius:999px;background:var(--ui-line);padding:2px}.ui-role-switch-control[data-state=checked]{background:var(--ui-accent)}.ui-role-switch-thumb{display:block;width:var(--ui-switch-thumb);height:var(--ui-switch-thumb);border-radius:50%;background:var(--ui-surface);transition:transform var(--ui-motion-fast)}.ui-role-switch-thumb[data-state=checked]{transform:translateX(14px)}.ui-role-springboard,.ui-role-settings,.ui-role-dock,.ui-role-bottom-tab,.ui-role-top-bar{color:var(--ui-ink)}.ui-role-springboard h1,.ui-role-settings h2{font-size:24px;letter-spacing:-.5px}.ui-role-dock,.ui-role-bottom-tab{display:flex;gap:var(--ui-gap);align-items:center}.ui-role-bottom-tab{justify-content:space-around}`
+export const roleStyleCss = (): string => semanticTokens + componentCss()

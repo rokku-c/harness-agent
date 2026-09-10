@@ -25,10 +25,12 @@ test("console catalogs registered apps and config apps", async () => {
 
   expect((await host.handle(req("/console"))).status).toBe(200)
 
-  const cat = await j<{ ui: Array<{ resourceUri: string; path?: string }>; config: Array<{ appId: string }> }>(await host.handle(req("/-/apps")))
+  const cat = await j<{ ui: Array<{ resourceUri: string; path?: string }>; config: Array<{ appId: string }>; systemUi: { elements: Record<string, { type: string }> } }>(await host.handle(req("/-/apps")))
   expect(cat.ui[0].resourceUri).toBe("ui://apps/demo/console")
   expect(cat.ui[0].path).toBe("/demo")
   expect(cat.config.map((c) => c.appId)).toContain("board")
+  expect(cat.systemUi.elements["0"].type).toBe("Dock")
+  expect(cat.systemUi.elements["1"].type).toBe("Springboard")
 })
 
 test("console serves a view DESCRIPTION (with json-render spec) for client rendering", async () => {

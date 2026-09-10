@@ -34,7 +34,8 @@ test("ai-gateway plugin proxies /health and /v1/*", async () => {
 
 test("board plugin serves the real board web surface", async () => {
   const host = makePluginHost()
-  await host.register(createBoardPlugin(() => ({ dataFile: ":memory:" })))
+  // effect-host routes by declared prefix; the board web surface mounts under /board
+  await host.register({ ...createBoardPlugin(() => ({ dataFile: ":memory:" })), routes: [{ path: "/board", match: "prefix" }] })
 
   const health = await host.handle(req("/board/api/health"))
   expect((await json<{ ok: boolean }>(health)).ok).toBe(true)
