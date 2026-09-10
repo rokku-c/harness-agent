@@ -20,6 +20,10 @@ import type { IncomingMessage } from "../src/hosts/dingtalk/messages.ts"
 
 type Script = Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }>
 
+const finalCall = (reply: string) => ({
+  text: "",
+  toolCalls: [{ id: "f" + Math.random().toString(36).slice(2, 8), name: "final_answer", input: { reply, tone: "plain", asksConfirmation: false } }]
+})
 const scriptedModel = (script: Script): Model & { calls: number; lastThread?: ReadonlyArray<WireMessage> } => {
   const queue = [...script]
   const model: any = {
@@ -27,7 +31,7 @@ const scriptedModel = (script: Script): Model & { calls: number; lastThread?: Re
     generate: (_s: string, messages: ReadonlyArray<WireMessage>, _tools: ReadonlyArray<WireTool>) => {
       model.calls++
       model.lastThread = messages
-      return Effect.succeed(queue.shift() ?? { text: JSON.stringify({ reply: "done", tone: "plain", asksConfirmation: false }), toolCalls: [] })
+      return Effect.succeed(queue.shift() ?? finalCall("done"))
     }
   }
   return model
@@ -54,10 +58,7 @@ const waitFor = async (condition: () => Promise<boolean> | boolean, timeoutMs = 
   throw new Error("waitFor timed out")
 }
 
-const finalJson = (reply: string) => ({
-  text: JSON.stringify({ reply, tone: "plain", asksConfirmation: false }),
-  toolCalls: [] as Array<never>
-})
+const finalJson = (reply: string) => finalCall(reply)
 
 const mantisNotes = (host: MantisHost, conversationId: string, query: string) =>
   host.session(conversationId).notes.search(query).length

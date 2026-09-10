@@ -127,8 +127,8 @@ describe("durable conversation memory", () => {
     const stub: Model = {
       generate: () =>
         Effect.succeed({
-          text: JSON.stringify({ reply: "understood", tone: "plain", asksConfirmation: false }),
-          toolCalls: []
+          text: "",
+          toolCalls: [{ id: "f1", name: "final_answer", input: { reply: "understood", tone: "plain", asksConfirmation: false } }]
         })
     } as unknown as Model
     const first = new WebConsole({ model: stub, memoryDir: memDir, logger: noopLogger() })

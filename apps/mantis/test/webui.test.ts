@@ -17,18 +17,19 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { makeMantisMcp } from "../src/hosts/mcp/mcp.ts"
 
 type Script = Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }>
+const finalCall = (reply: string) => ({
+  text: "",
+  toolCalls: [{ id: "f" + Math.random().toString(36).slice(2, 8), name: "final_answer", input: { reply, tone: "plain", asksConfirmation: false } }]
+})
 const scriptedModel = (script: Script): Model => {
   const queue = [...script]
   const model: any = {
     generate: (_s: string, _messages: ReadonlyArray<WireMessage>, _tools: ReadonlyArray<WireTool>) =>
-      Effect.succeed(queue.shift() ?? { text: JSON.stringify({ reply: "done", tone: "plain", asksConfirmation: false }), toolCalls: [] })
+      Effect.succeed(queue.shift() ?? finalCall("done"))
   }
   return model
 }
-const finalJson = (reply: string) => ({
-  text: JSON.stringify({ reply, tone: "plain", asksConfirmation: false }),
-  toolCalls: [] as Array<never>
-})
+const finalJson = (reply: string) => finalCall(reply)
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 const waitFor = async (condition: () => Promise<boolean> | boolean, timeoutMs = 4_000): Promise<void> => {
   const deadline = Date.now() + timeoutMs

@@ -13,8 +13,8 @@ import type { Model, WireMessage } from "@effect-agent/builtin"
 import { WebConsole } from "../src/hosts/webui/console.ts"
 
 const finalJson = (reply: string) => ({
-  text: JSON.stringify({ reply, tone: "plain", asksConfirmation: false }),
-  toolCalls: [] as Array<never>
+  text: "",
+  toolCalls: [{ id: "f" + Math.random().toString(36).slice(2, 8), name: "final_answer", input: { reply, tone: "plain", asksConfirmation: false } }]
 })
 
 describe("conversation memory", () => {

@@ -56,7 +56,7 @@ describe("task resource end-to-end through the session agent", () => {
       { text: "", toolCalls: [{ id: "w1", name: "task_write", input: { text: "ship resource layer" } }] },
       { text: "", toolCalls: [{ id: "w2", name: "set_reminder", input: { text: "review at 9am" } }] },
       { text: "", toolCalls: [{ id: "r1", name: "recall_notes", input: { query: "", kind: "task" } }] },
-      { text: JSON.stringify({ reply: "recorded", tone: "plain", asksConfirmation: false }), toolCalls: [] }
+      { text: "", toolCalls: [{ id: "f1", name: "final_answer", input: { reply: "recorded", tone: "plain", asksConfirmation: false } }] }
     ]
     const queue = [...script]
     const model: any = {
@@ -83,7 +83,7 @@ describe("provenance is model-visible and filterable", () => {
     type Script = Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }>
     const queue = [
       { text: "", toolCalls: [{ id: "r1", name: "recall_notes", input: { query: "", source: "ui" } }] },
-      { text: JSON.stringify({ reply: "done", tone: "plain", asksConfirmation: false }), toolCalls: [] }
+      { text: "", toolCalls: [{ id: "f1", name: "final_answer", input: { reply: "done", tone: "plain", asksConfirmation: false } }] }
     ]
     let recallInput: unknown
     let recallResult: unknown

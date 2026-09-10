@@ -5,7 +5,8 @@
  *   the typed result (no hand-rolled "JSON text + retry nag" loop)
  * - a malformed final_answer is a normal TOOL error: readable diagnostic is
  *   fed back and the model self-corrects through the existing channel
- * - a plain-text JSON reply still decodes silently (legacy fallback)
+ * - a plain-text JSON final reply is REJECTED: structured results must arrive
+ *   as the final_answer tool call, never as reply text
  */
 import { describe, expect, test } from "bun:test"
 import type { Model, WireMessage, WireTool } from "@effect-agent/builtin"
@@ -53,14 +54,17 @@ describe("final_answer native structured output", () => {
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
 
-  test("plain-text JSON final replies still decode (legacy fallback)", async () => {
+  test("a plain-text JSON final reply is rejected, not silently decoded", async () => {
     const dir = mkdtempSync(join(tmpdir(), "mantis-final-text-"))
     try {
       const m = makeMantis({
         model: scriptedModel([{ text: JSON.stringify({ reply: "legacy text", tone: "plain", asksConfirmation: false }), toolCalls: [] }])
       })
-      const reply = await Effect.runPromise(m.agent.run("hi")) as FinalReply
-      expect(reply.reply).toBe("legacy text")
+      const result = await Effect.runPromise(Effect.either(m.agent.run("hi")))
+      expect(result._tag).toBe("Left")
+      if (result._tag === "Left")
+        expect((result.left as { cause?: unknown }).cause)
+          .toBe("Structured result requires the declared asTool tool call; plain-text replies are not accepted")
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
 })

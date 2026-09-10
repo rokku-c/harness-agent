@@ -31,8 +31,8 @@ const scriptedModel = (script: Script): Model & { calls: number; lastTools?: Rea
 
 const names = (tools?: ReadonlyArray<WireTool>) => (tools ?? []).map((tool) => tool.name)
 const finalJson = (reply: string, tone: "plain" | "emoji" = "plain", asksConfirmation = false) => ({
-  text: JSON.stringify({ reply, tone, asksConfirmation }),
-  toolCalls: [] as Array<never>
+  text: "",
+  toolCalls: [{ id: "f" + Math.random().toString(36).slice(2, 8), name: "final_answer", input: { reply, tone, asksConfirmation } }]
 })
 
 const waitFor = async (probe: () => Promise<boolean>, timeoutMs = 3000) => {
