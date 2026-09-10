@@ -1,78 +1,86 @@
 # AGENTS.md
 
-面向所有改动此仓库（packages/ + apps/）的 agent 的约定。
+Conventions for every agent changing this repository (`packages/` and `apps/`).
 
-## 不做向后兼容
+## English-first product and documentation
 
-- 本项目按当前设计直接演进：默认**不兼容旧接口、旧配置、旧协议、旧数据库结构或旧行为**。
-- 删除被替代的实现和调用方；不要新增兼容层、别名、双轨代码、legacy fallback、自动迁移或旧格式探测。
-- 不为历史测试保留已删除的产品能力；将测试改成当前契约。旧数据不自动改写/删除，格式不符明确报错，由操作者决定重建。
-- 只有用户明确要求兼容某一项时才例外，且必须说明范围与移除条件。
+- Product UI, user-facing errors, examples, and repository documentation are English-first.
+- Do not mix Chinese and English in one UI surface or document. Use consistent terminology.
+- Do not add ad-hoc locale branches or inline translations. If another language is supported,
+  use a standard i18n mechanism with message keys, complete locale catalogs, locale fallback,
+  and locale-aware formatting. English (`en-US`) is the default locale.
+- App-provided names may remain data supplied by that app; platform-owned labels must follow
+  the English-first rule.
 
-## 应用、网络与接入治理分离
+## No backward compatibility
 
-- 内置 app 默认是**无监听端口的服务/handler**；使用 SDK 声明路由，由宿主自动注册并在卸载时撤销。
-- 监听端口、路由表、流量出口分别由平台管理。默认所有平台注册端口共享同一服务视图；端口差异必须显式配置。
-- app 可以选择自管端口，但必须自行管理其创建/关闭与访问策略，不把它伪装为平台托管端口。
-- app 的出站请求通过 SDK 出口接口；默认主节点优先，允许声明本地优先、主节点优先、仅本地、仅主节点。
-- 出口选择与上游选择不是同一层；不可用出口的切换不能隐式重放已发送的写请求。
-- Board 只负责看板/任务数据，不负责 Agent 调度、资源 governor、Claude 配置或机器接入。
-- 机器 Agent 配置适配属于独立 agentd 中心；Agent 连接 MCP Gateway 的 mcpset 入口，不让各 app 修改本机 Agent 配置。
+- Evolve the current design directly: by default do **not** preserve old interfaces, config,
+  protocols, database structures, or behavior.
+- Delete replaced implementations and callers. Do not add compatibility layers, aliases,
+  dual paths, legacy fallbacks, migrations, or old-format detection.
+- Do not preserve deleted product capabilities for historical tests; update tests to the current
+  contract. Do not rewrite or delete old data automatically; reject invalid formats clearly and
+  let the operator decide whether to rebuild.
+- Make an exception only when the user explicitly requests compatibility, and state its scope
+  and removal condition.
 
-## 结构化输出：走模型原生的 tool call，不要自造"文本 JSON + 手动解码重试"
+## Separate app, network, and access governance
 
-模型原生支持 tool call，且工具入参 schema 由提供商侧强制/校验——需要结构化结果时，
-把它表达成**协议级工具调用**，而不是让模型吐 JSON 文本再由本地解码并重试：
+- Built-in apps default to services/handlers without listening ports; apps declare routes through
+  the SDK, and the host registers and revokes them with lifecycle symmetry.
+- The platform owns listeners, route tables, and egress. Registered ports share one service view
+  by default; port differences require explicit configuration.
+- An app may own a port, but must create/close it and enforce its access policy itself; never
+  disguise it as a platform-managed port.
+- App egress uses the SDK egress interface, with explicit local-first, main-first, local-only,
+  or main-only policy.
+- Egress selection and upstream selection are separate layers; an unavailable egress must not
+  implicitly replay a write request that was already sent.
+- Board owns board/task data only; it does not own agent scheduling, resource governors, Claude
+  configuration, or machine access.
+- Machine-agent configuration belongs to the independent agentd center. Agents connect to the
+  MCP Gateway through mcpset; apps must not edit local agent configuration.
 
-- 结构化结果的"工具名/描述/入参 schema"一律由 **agent/应用层** 通过
-  `Until.schema(schema, { name, description })` 声明（生成结果中的 `asTool`）；核心循环只负责
-  "当 until 是 Schema 且带 asTool 时暴露该协议工具并拦截它的调用"。核心不得硬编码
-  任何产品工具名（如 final_answer）或产品文案。
-- 携带 Schema 结果的工具调用失败走既有 tool-error 通道（可读诊断回喂模型自纠）：
-  malformed 参数按 decode 预算重试后干净失败。不伪造 user 消息反复呵斥，
-  也不在本地 JSON.parse + 通用文案上重试。
-- 结构化结果一律走协议级 tool call；不再接受纯文本 JSON 遗留降级。缺少声明或返回不符合协议时明确失败。
-- 判断取舍时的提问："现在模型都支持 tool call 了，为什么还要自己实现？"
+## Structured output uses native tool calls
 
-## 文件大小与拆分方式（lint 强制）
+When a structured result is needed, express it as a protocol-level tool call instead of asking
+for text JSON and manually decoding/retrying it:
 
-- 每个实现文件（packages/*/src、apps/*/src、scripts/、examples/ 与各 test 目录）
-  不得超过 100 行，由 `bun scripts/check-lines.ts`（npm script：`bun run lint:lines`）
-  强制，超限即非零退出。
-- 拆分必须**按概念/层次**进行：先想清楚文件里的内聚概念与依赖方向，让每个文件 =
-  一个单一职责的层（示例：packages/builtin/src/loop/ 下 types → protocol →
-  execute/turn/decide → cycle → driver）。**禁止**按行号机械切割（把一个大函数
-  的连续几十行挪进 helper 不算拆分）。
-- 一个概念大到写不进 100 行，说明它其实是一层：继续往下一层拆，而不是放宽行数。
+- The agent/app layer declares the tool name, description, and input schema through
+  `Until.schema(schema, { name, description })` (which produces `asTool`). The core loop only
+  exposes and intercepts a declared Schema tool; it must not hard-code product tool names or copy.
+- Tool-call failures use the existing tool-error channel with readable diagnostics for model
+  correction. Retry malformed arguments within the decode budget, then fail cleanly.
+- Never fabricate user messages to scold the model, and never retry with local `JSON.parse` plus
+  generic copy.
+- Structured results always use protocol-level tool calls. Missing declarations or invalid
+  protocol results fail explicitly.
+- The decision question is: “Models support tool calls now; why are we reimplementing them?”
 
-- 拆分实践教训（来自 mantis config/agent/capabilities/tools/conversation）：
-  - 被拆文件用 import.meta.dir 推导资源路径时，新子目录深了一层，相对寻址会
-    静默算错——把被拆文件里 import.meta.dir 的引用按新层级同步修正（或改从
-    稳定锚点 resolve）。
-  - 从大函数里抽出"单个 op 构造器"时，先确认它返回 Op 还是对象/数组，组装处
-    不得按错形状解构（曾把单 Op 当对象解构，manifest 顺序测试立刻抓到）。
-  - 抽出 helper 的函数名若与类成员方法同名，成员箭头函数体内裸名会解析到
-    模块作用域——要么 import 改名（如 historyBinding as makeHistoryBinding），
-    要么方法体里显式 this.xxx；bun import 探针只证明模块可加载，不证明方法可
-    调用，回归必须以真实测试为准。
-  - 把文件拷进更深子目录时逐条核对相对导入层级：跨层类型导入（如
-    ../messages.ts 从 channels/robot.ts 变成 channels/robot/parse.ts 需要
-    ../../messages.ts）最易错；bun 会擦除类型导入，运行时 import 探针测不出
-    这类错误——类型错误必须以 tsc 为准，运行时探针只是必要非充分。
+## File size and decomposition (lint enforced)
 
+- Every implementation file under `packages/*/src`, `apps/*/src`, `scripts/`, `examples/`, and
+  test directories must be at most 100 lines. `bun scripts/check-lines.ts` enforces this.
+- Split by concept/layer and dependency direction. Each file owns one cohesive responsibility.
+  Do not mechanically split a function by line number.
+- If one concept does not fit in 100 lines, it is a layer and must be split again.
 
-## 单元测试要写在刀刃上（不要字符串套字符串）
+Lessons from previous decompositions:
 
-- 断言必须有**行为意义**：跑一个动作，校验它可观测的产物/契约（返回结构、字段值、
-  边界与失败路径、合并优先级、注册/反注册的对称性）。测试要么守一条规则，要么守一条
-  已经发生过的回归。
-- **禁止** `expect(整段 HTML / 整段模板字符串).toContain("文案标记")` 这类字符串套
-  字符串的断言：它只锁死模板/页面脚手架细节——改一个字就红，却又永远抓不住真实 bug，
-  属于比不写更糟的噪音。
-- 外壳/页面层只测**稳定入口与真实产物**：HTTP 状态、content-type、端点的返回结构
-  与数值；页面具体文案与脚手架由浏览器/手工验收，不进单测。
-- **禁止启发式/凑数断言**：如 `expect(...).length > 1000`、`toBeGreaterThan(某字数)`、
-  或“能跑通就绿”的健壮性数字——它们不断言任何契约，只会随环境漂移。要守就守真实契约
-  （状态码/content-type/结构与值），守不了就不写。
-- 新代码提交前自问一句：这条断言断掉的到底是“行为错了”还是“字符串变了”？
-  若是后者，删掉它。
+- When moving a file deeper, re-check every `import.meta.dir` resource path.
+- Confirm whether an extracted builder returns one Op, an object, or an array before assembling it.
+- Avoid helper/member name collisions; alias imports or use `this.member` explicitly.
+- Check every relative import after moving files across directory levels. Type-only imports are
+  erased at runtime, so use `tsc` for type validation as well as runtime probes.
+
+## Unit tests must protect behavior, not strings
+
+- Assertions must have behavioral meaning: run an action and verify its observable contract,
+  values, boundaries, failure path, merge precedence, or register/unregister symmetry.
+- Do not assert that a whole HTML/template string contains copy. That locks presentation text
+  while missing real bugs.
+- Page tests should cover stable HTTP status, content type, endpoint shape, and values. Copy and
+  scaffolding belong to browser or manual acceptance, not unit tests.
+- Do not use heuristic/count assertions such as “length > 1000” or “it runs, therefore green”.
+- Before adding an assertion, ask: does it catch a behavior bug or only a changed string? Delete it
+  if it only catches the latter.
