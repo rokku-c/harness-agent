@@ -1,7 +1,7 @@
 import { z } from "zod"
 
 export type RoleName = "Stack" | "Text" | "Button" | "Input" | "Switch" | "Select" | "Springboard" | "Dock" | "SettingsGroup" | "BottomTab" | "TopBar"
-export type RadixBehavior = { primitiveId: string; description: string }
+export type RadixBehavior = { primitiveId: string; description: string; events?: readonly string[] }
 export type MinimalProjection = { role: RoleName; primitiveId: string; props: Record<string, unknown> }
 export type RoleDefinition = {
   props: z.ZodObject<any>
@@ -30,25 +30,25 @@ export const roleRegistry: Record<RoleName, RoleDefinition> = {
   Button: {
     props: z.object({ label: z.string().optional() }),
     description: "Button",
-    radix: { primitiveId: "Button", description: "Keyboard-accessible pressable action" },
+    radix: { primitiveId: "Button", description: "Keyboard-accessible pressable action", events: ["press"] },
     minimalProjection: props => projection("Button", "Button", props),
   },
   Input: {
     props: z.object({ label: z.string().optional(), value: z.string().optional(), placeholder: z.string().optional() }),
     description: "Text input",
-    radix: { primitiveId: "Primitive.input", description: "Controlled text entry field" },
+    radix: { primitiveId: "Primitive.input", description: "Controlled text entry field", events: ["input"] },
     minimalProjection: props => projection("Input", "Primitive.input", props),
   },
   Switch: {
     props: z.object({ label: z.string().optional(), checked: z.boolean().optional(), description: z.string().optional() }),
     description: "Binary toggle switch",
-    radix: { primitiveId: "Switch.Root", description: "Binary choice with switch keyboard behavior" },
+    radix: { primitiveId: "Switch.Root", description: "Binary choice with switch keyboard behavior", events: ["change"] },
     minimalProjection: props => projection("Switch", "Switch.Root", props),
   },
   Select: {
     props: z.object({ label: z.string().optional(), value: z.string().optional(), placeholder: z.string().optional(), options: z.array(z.object({ value: z.string(), label: z.string().optional() })).optional() }),
     description: "Dropdown select from options",
-    radix: { primitiveId: "Select.Root", description: "Single-value selection with listbox behavior" },
+    radix: { primitiveId: "Select.Root", description: "Single-value selection with listbox behavior", events: ["change"] },
     minimalProjection: props => projection("Select", "Select.Root", props),
   },
   Springboard: {
@@ -91,4 +91,5 @@ export const getRole = (role: string): RoleDefinition => {
 
 export const getRolePropsSchema = (role: string) => getRole(role).props
 export const getRoleRadixMapping = (role: string) => getRole(role).radix
+export const getRoleEvents = (role: string) => getRole(role).radix.events ?? []
 export const getMinimalProjection = (role: string, props: unknown = {}) => getRole(role).minimalProjection(props)

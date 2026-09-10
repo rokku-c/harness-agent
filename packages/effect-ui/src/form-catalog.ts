@@ -5,5 +5,6 @@ export const formComponents = Object.fromEntries(
   Object.entries(roleRegistry).map(([role, definition]) => [role, {
     props: definition.props,
     description: definition.description,
+    ...(definition.radix.events ? { events: [...definition.radix.events] } : {}),
   }]),
 )

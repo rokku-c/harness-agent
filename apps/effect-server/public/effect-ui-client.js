@@ -96555,25 +96555,25 @@ var roleRegistry = {
   Button: {
     props: exports_external.object({ label: exports_external.string().optional() }),
     description: "Button",
-    radix: { primitiveId: "Button", description: "Keyboard-accessible pressable action" },
+    radix: { primitiveId: "Button", description: "Keyboard-accessible pressable action", events: ["press"] },
     minimalProjection: (props2) => projection("Button", "Button", props2)
   },
   Input: {
     props: exports_external.object({ label: exports_external.string().optional(), value: exports_external.string().optional(), placeholder: exports_external.string().optional() }),
     description: "Text input",
-    radix: { primitiveId: "Primitive.input", description: "Controlled text entry field" },
+    radix: { primitiveId: "Primitive.input", description: "Controlled text entry field", events: ["input"] },
     minimalProjection: (props2) => projection("Input", "Primitive.input", props2)
   },
   Switch: {
     props: exports_external.object({ label: exports_external.string().optional(), checked: exports_external.boolean().optional(), description: exports_external.string().optional() }),
     description: "Binary toggle switch",
-    radix: { primitiveId: "Switch.Root", description: "Binary choice with switch keyboard behavior" },
+    radix: { primitiveId: "Switch.Root", description: "Binary choice with switch keyboard behavior", events: ["change"] },
     minimalProjection: (props2) => projection("Switch", "Switch.Root", props2)
   },
   Select: {
     props: exports_external.object({ label: exports_external.string().optional(), value: exports_external.string().optional(), placeholder: exports_external.string().optional(), options: exports_external.array(exports_external.object({ value: exports_external.string(), label: exports_external.string().optional() })).optional() }),
     description: "Dropdown select from options",
-    radix: { primitiveId: "Select.Root", description: "Single-value selection with listbox behavior" },
+    radix: { primitiveId: "Select.Root", description: "Single-value selection with listbox behavior", events: ["change"] },
     minimalProjection: (props2) => projection("Select", "Select.Root", props2)
   },
   Springboard: {
@@ -96610,7 +96610,8 @@ var roleRegistry = {
 // ../../packages/effect-ui/src/form-catalog.ts
 var formComponents = Object.fromEntries(Object.entries(roleRegistry).map(([role, definition]) => [role, {
   props: definition.props,
-  description: definition.description
+  description: definition.description,
+  ...definition.radix.events ? { events: [...definition.radix.events] } : {}
 }]));
 // ../../packages/effect-ui/src/role-recipes.ts
 var roleRecipeTokens = {
@@ -102731,17 +102732,18 @@ var Text = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("div", 
   "data-ui": "text",
   children: value(props2, "value")
 }, undefined, false, undefined, this);
-var Button = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
+var Button = ({ props: props2, emit: emit2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("button", {
   type: "button",
   className: "ui-role-button",
   "data-ui": "button",
+  onClick: () => emit2("press"),
   "data-strategy": value(props2, "strategy") || undefined,
   "data-array-action": value(props2, "arrayAction") || undefined,
   "data-array-node": value(props2, "arrayNode") || undefined,
   "data-array-index": props2.arrayIndex === undefined ? undefined : String(props2.arrayIndex),
   children: value(props2, "label") || "Confirm"
 }, undefined, false, undefined, this);
-var Input = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+var Input = ({ props: props2, emit: emit2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
   className: "ui-role-input",
   "data-ui": "input",
   "data-node": value(props2, "nodeId"),
@@ -102753,6 +102755,7 @@ var Input = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label
     }, undefined, false, undefined, this),
     props2.inputType === "select" ? /* @__PURE__ */ jsx_dev_runtime.jsxDEV("select", {
       defaultValue: props2.unset === true ? "" : optionValue(props2.rawValue ?? props2.value),
+      onChange: () => emit2("input"),
       children: [
         /* @__PURE__ */ jsx_dev_runtime.jsxDEV("option", {
           value: "",
@@ -102768,17 +102771,19 @@ var Input = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label
       defaultChecked: props2.checked === true,
       defaultValue: value(props2, "value"),
       placeholder: value(props2, "placeholder"),
-      readOnly: props2.readOnly === true
+      readOnly: props2.readOnly === true,
+      onChange: () => emit2("input")
     }, undefined, false, undefined, this)
   ]
 }, undefined, true, undefined, this);
-var Switch3 = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+var Switch3 = ({ props: props2, emit: emit2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
   className: "ui-role-switch",
   "data-ui": "switch",
   children: [
     /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Switch, {
       className: "ui-role-switch-control",
       defaultChecked: Boolean(props2.checked),
+      onCheckedChange: () => emit2("change"),
       children: /* @__PURE__ */ jsx_dev_runtime.jsxDEV(SwitchThumb, {
         className: "ui-role-switch-thumb"
       }, undefined, false, undefined, this)
@@ -102788,7 +102793,7 @@ var Switch3 = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("lab
     }, undefined, false, undefined, this)
   ]
 }, undefined, true, undefined, this);
-var Select2 = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
+var Select2 = ({ props: props2, emit: emit2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("label", {
   className: "ui-role-select",
   "data-ui": "select",
   children: [
@@ -102797,6 +102802,7 @@ var Select2 = ({ props: props2 }) => /* @__PURE__ */ jsx_dev_runtime.jsxDEV("lab
     }, undefined, false, undefined, this),
     /* @__PURE__ */ jsx_dev_runtime.jsxDEV(Select, {
       defaultValue: value(props2, "value"),
+      onValueChange: () => emit2("change"),
       children: [
         /* @__PURE__ */ jsx_dev_runtime.jsxDEV(SelectTrigger, {
           className: "ui-role-select-trigger",
