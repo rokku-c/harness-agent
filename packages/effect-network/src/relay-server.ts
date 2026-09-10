@@ -26,7 +26,7 @@ export const serveRelay = async (
     if (options.localAvailable === false) throw new EgressError(503, "Main-node exit is unavailable")
     const url = targetURL(request.headers.get("x-effect-target-url") ?? "")
     const headers = decodeHeaders(request.headers.get("x-effect-target-headers") ?? "")
-    return await (options.localSend ?? fetch)(new Request(url, { method: request.method, headers,
+    return await (options.localSend ?? fetch)(new Request(url.href, { method: request.method, headers,
       redirect: "manual", signal: request.signal,
       ...(!["GET", "HEAD"].includes(request.method) ? { body: request.body } : {}),
     }))

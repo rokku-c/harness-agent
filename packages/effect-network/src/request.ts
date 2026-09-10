@@ -9,10 +9,15 @@ export const targetURL = (input: string): URL => {
   }
   return url
 }
+const requestInput = (input: string | URL | Request, init?: RequestInit): Request =>
+  input instanceof Request
+    ? new Request(input, init)
+    : new Request(input instanceof URL ? input.href : input, init)
+
 export const targetRequest = (input: string | URL | Request, init?: RequestInit): Request => {
-  const request = new Request(input, init)
+  const request = requestInput(input, init)
   const url = targetURL(request.url)
-  return new Request(url, { method: request.method, headers: targetHeaders(request.headers), redirect: "manual",
+  return new Request(url.href, { method: request.method, headers: targetHeaders(request.headers), redirect: "manual",
     signal: request.signal, ...(!["GET", "HEAD"].includes(request.method) ? { body: request.body } : {}),
   })
 }

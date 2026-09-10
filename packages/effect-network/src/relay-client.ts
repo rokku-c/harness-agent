@@ -1,4 +1,4 @@
-import { targetHeaders } from "./headers.ts"
+import { headerPairs, targetHeaders } from "./headers.ts"
 import { targetURL } from "./request.ts"
 import type { HttpSend, MainNode } from "./types.ts"
 
@@ -8,7 +8,7 @@ export const relayRequest = (appId: string, target: Request, main: MainNode, sen
   url.pathname = "/-/network/egress"; url.search = ""
   const headers = new Headers({ authorization: `Bearer ${main.token}`, "x-effect-app": appId,
     "x-effect-target-url": target.url,
-    "x-effect-target-headers": Buffer.from(JSON.stringify([...targetHeaders(target.headers)])).toString("base64"),
+    "x-effect-target-headers": Buffer.from(JSON.stringify(headerPairs(targetHeaders(target.headers)))).toString("base64"),
   })
   return send(new Request(url, { method: target.method, headers, redirect: "manual", signal: target.signal,
     ...(!["GET", "HEAD"].includes(target.method) ? { body: target.body } : {}),

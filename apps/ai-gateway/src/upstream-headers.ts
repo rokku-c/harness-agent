@@ -11,7 +11,9 @@ const identity = /^x-(?:(?:effect|identity|agent|session|user|actor|tenant)(?:-|
 export const upstreamHeaders = (incoming: Headers, provider: GatewayProvider): Headers => {
   const headers = new Headers(incoming)
   const connection = new Set((incoming.get("connection") ?? "").split(",").map((s) => s.trim().toLowerCase()))
-  for (const name of [...headers.keys()]) {
+  const names: string[] = []
+  ;(headers as Headers & { forEach(cb: (value: string, key: string) => void): void }).forEach((_value, name) => names.push(name))
+  for (const name of names) {
     if (transportHeaders.has(name) || connection.has(name) || isCredentialHeader(name) || identity.test(name)) {
       headers.delete(name)
     }
