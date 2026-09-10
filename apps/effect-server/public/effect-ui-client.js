@@ -102895,9 +102895,10 @@ var BottomTab = ({ props: props2, children }) => /* @__PURE__ */ jsx_dev_runtime
 
 // src/client/effect-ui-catalog.tsx
 var catalog2 = defineCatalog(schema, { components: formComponents, actions: {} });
-var { registry: registry2 } = defineRegistry(catalog2, {
-  components: { Stack, Text, Button, Input, Switch: Switch3, Select: Select2, Springboard, Dock, SettingsGroup, BottomTab, TopBar }
-});
+var defaultComponents = { Stack, Text, Button, Input, Switch: Switch3, Select: Select2, Springboard, Dock, SettingsGroup, BottomTab, TopBar };
+var makeEffectUiRegistry = (components = {}) => defineRegistry(catalog2, {
+  components: { ...defaultComponents, ...components }
+}).registry;
 
 // src/client/config-react-mount.tsx
 var import_client = __toESM(require_client(), 1);
@@ -103008,14 +103009,14 @@ var addArrayControls = (spec2) => Object.entries(spec2.elements).forEach(([id, e
   spec2.elements[add5] = { type: "Button", props: { label: "Add item", arrayAction: "add", arrayNode: id } };
   element.children = [...rows, ...controls, add5];
 });
-var render2 = (root, spec2) => root.render(/* @__PURE__ */ jsx_dev_runtime3.jsxDEV(JSONUIProvider, {
-  registry: registry2,
-  children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Renderer, {
-    spec: spec2,
-    registry: registry2
-  }, undefined, false, undefined, this)
-}, undefined, false, undefined, this));
-var mountConfigSpec = (container2, input2) => {
+var makeConfigMount = (registry2) => (container2, input2) => {
+  const render2 = (root2, spec3) => root2.render(/* @__PURE__ */ jsx_dev_runtime3.jsxDEV(JSONUIProvider, {
+    registry: registry2,
+    children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Renderer, {
+      spec: spec3,
+      registry: registry2
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this));
   if (!supportsConfigSpec(input2))
     throw new Error("Config Spec does not support this structure");
   const spec2 = withNodeIds(input2);
@@ -103842,7 +103843,9 @@ var bootConsole = (config2, view) => runConsole(config2, view);
 
 // src/client/effect-ui-client.tsx
 var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
-var render3 = (container2, spec2) => import_client2.createRoot(container2).render(/* @__PURE__ */ jsx_dev_runtime4.jsxDEV(JSONUIProvider, {
+var registry2 = makeEffectUiRegistry();
+var mountConfigSpec = makeConfigMount(registry2);
+var render2 = (container2, spec2) => import_client2.createRoot(container2).render(/* @__PURE__ */ jsx_dev_runtime4.jsxDEV(JSONUIProvider, {
   registry: registry2,
   children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(Renderer, {
     spec: spec2,
@@ -103851,7 +103854,7 @@ var render3 = (container2, spec2) => import_client2.createRoot(container2).rende
 }, undefined, false, undefined, this));
 window.effectUi = { mount: (container2, spec2) => {
   container2.replaceChildren();
-  render3(container2, spec2);
+  render2(container2, spec2);
 }, mountConfig: mountConfigSpec };
 var installStyleLayers = () => injectStyleLayers(document, [{ id: "theme", cssText: consoleThemeCss(), order: -100 }, { id: "ui-roles", cssText: roleStyleCss(), order: 0 }, { id: "console", cssText: consoleStyle, order: 10 }, { id: "console-platform", cssText: consoleStylePlatform, order: 20 }]);
 var start3 = () => {

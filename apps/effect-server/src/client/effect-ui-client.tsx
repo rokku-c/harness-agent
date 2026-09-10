@@ -1,8 +1,8 @@
 import * as React from "react"
 import { createRoot } from "react-dom/client"
 import { JSONUIProvider, Renderer } from "@json-render/react"
-import { registry } from "./effect-ui-catalog.tsx"
-import { mountConfigSpec } from "./config-react-mount.tsx"
+import { makeEffectUiRegistry } from "./effect-ui-catalog.tsx"
+import { makeConfigMount } from "./config-react-mount.tsx"
 import { injectStyleLayers, roleStyleCss } from "@effect-agent/effect-ui"
 import { consoleStyle } from "../console-browser-style.ts"
 import { consoleThemeCss } from "../console/theme.ts"
@@ -15,8 +15,10 @@ import { createConsoleViews } from "./console-views.ts"
 import { installThemeRuntime } from "./theme-runtime.ts"
 import { bootConsole } from "./console-navigation.ts"
 
-interface EffectUiApi { mount(container: HTMLElement, spec: unknown): void; mountConfig(container: HTMLElement, spec: unknown): ReturnType<typeof mountConfigSpec> }
+interface EffectUiApi { mount(container: HTMLElement, spec: unknown): void; mountConfig(container: HTMLElement, spec: unknown): ReturnType<ReturnType<typeof makeConfigMount>> }
 declare global { interface Window { effectUi?: EffectUiApi } }
+const registry = makeEffectUiRegistry()
+const mountConfigSpec = makeConfigMount(registry)
 const render = (container: HTMLElement, spec: unknown) => createRoot(container).render(<JSONUIProvider registry={registry}><Renderer spec={spec as never} registry={registry} /></JSONUIProvider>)
 window.effectUi = { mount: (container, spec) => { container.replaceChildren(); render(container, spec) }, mountConfig: mountConfigSpec }
 const installStyleLayers = () => injectStyleLayers(document, [{ id: "theme", cssText: consoleThemeCss(), order: -100 }, { id: "ui-roles", cssText: roleStyleCss(), order: 0 }, { id: "console", cssText: consoleStyle, order: 10 }, { id: "console-platform", cssText: consoleStylePlatform, order: 20 }])

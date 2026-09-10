@@ -1,7 +1,6 @@
 import * as React from "react"
 import { createRoot, type Root } from "react-dom/client"
-import { JSONUIProvider, Renderer } from "@json-render/react"
-import { registry } from "./effect-ui-catalog.tsx"
+import { JSONUIProvider, Renderer, type ComponentRegistry } from "@json-render/react"
 import { supportsConfigSpec, type ConfigMount, type ConfigSpec, type ConfigElementSpec } from "./config-spec.ts"
 import { appendArrayRow, parseFieldValue, rewriteArrayRowPaths } from "./config-array.ts"
 
@@ -12,8 +11,8 @@ const removeTree = (elements: Record<string, ConfigElementSpec>, id: string): vo
 const rowsOf = (spec: ConfigSpec, id: string): string[] => (spec.elements[id]?.children ?? []).filter(child => spec.elements[child]?.props?.arrayRow === true)
 const syncRows = (spec: ConfigSpec, id: string): void => { const array = spec.elements[id]; rowsOf(spec, id).forEach((row, index) => rewriteArrayRowPaths(spec.elements, row, `${String(array?.props?.fieldPath ?? id)}.${index}`)); let index = 0; (array?.children ?? []).forEach(child => { const props = spec.elements[child]?.props; if (props?.arrayAction === "remove") props.arrayIndex = index++ }) }
 const addArrayControls = (spec: ConfigSpec): void => Object.entries(spec.elements).forEach(([id, element]) => { if (element.props?.role !== "array") return; const rows = rowsOf(spec, id), controls = rows.map((_, index) => { const control = `${id}-remove-${index}`; spec.elements[control] = { type: "Button", props: { label: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: index } }; return control }); const add = `${id}-add`; spec.elements[add] = { type: "Button", props: { label: "Add item", arrayAction: "add", arrayNode: id } }; element.children = [...rows, ...controls, add] })
-const render = (root: Root, spec: ConfigSpec) => root.render(<JSONUIProvider registry={registry}><Renderer spec={spec as never} registry={registry} /></JSONUIProvider>)
-export const mountConfigSpec = (container: HTMLElement, input: unknown): ConfigMount => {
+export const makeConfigMount = (registry: ComponentRegistry) => (container: HTMLElement, input: unknown): ConfigMount => {
+  const render = (root: Root, spec: ConfigSpec) => root.render(<JSONUIProvider registry={registry}><Renderer spec={spec as never} registry={registry} /></JSONUIProvider>)
   if (!supportsConfigSpec(input)) throw new Error("Config Spec does not support this structure")
   const spec = withNodeIds(input as ConfigSpec); addArrayControls(spec); const root = createRoot(container); container.replaceChildren(); render(root, spec)
   const onClick = (event: Event) => { const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-array-action]"); if (!button) return; const id = button.dataset.arrayNode, array = id && spec.elements[id]; if (!id || !array) return; const rows = rowsOf(spec, id); if (button.dataset.arrayAction === "remove") { const row = rows[Number(button.dataset.arrayIndex)]; if (!row) return; removeTree(spec.elements, row); array.children = (array.children ?? []).filter(child => child !== row); syncRows(spec, id) } else if (button.dataset.arrayAction === "add" && array.props?.itemSchema) { const row = appendArrayRow(spec.elements, id, rows.length, array.props.itemSchema as never); const add = (array.children ?? []).find(child => spec.elements[child]?.props?.arrayAction === "add"); array.children = (array.children ?? []).filter(child => child !== add); const remove = `${id}-remove-${rows.length}`; spec.elements[remove] = { type: "Button", props: { label: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: rows.length } }; array.children.push(row, remove); if (add) array.children.push(add) } else return; render(root, spec) }
