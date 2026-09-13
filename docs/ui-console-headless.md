@@ -29,18 +29,21 @@ discovers apps from `effect.yaml`, renders each app's UI, and aggregates config.
 
 ## 2. Current seams (what we build on)
 
-- Neutral description already exists: `packages/effect-ui/src/spec.ts` — `UiNodeSpec` is a
-  closed union of five leaves (`text | stack | button | formField | list`) carrying **no
-  styling**, only `bind` (state pointer) and `onPress`/actions. Comment: renderers can be
+- Neutral description already exists: `packages/effect-ui/src/spec.ts` — a node is an
+  interface naming a `component` (a `@radix-ui/themes` export path) with `props`, `children`,
+  `bind` (state pointer), `onPress`/actions and `visible`. The role set is open and kept by
+  the registry, not by a union (`UiNodeSpec` is an alias of `UiNode`). Renderers can be
   swapped behind the `UiRenderer` seam.
 - Conversions exist: `viewToJsonSpec` (EffectUiView → json-render Spec) and
   `formToJsonSpec` (zod config schema → json-render form Spec) in `packages/effect-ui`.
 - Rendering: `@json-render/react` `<Renderer spec registry/>`; the React catalog lives in
-  `apps/effect-server/src/client/effect-ui-catalog.tsx` (`defineRegistry` + `defineCatalog`).
-  `packages/effect-ui/src/form-catalog.ts` exports the shared component schemas.
-- Console chrome has a static HTML shell, but browser boot and role surfaces are bundled in
-  `effect-ui-client.tsx`; `console/system-ui.ts` publishes the live shell Spec. The typed form
-  runtime remains available as a deliberate fallback for malformed or unsupported declarations.
+  `apps/effect-server/src/client/effect-ui-catalog.tsx` (`makeEffectUiRegistry`). The shared
+  component schemas are `viewSpecSchema` / `viewToJsonSchema` in
+  `packages/effect-ui/src/schema.ts` over the parts in `src/schema-parts.ts`.
+- Console chrome has a static HTML shell (`console-page.ts`), but browser boot and role
+  surfaces are bundled in `effect-ui-client.tsx`. The shell Spec is lowered server-side in
+  `console/view-route.ts`, the one place that computes a `jsonSpec`. The typed form runtime
+  remains available as a deliberate fallback for malformed or unsupported declarations.
 
 ## 3. Layer model
 
@@ -171,28 +174,27 @@ to edge. Safe areas use `env(safe-area-inset-*)`.
 - Global restyle = swap token set (light / dark / accent / future brand) at the root; no
   component edits. All apps + the system inherit it because they share L4.
 - The React catalog and config mount receive the same registry and token context from the single
-  `console-client.js` bundle; the typed form runtime is only a fallback for schema shapes not yet
+  `effect-ui-client.js` bundle; the typed form runtime is only a fallback for schema shapes not yet
   representable by the role Spec.
 
 ## 7. Where this lands in the repo
 
-- `packages/effect-ui` — grow the role registry (`spec.ts` union → open, registry-kept role
-  set), keep `bind`/action/bridge semantics; keep neutral; export JSON Schema.
+- `packages/effect-ui` — grow the role registry (the role set is open and registry-kept),
+  keep `bind`/action/bridge semantics; keep neutral; export JSON Schema.
 - `@json-render/core` / `@json-render/react` — unchanged contracts; the catalog under
   `apps/effect-server/src/client/effect-ui-catalog.tsx` + `packages/ui-renderer` grows from
   `Stack/Text/Button/Input` to the full role set, implemented on `@radix-ui/react-*`. Flat
   config Specs use the same React bundle through `effectUi.mountConfig`.
-- `packages/effect-ui/src/form-catalog.ts` — becomes role schemas (shared by authoring and
-  rendering), not per-renderer duplicates.
-- `apps/effect-server` — console chrome (`console-page.ts`, `console-navigation.ts`,
-  `console-browser-style.ts`) consumes the role vocabulary; `console/system-ui.ts` publishes
-  the system shell as a Spec document; theme tokens + `data-theme` are injected by the console page.
+- `packages/effect-ui/src/schema.ts` + `src/schema-parts.ts` — the role schemas, shared by
+  authoring and rendering, not per-renderer duplicates.
+- `apps/effect-server` — console chrome consumes the role vocabulary; `console/view-route.ts`
+  lowers each screen's Spec; theme tokens + `data-theme` are injected by the console page.
 - New deps (scoped where used): `@radix-ui/react-*` (+ `@radix-ui/react-slot`).
 
 ### Migration steps
 
 1. Add theme module (tokens + recipe registry) and move all hard-coded catalog colours off
-   it (`effect-ui-catalog.tsx`, `form-catalog.ts` consumers).
+   it (`effect-ui-catalog.tsx`, the role schemas consumers).
 2. Stand up the role registry; migrate `formToJsonSpec`/`viewToJsonSpec` to registry-driven
    conversion; prove "add a role ⇒ author + validate + render + convert all update".
 3. Build the composite roles the console needs (Springboard, Widget, Dock,

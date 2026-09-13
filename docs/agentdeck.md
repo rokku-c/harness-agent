@@ -122,7 +122,7 @@ agentdeck+deckconsole 14 条绿；全套 269 条 0 fail；tsc 干净。
 
 
 ## 收尾（round 17）
-- packages/agentdeck 与 apps/deckconsole 增 npm scripts（test/dev/start）
+- packages/agentdeck 增 npm scripts（test/test:watch）；apps/deckconsole 增（dev/start/test）
 - 新增 docs/agentdeck-map.md：目标三条需求 + 产品封装的「目标→落点→测试证明」对照矩阵
 - 最新全页截图 /tmp/r17-overview.png（会话/映射/预览/流水/详情五区块 + 1 待批）
 验证：全套 278/45 0 fail；tsc 干净。

@@ -1,7 +1,7 @@
 # mantis acceptance matrix
 
 Every layer of the product has an acceptance bar. "suite" = covered by the bun
-test suite (run: `bun test` at repo root; clawyp tests under apps/clawyp/test).
+test suite (run: `bun test` at repo root; clawyp tests under apps/mantis/test).
 "live" = verified against a real running instance (real model or real browser).
 Checkmarks are updated by each release smoke; a release is only shippable when
 every row below is checked.
@@ -11,7 +11,7 @@ Legend: [s] suite green · [L] verified live (this build) · [·] evidence link
 ## L0 core (effect-agent foundation)
 - [s] session loop runs one model turn to a FinalReply (decode tolerates prose)   -> test/failures.test.ts
 - [s] failed tool step injects one reflection then continues                     -> packages/builtin loop tests
-- [s] per-conversation history binding materializes prior turns                  -> test/clawyp.test.ts, dingtalk
+- [s] per-conversation history binding materializes prior turns                  -> apps/mantis/test/clawyp.test.ts, dingtalk
 
 ## L1 capability manifest (single source of the surface)
 - [s] supply registry, ops, catalog descriptions all derive from the manifest (no drift)
@@ -39,7 +39,7 @@ Legend: [s] suite green · [L] verified live (this build) · [·] evidence link
 - [L] process restart keeps records; fresh agent conversation recalls them       -> live (R4, mantis host)
 
 ## Approvals (operator gate, cards-only)
-- [s] protected write waits; resolve allow/deny commits or denies                -> test/clawyp.test.ts
+- [s] protected write waits; resolve allow/deny commits or denies                -> apps/mantis/test/clawyp.test.ts
 - [s] approvals render + resolve over HTTP/MCP                                   -> test/webui.test.ts, test/mcp.test.ts
 
 ## Agent UI - REMOVED in R31 (superseded by user direction; no A2UI surface)
