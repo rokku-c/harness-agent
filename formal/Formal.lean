@@ -32,6 +32,7 @@ import Formal.Redact
 import Formal.Reload
 import Formal.Resolve
 import Formal.Rollup
+import Formal.Rules
 import Formal.Screen
 import Formal.Sets
 import Formal.Slot
