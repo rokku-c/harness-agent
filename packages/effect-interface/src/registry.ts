@@ -17,7 +17,15 @@ import { keyOf, schemaOf, type ToolEntry } from "./tool-key.ts"
 
 export type { ToolEntry } from "./tool-key.ts"
 
-export interface AppEntry {
+/**
+ * An app as the registry holds it: the app, and the interface it was registered
+ * under. `AppEntry` is deliberately not the name — @effect-agent/effect-apps
+ * uses it for a catalog entry, which carries the planes an app serves and is
+ * addressed by `ns`/`appId`. Unlike a {@link ToolEntry} this record has no flat
+ * key: an app is reached through the interface that declares it, not addressed
+ * by name.
+ */
+export interface RegisteredApp {
   readonly interfaceId: string
   readonly app: EffectApp
 }
@@ -28,7 +36,7 @@ export interface EffectRegistry {
   /** flat view of every registered tool, keyed "interfaceId.toolName". */
   tools(): readonly ToolEntry[]
   /** flat view of every registered UI app (interfaceId + app). */
-  apps(): readonly AppEntry[]
+  apps(): readonly RegisteredApp[]
   find(interfaceId: string): EffectInterface | undefined
   /** JSON-Schema projection used to drive MCP/docs. */
   schemas(): readonly ToolJsonSchema[]
@@ -48,8 +56,8 @@ export const makeEffectRegistry = (): EffectRegistry => {
     return out
   }
 
-  const apps = (): readonly AppEntry[] => {
-    const out: AppEntry[] = []
+  const apps = (): readonly RegisteredApp[] => {
+    const out: RegisteredApp[] = []
     for (const iface of interfaces.values()) {
       for (const app of iface.apps ?? []) {
         out.push({ interfaceId: iface.id, app })
