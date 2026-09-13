@@ -22,6 +22,7 @@ import Formal.InFlight
 import Formal.Lifecycle
 import Formal.Match
 import Formal.NodeGuard
+import Formal.Presence
 import Formal.Queue
 import Formal.Readout
 import Formal.Redact
