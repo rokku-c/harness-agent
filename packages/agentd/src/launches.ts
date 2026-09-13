@@ -9,6 +9,7 @@
  * it. The center never contacts a node.
  */
 import { AgentdError } from "./errors.ts"
+import { claimLapsed, settled } from "./launch-claim.ts"
 import type { LaunchIntent, LaunchRequest, LaunchState } from "./launch-types.ts"
 
 export type { LaunchIntent, LaunchRequest, LaunchState } from "./launch-types.ts"
@@ -16,15 +17,17 @@ export type { LaunchIntent, LaunchRequest, LaunchState } from "./launch-types.ts
 export interface LaunchQueueOptions {
   readonly now?: () => number
   readonly limitPerPoll?: number
+  /** How long a claim is a machine's own before it can be offered again. */
+  readonly claimTtlMs?: number
 }
-
-const OPEN: readonly LaunchState[] = ["queued", "claimed", "running"]
 
 export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
   const now = options.now ?? Date.now
   const limitPerPoll = options.limitPerPoll ?? 1
+  // long enough to outlast the batch a machine takes, since it claims the batch
+  // before it runs any of it
+  const claimTtlMs = options.claimTtlMs ?? 300_000
   const intents = new Map<string, LaunchIntent>()
-  const settled = (state: LaunchState): boolean => !OPEN.includes(state)
   return {
     /**
      * A relative workdir means different places on different machines, so the
@@ -43,11 +46,13 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
      * in here, so two polls cannot both take the same intent.
      */
     poll: (machineId: string, limit: number = limitPerPoll): LaunchIntent[] => {
+      const at = now()
       const claimed: LaunchIntent[] = []
       for (const intent of intents.values()) {
         if (claimed.length >= limit) break
-        if (intent.machineId !== machineId || intent.state !== "queued") continue
-        const next: LaunchIntent = { ...intent, state: "claimed", claimedAt: now() }
+        if (intent.machineId !== machineId) continue
+        if (intent.state !== "queued" && !claimLapsed(intent, at, claimTtlMs)) continue
+        const next: LaunchIntent = { ...intent, state: "claimed", claimedAt: at }
         intents.set(next.intentId, next)
         claimed.push(next)
       }
@@ -81,7 +86,8 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
         (query.machineId === undefined || intent.machineId === query.machineId)
         && (query.nodeId === undefined || intent.nodeId === query.nodeId)),
     /** An intent still waiting on a machine, so one node is never asked twice at once. */
-    openOn: (nodeId: string): LaunchIntent | undefined => [...intents.values()].find((intent) => intent.nodeId === nodeId && OPEN.includes(intent.state)),
+    openOn: (nodeId: string): LaunchIntent | undefined =>
+      [...intents.values()].find((intent) => intent.nodeId === nodeId && !settled(intent.state)),
   }
 }
 export type LaunchQueue = ReturnType<typeof makeLaunchQueue>
