@@ -5,7 +5,7 @@ import type { ConfigRegistry } from "@effect-agent/effect-config"
 export const makeConfigPlugin = (
   configs: ConfigRegistry, yamlOf?: (id: string) => unknown, overrideOf?: (id: string) => unknown,
 ): EffectPlugin => ({
-  id: "config", priority: 150,
+  id: "config",
   load: async () => ({
     canHandle: (path) => path === "/-/config" || path.startsWith("/-/config/"),
     handle: async (request) => {

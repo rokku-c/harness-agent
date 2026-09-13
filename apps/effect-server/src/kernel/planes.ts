@@ -4,7 +4,10 @@
  * These are the same factories the composition root used to call inline before the
  * split. What changed is who owns them: the kernel builds and owns its planes, and
  * the host holds only a stable stand-in per slot. A kernel revision therefore
- * supplies implementations, never the routing table.
+ * supplies implementations, never the routing table — which is why no factory here
+ * states a priority or a route. `KERNEL_PLANES` owns both, and this call is the
+ * only one that reads a factory, so a factory that restated either would be a
+ * second copy nothing reads.
  */
 
 import type { EffectPlugin } from "@effect-agent/effect-host"

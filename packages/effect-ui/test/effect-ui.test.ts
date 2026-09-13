@@ -2,7 +2,6 @@ import { expect, test } from "bun:test"
 
 import { viewSpecSchema, viewToJsonSchema } from "../src/schema.ts"
 import { htmlRenderer } from "../src/html-renderer.ts"
-import { makeUiRendererRegistry } from "../src/renderer.ts"
 import type { EffectUiView } from "../src/spec.ts"
 
 const profileView: EffectUiView = {
@@ -41,15 +40,6 @@ test("the view schema is recursive and open: a node names a component, and its p
   for (const directive of ["component", "bind", "item", "as", "repeat", "visible", "onPress", "params"]) {
     expect(exported).toContain(`"${directive}"`)
   }
-})
-
-test("same view renders distinctly across the two renderers via the registry", () => {
-  const registry = makeUiRendererRegistry([htmlRenderer])
-  expect(registry.list()).toEqual(["html"])
-  expect(registry.get("html")).toBe(htmlRenderer)
-
-  expect(registry.render("html", profileView)).toContain('data-effect-ui="profile"')
-  expect(() => registry.render("missing", profileView)).toThrow(/not found/)
 })
 
 test("the html renderer names the design system's component and escapes what it was given", () => {

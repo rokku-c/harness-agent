@@ -31,7 +31,7 @@ const fromDisk = (path: string): Response | undefined => {
 }
 
 export const makeConsolePlugin = (options: ConsoleOptions): EffectPlugin => ({
-  id: "console", priority: 90,
+  id: "console",
   load: async () => {
     const runtime = options.configRuntime ?? makeConfigRuntime(options.configs)
     const bundle = options.dev === true ? makeClientBundle() : undefined

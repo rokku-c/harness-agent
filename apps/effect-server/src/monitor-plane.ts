@@ -10,7 +10,7 @@ export interface MonitorOptions extends AppsCatalogOptions {
 }
 export const makeMonitorPlane = (options: MonitorOptions): EffectPlugin => {
   const catalog = options.catalog ?? makeLiveAppCatalog(options)
-  return { id: "monitor", priority: 14, load: async () => {
+  return { id: "monitor", load: async () => {
     const store = createObservationStore(options.observationFile ?? ":memory:")
     const last = new Map<string, string>()
     return {
