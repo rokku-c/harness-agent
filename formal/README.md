@@ -21,7 +21,7 @@ like a broken test.
 | `Formal/Redact.lean` | `mcp-gateway/src/redaction.ts`, `ai-gateway/src/redaction.ts` | the scrub leaves no field unvisited at any depth, for any vocabulary; a credential-named header is not carried |
 | `Formal/Screen.lean` | `effect-ui/src/screen.ts` | entered screens form a chain back to the root, without repeats |
 | `Formal/Swap.lean` | `effect-bundle/src/supervisor.ts` | at every moment of a kernel swap the dispatcher points at a kernel that is loaded; stopping the old one first does not |
-| `Formal/ToolKey.lean` | `effect-interface/src/registry.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two names can share one served name, and the surface refuses that instead of dropping a tool |
+| `Formal/ToolKey.lean` | `effect-interface/src/registry.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two tool names can sanitize to one served name, and the surface refuses that instead of dropping a tool |
 
 ## What this is not
 

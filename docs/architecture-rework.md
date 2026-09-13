@@ -98,7 +98,7 @@
   那条已经声明过的路径。
 
 两个刻意的性质（都写在 `operations.ts` 注释里）：`list()` 是**视图不是快照**，每次重读 catalog，
-所以热换（§6.4）后立刻反映、没有需要失效的缓存——快照工具面正是 `ToolSurface` 修过的那类 bug；
+所以热换（§6.4）后立刻反映、没有需要失效的缓存——节点 MCP server 每请求重建也是同一个道理；
 app 面的可见性直接继承 `listAppTools` 的 `authorize("interface")`，被拒的 plane **根本不在表里**，
 而不是"在表里但调不动"。
 
@@ -339,12 +339,16 @@ host ───┤                                            ├─ 路由分发
   给出 `install / rollback / unload / current / previous / generations`。
   流程是 `install → 读回工具面 → 裁决 → 健康探针 → commit（退休旧世代）`，任一步失败都 **restore 回上一个世代**。
   裁决用 `assessSurfaceChange`（两代同名工具走 `assessChange`；工具**消失**按 `schema` 级；工具**新增**不算破坏）。
-- **工具面** `packages/effect-mcp/src/node-server/tools.ts`：`ToolSurface.refresh()` 对账 MCP server 的工具表
-  并 `sendToolListChanged()`（SDK 自带 `isConnected()` 保护，未连接时安全）。`buildNodeMcpServer` 的返回值
-  现在是 `NodeMcpServer = McpServer & { toolSurface }`，既有用法不受影响。
-  **为什么必须先有它**：`registerTools` 原来在构建时快照 `registry.tools()`，热换后连接中的 agent 拿着过期清单，
-  所以"发通知"之前得先让工具表是**动态**的。
-- 接线：`makeAppSlot` 的 `onChange` 就是接缝——`makeAppSlot(host, id, { onChange: () => surface.refresh() })`。
+- **工具面**：不需要对账。`registerTools` 从传进来的 registry 注册一次，而**每个 HTTP 请求重建一个
+  MCP server**（`effect-standalone` 的 HTTP 口与 `apps/effect-server` 都是这样），所以热换后 agent
+  拿到的是新 server 的清单，不存在"连接中的 agent 拿着过期清单"，也就没有要发的
+  `notifications/tools/list_changed`。
+  **修正（2026-09-13）**：这里一度有 `ToolSurface.refresh()` 对账 + `NodeMcpServer` 类型，接缝写在
+  `makeAppSlot` 的 `onChange` 上——但那个接缝从未接线，而"每请求新建"已是同一问题的更简单解法
+  （`packages/effect-apps` 的 `list()` 是"视图而非快照"，同一手法）。已删。
+  删除后 `registerTools` 保留一条**响亮的失败**：两个工具 sanitize 出同一个名字时抛错并点出两个 key，
+  而不是让后写者静默覆盖（`formal/Formal/ToolKey.lean` 的 `two_names_can_serve_as_one_name` 与
+  `a_shared_name_stops_the_surface`）。
 
 **与 §6.5-1「暂存槽」的偏离（如实记录）**：没有做"影子身份"（`id#staged` 那种不接管路由的暂存）。
 原因：`effect-host` 的 `register()` 本就是**按 id 覆盖**（`lifecycle.ts:26` 先 unload 旧的再装新的），
@@ -381,7 +385,8 @@ host ───┤                                            ├─ 路由分发
 7. **per-app active/previous 指针**：回滚粒度细到单个 app（§6.4-3）。
    *内存版已落地*（`AppSlot.previous()` + `rollback()`）；**跨重启持久化未做**（见第 3 项）。
 8. **MCP `notifications/tools/list_changed`**：app（或内核）换版本后，通知已连接的 agent 工具面变了。
-   *已落地*（`effect-mcp` 的 `ToolSurface.refresh()`），并顺带把节点服务器的工具表从"构建时快照"改成**动态对账**。
+   *不需要*：节点服务器每次请求重建，agent 拿到的就是当前清单。通知是给"长期持有连接、工具表会在原地变"
+   的 server 用的，这里没有这种 server。原先的 `ToolSurface.refresh()` 已删（理由见 §6.4 的修正说明）。
 
 ### 6.6 已有的可复用件（拼装，不必从零造）
 
@@ -871,7 +876,7 @@ DesiredNode { node: Machine, revision, kernel?: BundleRef, apps: ResolvedNodeApp
 | ~~**P1**~~ ✅ | **盘点**（§6.3 / §7.2 的前提）：逐个 app 的 ambient 依赖（R5 已能查出）+ 内核切换后不可重建的态 + 需要的 runtime | 有清单；不可重建项要么迁进 store，要么明确标为已知限制 |
 | ~~**P2**~~ ✅ | 操作集合统一枚举（含 host 特权面）+ **host/kernel 拆分**：把 `bootRuntime` 拆成 bootstrap（不变式）与内核制品 | 操作集合那一半**已达成**（`/-/operations` 列出 host + 全部 app，含 schema）；拆分的另一半在 P5 第二段补齐——`boot/runtime.ts` 现在只留不变式，内核成为 `src/kernel/` 的制品契约，`loadKernel()` 可从制品目录 `import()` 出**另一个**内核（P2-B 当时把"制品形态"押后，正是缺 supervisor 与请求保护，见 §6.1） |
 | ~~**P3**~~ ✅ | **多 target 编译** + 运行时适配层（能力注入） | **已落地**：同一个 app 制品按声明的 `runtimes` 各出一份 entry，OS 宿主与浏览器宿主给同一组注入能力时**行为逐字节一致**；沙箱宿主报告的能力集**等于实际注入的那组**（空沙箱报空，不报"进程有所以它有"）；宿主给不齐 `requires` 声明的能力 → 在 import 之前拒绝并指名缺哪个。**未做**：真正的隔离沙箱（今天 entry 仍在宿主进程里跑）、真实浏览器页面宿主 |
-| ~~**P4**~~ ✅ | **app 热换**：健康检查 + 单点切换（本地）+ per-app previous 指针 + `tools/list_changed` 通知（暂存槽按 §6.4 的偏离说明未采用） | 单个 app 换版本成功、其余 app 不中断；schema 破坏被裁决拦下或告警；已连接 agent 收到工具面变更通知；失败时旧版照常服务 |
+| ~~**P4**~~ ✅ | **app 热换**：健康检查 + 单点切换（本地）+ per-app previous 指针（暂存槽按 §6.4 的偏离说明未采用；`tools/list_changed` 经复核不需要，见 §6.4 修正说明） | 单个 app 换版本成功、其余 app 不中断；schema 破坏被裁决拦下或告警；热换后 agent 拿到的是当前工具面；失败时旧版照常服务 |
 | ~~**P5**~~ ✅ | **内核级双缓冲**切换 + active/previous 指针 + boot 崩溃回滚。先做 §6.3-① **兼容原地热换**，再做 ② 全量重建档 | ① **已落地并接进真实进程**：内核从制品目录 `import()` 装入、经 §5 两线裁决与槽位覆盖探针后翻转，旧内核 drain 完才停；app 零重建（测试断言 `load()` 全程只调用一次）。② **已落地**（2026-09-10，见下）：不兼容内核改为**重建 app 后装上**——`rebuild` 能力注入式，
   未注入则与从前逐字一致（拒换）。内核制品的**编译器**也已落地（2026-09-10，见下）：内核不再是"手写目录"，`bun run kernel:build` 就能打出装载器认的制品 |
 | ~~**P6**~~ ✅ | agentd 推送内核与 app 制品 + 回执（远程，按机器，含 runtime 匹配） | **已落地**：推送走 `makeBundleArtifactAdapter`，机器能力从 `Machine.capabilities` 读，不匹配在 **plan 期**就被拒（复用 `effect-bundle` 的裁决，非第二套规则）；被推送的制品经 `kernelRevisionOf` 直接成为可 stage 的 `KernelRevision`；回执 revision 一致、stale 409。跨进程传输层**已落地**（§8.2 末：制品仓 + `GET /agentd/artifact` + probe 暂存） |
@@ -890,9 +895,9 @@ DesiredNode { node: Machine, revision, kernel?: BundleRef, apps: ResolvedNodeApp
 - `packages/effect-apps/src/registration/generations.ts` —— `makeAppSlot` / `readAppSurface` /
   `assessSurfaceChange`。流程 `install → 读回工具面 → 裁决 → 探针 → commit（退休旧世代）`，
   任一步失败 `restore` 回上一世代；`rollback()` 就是 `install()` 反过来（§5）。
-- `packages/effect-mcp/src/node-server/tools.ts` —— `ToolSurface.refresh()` 对账 MCP 工具表并
-  `sendToolListChanged()`；顺手修掉一个真实缺口：`registerTools` 原本在构建时快照 `registry.tools()`，
-  热换后已连接的 agent 拿着过期清单。
+- `packages/effect-mcp/src/node-server/tools.ts` —— `registerTools` 注册一次，与 registry 一致；
+  两个工具 sanitize 出同一个名字时**抛错点名**，而不是静默覆盖。
+  （原 `ToolSurface.refresh()` 对账机制已删：HTTP 口每请求重建 server，热换天然反映——见 §6.4 的修正说明。）
 - `packages/effect-compat` —— 把 §5 的裁决模型从 `packages/script` 抽成**零依赖**包
   （`assessChange` / `assessUpgrade` / `assessRollback`），`script` 改为转出，避免 app 层为了裁决
   去依赖 `isolated-vm` 原生模块。

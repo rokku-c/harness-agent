@@ -1,115 +1,58 @@
-import { invoke, type EffectRegistry } from "@effect-agent/effect-interface"
+import { invoke, type EffectRegistry, type EffectTool } from "@effect-agent/effect-interface"
 import { zodShape, type JsonSchema } from "./schema.js"
 
+/**
+ * The name a caller sees: the tool's own name, reduced to what MCP allows.
+ *
+ * `sanitize` is not injective — `Formal/ToolKey.lean`
+ * (`two_names_can_serve_as_one_name`) exhibits two tools with one served name —
+ * so a surface that let the later registration win would drop a tool it still
+ * advertises. `registerTools` refuses instead.
+ */
 const sanitize = (name: string): string => name.replace(/[^A-Za-z0-9_-]+/g, "_")
 
-/** What a reconcile pass changed on the served tool list. */
-export interface ToolChange {
-  readonly added: readonly string[]
-  readonly removed: readonly string[]
-  readonly updated: readonly string[]
+const call = (tool: EffectTool) => async (args: Record<string, unknown>): Promise<unknown> => {
+  try {
+    return { content: [{ type: "text", text: JSON.stringify(await invoke(tool, args ?? {})) }] }
+  } catch (error) {
+    return {
+      content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
+      isError: true,
+    }
+  }
 }
-
-export const emptyToolChange: ToolChange = { added: [], removed: [], updated: [] }
-
-export const toolChangeIsEmpty = (change: ToolChange): boolean =>
-  change.added.length === 0 && change.removed.length === 0 && change.updated.length === 0
 
 /**
- * The live tool surface of a node server.
+ * Serve a registry's tools on a node server, once, from the registry as it is.
  *
- * Tools used to be registered once, at build time, from a snapshot of the
- * registry — so an app hot-swap (docs/architecture-rework.md §6.4) left
- * connected agents holding a stale list. The surface reconciles on demand and
- * announces `notifications/tools/list_changed`, which is what §6.5-8 requires.
+ * A server serves the surface it was built with; a caller that needs a
+ * different one builds another server. That is how every production face works
+ * — `effect-standalone`'s HTTP host and `apps/effect-server` both build a server
+ * per request from the live catalog — so an app hot-swap is a new server rather
+ * than a reconcile pass over this one, and there is no stale list to announce.
+ *
+ * Throws (naming both tools) rather than silently overwriting when two tools
+ * would share one served name.
  */
-export interface ToolSurface {
-  /** the tool names currently served, in registration order. */
-  names(): readonly string[]
-  /** re-read the registry and reconcile; announces the change to connected clients. */
-  refresh(): ToolChange
-}
-
-interface LiveTool {
-  readonly signature: string
-  readonly handle: { remove(): void }
-}
-
-/** Identity of a tool as the client sees it — a change here is a change to the surface. */
-const signatureOf = (tool: {
-  readonly name: string
-  readonly title?: string
-  readonly description?: string
-  readonly inputSchema?: unknown
-}): string => JSON.stringify([tool.title ?? tool.name, tool.description ?? tool.name, tool.inputSchema ?? null])
-
-export const registerTools = (server: any, registry: EffectRegistry): ToolSurface => {
+export const registerTools = (server: any, registry: EffectRegistry): void => {
   const register = server.registerTool.bind(server) as any
-  const live = new Map<string, LiveTool>()
+  const served = new Map<string, string>()
 
-  const add = (tool: any): void => {
+  for (const { key, tool } of registry.tools()) {
     const name = sanitize(tool.name)
-    const handle = register(
+    const taken = served.get(name)
+    if (taken !== undefined) {
+      throw new Error(`tools "${taken}" and "${key}" both serve as "${name}"; rename one of them`)
+    }
+    served.set(name, key)
+    register(
       name,
       {
         title: tool.title ?? tool.name,
         description: tool.description ?? tool.name,
         inputSchema: zodShape(tool.inputSchema as JsonSchema | undefined),
       },
-      async (args: Record<string, unknown>) => {
-        try {
-          return { content: [{ type: "text", text: JSON.stringify(await invoke(tool, args ?? {})) }] }
-        } catch (error) {
-          return {
-            content: [{ type: "text", text: error instanceof Error ? error.message : String(error) }],
-            isError: true,
-          }
-        }
-      },
+      call(tool),
     )
-    live.set(name, { signature: signatureOf(tool), handle })
-  }
-
-  const desired = (): Map<string, any> => {
-    const out = new Map<string, any>()
-    for (const { tool } of registry.tools()) out.set(sanitize(tool.name), tool)
-    return out
-  }
-
-  // initial population — no notification: nothing was served before this build.
-  for (const tool of desired().values()) add(tool)
-
-  return {
-    names: () => [...live.keys()],
-
-    refresh(): ToolChange {
-      const wanted = desired()
-      const added: string[] = []
-      const removed: string[] = []
-      const updated: string[] = []
-
-      for (const [name, entry] of [...live]) {
-        if (wanted.has(name)) continue
-        entry.handle.remove()
-        live.delete(name)
-        removed.push(name)
-      }
-      for (const [name, tool] of wanted) {
-        const entry = live.get(name)
-        if (entry === undefined) {
-          add(tool)
-          added.push(name)
-        } else if (entry.signature !== signatureOf(tool)) {
-          entry.handle.remove()
-          live.delete(name)
-          add(tool)
-          updated.push(name)
-        }
-      }
-
-      const change: ToolChange = { added, removed, updated }
-      if (!toolChangeIsEmpty(change)) server.sendToolListChanged()
-      return change
-    },
   }
 }

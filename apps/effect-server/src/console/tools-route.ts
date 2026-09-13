@@ -21,18 +21,18 @@ export interface InspectorTool {
   readonly inputSchema: unknown
 }
 
-export const inspectorTools = (registry: EffectRegistry, id: string): readonly InspectorTool[] => {
-  const iface = registry.find(id)
-  if (iface === undefined) return []
-  return iface.tools.map((tool) => ({
-    name: tool.name,
-    ...(tool.title === undefined ? {} : { title: tool.title }),
-    ...(tool.description === undefined ? {} : { description: tool.description }),
-    // the same projection the MCP door serves, so a form here and a call there
-    // are validated against one schema
-    inputSchema: registry.schemaFor(`${id}.${tool.name}`)?.parameters ?? { type: "object" },
-  }))
-}
+export const inspectorTools = (registry: EffectRegistry, id: string): readonly InspectorTool[] =>
+  registry
+    .tools()
+    .filter((entry) => entry.interfaceId === id)
+    .map(({ key, tool }) => ({
+      name: tool.name,
+      ...(tool.title === undefined ? {} : { title: tool.title }),
+      ...(tool.description === undefined ? {} : { description: tool.description }),
+      // the same projection the MCP door serves, so a form here and a call there
+      // are validated against one schema
+      inputSchema: registry.schemaFor(key)?.parameters ?? { type: "object" },
+    }))
 
 /** Arguments are the request body; an empty body is an empty argument set. */
 const argsOf = async (request: Request): Promise<unknown> => {

@@ -6,8 +6,8 @@
   different name forms. The registry flattens it to `ifaceId + "." + toolName`
   and looks tools up by that key; the MCP node server serves it under the
   sanitized name, which is what a connected agent sees. Both forms are strings
-  built by concatenation or character replacement, so both can map two different
-  tools onto one name — and the failure is silent: a lookup answers with the
+  built by concatenation or character replacement, so either could map two tools
+  onto one name — and the failure would be silent: a lookup answers with the
   wrong tool, or a map's last write drops a tool an agent was told exists.
 
   The two halves get opposite treatment, and that is the point of proving both:
@@ -24,6 +24,11 @@
     let the map's last write win, and `serve` below is the same map with a
     shared name refused instead: `every_name_is_served` and
     `a_shared_name_stops_the_surface` are the two halves of that refusal.
+
+  The two name forms are different strings, and only the second is lossy: the
+  key is injective, while the served name is the tool's *own* name with its
+  disallowed characters replaced. That is why the refusal lives on the served
+  name alone.
 
   Idealisation: names are `List Char`, which is what both functions actually do
   (append a separator, replace characters); nothing here depends on encoding,
@@ -104,13 +109,13 @@ theorem the_served_name_is_as_long_as_the_tool_name (toolName : Name) :
   | nil => rfl
   | cons c rest ih => by_cases h : allowed c = true <;> simp [sanitize, h, ih]
 
-/-- Two different names, one served name: a tool `c` on an interface `ns/app`
-and a tool `app.c` on an interface `ns` both serve as `ns_app_c`. Nothing about
-`sanitize` prevents this, which is why the surface below refuses a shared name
-rather than letting the map's last write win. -/
+/-- Two different names, one served name: tools called `task.open` and
+`task/open` both serve as `task_open`. Nothing about `sanitize` prevents this,
+which is why the surface below refuses a shared name rather than letting the
+map's last write win. -/
 theorem two_names_can_serve_as_one_name :
-    sanitize (keyOf "ns/app".toList "c".toList) = sanitize (keyOf "ns".toList "app.c".toList)
-      ∧ keyOf "ns/app".toList "c".toList ≠ keyOf "ns".toList "app.c".toList := by
+    sanitize "task.open".toList = sanitize "task/open".toList
+      ∧ "task.open".toList ≠ "task/open".toList := by
   decide
 
 /-- What the surface holds: the name the caller sees, and the name that produced

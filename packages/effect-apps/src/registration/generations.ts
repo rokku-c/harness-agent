@@ -68,9 +68,8 @@ export type InstallResult =
 export interface AppSlotOptions {
   /**
    * Called after every successful commit (install and rollback alike) — the
-   * seam for reconciling derived surfaces. The MCP tool surface uses it to
-   * re-list and emit `notifications/tools/list_changed` (§6.5-8), which is how
-   * a connected agent learns the app's tools changed.
+   * seam for work that has to observe the committed generation, such as a
+   * health check or an audit record.
    */
   readonly onChange?: (generation: AppGeneration) => void | Promise<void>
 }

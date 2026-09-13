@@ -13,8 +13,9 @@
  *
  *   - `list()` is a **view**, not a snapshot. It re-reads the catalog on every
  *     call, so a hot-swapped app (§6.4) shows its current surface and nothing
- *     has to be kept in sync. Snapshotting tool surfaces at construction time is
- *     exactly the bug fixed in effect-mcp's ToolSurface.
+ *     has to be kept in sync. Snapshotting a tool surface at construction time
+ *     is the failure this avoids: the MCP node servers are built per request
+ *     for the same reason.
  *   - Privilege is a property of the entry (`privileged`), not a separate table.
  *     Only the host node has a lifecycle plane; apps never do (§4).
  */
