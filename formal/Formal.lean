@@ -31,6 +31,7 @@ import Formal.Reload
 import Formal.Resolve
 import Formal.Rollup
 import Formal.Screen
+import Formal.Sets
 import Formal.Slot
 import Formal.Surface
 import Formal.Swap
