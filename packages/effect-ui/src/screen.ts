@@ -37,7 +37,7 @@ const rootScreen = (view: EffectUiView, nodes: readonly UiNode[]): UiScreen =>
  * opinion about the view's own shape.
  */
 export const screensOf = (view: EffectUiView): readonly UiScreen[] => {
-  const derived = view.screens === undefined ? deriveScreens(view) : undefined
+  const derived = view.screens === undefined ? deriveScreens(view, [ROOT_SCREEN]) : undefined
   return [rootScreen(view, derived?.lead ?? view.nodes), ...(view.screens ?? derived?.screens ?? [])]
 }
 

@@ -18,6 +18,11 @@
  * it was written with, and `screens` is how it says what it wants instead. A
  * card with nothing to press is a panel, not a function: it stays on the first
  * screen, beside the rest of them.
+ *
+ * Each card is named after its heading, and an id is looked up — so the id has
+ * to be one nothing else has. `reserved` is what the caller says is already
+ * spoken for; a card titled "Root" is the case that needs it, since the view's
+ * own first screen is called `root`.
  */
 
 import type { UiActionSpec } from "./data-spec.ts"
@@ -64,7 +69,7 @@ const selfContained = (view: EffectUiView, card: UiNode, actions: ReadonlyMap<st
   })
 }
 
-export const deriveScreens = (view: EffectUiView): DerivedScreens | undefined => {
+export const deriveScreens = (view: EffectUiView, reserved: Iterable<string>): DerivedScreens | undefined => {
   // A flow view is a document. A document is read top to bottom; it is not a tool with functions.
   if (view.layout === "flow") return undefined
   const functions = cardsOf(view.nodes).filter((card) => readsOf([card]).presses.length > 0)
@@ -76,7 +81,7 @@ export const deriveScreens = (view: EffectUiView): DerivedScreens | undefined =>
   if (readsOf(view.nodes).presses.length !== inside) return undefined
   const actions = new Map((view.actions ?? []).map((action) => [action.name, action]))
   const screens: UiScreen[] = []
-  const taken = new Set<string>()
+  const taken = new Set<string>(reserved)
   for (const card of functions) {
     const title = headingOf(card)
     if (title === undefined || !selfContained(view, card, actions)) return undefined

@@ -25,6 +25,7 @@
     "check:boundary": "bun scripts/check-boundary.ts",
     "check:pages": "bun scripts/check-html-pages.ts",
     "check:ui": "bun scripts/check-ui.ts",
+    "check:proofs": "bun scripts/check-proofs.ts",
     "inventory": "bun scripts/inventory-apps.ts",
     "check:inventory": "bun scripts/inventory-apps.ts --check",
     "up": "bun apps/effect-server/src/up.ts",
