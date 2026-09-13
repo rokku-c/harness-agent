@@ -1,21 +1,5 @@
 # effect-agent
 
-## Codex dogfood
-
-Start the platform with `bun run up`, then configure Codex's MCP entry as
-`http://127.0.0.1:8080/effect-apps`. Development work can be exercised through
-`bun run codex:session`, which records a Board task and leaves it in `doing`;
-set `CODEX_COMPLETE=1` after implementation to close it. Use the
-same MCP surface for `agentd` identity/config state, Gateway policy calls, and
-observe/monitor data so implementation and verification share one runtime.
-
-Boot is honest about failure and never fatal for one app: a bundle that cannot load is reported by
-name, left disabled, and the home comes up without it — you need the console and the other apps most
-exactly when one of them will not start. An app whose stored data is from an older schema says what
-it found and, by default, moves that file aside (`.incompatible-<stamp>`) and starts fresh rather
-than migrating it; a stale config record refuses with the command that fixes it. Nothing is deleted
-and nothing is rewritten on the operator's behalf.
-
 > A unified agent programming model on Effect. The system does not treat the
 > LLM as a base concept: a model call, a full tool loop, or an external agent
 > like Claude Code - all of it is just an Agent.
@@ -25,43 +9,139 @@ Agent<Input, Output, Error, Requirements>
     = Input -> Effect<Output, Error, Requirements>
 ```
 
+Start the platform with `bun run up`, then point an MCP client at
+`http://127.0.0.1:8080/effect-apps`. Development work can be exercised through
+`bun run codex:session`, which records a Board task and leaves it in `doing`;
+set `CODEX_COMPLETE=1` after implementation to close it. Use the same MCP
+surface for `agentd` identity/config state, Gateway policy calls, and
+observe/monitor data, so implementation and verification share one runtime.
+
+Boot is honest about failure and never fatal for one app: a bundle that cannot
+load is reported by name, left disabled, and the home comes up without it — you
+need the console and the other apps most exactly when one of them will not
+start. An app whose stored data is from an older schema says what it found and,
+by default, moves that file aside (`.incompatible-<stamp>`) and starts fresh
+rather than migrating it; a stale config record refuses with
+`<subject> does not match the current schema; operator must rebuild the config
+store`, which `bun run config:rebuild` performs. Nothing is deleted and nothing
+is rewritten on the operator's behalf.
+
 ## Current platform boundary
 
-- Built-in apps are port-free handlers. The app SDK registers routes and instance tools;
-  platform listeners expose the same service table unless explicitly filtered.
+- Built-in apps are port-free handlers. The app SDK registers routes and instance
+  tools; platform listeners expose the same service table unless explicitly filtered.
 - `@effect-agent/effect-network` owns managed listeners and application egress
   (`main-first` default, `local-first`, `local-only`, `main-only`). Upstream selection
   is separate from exit-node selection.
 - AI Gateway supports multiple named upstreams, including several of the same API type.
 - Board is a task board, not an agent scheduler or a Claude configuration installer.
-  Machine/agent MCP configuration belongs to the future agentd + MCP Gateway/mcpset center.
+  Machine/agent MCP configuration belongs to the agentd + MCP Gateway/mcpset center,
+  which is implemented (`packages/agentd`, `packages/mcp-gateway`, `apps/agentd`,
+  `apps/mcp-gateway-app`).
 - No backward compatibility or automatic data migration. See `AGENTS.md`.
 
 Current contracts: `docs/platform-network.md` and `docs/config-providers.md`.
 
-## Packages (layered by change axis)
+## The shape of the repository
+
+41 packages and 11 apps. Apps are not imported by name — the host discovers each
+one from its `effect.yaml` and loads the `module` that file names, so an app is a
+plugin that declares its own routes and tools. `apps/effect-server` is the
+composition root that boots them; `docs/app-portability-inventory.md` is the
+generated app listing.
+
+### 1. The agent algebra (layered by change axis)
 
 The core stays minimal and stable; everything else is a replaceable seam
 (Tag + Layer, agenthost-style). Swap implementations by providing Layers;
-`@effect-agent/assembly` is the composition root that turns all seams into
-one runnable instance. See [docs/layers.md](docs/layers.md) for the map.
+`assembly` is the composition root that turns all seams into one runnable
+instance. See [docs/layers.md](docs/layers.md) for the map.
 
 | layer | package | role |
 |---|---|---|
-| L3 core | `@effect-agent/core` | the symbolic abstractions: Content / Until / Op / Binding / Driver / Agent - pure vocabulary, zero I/O |
-| L3 core | `@effect-agent/builtin` | the built-in drivers: **EffectAgent** (the default Effect-TS loop) + **ClaudeCode** (the ComposedAgent adapter) + the provider catalog |
-| L1 base | `@effect-agent/model` | the Model contract (wire types + capabilities), openai/anthropic providers, config-driven model catalog |
-| L1 base | `@effect-agent/channel` | Ingress / Delivery adapters (inbound + outbound); MemoryChannel is the open-box default |
-| L1 base | `@effect-agent/tools` | the API-as-data tool registry (ToolDescriptor -> any surface) + MCP session adapter |
-| L2 state | `@effect-agent/state` | Store, EventLog (append-only, model-visible = logged), checkpoint persistence; production defaults use SQLite via `storage-typeorm` |
-| L2 state | `@effect-agent/memory` | remember / recall / promote: long-term memory with a pluggable learning gate |
-| L4 orchestration | `@effect-agent/gate` | pre-execution approval: AllowAll / DenyWrites / Manual (operator-confirmed) |
-| L4 orchestration | `@effect-agent/schedule` | Interval / At triggers; process-local default, external cron can implement the same service |
-| capability sandbox | `@effect-agent/script` | self-bootstrapping TS/JS tool sandbox: scripts compose toolcalls into higher tools; closure visibility + content-addressed versions + graded compatibility + one Policy type (see [docs/script-sandbox.md](docs/script-sandbox.md)) |
-| cross-cutting | `@effect-agent/assembly` | the composition root: defaultLayers(), driver(), profile-driven assembly |
-| L5 app | `app-playground` | wires all layers into a runnable agent (bun apps/playground/src/main.ts) |
-| L5 app | `app-board` | Standalone task board: task CRUD, states, hierarchy/dependencies, events, SQLite, MCP and web view. No governor, coordinator agent, machine launch or Claude configuration. |
-| L5 app | `app-mantis` | mantis on effect-agent: the session agent (tool supply / explicit ApprovalPolicy / reflection / FinalReply) **plus two live hosts**: the dingtalk host (dws user identity + robot bot identity, interactive approval cards, original-clawyp config.toml compatible) and the **web console** (observability + browser chat + approvals + versioned agent UI) - bun apps/mantis/src/hosts/dingtalk/main.ts | bun apps/mantis/src/hosts/webui/main.ts | |
+| L3 core | `core` | the symbolic abstractions: Content / Until / Op / Binding / Driver / Agent - pure vocabulary, zero I/O |
+| L3 core | `builtin` | the built-in drivers: **EffectAgent** (the default Effect-TS loop) + **ClaudeCode** (the ComposedAgent adapter) + the provider catalog |
+| L1 base | `model` | the Model contract (wire types + capabilities), openai/anthropic providers, config-driven model catalog |
+| L1 base | `channel` | Ingress / Delivery adapters (inbound + outbound); MemoryChannel is the open-box default |
+| L1 base | `tools` | the API-as-data tool registry (ToolDescriptor -> any surface) + MCP session adapter |
+| L2 state | `state` | Store, EventLog (append-only, model-visible = logged), checkpoint persistence |
+| L2 state | `storage-typeorm` | the SQLite implementation of `state`'s Store + EventLog |
+| L2 state | `memory` | remember / recall / promote: long-term memory with a pluggable learning gate |
+| L4 orchestration | `gate` | pre-execution approval: AllowAll / DenyWrites / Manual (operator-confirmed) |
+| L4 orchestration | `schedule` | Interval / At triggers; process-local default, external cron can implement the same service |
+| cross-cutting | `logger` | log levels, sinks (console / json-file / composite / noop) |
+| cross-cutting | `assembly` | the composition root: `defaultLayers()`, `driver()`, profile-driven assembly |
+
+### 2. The effect-app platform
+
+A plugin/kernel host in which an app declares tools, config, UI and lifecycle as
+data, and is hot-loaded, versioned and compatibility-gated.
+
+| package | role |
+|---|---|
+| `effect-interface` | registration of schema-exportable interfaces and tools; `registerInterface` returns a disposer, so registering and revoking are symmetric |
+| `effect-host` | dependency-inverted plugin host: lifecycle ownership, request routing, `/-/planes` privileged operations as data |
+| `effect-config` | where apps declare config: reversible registry, `default < yaml < override` merge with per-key provenance, SQLite store |
+| `effect-apps` | app catalog (`ns::appId`) with a per-entry `authorize(op)` gate over the ui/state/config/store planes, plus one MCP server to browse and operate every app |
+| `effect-bundle` | kernel/app artifacts + the compatibility matrix + the double-buffer supervisor (stage B, health check, flip; A is never stopped first) |
+| `effect-compat` | the one graded compatibility adjudication (schema/deps/description/behavior x strict/warn/ignore), used by scripts, kernels and app generations |
+| `effect-network` | `makeEgressRouter` (what an app may reach) and `makeListenerManager` (host/port listeners) |
+| `effect-standalone` | boot **one** app alone: registration + its own listener + `/mcp` face + stdio face |
+| `effect-observe` | sample the world from app/agent/global perspectives, detect when what an agent would observe changes, keep timestamped frames in SQLite |
+| `effect-parity` | machine-parity view of an app: the human gets exactly the agent's document, state and actions |
+
+### 3. Declarative UI
+
+Declare a UI once as data, resolve it against state, render it through a
+swappable renderer.
+
+| package | role |
+|---|---|
+| `effect-ui` | the declaration layer: a view names `@radix-ui/themes` components and exports as JSON Schema; renderers are swappable behind one seam |
+| `ui-protocol` | pure UI data types (`UINode`, `CanvasDefinition`, `UIEvent`, `BindingExpression`, `UICommand`); zero dependencies |
+| `ui-definition` | `DefinitionStore`: applies commands to a canvas tree with tree/version/capability validation |
+| `ui-extension` | `ExtensionRegistry`: enable/disable extensions that register and unregister component definitions, with rollback |
+| `ui-runtime` | resolves bindings against state into a `ResolvedUITree`; actions, journal/restore, data sources |
+| `ui-renderer` | `RendererRegistry` + themes + the React/`@json-render` renderer |
+| `ui-agent` | exposes canvas operations (create/insert/patch/bind/enter/link) as agent Ops |
+| `ui-sandbox` | permission-gated wrapper around `script`'s runtimes for untrusted extension code |
+
+### 4. Machine center
+
+The multi-machine control plane: a central daemon plus an outbound client on each
+managed machine.
+
+| package | role |
+|---|---|
+| `agentd` | server side: control, facts registry, launch queue, tunnel, node presence and leases, bundle/node artifact adapters |
+| `agentd-probe` | the outbound half: a resident program behind NAT that calls out and never listens |
+| `agentdeck` | middle-abstraction control plane over foreign agents: normalized flow control, consent ledger, unified config map, plus adapters (effect, demo, effect-ops, claude-sdk, CLI) |
+
+### 5. MCP surface and authorization
+
+| package | role |
+|---|---|
+| `effect-mcp` | builds a node MCP server that re-reconciles its tool list when the registry changes (app hot-swap, kernel reload) |
+| `effect-mcp-http` | serves an MCP server over streamable HTTP (WebStandard transport, optional authenticate) |
+| `mcp-gateway` | the gateway pipeline: resolve -> authorize -> proxy -> audit; sets, bindings, rules, principal identity, tokens, redaction |
+| `mcp-registry` | in-memory MCP catalog with authenticated control-plane ops, leases/heartbeats and selection preference |
+| `effect-authz` | pure in-memory authorization engine: principals, actions, resources, policy templates, grants, decision, audit |
+| `effect-mesh` | a custom JSON-RPC node mesh (announce/discover/call) with namespace isolation. **Unwired**: nothing depends on it, and `docs/effect-unified-on-mcp.md` retires the self-made wire in favour of MCP |
+
+### 6. Capabilities outside the layer stacks
+
+| package | role |
+|---|---|
+| `script` | capability script sandbox: scripts compose toolcalls into higher tools; closure visibility + content-addressed versions + graded compatibility (see [docs/script-sandbox.md](docs/script-sandbox.md)) |
+| `ai-gateway` | provider-agnostic LLM proxy core with zero dependencies: request/response event contract, prompt injection, redaction, rule matching |
+
+### Apps
+
+`effect-server` (the host and composition root) hosts `agentd`, `ai-gateway`,
+`board`, `deckconsole`, `herdr-app`, `mantis`, `mcp-gateway-app`,
+`mcp-registry-app` and `ui-host` on one shared listener, at `127.0.0.1:8080` by
+default. `playground` is an example script rather than a server. Each app can
+also be booted alone through `effect-standalone`, on its own port.
 
 ## The loop as a sentence
 
@@ -142,8 +222,8 @@ const Supervisor = Agent
 // provide FiberAgentRuntime.layer(registry) - children run as scoped fibers
 ```
 
-Structured concurrency holds throughout: children are `forkScoped` into
-the supervisor's scope, so they die with it; `wait("all" | "first")`
+Structured concurrency holds throughout: children are `forkScoped` into the
+supervisor's scope, so they die with it; `wait("all" | "first")`
 joins them as `ChildResult` data (completed / failed / interrupted).
 
 ## Batches: map / filter / reduce over children
@@ -195,41 +275,54 @@ rt.pause(childId)                    // archive at the next step boundary
 rt.resume(paused.checkpointRef!)     // hydrate + inject recovery notes
 ```
 
+## agentdeck and deckconsole
+
+The middle-abstraction control layer over mainstream agents
+(claude-code / codex / gemini / pi / this framework / any `*claw`-like CLI):
+
+- **Component** `packages/agentdeck` - three surfaces plus five adapters.
+  1. Flow control: `SessionGateway` (open/close/send/status/sessions/history)
+     with `AgentDeck` registration aggregation.
+  2. Session consent mapping: `ConsentLedger` (ask/allow/deny, recorded by
+     time), so approval is per session rather than global.
+  3. Config normalization: `normalizeConfig(kind, raw)` unifies dialect fields
+     and keeps `extra` lossless.
+  Adapters: effect (in-process EffectAgent), claude-cc (in-process SDK), and a
+  generic CLI adapter whose runtime dialects can be registered at run time, so
+  a new `*claw`-like agent needs no code change. Tests run without a model and
+  without a real CLI.
+- **Product** `apps/deckconsole` - the control room above the component (HTTP
+  API + console page): cross-agent session management, approvals (with
+  session-level auto/deny policy), config-normalization preview, session
+  detail, launch groups persisted to `DECK_FILE`, and one-button close-all.
+  It runs standalone with
+  `DECK_PORT=4851 bun apps/deckconsole/src/main.ts`, and also ships as a
+  platform effect-app at `/deck`.
+
+See [docs/agentdeck.md](docs/agentdeck.md) and
+[docs/agentdeck-map.md](docs/agentdeck-map.md).
+
 ## Verify
 
 ```bash
 bun install
 bun run typecheck          # tsc --noEmit
-bun test                   # 35 tests
-bun run examples           # offline examples (01, 02, 05)
+bun test                   # 1061 tests
+bun run examples           # offline examples (01, 02, 05, 07, 10)
 bun run examples 03 --live # live provider roundtrip (config.toml + .env)
 bun run examples 06 --live # live supervisor spawning real subagents
+bun run check:proofs       # build the Lean model in formal/ (needs a Lean toolchain)
 ```
 
-## 主流 agent 中间抽象控制：@effect-agent/agentdeck + deckconsole
+The guards, each of which also runs on its own:
 
-「在这里面找地方」的落点就是本仓库的两个包：
+```bash
+bun run lint:lines        # every implementation file <= 100 lines
+bun run check:boundary    # imports respect the package boundaries
+bun run check:ui          # the UI boundary
+bun run check:inventory   # every app declares a runtime
+bun run check:proofs      # the Lean model in formal/ builds
+```
 
-- **组件 packages/agentdeck**：对所有主流 agent（claude-code/codex/gemini/pi/本框架
-  effect/自定义 CLI/*claw 类自定义）的统一中间控制层
-  1. 流程控制：SessionGateway(open/close/send/status/sessions/history) + AgentDeck 注册聚合
-  2. session→同意映射：ConsentLedger(ask/allow/deny，留痕 by/time)
-  3. 配置→统一映射：normalizeConfig(kind, raw)（方言字段归一，extra 无损）
-  适配器：effect(进程内 EffectAgent) / claude-cc(进程内 SDK) / 通用 CLI(custom/cli 预设)
-  测试：packages/agentdeck/test（免模型/免真 CLI）
-- **产品 apps/deckconsole**：组件之上的「控制室」（HTTP + 暗色管理页）——跨 agent 会话管理、
-  审批(含 auto/deny 会话级策略)、配置归一预览、会话详情、启动组(可持久化 DECK_FILE)、一键全关
-  启动：DECK_PORT=4851 bun apps/deckconsole/src/main.ts，浏览器开 http://127.0.0.1:4851
-
-详见 docs/agentdeck.md。
-
-
-## 组件与产品状态（agentdeck / deckconsole）
-
-- **组件** packages/agentdeck：三面抽象（流程控制 SessionGateway / session→同意 ConsentLedger /
-  配置→统一 normalizeConfig）+ 5 适配器（effect、effect-ops、claude-cc、CLI、demo）+ 审批驱动
-  真实执行 + 运行时方言注册（任意 "*claw"-like CLI agent 免改码接入）
-- **产品** apps/deckconsole：控制室（HTTP API + 暗色管理页）。文档：docs/agentdeck.md（分轮记录）、
-  docs/agentdeck-map.md（目标→落点→测试矩阵）
-- **真机冒烟**：deckconsole 真实驱动 claude-code 成功（open→send→text 与真实多轮 + 完整转录）；
-  codex/pi/gemini 冒烟受沙箱（home 目录写/内部服务 EPERM）与交互式 OAuth 限制，需授权后补跑
+`scripts/verify.sh` is narrower: a one-shot check of `agentdeck` and
+`deckconsole` only (their tests, a no-key acceptance run, and a scoped `tsc`).
