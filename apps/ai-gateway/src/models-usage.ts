@@ -6,8 +6,15 @@
  * request is one `request` event, while the list is one row per *exchange* — a
  * request and the response it got are one thing that happened, and split into
  * two rows of alternating kinds the newest twenty say nothing about any of them.
+ *
+ * The figures are a reading of a window, not a total, and the surface names the
+ * window for that reason: counting every event ever recorded would mean reading
+ * every event ever recorded on each request.
  */
 import type { GatewayEvent } from "@effect-agent/ai-gateway"
+
+/** How far back the figures are counted. */
+export const USAGE_WINDOW = 500
 
 export interface ModelsUsageExchange {
   readonly at: number

@@ -3,7 +3,8 @@ import type { GatewayEvent, GatewayRecorder } from "@effect-agent/ai-gateway"
 import { TypeOrmStore } from "@effect-agent/storage-typeorm"
 
 export interface StoredGatewayRecorder extends GatewayRecorder {
-  events(): Promise<ReadonlyArray<GatewayEvent>>
+  /** The recorded audit, oldest first, at most `limit` of the newest events. */
+  events(limit: number): Promise<ReadonlyArray<GatewayEvent>>
   close(): Promise<void>
 }
 
@@ -15,8 +16,8 @@ export const typeOrmRecorder = (database: string): StoredGatewayRecorder => {
       const key = `ai-gateway/${event.at}/${event.requestId}/${sequence++}`
       await Effect.runPromise((await store).put(key, { type: "ai-gateway.event", event }))
     },
-    events: async () => {
-      const rows = await Effect.runPromise((await store).query({ type: "ai-gateway.event" }))
+    events: async (limit) => {
+      const rows = await Effect.runPromise((await store).query({ type: "ai-gateway.event", limit }))
       return rows.map((row) => (row as { event: GatewayEvent }).event)
     },
     close: async () => { await (await store).close() }

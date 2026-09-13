@@ -12,17 +12,21 @@ import { z } from "@effect-agent/effect-config"
 import type { GatewayEvent } from "@effect-agent/ai-gateway"
 import { gatewayConfig } from "./config.ts"
 import { modelsState } from "./models-state.ts"
-import { modelsUsage } from "./models-usage.ts"
+import { USAGE_WINDOW, modelsUsage } from "./models-usage.ts"
 import { checkProvider } from "./provider-health.ts"
 import type { GatewayProvider } from "./providers.ts"
 import type { HttpSend } from "./upstream.ts"
+
+/** How many of the audit's newest events the event page shows. */
+const EVENT_PAGE = 50
 
 /** What these operations read: the live config, the platform egress, and the recorded audit. */
 export interface AiGatewayModelSurfaces {
   readonly getConfig: () => unknown
   readonly send: HttpSend
-  /** The audit oldest first; the recorder owns the store, these operations only read it. */
-  readonly events: () => Promise<readonly GatewayEvent[]>
+  /** The audit, oldest first, at most `limit` of the newest events; the recorder
+   *  owns the store, these operations only read it. */
+  readonly events: (limit: number) => Promise<readonly GatewayEvent[]>
 }
 
 /** An id the live config does not carry is the caller's mistake, and the answer says which id. */
@@ -35,15 +39,15 @@ const providerOf = (surfaces: AiGatewayModelSurfaces, providerId: string): Gatew
 export const aiGatewayOperations = (surfaces: AiGatewayModelSurfaces): readonly Operation[] => [
   operation({
     name: "ai_gateway_models",
-    description: "The gateway's providers, rules, proxied endpoints and what it has carried; a credential is reported as configured or missing, never as its value",
+    description: `The gateway's providers, rules, proxied endpoints and what it has carried over the most recent ${USAGE_WINDOW} recorded events; a credential is reported as configured or missing, never as its value`,
     access: "read", input: noInput, http: { method: "GET", path: "/models" },
-    handler: async () => ({ ...modelsState(surfaces.getConfig), usage: modelsUsage(await surfaces.events()) }),
+    handler: async () => ({ ...modelsState(surfaces.getConfig), usage: modelsUsage(await surfaces.events(USAGE_WINDOW)) }),
   }),
   operation({
     name: "ai_gateway_events",
     description: "The fifty most recent gateway audit events, newest first: each request or response the proxy recorded, with the agent, status and duration it carried",
     access: "read", input: noInput, http: { method: "GET", path: "/models/events" },
-    handler: async () => ({ ok: true, events: (await surfaces.events()).slice(-50).reverse() }),
+    handler: async () => ({ ok: true, events: [...await surfaces.events(EVENT_PAGE)].reverse() }),
   }),
   operation({
     name: "ai_gateway_test_provider",

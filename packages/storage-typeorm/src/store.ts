@@ -3,7 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks"
 import { mkdir } from "node:fs/promises"
 import { dirname } from "node:path"
 import { Effect, Exit, Layer, type Cause } from "effect"
-import { DataSource, MoreThanOrEqual, type EntityManager } from "typeorm"
+import { DataSource, type EntityManager } from "typeorm"
 import { Store, deriveMeta, type QuerySpec, type StoreService } from "@effect-agent/state"
 import { storedEntity, type StoredEntity } from "./entity.ts"
 import { eventEntity } from "./event-entity.ts"
@@ -36,9 +36,16 @@ export class TypeOrmStore implements StoreService {
     await repository.save({ key, type: meta.type, createdAt: meta.createdAt, value: JSON.stringify(value) })
   })
   query = (spec: QuerySpec) => Effect.promise(async () => {
-    const where = { ...(spec.type ? { type: spec.type } : {}), ...(spec.since ? { createdAt: MoreThanOrEqual(spec.since) } : {}) }
-    const rows = await this.repository().find({ where, order: { createdAt: "ASC" }, take: spec.limit ?? 100 })
-    return rows.map((row: StoredEntity) => JSON.parse(row.value) as unknown)
+    const where = spec.type === undefined ? {} : { type: spec.type }
+    const paged = spec.limit !== undefined
+    // newest first and then flipped, so a page is the newest rows the caller
+    // asked for while every reader sees a page in the store's own order
+    const rows = await this.repository().find({
+      where,
+      order: { createdAt: paged ? "DESC" : "ASC" },
+      ...(paged ? { take: spec.limit } : {})
+    })
+    return (paged ? rows.reverse() : rows).map((row: StoredEntity) => JSON.parse(row.value) as unknown)
   })
   transaction = <A, E>(effect: Effect.Effect<A, E>) => Effect.async<A, E>((resume) => {
     this.source.transaction(async (manager) => {

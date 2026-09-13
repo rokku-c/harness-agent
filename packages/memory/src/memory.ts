@@ -63,7 +63,9 @@ export const ScopedMemory = Effect.gen(function* () {
       }),
     recall: (query, limit = 5) =>
       Effect.gen(function* () {
-        const all = yield* store.query({ type: undefined, limit: 1000 })
+        // every entry, because ranking is the point: a bound here would decide
+        // which memories are eligible before anything has scored them
+        const all = yield* store.query({})
         const queryTokens = tokens(query)
         const entries = all
           .filter((value): value is MemoryEntry => typeof value === "object" && value !== null && "content" in value)

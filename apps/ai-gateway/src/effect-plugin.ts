@@ -36,7 +36,7 @@ export const makeAiGatewayEffectPlugin = (options: AiGatewayEffectOptions): Effe
     load: async () => {
       const stored: StoredGatewayRecorder | undefined = options.recorder === undefined ? typeOrmRecorder(options.database ?? DEFAULT_DATABASE) : undefined
       const recorder = options.recorder ?? stored!
-      const events = async (): Promise<readonly GatewayEvent[]> => stored?.events ? await stored.events() : []
+      const events = async (limit: number): Promise<readonly GatewayEvent[]> => stored?.events ? await stored.events(limit) : []
       const handler = makeAiGatewayHandler({ ...options, recorder })
       const surfaces: AiGatewayModelSurfaces = { getConfig: () => options.getConfig?.() ?? {}, send: options.send, events }
       // one list, two projections: the tools an agent calls and the routes the

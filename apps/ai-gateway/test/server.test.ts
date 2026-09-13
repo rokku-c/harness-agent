@@ -16,7 +16,7 @@ test("proxies OpenAI-compatible requests with controlled injection and audit", a
     expect(response.status).toBe(200)
     expect(received?.messages[0]?.content).toBe("Stay in scope.")
     expect(leakedAgent).toBeNull()
-    const audit = await recorder.events()
+    const audit = await recorder.events(50)
     expect(audit.map((event) => event.type)).toEqual(["request", "injection", "response"])
     expect(audit[1].detail.ruleId).toBe("coder-control")
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("Stay in scope."))

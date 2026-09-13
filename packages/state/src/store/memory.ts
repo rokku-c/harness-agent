@@ -18,15 +18,15 @@ export const MemoryStore = Effect.gen(function* () {
         return next
       }),
     query: (spec) =>
-      Effect.map(Ref.get(map), (entries) =>
-        [...entries.values()]
-          .filter(
-            (entry) =>
-              (!spec.type || entry.type === spec.type) && (!spec.since || entry.createdAt >= spec.since)
-          )
-          .map((entry) => entry.value)
-          .slice(0, spec.limit ?? 100)
-      ),
+      Effect.map(Ref.get(map), (entries) => {
+        const matching = [...entries.values()]
+          .filter((entry) => !spec.type || entry.type === spec.type)
+          .sort((left, right) => left.createdAt - right.createdAt)
+        const page = spec.limit === undefined || matching.length <= spec.limit
+          ? matching
+          : matching.slice(matching.length - spec.limit)
+        return page.map((entry) => entry.value)
+      }),
     transaction: (effect) => effect
   }
   return service

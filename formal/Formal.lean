@@ -34,6 +34,7 @@ import Formal.PolicyScope
 import Formal.Presence
 import Formal.Preview
 import Formal.Principals
+import Formal.Query
 import Formal.Queue
 import Formal.Readout
 import Formal.Redact
