@@ -5,14 +5,6 @@ export interface InteractionRule {
   readonly on: "click" | "input" | "submit"
   readonly action: string
   readonly args?: Readonly<Record<string, string>>
-  readonly refresh?: readonly string[]
-}
-
-export interface ContractRefresh {
-  readonly default: "partial"
-  readonly modes: readonly ("partial" | "full")[]
-  readonly partialVia: "component-refs"
-  readonly warnWhenBaseFrameMissing: boolean
 }
 
 export interface ContractElement {
@@ -37,5 +29,4 @@ export interface RenderContract {
   readonly actions: ReadonlyArray<{ name: string; description?: string; inputSchema?: unknown }>
   readonly emptyDataRule: string
   readonly rules: ContractRules
-  readonly refresh: ContractRefresh
 }

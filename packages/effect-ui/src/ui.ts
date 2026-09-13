@@ -2,8 +2,8 @@
  * App-developer facade — author the UI the way you already do (what to show,
  * the data, what actions exist) and get lui/webui rules for free.
  *
- * The developer NEVER writes contracts, collapse/symbol rules, partial-refresh
- * targets or projection encodings. defineUi derives all of it from the view +
+ * The developer NEVER writes contracts, collapse/symbol rules, reload targets
+ * or projection encodings. defineUi derives all of it from the view +
  * actions; weblui and agents consume the same bundle.
  */
 

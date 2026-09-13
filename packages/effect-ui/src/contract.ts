@@ -11,7 +11,7 @@
 import type { ContractElement, InteractionRule, RenderContract } from "./contract-types.ts"
 import type { EffectUiView, UiNode } from "./spec.ts"
 
-export type { ContractElement, ContractRefresh, ContractRules, InteractionRule, RenderContract, UiComponent } from "./contract-types.ts"
+export type { ContractElement, ContractRules, InteractionRule, RenderContract, UiComponent } from "./contract-types.ts"
 
 export const makeRenderContract = (
   view: EffectUiView,
@@ -52,11 +52,5 @@ export const makeRenderContract = (
     emptyDataRule:
       "0 data renders the layout only: components show empty values, interactive controls stay enabled (they carry their own args).",
     rules: { collapsibleIds, exclusive: true, expandOn: "click" },
-    refresh: {
-      default: "partial",
-      modes: ["partial", "full"],
-      partialVia: "component-refs",
-      warnWhenBaseFrameMissing: true,
-    },
   }
 }
