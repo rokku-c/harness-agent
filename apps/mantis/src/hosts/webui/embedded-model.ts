@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { buildModelFromConfig } from "../../model.ts"
 
 type Config = {

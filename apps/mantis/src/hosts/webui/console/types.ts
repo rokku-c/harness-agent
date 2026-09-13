@@ -8,7 +8,7 @@
  */
 import type { Bus } from "../bus.ts"
 import type { Logger } from "@effect-agent/logger"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 
 /** one immutable entry of a conversation's timeline (state, not events) */
 export type ConsoleTimelineEntry =

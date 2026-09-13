@@ -3,7 +3,7 @@
  * Pure interfaces/constants, no logic: imported by every other loop module.
  */
 import type { AgentContext, Sensitivity } from "@effect-agent/core"
-import type { Model, WireMessage } from "../wire.ts"
+import type { Model, WireMessage } from "@effect-agent/model"
 
 /** What the loop has seen so far - the input to the policy hooks below.
  *  Drivers stay generic; context economy and reflection are

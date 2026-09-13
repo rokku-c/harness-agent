@@ -8,7 +8,8 @@
  */
 import { Effect } from "effect"
 import { AgentContext, Until, type Access } from "@effect-agent/core"
-import { EffectAgent, type Model } from "@effect-agent/builtin"
+import { EffectAgent } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import type { SendOutcome, SessionGateway } from "../flow.ts"
 import type { UnifiedAgentConfig } from "../config-types.ts"
 import type { ConsentLedger } from "../consent-types.ts"

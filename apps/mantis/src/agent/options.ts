@@ -8,7 +8,7 @@
  * store/approvals it ran with).
  */
 import type { AgentError, AgentProgram, Binding, HarnessHook } from "@effect-agent/core"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import type { FinalReply } from "../final.ts"
 import type { ApprovalPolicy } from "../approval.ts"
 import type { ToolSupply } from "../supply.ts"

@@ -63,6 +63,7 @@
         "@effect-agent/effect-host": "workspace:*",
         "@effect-agent/effect-interface": "workspace:*",
         "@effect-agent/effect-ui": "workspace:*",
+        "@effect-agent/model": "workspace:*",
       },
     },
     "apps/effect-server": {
@@ -205,6 +206,7 @@
       "dependencies": {
         "@effect-agent/builtin": "*",
         "@effect-agent/core": "*",
+        "@effect-agent/model": "workspace:*",
         "effect": "^3.22.1",
         "smol-toml": "^1.8.0",
       },

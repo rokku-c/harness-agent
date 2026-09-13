@@ -4,7 +4,8 @@ import {
   Agent, AgentContext, AgentRuntime, Boards, Groups, Op, notationText,
   Until, type Binding, type RunRequest
 } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, batchOps, childBinding, groupOps, progressOp, type Model, type WireMessage } from "@effect-agent/builtin"
+import { EffectAgent, FiberAgentRuntime, batchOps, childBinding, groupOps, progressOp } from "@effect-agent/builtin"
+import type { Model, WireMessage } from "@effect-agent/model"
 
 const noopBinding = (): Binding => ({
   uri: "ea://svc/noop/main",

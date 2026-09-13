@@ -14,7 +14,7 @@
  * changed.
  */
 import { AgentContext, type Content } from "@effect-agent/core"
-import type { WireMessage } from "../wire.ts"
+import type { WireMessage } from "@effect-agent/model"
 import type { RunBox } from "./types.ts"
 
 /** what one run writes into its checkpoint, and reads back on resume */

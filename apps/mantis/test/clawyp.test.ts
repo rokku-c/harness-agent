@@ -8,7 +8,7 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import type { Model, WireMessage, WireTool } from "@effect-agent/builtin"
+import type { Model, WireMessage, WireTool } from "@effect-agent/model"
 import { makeMantis } from "../src/agent.ts"
 import { gateApproval } from "../src/approval.ts"
 import { ManualGate } from "@effect-agent/gate"

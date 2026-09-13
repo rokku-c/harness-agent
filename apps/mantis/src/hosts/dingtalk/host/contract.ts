@@ -7,7 +7,7 @@
  * failure visibility. Channel
  * agnostic: only IncomingMessage/Reply cross this seam.
  */
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import type { HarnessHook } from "@effect-agent/core"
 import { ManualGate, type PendingApproval } from "@effect-agent/gate"
 import type { Logger } from "@effect-agent/logger"

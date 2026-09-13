@@ -14,7 +14,7 @@ import { createInterface } from "node:readline/promises"
 import { stdin, stdout } from "node:process"
 import { openaiModel } from "@effect-agent/model"
 import { ManualGate } from "@effect-agent/gate"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { makeMantis } from "../src/agent.ts"
 import { gateApproval } from "../src/approval.ts"
 

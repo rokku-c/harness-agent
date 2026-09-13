@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { writeFileSync, chmodSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"

@@ -13,7 +13,7 @@ export const withDeck = async (run: (app: ReturnType<typeof fixture>) => Promise
   const app = fixture(options)
   try { await run(app) } finally { await app.close() }
 }
-export const opsModelFactory = (): import("@effect-agent/builtin").Model => ({
+export const opsModelFactory = (): import("@effect-agent/model").Model => ({
   generate: (_system: string, messages: ReadonlyArray<any>) => Effect.gen(function* () {
     const tool = [...messages].reverse().find(m => m.role === "tool")
     if (tool) return { text: "op-result:" + JSON.stringify(tool.content), toolCalls: [] }

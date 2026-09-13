@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { Agent, AgentContext, Op, Until, notationText } from "@effect-agent/core"
-import { EffectAgent, type Model, type WireMessage } from "@effect-agent/builtin"
+import { EffectAgent } from "@effect-agent/builtin"
+import type { Model, WireMessage } from "@effect-agent/model"
 
 import { weatherOp, scriptedModel, runAgent } from "./loop-fixture.ts"
 

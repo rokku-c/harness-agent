@@ -7,7 +7,7 @@
  * AsyncLocalStorage attribution (safe when conversations interleave).
  */
 import type { Logger } from "@effect-agent/logger"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import type { Bus } from "../bus.ts"
 import { MantisHost, type MantisHostOptions } from "../../dingtalk/host.ts"
 import type { NotesStore } from "../../../tools.ts"

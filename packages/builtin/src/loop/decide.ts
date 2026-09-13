@@ -8,7 +8,7 @@
  */
 import { Effect } from "effect"
 import { AgentFailure, type Until } from "@effect-agent/core"
-import type { WireToolCall } from "../wire.ts"
+import type { WireToolCall } from "@effect-agent/model"
 
 export const decide = <A>(
   agentId: string,

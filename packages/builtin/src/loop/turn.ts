@@ -13,7 +13,7 @@ import { AgentFailure, decode, type Op } from "@effect-agent/core"
 import type { RunBox } from "./types.ts"
 import type { FinalTool } from "./protocol.ts"
 import { causeDetail, feedBack, runOp, type FeedbackEnv } from "./execute.ts"
-import type { WireToolCall } from "../wire.ts"
+import type { WireToolCall } from "@effect-agent/model"
 
 export interface TurnEnv extends FeedbackEnv {
   readonly driverId: string

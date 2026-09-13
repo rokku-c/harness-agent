@@ -7,7 +7,7 @@
  */
 import { Effect } from "effect"
 import type { Driver, RunRequest } from "@effect-agent/core"
-import type { Model, WireMessage } from "@effect-agent/builtin"
+import type { Model, WireMessage } from "@effect-agent/model"
 
 // a worker: reports progress, posts one finding, finishes
 export const workerModel = (finding: string): Model => {

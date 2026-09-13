@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@effect-agent/builtin": "workspace:*",
     "@effect-agent/agentdeck": "*",
+    "@effect-agent/builtin": "workspace:*",
+    "@effect-agent/effect-apps": "workspace:*",
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
-    "@effect-agent/effect-apps": "workspace:*"
+    "@effect-agent/model": "workspace:*"
   },
   "scripts": {
     "dev": "bun src/main.ts",

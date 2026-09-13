@@ -13,7 +13,7 @@ import { WebConsole, WORKSPACE_CONVERSATION } from "../src/hosts/webui/console.t
 import { ConversationStore } from "../src/hosts/dingtalk/conversation.ts"
 import { makeMantisMcp } from "../src/hosts/mcp/mcp.ts"
 import { serveConsole } from "../src/hosts/webui/server.ts"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { Effect } from "effect"
 import { noopLogger } from "@effect-agent/logger"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"

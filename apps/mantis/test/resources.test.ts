@@ -4,7 +4,7 @@
  * op code (proved by the fake-resource assertions at the end). */
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { makeMantis } from "../src/agent.ts"
 import { assembleCapabilities, resourceAppendCapabilities, type CapabilityDecl } from "../src/capabilities.ts"
 import { supplyFromCapabilities } from "../src/supply.ts"

@@ -1,6 +1,7 @@
 import { Effect, Schema } from "effect"
 import { AgentContext, Op, notationText, type Access, type Until as UntilT } from "@effect-agent/core"
-import { EffectAgent, type Model, type WireMessage, type WireTool } from "@effect-agent/builtin"
+import { EffectAgent } from "@effect-agent/builtin"
+import type { Model, WireMessage, WireTool } from "@effect-agent/model"
 
 export const weatherOp = () => Op.read({
   name: "lookup",

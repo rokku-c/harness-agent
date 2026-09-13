@@ -3,7 +3,7 @@
  * web console) build their Model from the same config.toml [agent] block.
  */
 import { openaiModel, anthropicModel } from "@effect-agent/model"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import type { MantisConfig } from "./config.ts"
 
 export const buildModelFromConfig = (model: MantisConfig["model"]): Model =>

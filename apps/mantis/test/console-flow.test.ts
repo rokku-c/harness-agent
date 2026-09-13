@@ -6,7 +6,7 @@
  */
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { makeLogger } from "@effect-agent/logger"
 import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"

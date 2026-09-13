@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { noopLogger } from "@effect-agent/logger"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { WebConsole } from "../src/hosts/webui/console.ts"
 
 describe("turn failures are digested", () => {

@@ -11,7 +11,7 @@
 import type { Op } from "@effect-agent/core"
 import { schemaJson } from "@effect-agent/core"
 import type { LoopState, EffectAgentOptions } from "./types.ts"
-import type { WireTool } from "../wire.ts"
+import type { WireTool } from "@effect-agent/model"
 
 /** the protocol tool carrying a run's structured result (until: Schema) */
 export interface FinalTool {

@@ -6,7 +6,7 @@
  * own gate + durable shared workspace. This pins the R24 gated-demo behaviour.
  */
 import { describe, expect, test } from "bun:test"
-import type { Model } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { makeLogger } from "@effect-agent/logger"
 import { Effect } from "effect"
 import { mkdtempSync, rmSync } from "node:fs"

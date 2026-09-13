@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Deferred, Effect, Layer } from "effect"
 import { Agent, AgentContext, AgentRuntime, CheckpointStore, Until } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, type Model, type WireMessage } from "@effect-agent/builtin"
+import { EffectAgent, FiberAgentRuntime } from "@effect-agent/builtin"
+import type { Model, WireMessage } from "@effect-agent/model"
 
 /**
  * The first call blocks on a gate; later calls never block. The gate lets the

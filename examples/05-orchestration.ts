@@ -11,7 +11,8 @@ import { Effect, Layer } from "effect"
 import {
   Agent, AgentContext, ConsoleHook, Harness, Until,
 } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, childBinding, runtimeBinding, type Model } from "@effect-agent/builtin"
+import { EffectAgent, FiberAgentRuntime, childBinding, runtimeBinding } from "@effect-agent/builtin"
+import type { Model } from "@effect-agent/model"
 import { reviewerDriver, scannerModel, workerModel } from "./lib/orchestration-models.ts"
 
 const registry = {

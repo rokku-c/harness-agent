@@ -9,7 +9,7 @@
  *   as the final_answer tool call, never as reply text
  */
 import { describe, expect, test } from "bun:test"
-import type { Model, WireMessage, WireTool } from "@effect-agent/builtin"
+import type { Model, WireMessage, WireTool } from "@effect-agent/model"
 import { Effect } from "effect"
 import { makeMantis, type Mantis } from "../src/agent.ts"
 import { noopLogger } from "@effect-agent/logger"

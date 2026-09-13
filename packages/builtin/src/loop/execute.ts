@@ -2,7 +2,7 @@
 import { Effect, ParseResult, type SchemaAST } from "effect"
 import { decode, type AgentEvent, type Op } from "@effect-agent/core"
 import type { RunBox } from "./types.ts"
-import type { WireToolCall } from "../wire.ts"
+import type { WireToolCall } from "@effect-agent/model"
 
 /** Schema-owned labels only: no actual values, literal values, annotations, or custom messages. */
 const typeNames: Partial<Record<SchemaAST.AST["_tag"], string>> = {
