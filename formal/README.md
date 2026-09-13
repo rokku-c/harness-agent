@@ -15,6 +15,7 @@ absent from the list would be counted here while never being compiled.
 |---|---|---|
 | `Formal/AppLayer.lean` | `apps/effect-server/src/boot/app-layer.ts` | suspending an app keeps its place, so teardown still runs in reverse load order; removing and appending it instead moves it to the front of teardown |
 | `Formal/Authz.lean` | `effect-authz/src/decide.ts` | deny wins wherever it sits, so entry order cannot change a verdict; visibility is the decision, not a second opinion |
+| `Formal/CatalogLoad.lean` | `mcp-gateway/src/catalog-load.ts` | a listing that threw leaves the surface as it was, so an unreachable upstream keeps advertising what it last advertised instead of flapping; emptying it instead loses a live server's tools while the report reads the same. Every server looked at is in exactly one of the two lists, and neither list names a server that was not looked at; swallow the failure and a stale surface reads as a fresh one |
 | `Formal/Chain.lean` | `effect-ui/src/screen.ts` | the navigation chain names only screens that exist and terminates |
 | `Formal/Compat.lean` | `effect-compat/src/assess.ts` | a level that did not change is never adjudicated; the violations are exactly the changed levels |
 | `Formal/Config.lean` | `effect-config/src/merge.ts` | the provenance names the layer the value came from; a new default cannot move an operator's override |

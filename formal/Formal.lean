@@ -11,6 +11,7 @@
 
 import Formal.AppLayer
 import Formal.Authz
+import Formal.CatalogLoad
 import Formal.Chain
 import Formal.Compat
 import Formal.Config
