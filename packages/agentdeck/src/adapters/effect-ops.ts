@@ -2,17 +2,17 @@
  * agentdeck/adapters/effect-ops - the in-proc effect runtime where a WRITE op is
  * gated by the shared ConsentLedger, so ask-2 decisions steer real execution.
  *
- * The gate itself is `effect-ops-gate.ts`; this file is the session lifecycle —
- * open a box, run one turn through the EffectAgent driver, and read the gate's
- * verdict back off the dead turn.
+ * The gate itself is `effect-ops-gate.ts`; this file is what the effect runtime
+ * needs that no other gateway does — the write op declared against one session,
+ * and the gate's verdict read back off the dead turn.
  */
 import { Effect } from "effect"
 import { AgentContext, Until, type Access } from "@effect-agent/core"
 import { EffectAgent, type Model } from "@effect-agent/builtin"
-import type { AgentKind } from "../kinds.ts"
-import type { ConsentLedger } from "../consent-types.ts"
-import type { OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus } from "../flow.ts"
+import type { SendOutcome, SessionGateway } from "../flow.ts"
 import type { UnifiedAgentConfig } from "../config-types.ts"
+import type { ConsentLedger } from "../consent-types.ts"
+import { detailOf, makeSessionTable, type SessionBox } from "./session-table.ts"
 import { AWAIT, DENIED, writeOp } from "./effect-ops-gate.ts"
 
 export interface EffectOpsGatewayOptions {
@@ -22,32 +22,19 @@ export interface EffectOpsGatewayOptions {
   readonly ledger: ConsentLedger
 }
 
-interface OpsBox {
-  readonly sessionId: string
+interface OpsBox extends SessionBox {
   readonly config: UnifiedAgentConfig
-  status: SessionStatus["status"]
-  detail?: string
-  lastActivityAt?: number
 }
 
 export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionGateway => {
-  const boxes = new Map<string, OpsBox>()
-  let seq = 0
-
-  return {
+  const table = makeSessionTable<OpsBox>({
     kind: "effect-ops",
-    open: async (request: OpenSessionRequest) => {
-      const sessionId = request.sessionId ?? "effect-ops-" + (++seq).toString(36)
-      boxes.set(sessionId, { sessionId, config: request.config, status: "idle", lastActivityAt: Date.now() })
-      return { sessionId, kind: "effect-ops", status: "idle", lastActivityAt: Date.now() }
-    },
-    close: async (sessionId: string) => { boxes.delete(sessionId) },
-    send: async (sessionId: string, text: string): Promise<SendOutcome> => {
-      const box = boxes.get(sessionId)
-      if (box === undefined) return { ok: false, detail: "unknown session " + sessionId }
-      if (box.status === "running") return { ok: false, detail: "session busy: a turn is already running" }
-      box.status = "running"
-      box.lastActivityAt = Date.now()
+    prefix: "effect-ops",
+    create: (sessionId, request) => ({ sessionId, config: request.config, status: "idle", lastActivityAt: Date.now() })
+  })
+
+  const send = (sessionId: string, text: string): Promise<SendOutcome> =>
+    table.run(sessionId, async (box) => {
       const access: ReadonlyArray<Access> = [
         { binding: { uri: "ea://deck/effect-ops/" + sessionId, ops: [writeOp(options.ledger, sessionId)] }, write: true }
       ]
@@ -58,31 +45,16 @@ export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionG
             context: AgentContext.text(text), until: Until.text, access
           }) as Effect.Effect<unknown>
         )
-        const reply = String((raw as unknown as { text?: unknown })?.text ?? raw)
-        box.status = "idle"
-        box.detail = undefined
-        box.lastActivityAt = Date.now()
-        return { ok: true, text: reply }
+        return { ok: true, text: String((raw as unknown as { text?: unknown })?.text ?? raw) }
       } catch (error) {
-        const message = error instanceof Error
-          ? error.message
-          : typeof error === "object" && error !== null && "message" in error
-            ? String((error as { message: unknown }).message)
-            : String(error)
-        box.status = "failed"
-        box.detail = message
-        box.lastActivityAt = Date.now()
+        // the gate's own protocol: a pending or denied op is a readable refusal,
+        // anything else is a real failure and belongs to the caller above.
+        const message = detailOf(error)
         if (message.startsWith(AWAIT)) return { ok: false, detail: "awaiting operator approval", awaiting: [message.slice(AWAIT.length)] }
         if (message.startsWith(DENIED)) return { ok: false, detail: "write denied by operator" }
-        return { ok: false, detail: message }
+        throw error
       }
-    },
-    status: async (sessionId: string): Promise<SessionStatus> => {
-      const box = boxes.get(sessionId)
-      if (box === undefined) throw new Error("unknown session " + sessionId)
-      return { sessionId, kind: "effect-ops" as AgentKind, status: box.status, lastActivityAt: box.lastActivityAt, detail: box.detail }
-    },
-    sessions: () =>
-      [...boxes.entries()].map(([sessionId, box]) => ({ sessionId, kind: "effect-ops" as AgentKind, status: box.status, lastActivityAt: box.lastActivityAt, detail: box.detail }))
-  }
+    })
+
+  return { kind: "effect-ops", open: table.open, close: table.close, send, status: table.status, sessions: table.sessions }
 }

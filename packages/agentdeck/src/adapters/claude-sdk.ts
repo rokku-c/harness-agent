@@ -8,9 +8,9 @@
 import { Effect } from "effect"
 import { AgentContext, Until } from "@effect-agent/core"
 import { ClaudeCode, type ClaudeCodeOptions } from "@effect-agent/builtin"
-import type { AgentKind } from "../kinds.ts"
-import type { OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, SessionTurn } from "../flow.ts"
+import type { SendOutcome, SessionGateway, SessionTurn } from "../flow.ts"
 import type { UnifiedAgentConfig } from "../config-types.ts"
+import { makeSessionTable, type SessionBox } from "./session-table.ts"
 
 export interface ClaudeSdkGatewayOptions {
   /** SDK query fn (production: the real claude-agent-sdk query; tests inject a stub) */
@@ -19,18 +19,19 @@ export interface ClaudeSdkGatewayOptions {
   readonly baseOptions?: ClaudeCodeOptions
 }
 
-interface SdkBox {
-  readonly sessionId: string
+interface SdkBox extends SessionBox {
   readonly config: UnifiedAgentConfig
-  status: SessionStatus["status"]
-  detail?: string
-  lastActivityAt?: number
   readonly turns: Array<SessionTurn>
 }
 
 export const makeClaudeSdkGateway = (options: ClaudeSdkGatewayOptions): SessionGateway => {
-  const boxes = new Map<string, SdkBox>()
-  let seq = 0
+  const table = makeSessionTable<SdkBox>({
+    kind: "claude-cc",
+    prefix: "claude-cc",
+    create: (sessionId, request) => ({
+      sessionId, config: request.config, status: "idle", lastActivityAt: Date.now(), turns: []
+    })
+  })
 
   const driverOptions = (config: UnifiedAgentConfig): ClaudeCodeOptions => ({
     ...(options.baseOptions ?? {}),
@@ -39,20 +40,8 @@ export const makeClaudeSdkGateway = (options: ClaudeSdkGatewayOptions): SessionG
     query: options.query
   })
 
-  return {
-    kind: "claude-cc",
-    open: async (request: OpenSessionRequest) => {
-      const sessionId = request.sessionId ?? "claude-cc-" + (++seq).toString(36)
-      boxes.set(sessionId, { sessionId, config: request.config, status: "idle", lastActivityAt: Date.now(), turns: [] })
-      return { sessionId, kind: "claude-cc", status: "idle", lastActivityAt: Date.now() }
-    },
-    close: async (sessionId: string) => { boxes.delete(sessionId) },
-    send: async (sessionId: string, text: string): Promise<SendOutcome> => {
-      const box = boxes.get(sessionId)
-      if (box === undefined) return { ok: false, detail: "unknown session " + sessionId }
-      if (box.status === "running") return { ok: false, detail: "session busy: a turn is already running" }
-      box.status = "running"
-      box.lastActivityAt = Date.now()
+  const send = (sessionId: string, text: string): Promise<SendOutcome> =>
+    table.run(sessionId, async (box) => {
       const driver = ClaudeCode.make(driverOptions(box.config))
       const turn = Effect.runPromise(
         (driver as unknown as { run: (r: unknown) => Effect.Effect<unknown> }).run({
@@ -64,26 +53,19 @@ export const makeClaudeSdkGateway = (options: ClaudeSdkGatewayOptions): SessionG
       const deadline = box.config.turnTimeoutMs === undefined
         ? undefined
         : new Promise<never>((_, reject) => setTimeout(() => reject(new Error("turn timed out")), box.config.turnTimeoutMs))
-      try {
-        const raw = await Promise.race([turn, deadline].filter(Boolean) as Array<Promise<unknown>>)
-        const reply = String((raw as unknown as { text?: unknown })?.text ?? raw)
-        box.turns.push({ role: "user", content: text, at: Date.now() }, { role: "agent", content: reply, at: Date.now() })
-        box.status = "idle"
-        box.lastActivityAt = Date.now()
-        return { ok: true, text: reply }
-      } catch (error) {
-        box.status = "failed"
-        box.detail = error instanceof Error ? error.message : String(error)
-        return { ok: false, detail: box.detail }
-      }
-    },
-    status: async (sessionId: string): Promise<SessionStatus> => {
-      const box = boxes.get(sessionId)
-      if (box === undefined) throw new Error("unknown session " + sessionId)
-      return { sessionId, kind: "claude-cc", status: box.status, lastActivityAt: box.lastActivityAt, detail: box.detail }
-    },
-    sessions: () =>
-      [...boxes.entries()].map(([sessionId, box]) => ({ sessionId, kind: "claude-cc" as AgentKind, status: box.status, lastActivityAt: box.lastActivityAt, detail: box.detail })),
-    history: (sessionId: string) => boxes.get(sessionId)?.turns ?? []
+      const raw = await Promise.race([turn, deadline].filter(Boolean) as Array<Promise<unknown>>)
+      const reply = String((raw as unknown as { text?: unknown })?.text ?? raw)
+      box.turns.push({ role: "user", content: text, at: Date.now() }, { role: "agent", content: reply, at: Date.now() })
+      return { ok: true, text: reply }
+    })
+
+  return {
+    kind: "claude-cc",
+    open: table.open,
+    close: table.close,
+    send,
+    status: table.status,
+    sessions: table.sessions,
+    history: (sessionId: string) => table.get(sessionId)?.turns ?? []
   }
 }
