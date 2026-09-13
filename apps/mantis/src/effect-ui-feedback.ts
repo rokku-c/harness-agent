@@ -8,8 +8,7 @@
  * path it binds — an unguarded one renders as an empty chip before the press.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row } from "@effect-agent/effect-ui"
+import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 /** A press the app accepted. It either happened or it did not, so it can carry a colour. */
 export const acceptedBadge = (guard: string, label: string): UiNodeSpec =>
@@ -17,14 +16,10 @@ export const acceptedBadge = (guard: string, label: string): UiNodeSpec =>
     visible: { source: { state: guard }, equals: true } })
 
 /** The runtime's failure shape, which always carries a readable `error`. */
-export const errorBadge = (result: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "red" }, bind: `${result}/error`,
-    visible: { source: { state: `${result}/error` } } })
+export const errorBadge = (result: string): UiNodeSpec => failureBadge(`${result}/error`)
 
 /** A refusal the route itself answered: a 200, with the reason in `detail`. */
-export const refusalBadge = (result: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "red" }, bind: `${result}/detail`,
-    visible: { source: { state: `${result}/detail` } } })
+export const refusalBadge = (result: string): UiNodeSpec => failureBadge(`${result}/detail`)
 
 /**
  * The refusal of a write whose own success answers with `detail` too: the delete

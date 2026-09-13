@@ -6,7 +6,7 @@
  * answer stays in this card, where the press was, and nothing renders there
  * until a press has produced one.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { cell, cellOf, chip, emptyList, section, table, text } from "./effect-ui-nodes.ts"
 
 /**
@@ -51,9 +51,7 @@ const probeResult: readonly UiNodeSpec[] = [
       text(" could not be reached: "),
       { component: "Text", bind: "/health/result/health/error" },
     ] }] },
-  { component: "Callout.Root", props: { size: "1", variant: "soft", color: "red" },
-    visible: { source: { state: "/health/result/error" } },
-    children: [{ component: "Callout.Text", bind: "/health/result/error" }] },
+  failureCallout("/health/result/error"),
 ]
 
 export const providersSection: UiNodeSpec = section("Providers", [

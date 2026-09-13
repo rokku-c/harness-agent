@@ -6,9 +6,9 @@
  * and have the same shape, so each one says in a line what it is.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { sourceStates } from "@effect-agent/effect-ui/source-status"
-import { cellOf, code, line, press, refused, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
+import { cellOf, code, line, press, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
 
 const launcherCells: readonly UiNodeSpec[] = [
   cellOf(stateBadge("kind")),
@@ -25,7 +25,7 @@ export const catalogNodes: readonly UiNodeSpec[] = [
     text("Saved configurations this deck can launch, one per label.", { size: "2", color: "gray" }),
     ...sourceStates("launchers", "No launchers are registered."),
     table(["Agent", "Launcher", "Actions"], launcherCells, { source: { state: "/launchers/launchers" }, key: "label" }),
-    row([refused("/result/launcher/error")]),
+    row([failureBadge("/result/launcher/error")]),
   ]),
   section("Presets", [
     text("CLI commands the deck can invoke, one per agent kind.", { size: "2", color: "gray" }),

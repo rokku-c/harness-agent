@@ -1,6 +1,6 @@
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { emptyMessage, sourceStates } from "@effect-agent/effect-ui"
-import { cell, cellOf, failure, idCell, identityCell, line, list, section, table, text } from "./effect-ui-nodes.ts"
+import { cell, cellOf, failureCallout, idCell, identityCell, line, list, section, table, text } from "./effect-ui-nodes.ts"
 
 /**
  * What the last "Inspect" press found: the canvas's own document — the
@@ -27,7 +27,7 @@ const inspected: readonly UiNodeSpec[] = [
     ], { source: { state: "/canvas/loaded/children" }, key: "id" }),
     emptyMessage("/canvas/loaded/children", "This canvas has no nodes."),
   ] },
-  failure("/canvas/loaded/error"),
+  failureCallout("/canvas/loaded/error"),
 ]
 
 /**

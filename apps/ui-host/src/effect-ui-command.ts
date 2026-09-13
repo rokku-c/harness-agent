@@ -1,6 +1,6 @@
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { sourceStates } from "@effect-agent/effect-ui"
-import { failure, field, liveValue, row, section } from "./effect-ui-nodes.ts"
+import { failureCallout, field, liveValue, row, section } from "./effect-ui-nodes.ts"
 
 const button = (value: string, onPress: string, params: UiNodeSpec["params"]): UiNodeSpec =>
   ({ component: "Button", props: { value }, onPress, params })
@@ -50,9 +50,9 @@ export const commandCard: UiNodeSpec = section("Renderer and theme", [
   field("Renderer", rendererPicker),
   liveValue("Renderer in use", "/runtime/renderer"),
   row([button("Set renderer", "uiHost.setRenderer", { kind: "set-renderer", renderer: { state: "/commands/renderer" } })]),
-  failure("/commands/results/renderer/error"),
+  failureCallout("/commands/results/renderer/error"),
   field("Theme", themePicker),
   liveValue("Theme in use", "/runtime/theme"),
   row([button("Set theme", "uiHost.setTheme", { kind: "set-theme", theme: { state: "/commands/theme" } })]),
-  failure("/commands/results/theme/error"),
+  failureCallout("/commands/results/theme/error"),
 ])

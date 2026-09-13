@@ -8,7 +8,9 @@
 
 import type { UiActionParam, UiNodeSpec } from "@effect-agent/effect-ui"
 
-export { cell, cellOf, field, heading, line, section, stateBadge, table, text } from "@effect-agent/effect-ui"
+export {
+  cell, cellOf, field, heading, line, section, stateBadge, table, text,
+} from "@effect-agent/effect-ui"
 
 /** A press: what it says, the action it runs, and the values that action reads. */
 export const press = (
@@ -20,7 +22,3 @@ export const press = (
 
 /** An identifier addresses a record; it is a key, so it wears the code chip, never the first cell. */
 export const code = (item: string): UiNodeSpec => ({ component: "Code", item })
-
-/** A refused press, named in the section that holds the button: absent until there is an error. */
-export const refused = (path: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "red" }, bind: path, visible: { source: { state: path } } })

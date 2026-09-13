@@ -35,14 +35,6 @@ export const picker = (bind: string): UiNodeSpec => labelled("State", {
   ],
 })
 
-/** What a refused call said. Absent until there is one, so it is never an empty box. */
-export const refusal = (path: string): UiNodeSpec => ({
-  component: "Callout.Root",
-  props: { color: "red", size: "1" },
-  visible: { source: { state: `${path}/error` } },
-  children: [{ component: "Callout.Text", bind: `${path}/error` }],
-})
-
 /**
  * The presses, and beside them the mark the write's own answer carries: a
  * created or saved task has an `id`, a deleted one answers `ok`. Neither is a

@@ -11,8 +11,7 @@
  */
 
 import type { EffectUiView, UiNodeSpec } from "@effect-agent/effect-ui"
-import { region } from "@effect-agent/effect-ui"
-import { field, heading, text } from "./effect-ui-nodes.ts"
+import { field, heading, region, text } from "@effect-agent/effect-ui"
 import { serversSection } from "./effect-ui-servers.ts"
 import { registerSection } from "./effect-ui-register.ts"
 import { previewSection } from "./effect-ui-preview.ts"

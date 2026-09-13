@@ -14,14 +14,14 @@
  * wipe the record on a failed delete — the one case where the operator needs it
  * still there to retry.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { entry, memo, picker, refusal, withOutcome } from "./effect-ui-fields.ts"
+import { failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { entry, memo, picker, withOutcome } from "./effect-ui-fields.ts"
 
 export const createFields: readonly UiNodeSpec[] = [
   entry("Title", "/create/title"),
   memo("Body", "/create/body"),
   picker("/create/state"),
-  refusal("/createResult"),
+  failureCallout("/createResult/error"),
   withOutcome([
     { component: "Button", props: { value: "Create task" }, onPress: "board.create",
       params: { title: { state: "/create/title" }, body: { state: "/create/body" }, state: { state: "/create/state" } } },
@@ -30,7 +30,7 @@ export const createFields: readonly UiNodeSpec[] = [
 
 /** Saving sends every field on screen: a partial merge that holds one back is the form disagreeing with the record. */
 export const selectedFields: readonly UiNodeSpec[] = [
-  refusal("/selected"),
+  failureCallout("/selected/error"),
   { component: "Text", props: { value: "No task is open. Pick one from the board.", size: "2", color: "gray" },
     visible: { source: { state: "/selected/id" }, not: true } },
   { component: "Flex", props: { direction: "column", gap: "3" },

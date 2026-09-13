@@ -4,8 +4,8 @@
  * row carries it — the row's own, not a second copy of it over the table.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { cell, cellOf, code, press, refused, section, table, text } from "./effect-ui-nodes.ts"
+import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { cell, cellOf, code, press, section, table, text } from "./effect-ui-nodes.ts"
 import { sharedStates } from "./effect-ui-states.ts"
 
 /**
@@ -27,6 +27,6 @@ export const consentNodes: readonly UiNodeSpec[] = [
     text("Nothing an agent asks for runs until it is decided here.", { size: "2", color: "gray" }),
     ...sharedStates("deck", "/deck/pending", "No consent requests are waiting."),
     table(["Tool", "Session", "Decision"], decisionCells, { source: { state: "/deck/pending" }, key: "callId" }),
-    row([refused("/result/consent/error")]),
+    row([failureBadge("/result/consent/error")]),
   ]),
 ]

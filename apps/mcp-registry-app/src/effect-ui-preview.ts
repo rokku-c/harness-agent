@@ -11,8 +11,7 @@
  * two equalities rather than two nodes.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { failure, field, section, text } from "./effect-ui-nodes.ts"
+import { failureCallout, field, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 /** A preview body that is only text: a card and a code block, no sandbox needed. */
 const textBody: UiNodeSpec =
@@ -34,7 +33,7 @@ export const previewSection: UiNodeSpec = section("Preview a ui:// resource", [
   field("Resource URI", { component: "TextField.Root", props: { placeholder: "ui://server/console" }, bind: "/preview/uri" }),
   row([{ component: "Button", props: { value: "Load preview" }, onPress: "registry.preview",
     params: { serverId: { state: "/preview/serverId" }, uri: { state: "/preview/uri" } } }]),
-  failure("/preview/result/error"),
+  failureCallout("/preview/result/error"),
   { component: "Card", props: { variant: "surface" }, visible: { source: { state: "/preview/result" }, not: true },
     children: [{ component: "Text", props: { value: "Load a resource to see it here.", size: "2", color: "gray" } }] },
   textBody,

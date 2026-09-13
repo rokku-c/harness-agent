@@ -6,8 +6,7 @@
  * went in, never the verdict that came out.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row } from "@effect-agent/effect-ui"
+import { failureCallout, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { cell, cellOf, chipList, field, line, list, section, table, text } from "./effect-ui-nodes.ts"
 
 /** True-or-false is the one condition that earns colour: a refusal is a signal. */
@@ -19,9 +18,7 @@ const outcome = (value: string, color: string, allowed: boolean): UiNodeSpec =>
  * at `/access/result`, beside the paths a successful preview occupies — so a
  * refused or unreachable preview is a record no outcome path can report.
  */
-const failure: UiNodeSpec = { component: "Callout.Root", props: { color: "red", size: "1" },
-  visible: { source: { state: "/access/result/error" } },
-  children: [{ component: "Callout.Text", bind: "/access/result/error" }] }
+const failure = failureCallout("/access/result/error")
 
 /**
  * Reasons are the shape of a refusal; the gateway clears them on an allowance.

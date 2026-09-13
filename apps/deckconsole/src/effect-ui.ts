@@ -1,5 +1,5 @@
-import { region, row, type EffectUiView, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { field, heading, press, refused, section, text } from "./effect-ui-nodes.ts"
+import { failureBadge, region, row, type EffectUiView, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { field, heading, press, section, text } from "./effect-ui-nodes.ts"
 import { sessionNodes } from "./effect-ui-session.ts"
 import { consentNodes } from "./effect-ui-consent.ts"
 import { catalogNodes } from "./effect-ui-catalog.ts"
@@ -84,7 +84,7 @@ export const effectUiView: EffectUiView = {
       field("Prompt", { component: "TextArea", bind: "/create/prompt" }),
       row([press("Open session", "deck.open",
         { kind: { state: "/create/kind" }, sessionId: { state: "/create/sessionId" }, prompt: { state: "/create/prompt" } })]),
-      row([refused("/result/open/error")]),
+      row([failureBadge("/result/open/error")]),
     ]),
     // What the form produces is as long as the deck is busy, and it is not what the
     // page is for: it scrolls in its own box, so the press that produced it stays put.

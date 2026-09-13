@@ -12,8 +12,7 @@
  */
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row, sourceStates } from "@effect-agent/effect-ui"
-import { cell, cellOf, failure, list, section, table, text } from "./effect-ui-nodes.ts"
+import { cell, cellOf, failureCallout, list, row, section, sourceStates, table, text } from "@effect-agent/effect-ui"
 
 /**
  * The resources a row declares, under the id it declares them from. Guarded on
@@ -77,5 +76,5 @@ export const serversSection: UiNodeSpec = section("Servers", [
   table(["Server", "Version", "Era", "Status", "Withdraw"], cells,
     { source: { state: "/registry/servers" }, key: "serverId" }),
   withdrawn,
-  failure("/withdraw/result/error"),
+  failureCallout("/withdraw/result/error"),
 ])

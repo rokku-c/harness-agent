@@ -9,12 +9,10 @@
  * The press and its answer stay in this card. Inspect runs for the row it was
  * pressed in, so a row can never load another row's config.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row } from "@effect-agent/effect-ui"
+import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { badgeCell, badgeOf, boundChip, cell, cellOf, chip, reported, stringEntry } from "./effect-ui-cells.ts"
 import { field, listStates, section, table, text } from "./effect-ui-nodes.ts"
 import { answer, answered, request, rowRequest } from "./effect-ui-request.ts"
-import { errorBadge } from "./effect-ui-signals.ts"
 
 /** The row's one action, run for the agent the row is standing on. */
 const inspect: UiNodeSpec = cellOf([rowRequest("Inspect", "agentd.desired", "agentId", "agentId")])
@@ -51,5 +49,5 @@ export const agentsSection: UiNodeSpec = section("Agents", [
   table(["Agent", "Machine", "Kind", "State", "Desired revision", "Applied revision", "Inspect"], cells, "/status/agents", "agentId"),
   desiredAnswer,
   planAnswer,
-  row([errorBadge("/inspect/desired/error"), errorBadge("/inspect/plan/error")]),
+  row([failureBadge("/inspect/desired/error"), failureBadge("/inspect/plan/error")]),
 ])

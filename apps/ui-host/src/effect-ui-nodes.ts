@@ -2,13 +2,15 @@
  * The node builders this console is written with: the shapes the framework
  * states once for every console, re-exported, and the few the canvas page has
  * an opinion of its own about — the figure the runtime reports, the value a
- * control is actually on, a row's identity, and what a press reported.
+ * control is actually on, and a row's identity.
  */
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { cellOf, text } from "@effect-agent/effect-ui"
 
-export { cell, cellOf, field, heading, line, list, row, section, table, text } from "@effect-agent/effect-ui"
+export {
+  cell, cellOf, failureCallout, field, heading, line, list, row, section, table, text,
+} from "@effect-agent/effect-ui"
 
 /** One figure the runtime reports: a small gray label over the live value. */
 export const metric = (label: string, bind: string): UiNodeSpec => ({ component: "Card", props: { size: "1" }, children: [
@@ -43,12 +45,3 @@ export const identityCell = (name: string, key: string): UiNodeSpec =>
     { component: "Text", item: name },
     { component: "Code", props: { variant: "soft", size: "1" }, item: key },
   ] })
-
-/**
- * What a press reported when it failed: the action runtime writes `{ ok: false,
- * error }`, and a sentence belongs in a callout — a badge carries the name of a
- * state, not a message. Guarded, so a readout with nothing to report yet does
- * not draw as an empty red box on the page.
- */
-export const failure = (bind: string): UiNodeSpec =>
-  ({ component: "Callout.Root", props: { color: "red", size: "1" }, visible: { source: { state: bind } }, children: [{ component: "Callout.Text", bind }] })

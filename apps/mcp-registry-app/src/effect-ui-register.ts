@@ -10,8 +10,7 @@
  * one. The token that authorizes the press is the page's credential.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { failure, field, section, text } from "./effect-ui-nodes.ts"
+import { failureCallout, field, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 const declaration = '{"serverId":"example","name":"example","version":"1","era":"modern","transport":{"kind":"streamable-http","endpoint":"https://example.test/mcp"}}'
 
@@ -29,5 +28,5 @@ export const registerSection: UiNodeSpec = section("Register a server", [
   row([{ component: "Button", props: { value: "Register" }, onPress: "registry.register",
     params: { token: { state: "/token" }, declaration: { state: "/register/declaration" } } }]),
   registered,
-  failure("/register/result/error"),
+  failureCallout("/register/result/error"),
 ])

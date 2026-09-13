@@ -12,12 +12,10 @@
  *
  * The press and its answer stay in this card, exactly as in the agents above.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row } from "@effect-agent/effect-ui"
+import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { badgeCell, boundChip, cell, cellOf, chip, identity, reported, stringEntry } from "./effect-ui-cells.ts"
 import { field, listStates, section, table, text } from "./effect-ui-nodes.ts"
 import { answer, answered, request, rowRequest } from "./effect-ui-request.ts"
-import { errorBadge } from "./effect-ui-signals.ts"
 
 const cells: readonly UiNodeSpec[] = [
   identity("name", "machineId"),
@@ -56,5 +54,5 @@ export const machinesSection: UiNodeSpec = section("Machines", [
   table(["Machine", "State", "Desired revision", "Applied revision", "Inspect"], cells, "/status/machines", "machineId"),
   nodeAnswer,
   planAnswer,
-  row([errorBadge("/inspect/node/error"), errorBadge("/inspect/nodePlan/error")]),
+  row([failureBadge("/inspect/node/error"), failureBadge("/inspect/nodePlan/error")]),
 ])

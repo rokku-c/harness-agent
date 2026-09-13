@@ -7,8 +7,8 @@
  * hand-typed id is the one that goes to the wrong session.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { cellOf, code, field, press, refused, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
+import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { cellOf, code, field, press, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
 import { sharedStates } from "./effect-ui-states.ts"
 import { historyNodes } from "./effect-ui-history.ts"
 
@@ -42,9 +42,9 @@ const closeAll: UiNodeSpec = {
 const sessionsCard: UiNodeSpec = section("Sessions", [
   ...sharedStates("deck", "/deck/sessions", "No agent sessions are open yet."),
   table(["Agent", "Session", "Status", "Actions"], sessionCells, { source: { state: "/deck/sessions" }, key: "sessionId" }),
-  row([refused("/opened/error")]),
+  row([failureBadge("/opened/error")]),
   closeAll,
-  row([refused("/result/session/error")]),
+  row([failureBadge("/result/session/error")]),
 ])
 
 /** The session the turn form acts on: the row the operator opened, named once. */
@@ -62,7 +62,7 @@ const openedSession: UiNodeSpec = {
       // retry carries only the session: it re-sends what that session last ran
       press("Retry last turn", "deck.retry", { sessionId: { state: "/opened/sessionId" } }, { variant: "soft" }),
     ]),
-    row([refused("/result/turn/error")]),
+    row([failureBadge("/result/turn/error")]),
     // a turn that landed says so where the press was, and says nothing before one
     row([{ component: "Badge", props: { color: "green", variant: "soft", value: "Sent" },
       visible: { source: { state: "/result/turn/ok" } } }]),

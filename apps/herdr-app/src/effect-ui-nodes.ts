@@ -7,8 +7,7 @@
  * is here is what only this console needs: where its two reads keep their
  * answers, how a press's outcome is shown, and the key sequences a press sends.
  */
-import type { UiActionParam, UiNodeSpec, UiVisibilitySpec } from "@effect-agent/effect-ui"
-import { row } from "@effect-agent/effect-ui"
+import { failureBadge, row, type UiActionParam, type UiNodeSpec, type UiVisibilitySpec } from "@effect-agent/effect-ui"
 
 /**
  * The two reads. A source's body lands at `/herdr/<id>` and the list inside it
@@ -58,9 +57,7 @@ export const press = (
     ...(params === undefined ? {} : { params }) })
 
 /** A press that failed: the runtime's own shape, which always carries a readable `error`. */
-export const failure = (name: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "red" }, bind: `${outcome(name)}/error`,
-    visible: { source: { state: `${outcome(name)}/error` } } })
+export const failure = (name: string): UiNodeSpec => failureBadge(`${outcome(name)}/error`)
 
 /** A press the app accepted. It either happened or it did not, so it can carry a colour. */
 const accepted = (name: string, label: string): UiNodeSpec =>
