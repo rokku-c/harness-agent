@@ -15,11 +15,13 @@ like a broken test.
 | `Formal/Config.lean` | `effect-config/src/merge.ts` | the provenance names the layer the value came from; a new default cannot move an operator's override |
 | `Formal/Consent.lean` | `agentdeck/src/consent.ts` | the first answer to an ask is the answer; a write runs exactly when the operator approved it |
 | `Formal/Derive.lean` | `effect-ui/src/screen-derive.ts` | a derived screen id collides with no other, declared or derived |
+| `Formal/Egress.lean` | `effect-network/src/policy.ts` | the exit a write leaves by is the one the policy chose and it was reachable; an unmet preference fails instead of borrowing another policy's exit |
 | `Formal/Lifecycle.lean` | `effect-interface/src/registry.ts` | register and dispose are symmetric, and a stale disposer cannot revoke its replacement |
 | `Formal/Readout.lean` | `effect-ui/src/readout.ts`, `source-status.ts` | a readout shows exactly when its path carries a value; a failed list never reads as an empty one |
 | `Formal/Redact.lean` | `mcp-gateway/src/redaction.ts`, `ai-gateway/src/redaction.ts` | the scrub leaves no field unvisited at any depth, for any vocabulary; a credential-named header is not carried |
 | `Formal/Screen.lean` | `effect-ui/src/screen.ts` | entered screens form a chain back to the root, without repeats |
 | `Formal/Swap.lean` | `effect-bundle/src/supervisor.ts` | at every moment of a kernel swap the dispatcher points at a kernel that is loaded; stopping the old one first does not |
+| `Formal/ToolKey.lean` | `effect-interface/src/registry.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two names can share one served name, and the surface refuses that instead of dropping a tool |
 
 ## What this is not
 
