@@ -9,28 +9,7 @@
     "noUncheckedIndexedAccess": false,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "paths": {
-      "@effect-agent/core": ["./packages/core/src/index.ts"],
-      "@effect-agent/builtin": ["./packages/builtin/src/index.ts"],
-      "@effect-agent/model": ["./packages/model/src/index.ts"],
-      "@effect-agent/channel": ["./packages/channel/src/index.ts"],
-      "@effect-agent/tools": ["./packages/tools/src/index.ts"],
-      "@effect-agent/state": ["./packages/state/src/index.ts"],
-      "@effect-agent/memory": ["./packages/memory/src/index.ts"],
-      "@effect-agent/gate": ["./packages/gate/src/index.ts"],
-      "@effect-agent/logger": ["./packages/logger/src/index.ts"],
-      "@effect-agent/schedule": ["./packages/schedule/src/index.ts"],
-      "@effect-agent/assembly": ["./packages/assembly/src/index.ts"],
-      "@effect-agent/agentdeck": ["./packages/agentdeck/src/index.ts"]
-      ,"@effect-agent/ui-protocol": ["./packages/ui-protocol/src/index.ts"]
-      ,"@effect-agent/ui-definition": ["./packages/ui-definition/src/index.ts"]
-      ,"@effect-agent/ui-runtime": ["./packages/ui-runtime/src/index.ts"]
-      ,"@effect-agent/ui-renderer": ["./packages/ui-renderer/src/index.ts"]
-      ,"@effect-agent/ui-agent": ["./packages/ui-agent/src/index.ts"]
-      ,"@effect-agent/ui-extension": ["./packages/ui-extension/src/index.ts"]
-      ,"@effect-agent/ui-sandbox": ["./packages/ui-sandbox/src/index.ts"]
-    }
+    "noEmit": true
   },
   "include": [
     "packages/*/src/**/*.ts",
