@@ -4,19 +4,18 @@
  * Mirrors the deepseek-harness idea that registration is a reversible effect:
  * `registerInterface(...)` returns a disposer that removes exactly the records
  * it added, so disabling a plugin/app leaves the registry provably clean.
- * Interfaces are looked up by id or by flattened "id.tool" keys, and any of
- * them can be projected to JSON Schema for serving over MCP or docs.
+ * `Formal/Lifecycle.lean` proves register and dispose are symmetric, and that a
+ * stale disposer cannot revoke the registration that replaced it.
+ *
+ * The flat key a tool is addressed by and the schema it is advertised by are
+ * `tool-key.ts`; this file owns the records and the lookups over them.
  */
 
-import type { EffectApp, EffectInterface, EffectTool, ToolJsonSchema } from "./contract.ts"
-import { toJsonSchema } from "./contract.ts"
+import type { EffectApp, EffectInterface, ToolJsonSchema } from "./contract.ts"
 import { revocable } from "./revocable.ts"
+import { keyOf, schemaOf, type ToolEntry } from "./tool-key.ts"
 
-export interface ToolEntry {
-  readonly key: string
-  readonly interfaceId: string
-  readonly tool: EffectTool
-}
+export type { ToolEntry } from "./tool-key.ts"
 
 export interface AppEntry {
   readonly interfaceId: string
@@ -39,8 +38,6 @@ export interface EffectRegistry {
 export const makeEffectRegistry = (): EffectRegistry => {
   const interfaces = new Map<string, EffectInterface>()
 
-  const keyOf = (ifaceId: string, toolName: string): string => ifaceId + "." + toolName
-
   const tools = (): readonly ToolEntry[] => {
     const out: ToolEntry[] = []
     for (const iface of interfaces.values()) {
@@ -59,19 +56,6 @@ export const makeEffectRegistry = (): EffectRegistry => {
       }
     }
     return out
-  }
-
-  const schemaOf = (ifaceId: string, tool: EffectTool): ToolJsonSchema => {
-    const parameters =
-      tool.inputSchema ?? (tool.input !== undefined ? toJsonSchema(tool.input) : undefined) ?? { type: "object" }
-    const output =
-      tool.outputSchema ?? (tool.output !== undefined ? toJsonSchema(tool.output) : undefined)
-    return {
-      name: keyOf(ifaceId, tool.name),
-      description: tool.description,
-      parameters,
-      ...(output !== undefined ? { output } : {}),
-    }
   }
 
   return {

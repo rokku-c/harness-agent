@@ -13,9 +13,17 @@ export interface InFlight<T> {
   release(target: T): void
   /** Requests in flight on `target`, or on every target when it is omitted. */
   inFlight(target?: T): number
-  /** Targets with a count, in acquisition order — a target at zero is forgotten. */
+  /**
+   * Targets with a count, in acquisition order. A target that has drained stays
+   * listed at zero and `tracks` stays true for it — which is why `stats` can name
+   * a target it has never seen a request on without a second code path.
+   */
   entries(): ReadonlyArray<readonly [T, number]>
-  /** Is this target being tracked at all? A fresh one is not. */
+  /**
+   * Has this target ever been acquired? A fresh one has not, a drained one has.
+   * A release with no acquire is the one case the count cannot tell apart from a
+   * request that has finished, which is what `run`'s `finally` rules out.
+   */
   tracks(target: T): boolean
   /** Resolve once `target` has no request in flight; already zero resolves at once. */
   drained(target: T): Promise<void>

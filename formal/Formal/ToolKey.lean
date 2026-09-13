@@ -1,5 +1,5 @@
 /-
-  A tool's name on the two wires — `packages/effect-interface/src/registry.ts`
+  A tool's name on the two wires — `packages/effect-interface/src/tool-key.ts`
   (`keyOf`) and `packages/effect-mcp/src/node-server/tools.ts` (`sanitize`).
 
   A tool is declared once, under an interface, and reaches a caller through two

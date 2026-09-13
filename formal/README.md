@@ -22,12 +22,14 @@ absent from the list would be counted here while never being compiled.
 | `Formal/Derive.lean` | `effect-ui/src/screen-derive.ts` | a derived screen id collides with no other, declared or derived |
 | `Formal/Egress.lean` | `effect-network/src/policy.ts` | the exit a write leaves by is the one the policy chose and it was reachable; an unmet preference fails instead of borrowing another policy's exit |
 | `Formal/Generation.lean` | `effect-apps/src/registration/install.ts` | every refusal path leaves the displaced generation serving; forgetting the restore leaves the app down |
+| `Formal/InFlight.lean` | `effect-host/src/dispatch-counts.ts`, `dispatch-point.ts` | a release lands on the target its acquire named, so a target answering a request cannot read as drained; releasing whatever is current lets it read as drained and leaves the captured one never draining; the waiter is woken by the last release and stays quiet while anything is inside |
 | `Formal/Lifecycle.lean` | `effect-interface/src/registry.ts` | register and dispose are symmetric, and a stale disposer cannot revoke its replacement |
 | `Formal/Readout.lean` | `effect-ui/src/readout.ts`, `source-status.ts` | a readout shows exactly when its path carries a value; a failed list never reads as an empty one |
 | `Formal/Redact.lean` | `mcp-gateway/src/redaction.ts`, `ai-gateway/src/redaction.ts` | the scrub leaves no field unvisited at any depth, for any vocabulary; a credential-named header is not carried |
+| `Formal/Reload.lean` | `effect-server/src/manifest-loader/generation.ts` | a generation number is handed out once, so a spent path is never served again; a commit keeps the serving copy and one rollback target, and discarding the displaced copy loses the rollback |
 | `Formal/Screen.lean` | `effect-ui/src/screen.ts` | entered screens form a chain back to the root, without repeats |
 | `Formal/Swap.lean` | `effect-bundle/src/supervisor-swap.ts` | at every moment of a kernel swap the dispatcher points at a kernel that is loaded; stopping the old one first does not |
-| `Formal/ToolKey.lean` | `effect-interface/src/registry.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two tool names can sanitize to one served name, and the surface refuses that instead of dropping a tool |
+| `Formal/ToolKey.lean` | `effect-interface/src/tool-key.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two tool names can sanitize to one served name, and the surface refuses that instead of dropping a tool |
 
 ## What this is not
 
