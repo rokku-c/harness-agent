@@ -3,139 +3,32 @@
  *
  * Answers, per app, the preconditions the architecture rework stands on:
  *
- *   1. ambient 依赖 (§7.2)   — does it reach fs/network/process directly?
- *   2. 需要的 runtime (§7.1) — what is the lightest runtime it could run in?
- *   3. bundle 声明 (§5)      — does it ship an artifact header, with which abi/runtimes?
+ *   1. ambient dependencies (§7.2) — does it reach fs/network/process directly?
+ *   2. required runtime (§7.1)     — what is the lightest runtime it could run in?
+ *   3. bundle declaration (§5)     — does it ship an artifact header, with which abi/runtimes?
  *
  * Deliberately IGNORES effect.boundary.json's grandfathering lists: a
  * grandfathered exemption is an allowance to write the code, not evidence the
  * app can leave the OS host. The boundary checker enforces policy; this reports
- * reality.
+ * reality. The facts come from lib/inventory-app.ts, the report body from
+ * lib/inventory-markdown.ts; this file owns the CLI modes.
  *
  *   bun scripts/inventory-apps.ts            # markdown -> docs/app-portability-inventory.md
  *   bun scripts/inventory-apps.ts --json     # machine-readable -> stdout
  *   bun scripts/inventory-apps.ts --check    # exit 1 if a bundle omits runtimes
  */
 
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { writeFileSync } from "node:fs"
 import { join, posix, resolve } from "node:path"
-import { collectPackages, importSpecifiers, isBuiltinSpecifier, scanSystemIo, sourceFiles } from "./lib/source-scan.ts"
-import { bundleRuntimes, EFFECT_RUNTIME_KINDS, type EffectRuntimeKind } from "../packages/effect-bundle/src/compat.ts"
+import { bundleRuntimes, EFFECT_RUNTIME_KINDS } from "../packages/effect-bundle/src/compat.ts"
+import { collectPackages } from "./lib/package-graph.ts"
+import { inspectApp } from "./lib/inventory-app.ts"
+import { renderInventory } from "./lib/inventory-markdown.ts"
 
 const ROOT = resolve(import.meta.dir, "..")
 const OUT = join(ROOT, "docs/app-portability-inventory.md")
 
-interface Hit {
-  readonly file: string
-  readonly detail: string
-}
-
-interface AppInventory {
-  readonly dir: string
-  readonly name: string
-  readonly abi?: string
-  readonly declaredRuntimes?: readonly EffectRuntimeKind[]
-  /** what the code can actually do, regardless of what it declares */
-  readonly floor: "os" | "unverified"
-  readonly ambientIo: readonly Hit[]
-  readonly builtins: readonly Hit[]
-}
-
-const apps = collectPackages(ROOT, "apps", "app")
-
-const inspect = (dir: string, name: string): AppInventory => {
-  const ambientIo: Hit[] = []
-  const builtins: Hit[] = []
-  for (const file of sourceFiles(ROOT, dir + "/src")) {
-    const src = readFileSync(file, "utf8")
-    const fileRel = posix.relative(ROOT, file.split("\\").join("/"))
-    const io = scanSystemIo(src)
-    if (io !== undefined) ambientIo.push({ file: fileRel, detail: `${io.label} — \`${io.match}\`` })
-    for (const spec of importSpecifiers(src)) {
-      if (isBuiltinSpecifier(spec)) builtins.push({ file: fileRel, detail: spec })
-    }
-  }
-
-  const manifestPath = join(ROOT, dir, "effect.bundle.json")
-  const manifest = existsSync(manifestPath)
-    ? (JSON.parse(readFileSync(manifestPath, "utf8")) as { abi?: string; runtimes?: readonly EffectRuntimeKind[] })
-    : undefined
-
-  return {
-    dir,
-    name,
-    abi: manifest?.abi,
-    declaredRuntimes: manifest?.runtimes,
-    floor: ambientIo.length > 0 || builtins.length > 0 ? "os" : "unverified",
-    ambientIo,
-    builtins,
-  }
-}
-
-const inventory = apps.map((app) => inspect(app.dir, app.name))
-
-const floorLabel = (app: AppInventory): string => {
-  if (app.declaredRuntimes !== undefined && app.declaredRuntimes.length > 0) {
-    return "declared: " + app.declaredRuntimes.map((r) => `\`${r}\``).join(" · ")
-  }
-  return app.floor === "os" ? "`os`（有 ambient 依赖）" : "未声明 · 待实测"
-}
-
-const render = (rows: readonly AppInventory[]): string => {
-  const deps = rows.filter((a) => a.ambientIo.length > 0 || a.builtins.length > 0).length
-  const portable = rows.length - deps
-  const lines: string[] = []
-  lines.push("# App 可移植性盘点")
-  lines.push("")
-  lines.push("> **本文件由 `bun scripts/inventory-apps.ts` 生成，请勿手改。**")
-  lines.push("> 依据：`docs/architecture-rework.md` §7（运行时可移植性）与 §10 的 P1。")
-  lines.push(">")
-  lines.push("> 本盘点**刻意忽略** `effect.boundary.json` 的豁免名单：豁免是「允许这么写」的授权，")
-  lines.push("> 不是「能离开 OS 宿主」的证据。边界检查管的是政策，这里报告的是事实。")
-  lines.push("")
-  lines.push("## 总览")
-  lines.push("")
-  lines.push(
-    `共 ${rows.length} 个 app：**${deps} 个**有 ambient 依赖（今天只能跑 os），**${portable} 个**代码上未触及系统 API。`,
-  )
-  lines.push("")
-  lines.push("| app | 包名 | runtime 下限 | abi | ambient IO | node/bun 内建 |")
-  lines.push("|---|---|---|---|---|---|")
-  for (const app of rows) {
-    const cells = [
-      `\`${app.dir.replace("apps/", "")}\``,
-      `\`${app.name}\``,
-      floorLabel(app),
-      app.abi === undefined ? "—（无制品）" : `\`${app.abi}\``,
-      app.ambientIo.length === 0 ? "—" : String(app.ambientIo.length),
-      app.builtins.length === 0 ? "—" : String(app.builtins.length),
-    ]
-    lines.push(`| ${cells.join(" | ")} |`)
-  }
-  lines.push("")
-  lines.push("## 明细")
-  for (const app of rows) {
-    if (app.ambientIo.length === 0 && app.builtins.length === 0) continue
-    lines.push("")
-    lines.push(`### ${app.dir} — \`${app.name}\``)
-    lines.push("")
-    lines.push("| 文件 | 事实 |")
-    lines.push("|---|---|")
-    for (const hit of app.ambientIo) lines.push(`| \`${hit.file}\` | ambient：${hit.detail} |`)
-    for (const hit of app.builtins) lines.push(`| \`${hit.file}\` | 内建：\`${hit.detail}\` |`)
-  }
-  lines.push("")
-  lines.push("## 怎么读这张表")
-  lines.push("")
-  lines.push("- **有 ambient 依赖** → 该 app 今天与 `os` 绑定（§7.2 的欠债清单）。要让它可移植，")
-  lines.push("  先把 fs / 网络 / 进程收敛到注入的能力对象，再由三档运行时各自实现（§7.5-3）。")
-  lines.push("- **未声明 · 待实测** → 代码上没碰系统 API，但**这不足以证明**能跑在 browser/sandbox：")
-  lines.push("  依赖的包可能自己碰了，或用了只在 OS 存在的语义。要真跑过一次才算数（P3 的验收）。")
-  lines.push("- **abi 列** → 有 `effect.bundle.json` 的才有；`runtimes` 缺省即 `[\"os\"]`（保守默认）。")
-  lines.push("- 内核切换后不可重建的内存态需人工复核对，不在本表内——见 `docs/architecture-rework.md` §6.3。")
-  lines.push("")
-  return lines.join("\n")
-}
+const inventory = collectPackages(ROOT, "apps", "app").map((app) => inspectApp(ROOT, app))
 
 if (process.argv.includes("--check")) {
   const missing = inventory.filter((a) => a.abi !== undefined && (a.declaredRuntimes ?? []).length === 0)
@@ -151,7 +44,7 @@ if (process.argv.includes("--check")) {
 } else if (process.argv.includes("--json")) {
   console.log(JSON.stringify(inventory, null, 2))
 } else {
-  writeFileSync(OUT, render(inventory) + "\n")
+  writeFileSync(OUT, renderInventory(inventory) + "\n")
   console.error(`inventory: wrote ${posix.relative(ROOT, OUT)} (${inventory.length} apps)`)
   for (const app of inventory) {
     const runtimes = bundleRuntimes({ runtimes: app.declaredRuntimes }).join(",")

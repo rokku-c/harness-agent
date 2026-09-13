@@ -10,10 +10,12 @@
  */
 
 import type { LoadedPlane } from "@effect-agent/effect-host"
-import { KERNEL_PLANES, planeIsOn, type KernelContext, type KernelInstance } from "./types.ts"
+import { KERNEL_PLANES, planeIsOn } from "./slots.ts"
+import type { KernelContext, KernelInstance } from "./types.ts"
 import { pluginFor } from "./planes.ts"
 
 export * from "./types.ts"
+export * from "./slots.ts"
 export { pluginFor } from "./planes.ts"
 
 /** Best-effort stop of one plane; a failing stop must not hide the original failure. */

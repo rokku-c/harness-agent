@@ -9,7 +9,6 @@
     "effect": "^3.22.1",
     "@effect-agent/core": "*",
     "@effect-agent/builtin": "*",
-    "@effect-agent/gate": "*",
     "smol-toml": "^1.8.0"
   },
   "scripts": {

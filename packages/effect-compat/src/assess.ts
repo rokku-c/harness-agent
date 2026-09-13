@@ -5,39 +5,13 @@
  * strict violation → reject; warn violation → record and continue; ignore → skip.
  * Strong dependencies (hash references) bypass inference and are validated at runtime.
  *
- * The input is deliberately STRUCTURAL (see {@link AssessableTool}): a script
- * `ToolDef` and an app's tool surface both satisfy it, so the same function
- * adjudicates both. Upgrade and rollback are the same call with the arguments
- * swapped — that symmetry is the point (docs/script-sandbox.md §5.2).
+ * What this file owns is one step of the walk — `from` → `to`, and the four
+ * comparisons that decide it. Upgrade and rollback are that same step with the
+ * arguments swapped, which is the point (docs/script-sandbox.md §5.2); the chain
+ * they walk is assess-chain.ts, and the shapes are assess-types.ts.
  */
-import type { CompatLevel, CompatMode, CompatPolicy } from "./policy.ts"
-
-/**
- * The minimum shape an adjudicable artifact exposes. Every field is optional so
- * a caller can diff the part of a surface it actually knows about; a missing
- * field is "unchanged" rather than "broken".
- */
-export interface AssessableTool {
-  readonly input?: unknown
-  readonly output?: unknown
-  readonly deps?: readonly string[]
-  readonly description?: string
-  /** per-artifact override of the policy levels */
-  readonly compat?: Partial<CompatPolicy>
-  readonly behavior?: { readonly changed?: boolean; readonly note?: string }
-}
-
-export interface Violation {
-  readonly level: CompatLevel
-  readonly mode: CompatMode
-  readonly reason: string
-}
-
-export interface UpgradeReport {
-  readonly ok: boolean
-  readonly violations: ReadonlyArray<Violation>
-  readonly warnings: ReadonlyArray<Violation>
-}
+import type { AssessableTool, UpgradeReport, Violation } from "./assess-types.ts"
+import type { CompatMode, CompatPolicy } from "./policy.ts"
 
 /** Structured diff (skeleton: canonical JSON equality; a real implementation should do JSON Schema subset checking). */
 export const schemaChanged = (a: unknown, b: unknown): boolean => JSON.stringify(a) !== JSON.stringify(b)
@@ -84,28 +58,3 @@ export const assessChange = (from: AssessableTool, to: AssessableTool, policy: C
   const warnings = violations.filter((violation) => violation.mode === "warn")
   return { ok: strict.length === 0, violations, warnings }
 }
-
-/** Anything carrying an adjudicable body — a script `Version`, an app generation, … */
-export interface VersionLike<T extends AssessableTool> {
-  readonly content: T
-}
-
-/**
- * Cumulative adjudication along the version chain (from → to; skeleton: diffs the two end contents
- * directly, a real implementation walks version by version).
- *
- * Rollback is the same call with (to, from) swapped — there is no separate
- * "can we go back" rule to keep in sync.
- */
-export const assessUpgrade = <T extends AssessableTool>(
-  from: VersionLike<T>,
-  to: VersionLike<T>,
-  policy: CompatPolicy,
-): UpgradeReport => assessChange(from.content, to.content, policy)
-
-/** The adjudication run backwards: may we go from `to` back to `from`? */
-export const assessRollback = <T extends AssessableTool>(
-  from: VersionLike<T>,
-  to: VersionLike<T>,
-  policy: CompatPolicy,
-): UpgradeReport => assessUpgrade(to, from, policy)

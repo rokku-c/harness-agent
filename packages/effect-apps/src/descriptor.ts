@@ -46,12 +46,7 @@ export interface EffectAppHost {
 
 export { registerEffectApp } from "./registration/register.ts"
 export type { AsyncAppDisposer } from "./registration/disposal.ts"
-export { assessSurfaceChange, makeAppSlot, readAppSurface } from "./registration/generations.ts"
-export type {
-  AppGeneration,
-  AppSlot,
-  AppSlotOptions,
-  AppToolSurface,
-  InstallOptions,
-  InstallResult,
-} from "./registration/generations.ts"
+export { makeAppSlot } from "./registration/generations.ts"
+export { assessSurfaceChange, readAppSurface } from "./registration/surface.ts"
+export type { AppToolSurface } from "./registration/surface.ts"
+export type { AppGeneration, AppSlot, AppSlotOptions, InstallOptions, InstallResult } from "./registration/slot.ts"

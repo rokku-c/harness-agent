@@ -9,7 +9,6 @@
   "dependencies": {
     "@effect-agent/assembly": "workspace:*",
     "@effect-agent/core": "workspace:*",
-    "@effect-agent/model": "workspace:*",
     "@effect-agent/state": "workspace:*",
     "@effect-agent/memory": "workspace:*",
     "@effect-agent/channel": "workspace:*",

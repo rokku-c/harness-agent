@@ -3,49 +3,16 @@
  * are the runtime's coordination primitives. It creates a shared whiteboard,
  * spawns workers, declares a watch rule (fork a reviewer when a child
  * reports progress), waits, and merges. Children push their progress into
- * the supervisor's context between its steps. The model is scripted here;
+ * the supervisor's context between its steps. The model is scripted here,
+ * with the cast's own models in ./lib/orchestration-models.ts;
  * 06-live-orchestration.ts runs the same shape on a real provider.
  */
 import { Effect, Layer } from "effect"
 import {
   Agent, AgentContext, ConsoleHook, Harness, Until,
-  type Driver, type RunRequest
 } from "@effect-agent/core"
-import { EffectAgent, FiberAgentRuntime, childBinding, runtimeBinding, type Model, type WireMessage } from "@effect-agent/builtin"
-
-// a worker: reports progress, posts one finding, finishes
-const workerModel = (finding: string): Model => {
-  let calls = 0
-  return {
-    generate: (_s: string, _m: ReadonlyArray<WireMessage>) => {
-      calls++
-      if (calls === 1) return Effect.succeed({ text: "", toolCalls: [{ id: "p", name: "report_progress", input: { text: "working on " + finding } }] })
-      if (calls === 2) return Effect.succeed({ text: "", toolCalls: [{ id: "b", name: "post_board", input: { board: "ea://board/findings", text: finding } }] })
-      return Effect.succeed({ text: "done: " + finding, toolCalls: [] })
-    }
-  }
-}
-
-const reviewerDriver: Driver<never> = {
-  id: "reviewer",
-  capabilities: { provider: { _tag: "Configurable" }, granularity: "run", thinking: false, cancel: true, pause: true, resume: false, fork: "none", tools: "native", toolCalls: "intercept", structuredOutput: "text", sandbox: "none" },
-  run: <A, R>(_request: RunRequest<A, R>) => Effect.succeed("reviewed" as A)
-}
-
-// a batch worker: stateless - it knows its round from the thread (a tool
-// result means it already posted). The supervisor fans it out with
-// map_children over a task list, bounded concurrency.
-const scannerModel = (): Model => ({
-  generate: (_s: string, messages: ReadonlyArray<WireMessage>) => {
-    const alreadyPosted = messages.some((m) => m.role === "tool")
-    if (alreadyPosted) return Effect.succeed({ text: "scan done", toolCalls: [] })
-    const task = messages.find((m) => m.role === "user")?.content ?? "unknown"
-    return Effect.succeed({
-      text: "",
-      toolCalls: [{ id: "b", name: "post_board", input: { board: "ea://board/findings", text: "scanned: " + task } }]
-    })
-  }
-})
+import { EffectAgent, FiberAgentRuntime, childBinding, runtimeBinding, type Model } from "@effect-agent/builtin"
+import { reviewerDriver, scannerModel, workerModel } from "./lib/orchestration-models.ts"
 
 const registry = {
   worker: Agent.define("worker", (task: string) => AgentContext.text(task))
@@ -98,5 +65,3 @@ const answer = await Effect.runPromise(
   )
 )
 console.log("supervisor:", answer)
-void reviewerDriver
-

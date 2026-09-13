@@ -3,10 +3,11 @@
  * visibility + content-addressed versions + compatibility adjudication +
  * configuration derivation. Shows the recursive "scope + policy"
  * unification applied across the four layers of tools/versions/config/agents.
+ *
+ * Stage 1's seed api and the runtime probe live in ./lib/script-sandbox-setup.ts,
+ * the "return { define }" bootstrapping convention in ./lib/script-bootstrap.ts.
  */
 import {
-  IsolatedVmRuntime,
-  NodeVmRuntime,
   VersionStore,
   assessChange,
   defaultCompat,
@@ -17,57 +18,12 @@ import {
   type Policy,
   type ToolDef
 } from "@effect-agent/script"
+import { notes, registry, Runtime, weather } from "./lib/script-sandbox-setup.ts"
+import { composedSource, toolFromResult } from "./lib/script-bootstrap.ts"
 
-// Runtime probe: bun's V8 ABI cannot load isolated-vm (a native module) → fall back to the node:vm skeleton;
-// under node, use real isolation. Real deployments should ensure node + isolated-vm.
-const Runtime =
-  (await import("isolated-vm").then(() => true).catch(() => false))
-    ? IsolatedVmRuntime
-    : NodeVmRuntime
 console.log("runtime:", Runtime.runtime)
 
-/* ---------- 1. native tools (seed api) ---------- */
-const weather: ToolDef = {
-  name: "weather.lookup",
-  description: "look up weather for a city",
-  semver: "1.0.0",
-  input: { type: "object", properties: { city: { type: "string" } } },
-  output: { type: "object", properties: { temp: { type: "number" } } },
-  deps: [],
-  impl: { kind: "native", execute: async () => ({ temp: 24 }) }
-}
-const notes: ToolDef = {
-  name: "notes.read",
-  description: "read today's notes",
-  semver: "1.0.0",
-  input: { type: "object" },
-  output: { type: "object", properties: { text: { type: "string" } } },
-  deps: [],
-  impl: { kind: "native", execute: async () => ({ text: "buy milk" }) }
-}
-const registry = new Map<string, ToolDef>([["weather.lookup", weather], ["notes.read", notes]])
-
 /* ---------- 2. script bootstrapping: compose two tools, return is data ---------- */
-// Convention: the script's last statement is return { ... }; a define field in the object declares a new tool (the host extracts and registers it),
-// the remaining fields are the script result. The return value is the API (homoiconic: code produces data, the host consumes data).
-const composedSource = [
-  'const w = await weather.lookup({ city: "Shanghai" })',
-  'const n = await notes.read({})',
-  'return {',
-  '  temp: w.temp,',
-  '  note: n.text,',
-  '  define: {',
-  '    name: "daily_report",',
-  '    description: "today weather + note summary",',
-  '    semver: "1.0.0",',
-  '    input: { type: "object", properties: { city: { type: "string" } } },',
-  '    output: { type: "object" },',
-  '    deps: ["weather.lookup", "notes.read"],',
-  '    source: "composed"',
-  '  }',
-  '}'
-].join("\n")
-
 const registered: ToolDef[] = []
 const result = await Runtime.execute(composedSource, {
   "weather.lookup": { name: "weather.lookup", invoke: weather.impl.kind === "native" ? weather.impl.execute : async () => null },
@@ -76,20 +32,10 @@ const result = await Runtime.execute(composedSource, {
   defineTool: () => {} // keep the global defineTool optional; this demo uses the return.define convention
 })
 
-// Extract the tool definition from the return value: the script's define field → ToolDef → register
-const define = (result as { define?: Record<string, unknown> }).define
-if (define !== undefined) {
-  const def: ToolDef = {
-    name: String(define.name),
-    description: String(define.description),
-    semver: define.semver as string | undefined,
-    input: define.input as ToolDef["input"],
-    output: define.output as ToolDef["output"],
-    deps: (define.deps as ReadonlyArray<string>) ?? [],
-    impl: { kind: "script", lang: "js", source: String(define.source) }
-  }
-  registered.push(def)
-  registry.set(def.name, def)
+const defined = toolFromResult(result)
+if (defined !== undefined) {
+  registered.push(defined)
+  registry.set(defined.name, defined)
 }
 const { define: _ignored, ...resultValue } = result as Record<string, unknown>
 console.log("1) script return value:", JSON.stringify(resultValue))

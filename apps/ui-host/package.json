@@ -7,7 +7,6 @@
     "start:web": "bun src/standalone.ts"
   },
   "dependencies": {
-    "@effect-agent/ui-agent": "workspace:*",
     "@effect-agent/ui-definition": "workspace:*",
     "@effect-agent/ui-extension": "workspace:*",
     "@effect-agent/ui-runtime": "workspace:*",

@@ -11,13 +11,13 @@
  *   retire(A)     ── waits for A's in-flight requests to finish; refuses to touch
  *                    the active target, because that is the one thing §6.2 forbids
  *
- * Without the counting, "commit then stop A" still cuts off in-flight requests on
- * A — the window would just be smaller, not closed. Without the refusal, a
- * careless caller could stop the kernel that is currently serving.
+ * The refusal is what stops a careless caller from stopping the kernel that is
+ * currently serving; the waiting is the counting of dispatch-counts.ts.
  *
  * This module is deliberately about targets and requests only: it does not know
  * what a kernel is, how one is loaded, or what compatibility means.
  */
+import { makeInFlight } from "./dispatch-counts.ts"
 
 /**
  * Anything that can sit behind the dispatch point. Only `id` is required: the
@@ -59,32 +59,18 @@ export interface DispatchPoint<T extends DispatchTarget> {
 
 export const makeDispatchPoint = <T extends DispatchTarget>(): DispatchPoint<T> => {
   let current: T | undefined
-  const counts = new Map<T, number>()
-  const draining = new Map<T, Array<() => void>>()
-
-  const release = (target: T): void => {
-    const next = (counts.get(target) ?? 1) - 1
-    counts.set(target, next)
-    if (next > 0) return
-    const waiters = draining.get(target)
-    if (waiters === undefined) return
-    draining.delete(target)
-    for (const resume of waiters) resume()
-  }
-
-  const acquire = (target: T): void => { counts.set(target, (counts.get(target) ?? 0) + 1) }
+  const flight = makeInFlight<T>()
 
   return {
     activate: (next) => { current = next },
     current: () => current,
-    inFlight: (target) => target === undefined
-      ? [...counts.values()].reduce((sum, n) => sum + n, 0)
-      : counts.get(target) ?? 0,
+    inFlight: (target) => flight.inFlight(target),
     stats: () => {
-      const tracked = [...counts].map(([target, inFlight]) => ({ id: target.id, inFlight, active: target === current }))
+      const tracked = flight.entries()
+        .map(([target, count]) => ({ id: target.id, inFlight: count, active: target === current }))
       // A freshly activated target has no requests yet — still worth naming, and
       // `retire` tracking must not be confused with "was never activated".
-      return current !== undefined && !counts.has(current)
+      return current !== undefined && !flight.tracks(current)
         ? [...tracked, { id: current.id, inFlight: 0, active: true }]
         : tracked
     },
@@ -93,23 +79,18 @@ export const makeDispatchPoint = <T extends DispatchTarget>(): DispatchPoint<T> 
       if (target === undefined) {
         return Response.json({ ok: false, detail: "no kernel is active" }, { status: 503 })
       }
-      acquire(target)
+      flight.acquire(target)
       try {
         return await work(target)
       } finally {
-        release(target)
+        flight.release(target)
       }
     },
     retire: async (target) => {
       if (target === current) {
         throw new Error(`effect-host: refusing to retire the active target ${target.id}; activate the successor first`)
       }
-      if ((counts.get(target) ?? 0) === 0) return
-      await new Promise<void>((resume) => {
-        const waiters = draining.get(target)
-        if (waiters === undefined) draining.set(target, [resume])
-        else waiters.push(resume)
-      })
+      await flight.drained(target)
     },
   }
 }

@@ -1,10 +1,11 @@
 import type { PluginLifecycle } from "./lifecycle.ts"
-import { matchHostOperation, runHostOperation } from "./operations.ts"
+import { matchHostOperation } from "./operation-match.ts"
+import { runHostOperation } from "./operation-run.ts"
 import { errorDetail, json } from "./response.ts"
 
 /**
  * The `/-/planes` control surface is the executor of the declared host
- * operations (operations.ts) — the path shapes live there, not here.
+ * operations (operation-table.ts) — the path shapes live there, not here.
  * Existing control paths and success payloads remain unchanged.
  */
 export const controlRequest = async (

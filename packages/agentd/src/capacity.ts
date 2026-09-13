@@ -23,7 +23,8 @@ import { AgentdError } from "./errors.ts"
 // Type-only, so the runtime graph has no edge back to `nodes.ts` (which imports
 // this file): the deployment shape lives with the adapter that produces it.
 import type { NodeDeployment } from "./nodes.ts"
-import type { Machine, ResolvedNodeApp } from "./types.ts"
+import type { ResolvedNodeApp } from "./node-types.ts"
+import type { Machine } from "./types.ts"
 
 /** The declaration this file adjudicates against — a node as it currently says it is. */
 export type DeclaredCapacity = Pick<Machine, "machineId" | "namespaces" | "maxApps">

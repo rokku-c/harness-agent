@@ -23,7 +23,7 @@
  */
 
 import type { EgressRouter } from "@effect-agent/effect-network"
-import type { EffectPluginHost, LoadedPlane, RoutePattern } from "@effect-agent/effect-host"
+import type { EffectPluginHost, LoadedPlane } from "@effect-agent/effect-host"
 import type { EffectRegistry } from "@effect-agent/effect-interface"
 import type { ConfigRegistry } from "@effect-agent/effect-config"
 import type { Registry as McpRegistry } from "@effect-agent/mcp-registry"
@@ -31,40 +31,6 @@ import type { EffectUiView } from "@effect-agent/effect-ui"
 import type { AppCatalog } from "@effect-agent/effect-apps"
 import type { KernelRevision } from "@effect-agent/effect-bundle"
 import type { ConfigRuntime } from "../config-runtime/types.ts"
-
-/** One slot a kernel fills. The bootstrap registers a stable stand-in per id. */
-export interface KernelPlaneSpec {
-  readonly id: string
-  readonly priority: number
-  /** Path claims, for planes that match by route rather than by `canHandle`. */
-  readonly routes?: readonly RoutePattern[]
-  /**
-   * Registered regardless of the enabled set — the control plane's own transport
-   * cannot be gated on a plane that only exists once some other plane ran.
-   */
-  readonly always?: boolean
-}
-
-/**
- * The planes this build's kernel fills, and therefore the slots the host opens.
- * Ids and priorities are host-side data on purpose: a kernel revision supplies the
- * implementations, not the routing table (§6.3-① — the routing table does not move).
- */
-export const KERNEL_PLANES: readonly KernelPlaneSpec[] = [
-  { id: "platform-network", priority: 0, always: true, routes: [{ path: "/-/network/egress" }, { path: "/-/network/routes", method: "GET" }] },
-  { id: "monitor", priority: 14 },
-  { id: "effect-apps", priority: 15 },
-  { id: "console", priority: 90 },
-  { id: "config", priority: 150 },
-]
-
-/**
- * Whether a plane slot is on: the host marks it always-on, or it was enabled.
- * Stated once because boot, the kernel-swap guard and the router all ask it —
- * a plane that were on in one and off in another is a slot nobody serves.
- */
-export const planeIsOn = (spec: KernelPlaneSpec, enabled: ReadonlySet<string>): boolean =>
-  spec.always === true || enabled.has(spec.id)
 
 /** Everything a kernel revision is given. Built once; survives every swap. */
 export interface KernelContext {

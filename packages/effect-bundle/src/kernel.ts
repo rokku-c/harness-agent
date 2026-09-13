@@ -1,6 +1,6 @@
 /**
- * Kernel artifacts — the `host ↔ kernel` line of §5, and the compatibility
- * matrix §5 requires before a kernel swap ("换内核前先查全部已加载 app").
+ * Kernel artifacts — the `host ↔ kernel` line of §5, and the gate a kernel
+ * passes before it goes anywhere near a running system.
  *
  * A kernel is the artifact that owns everything §6.1 leaves outside the host
  * invariants: plugin host, registries, config runtime, UI hosting, planes,
@@ -10,27 +10,15 @@
  *     line). This is the line the host refuses on: a host implements exactly one.
  *   - `abi` — the `effect-N` line it implements *toward its apps*. This is not
  *     checked against the host; it is what every already-loaded app is checked
- *     against before the swap, via {@link assessKernelAgainst}.
+ *     against before a swap (see kernel-matrix.ts).
  *
  * Adjudication here is deliberately the same code as the bundle gate — one line
- * over, same verdicts, same codes (see compat.ts). Nothing about "is this kernel
- * compatible" is a second mechanism.
+ * over, same verdicts, same codes (see compat-abis.ts). Nothing about "is this
+ * kernel compatible" is a second mechanism.
  */
-
-import {
-  assessAbiLine,
-  assessBundleCompat,
-  assessRuntime,
-  BOOTSTRAP_ABI,
-  bundleRuntimes,
-  DEFAULT_RUNTIME,
-  type BundleDeclaration,
-  type CompatVerdict,
-  type EffectRuntimeKind,
-  type HostCapability,
-  type Incompatibility,
-  reject,
-} from "./compat.ts"
+import { assessAbiLine, BOOTSTRAP_ABI } from "./compat-abis.ts"
+import { assessRuntime, bundleRuntimes, DEFAULT_RUNTIME, type EffectRuntimeKind } from "./compat.ts"
+import { reject, type CompatVerdict, type Incompatibility } from "./compat-verdict.ts"
 
 /** What a kernel artifact declares about itself. */
 export interface KernelDeclaration {
@@ -63,10 +51,7 @@ export class KernelIncompatibleError extends Error {
 
 const label = (declaration: KernelDeclaration): string => declaration.kernelId ?? "(anonymous kernel)"
 
-/**
- * Decide whether a host may run a kernel artifact. Pure, so the verdict can be
- * computed for a staged kernel before anything is loaded (§6.2 stage).
- */
+/** Decide whether a host may run a kernel. Pure, so the verdict can be computed for a staged kernel before anything is loaded (§6.2 stage). */
 export const assessKernelCompat = (
   declaration: KernelDeclaration,
   host: BootstrapCapability = {},
@@ -85,48 +70,6 @@ export const assessKernelCompat = (
 export const assertKernelCompat = (declaration: KernelDeclaration, host: BootstrapCapability = {}): void => {
   const verdict = assessKernelCompat(declaration, host)
   if (!verdict.ok) throw new KernelIncompatibleError(label(declaration), verdict.reason)
-}
-
-/**
- * One app as §5's matrix must see it: the name its host loaded it under, and what
- * it declared. Two names on purpose — `appId` is what the app layer can *act* on
- * (§6.5-6 suspends an app by name), while `declaration.bundleId` is the build it
- * came from, which is what a refusal message should show a human. They are not
- * the same string and must not be conflated: a bundle id carries its version, so
- * a version bump would rename the app.
- */
-export interface DeclaredApp {
-  /** The app-layer name: `effect.bundle.json`'s `appId`, which is `effect.yaml`'s `id`. */
-  readonly appId: string
-  readonly declaration: BundleDeclaration
-}
-
-/** One app the kernel would break by taking over. `app` is a {@link DeclaredApp.appId}. */
-export interface KernelAppIncompatibility {
-  readonly app: string
-  readonly reason: Incompatibility
-}
-
-/**
- * The matrix §5 demands before a kernel swap: every already-loaded app
- * adjudicated against the *incoming* kernel, using the bundle gate itself with
- * the kernel standing in for the host. Empty result = the swap keeps every app.
- *
- * It judges the apps the host has *loaded*, not every one it could find on disk:
- * a declaration sitting in a directory nobody loaded cannot be broken by a swap,
- * and naming one would have the supervisor suspending an app that is not running.
- */
-export const assessKernelAgainst = (
-  kernel: Pick<KernelDeclaration, "abi">,
-  apps: readonly DeclaredApp[],
-  host: HostCapability = {},
-): readonly KernelAppIncompatibility[] => {
-  const incompatibilities: KernelAppIncompatibility[] = []
-  for (const app of apps) {
-    const verdict = assessBundleCompat(app.declaration, { abi: kernel.abi, runtime: host.runtime })
-    if (!verdict.ok) incompatibilities.push({ app: app.appId, reason: verdict.reason })
-  }
-  return incompatibilities
 }
 
 /** One-line human summary — for boot logs, receipts and `/-/` surfaces. */

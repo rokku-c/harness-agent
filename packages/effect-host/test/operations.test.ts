@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { HOST_OPERATIONS, matchHostOperation, runHostOperation } from "../src/operations.ts"
+import { HOST_OPERATIONS, matchHostOperation, runHostOperation } from "../src/index.ts"
 import { makePluginHost } from "../src/index.ts"
 import { plane, request } from "./fixtures.ts"
 

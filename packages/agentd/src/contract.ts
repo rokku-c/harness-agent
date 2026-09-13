@@ -1,7 +1,7 @@
 import type {
-  AgentBinding, AgentInstance, BundleRef, DeclaredMachine, DesiredAgentConfig, DesiredNode, McpServerRef, McpSet, Machine,
-  NodeAppPlacement, NodeBinding,
+  AgentBinding, AgentInstance, BundleRef, DeclaredMachine, DesiredAgentConfig, McpServerRef, McpSet, Machine,
 } from "./types.ts"
+import type { DesiredNode, NodeAppPlacement, NodeBinding } from "./node-types.ts"
 import type { NodePresence } from "./presence.ts"
 import type { WireArtifact } from "./artifact-wire.ts"
 

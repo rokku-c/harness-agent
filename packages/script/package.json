@@ -7,7 +7,6 @@
   },
   "dependencies": {
     "@effect-agent/effect-compat": "workspace:*",
-    "@effect-agent/tools": "workspace:*",
     "effect": "^3.22.1",
     "isolated-vm": "^7.0.1"
   }

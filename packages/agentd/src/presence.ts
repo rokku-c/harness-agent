@@ -1,6 +1,6 @@
 /**
- * Node presence — registration, heartbeat and lease, for §8.5-1 of
- * docs/architecture-rework.md ("节点注册 / 心跳 / 租约").
+ * Node presence — what the server believes about whether a node is up, for
+ * §8.5-1 of docs/architecture-rework.md ("节点注册 / 心跳 / 租约").
  *
  * The gap this closes is narrow and specific: **a node's being up is a fact the
  * server observes, not a field a node writes.** agentd's `Machine` carries a
@@ -16,37 +16,24 @@
  * (`healthy | warn | offline`) answers "is this a good server to choose",
  * which is a different question from "does this node exist right now". Sharing
  * the type would mean a node wearing a server's identity to borrow four lines.
- * What is shared is the mechanism, and one deliberate divergence:
+ * What is shared is the mechanism, and it lives in `presence-table.ts` — with
+ * one deliberate divergence from it: there is no `static` lease. Servers
+ * registered from code are always "there"; a node has no static form, because
+ * being in a config file is not being up (see `nodes.test.ts`: a seeded machine
+ * is offline until it announces). There is one lease here, and it ages.
  *
- *   - mcp-registry's `static` leases never expire, because servers registered
- *     from code are always "there". A node has no static form — being in a
- *     config file is not being up (see `nodes.test.ts`: a seeded machine is
- *     offline until it announces). There is one lease here, and it ages.
- *
- * Two things the shape buys that are load-bearing rather than decorative:
- *
- *   1. **The clock is injected.** Expiry can be *asserted* rather than slept
- *      through, and the age of a lease is measured on {@link LeaseClock.monotonic}
- *      as well as the wall clock: a backwards NTP step shrinks `now - lastSeen`,
- *      which would let a dead node keep looking alive for the length of the step.
- *      Taking the larger of the two ages means a lease can never be *extended*
- *      by the clock moving backwards. (A forward step does expire leases early,
- *      until the next heartbeat — the fail-closed direction, and bounded by the
- *      TTL that the step already exceeded.)
- *   2. **Expiry is not deletion.** An offline node keeps its machine record and
- *      its deployment: the desired set is what it will be handed when it comes
- *      back (§8.4), so throwing it away on a missed heartbeat would destroy the
- *      very thing the pull model recovers from. See `desiredNode`.
+ * Expiry is not deletion: an offline node keeps its machine record and its
+ * deployment, because the desired set is what it will be handed when it comes
+ * back (§8.4) — discarding it on a missed heartbeat would destroy the very thing
+ * the pull model recovers from. See `desiredNode`.
  */
-
-import { timingSafeEqual } from "node:crypto"
 
 /**
  * Wall clock plus an elapsed-time reading that only moves forward.
  *
  * The monotonic side is not a second wall clock for display: it is the only
  * thing age may be measured with. `performance.now()` counts from process start,
- * which is exactly the lifetime of the table below — a process-lifetime lease
+ * which is exactly the lifetime of the lease table — a process-lifetime lease
  * table gets a process-lifetime clock, so the two cannot disagree about how much
  * time has passed.
  */
@@ -98,87 +85,4 @@ export interface NodePresenceTable {
   withdraw(nodeId: string): NodePresence | undefined
   presence(nodeId: string): NodePresence | undefined
   list(): readonly NodePresence[]
-}
-
-interface Held {
-  lastSeen: number
-  seenAtMono: number
-  /** Undefined once the presence has ended (withdrawn), or before one began. */
-  presentSince?: number
-  withdrawn: boolean
-}
-
-/** Constant-time comparison, so a wrong token cannot be narrowed by timing. */
-export const sameToken = (left: string, right: string): boolean => {
-  const a = Buffer.from(left), b = Buffer.from(right)
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
-export const makeNodePresence = (options: NodePresenceOptions = {}): NodePresenceTable => {
-  const clock: LeaseClock = {
-    now: options.clock?.now ?? Date.now,
-    monotonic: options.clock?.monotonic ?? (() => performance.now()),
-  }
-  const ttlMs = options.leaseTtlMs ?? 30_000
-  const held = new Map<string, Held>()
-
-  /**
-   * How old a sign of life is. The larger of the two readings on purpose: the
-   * monotonic one cannot be walked backwards, so a wall-clock step back can no
-   * longer shrink a node's apparent age and keep a dead lease looking fresh.
-   */
-  const ageOf = (lease: Held): number =>
-    Math.max(0, clock.now() - lease.lastSeen, clock.monotonic() - lease.seenAtMono)
-
-  const lapsed = (lease: Held): boolean => lease.withdrawn || ageOf(lease) >= ttlMs
-
-  const view = (nodeId: string, lease: Held): NodePresence => {
-    const ageMs = ageOf(lease)
-    return {
-      nodeId,
-      online: !lease.withdrawn && ageMs < ttlMs,
-      lastSeen: lease.lastSeen,
-      ageMs,
-      withdrawn: lease.withdrawn,
-      ...(lease.presentSince === undefined ? {} : { presentSince: lease.presentSince }),
-    }
-  }
-
-  const start = (nodeId: string): NodePresence => {
-    const existing = held.get(nodeId)
-    const now = clock.now()
-    // A presence that has already lapsed is a *new* presence, not a
-    // continuation: "up since" must not quietly include the time it was down.
-    const lease: Held = {
-      lastSeen: now,
-      seenAtMono: clock.monotonic(),
-      withdrawn: false,
-      presentSince: existing === undefined || lapsed(existing) ? now : (existing.presentSince ?? now),
-    }
-    held.set(nodeId, lease)
-    return view(nodeId, lease)
-  }
-
-  return {
-    announce: start,
-    heartbeat: (nodeId) => {
-      const existing = held.get(nodeId)
-      // Never announced, or said goodbye: this caller has no presence to renew,
-      // and treating the nudge as a hello would make the distinction meaningless.
-      if (existing === undefined || existing.withdrawn) return undefined
-      return start(nodeId)
-    },
-    withdraw: (nodeId) => {
-      const existing = held.get(nodeId)
-      if (existing === undefined) return undefined
-      const lease: Held = { ...existing, withdrawn: true, presentSince: undefined }
-      held.set(nodeId, lease)
-      return view(nodeId, lease)
-    },
-    presence: (nodeId) => {
-      const lease = held.get(nodeId)
-      return lease === undefined ? undefined : view(nodeId, lease)
-    },
-    list: () => [...held.entries()].map(([nodeId, lease]) => view(nodeId, lease)),
-  }
 }
