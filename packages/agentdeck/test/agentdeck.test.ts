@@ -10,7 +10,7 @@ import { writeFileSync, chmodSync, mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { normalizeConfig, makeConsentLedger, effectGateway, makeCliGateway, makeClaudeSdkGateway, makeEffectOpsGateway, makeDemoGateway, cliInvocation, AgentDeck, type SessionGateway } from "../src/index.ts"
-import { cliPresets } from "../src/adapters/cli.ts"
+import { cliPresets } from "../src/adapters/cli-preset.ts"
 
 describe("agentdeck config map (ask 3)", () => {
   test("any agent raw config normalizes to one unified shape; extras stay lossless", () => {

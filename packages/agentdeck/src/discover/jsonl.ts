@@ -6,7 +6,7 @@
  * to "no sessions", it does not throw.
  */
 import { basename, join } from "node:path"
-import type { AgentKind } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
 import { mapLimit, newest } from "./bounds.ts"
 import { findFiles, jsonLines, readHead } from "./files.ts"
 import { firstField, headline, looksMachine, millis, record } from "./text.ts"

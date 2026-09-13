@@ -1,4 +1,4 @@
-import type { CliPreset } from "../adapters/cli.ts"
+import type { CliPreset } from "../adapters/cli-preset.ts"
 import type { RemoteTransport } from "../remote/types.ts"
 import { launchCommand, launchLine } from "./command.ts"
 import type { LaunchOutcome, LaunchRequest, Launcher } from "./types.ts"

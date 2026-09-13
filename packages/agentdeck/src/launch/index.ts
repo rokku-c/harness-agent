@@ -1,4 +1,4 @@
-import type { CliPreset } from "../adapters/cli.ts"
+import type { CliPreset } from "../adapters/cli-preset.ts"
 import { makeSshTransport } from "../remote/ssh.ts"
 import type { RemoteTarget } from "../remote/types.ts"
 import { makeLocalLauncher } from "./local.ts"

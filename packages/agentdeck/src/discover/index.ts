@@ -5,7 +5,7 @@
  */
 import { homedir } from "node:os"
 import { join } from "node:path"
-import type { AgentKind } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
 import { codexSource } from "./codex.ts"
 import { mapLimit } from "./bounds.ts"
 import { readTail } from "./files.ts"

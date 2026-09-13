@@ -1,6 +1,7 @@
-import { cliInvocation, cliPresets, type CliPreset } from "../adapters/cli.ts"
+import { cliInvocation, cliPresets, type CliPreset } from "../adapters/cli-preset.ts"
 import { quote } from "../remote/ssh.ts"
-import type { AgentKind, UnifiedAgentConfig } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
+import type { UnifiedAgentConfig } from "../config-types.ts"
 import type { LaunchCommand, LaunchRequest } from "./types.ts"
 
 export type PresetMap = Readonly<Record<string, CliPreset>>

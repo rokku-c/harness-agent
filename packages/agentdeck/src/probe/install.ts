@@ -8,7 +8,7 @@
  * Every package name here was checked against the npm registry rather than
  * recalled; a name that is merely plausible installs somebody else's code.
  */
-import type { AgentKind } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
 
 export type PackageManager = "npm" | "bun"
 

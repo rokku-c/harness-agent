@@ -10,7 +10,7 @@
  * missing and its value is never read into a result; the same for URLs, which
  * are reduced to a host.
  */
-import type { AgentKind } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
 
 export type { AgentKind }
 

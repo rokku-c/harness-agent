@@ -6,7 +6,7 @@
  * decided. The map is exposed directly so a caller (or the product layer on
  * top) can render "what is session X asking, and what did it get".
  */
-import type { ConsentEntry, ConsentLedger } from "./types.ts"
+import type { ConsentEntry, ConsentLedger } from "./consent-types.ts"
 
 export interface ConsentLedgerOptions {
   /** answer pending asks automatically when their tool is on this list */

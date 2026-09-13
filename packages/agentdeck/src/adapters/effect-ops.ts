@@ -1,14 +1,19 @@
 /**
- * agentdeck/adapters/effect-ops - the in-proc effect runtime where a WRITE op
- * is gated by the shared ConsentLedger: the first send raises a consent ask
- * and aborts with awaiting[]; once the operator (or an auto policy) resolves
- * it, re-sending the same turn actually EXECUTES the op. Denial aborts with a
- * readable cause. This proves ask 2 decisions steer real execution.
+ * agentdeck/adapters/effect-ops - the in-proc effect runtime where a WRITE op is
+ * gated by the shared ConsentLedger, so ask-2 decisions steer real execution.
+ *
+ * The gate itself is `effect-ops-gate.ts`; this file is the session lifecycle —
+ * open a box, run one turn through the EffectAgent driver, and read the gate's
+ * verdict back off the dead turn.
  */
-import { Effect, Schema } from "effect"
-import { AgentContext, Op, Until, notationText, type Access } from "@effect-agent/core"
+import { Effect } from "effect"
+import { AgentContext, Until, type Access } from "@effect-agent/core"
 import { EffectAgent, type Model } from "@effect-agent/builtin"
-import type { AgentKind, ConsentLedger, OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, UnifiedAgentConfig } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
+import type { ConsentLedger } from "../consent-types.ts"
+import type { OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus } from "../flow.ts"
+import type { UnifiedAgentConfig } from "../config-types.ts"
+import { AWAIT, DENIED, writeOp } from "./effect-ops-gate.ts"
 
 export interface EffectOpsGatewayOptions {
   /** model for the in-proc driver (scripted Model in tests) */
@@ -25,38 +30,9 @@ interface OpsBox {
   lastActivityAt?: number
 }
 
-/** A pending op aborts by dying with a prefixed message; `send` reads the prefix
- *  back off the dead turn. Both ends are in this file, so the prefix is a
- *  constant: renamed on one side alone, the approval card never renders. */
-const AWAIT = "DECK_AWAIT:"
-const DENIED = "DECK_DENIED:"
-
 export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionGateway => {
   const boxes = new Map<string, OpsBox>()
   let seq = 0
-
-  /** find the newest ledger entry for a session+tool, if any */
-  const entryFor = (sessionId: string, tool: string) =>
-    options.ledger.entries(sessionId).find((e) => e.tool === tool)
-
-  const writeOp = (sessionId: string) =>
-    Op.write({
-      name: "write_file",
-      description: notationText("Write a file at the given path."),
-      input: Schema.Struct({ path: Schema.String }),
-      output: Schema.Struct({ path: Schema.String, ok: Schema.Boolean }),
-      execute: (input: { path: string }) =>
-        Effect.gen(function* () {
-          const entry = entryFor(sessionId, "write_file")
-          const callId = entry?.callId ?? options.ledger.ask(sessionId, "write_file", input)
-          const current = entryFor(sessionId, "write_file")
-          if (current === undefined || current.decision === "pending")
-            return yield* Effect.die(new Error(AWAIT + callId))
-          if (current.decision === "deny") return yield* Effect.die(new Error(DENIED + current.callId))
-          // operator approved: the write really happens
-          return yield* Effect.succeed({ path: input.path, ok: true })
-        })
-    })
 
   return {
     kind: "effect-ops",
@@ -73,7 +49,7 @@ export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionG
       box.status = "running"
       box.lastActivityAt = Date.now()
       const access: ReadonlyArray<Access> = [
-        { binding: { uri: "ea://deck/effect-ops/" + sessionId, ops: [writeOp(sessionId)] }, write: true }
+        { binding: { uri: "ea://deck/effect-ops/" + sessionId, ops: [writeOp(options.ledger, sessionId)] }, write: true }
       ]
       try {
         const driver = EffectAgent.make({ model: options.model(box.config), maxSteps: 6 })

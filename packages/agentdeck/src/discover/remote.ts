@@ -7,7 +7,7 @@
  * did not answer" are different facts, and a control plane that conflates them
  * will report an unreachable host as idle.
  */
-import type { AgentKind } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
 import type { RemoteTransport } from "../remote/types.ts"
 import { COLLECTOR, COLLECTOR_KINDS, COLLECTOR_LIMIT } from "./collector.ts"
 import { remoteTail } from "./remote-tail.ts"

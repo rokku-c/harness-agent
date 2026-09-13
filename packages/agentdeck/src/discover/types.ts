@@ -7,7 +7,7 @@
  * file or a foreign format yields fewer sessions, never an error - the caller
  * is enumerating a machine it does not own.
  */
-import type { AgentKind } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
 
 /** One agent session found on disk: the facts, and for the newest few, the tail of the transcript. */
 export interface DiscoveredSession {

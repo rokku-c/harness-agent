@@ -6,7 +6,8 @@
  * type-check their own declared fields; unknown keys flow into extra so the
  * mapping is lossless and declarative.
  */
-import { KNOWN_KINDS, type AgentKind, type UnifiedAgentConfig } from "./types.ts"
+import { KNOWN_KINDS, type AgentKind } from "./kinds.ts"
+import type { UnifiedAgentConfig } from "./config-types.ts"
 
 /** pick a string or fail the mapping */
 const str = (raw: Record<string, unknown>, key: string): string | undefined => {

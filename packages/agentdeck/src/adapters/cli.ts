@@ -1,58 +1,20 @@
 /**
  * agentdeck/adapters/cli - generic NON-INTERACTIVE CLI agent gateway
  * (claude-code -p, codex exec, gemini cli, pi, custom commands).
- * Config mapping is the point: a UnifiedAgentConfig renders to the exact
- * spawn argv for the kind (ask 3); flow control spawns/kills per session.
+ *
+ * Config mapping is the point: a UnifiedAgentConfig renders to the exact spawn
+ * argv for the kind (ask 3) — that render is `cli-preset.ts`, the turn is
+ * `cli-turn.ts`, and this file is the session lifecycle over them.
  */
-import { spawn, type ChildProcess } from "node:child_process"
-import type { AgentKind, OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, UnifiedAgentConfig } from "../types.ts"
-
-/** declarative per-kind CLI dialect: how one turn becomes a process argv */
-export interface CliPreset {
-  readonly file: string
-  /** argv BEFORE the prompt text (the prompt is appended last) */
-  readonly argv: (prompt: string) => ReadonlyArray<string>
-}
-
-export const cliPresets: Readonly<Record<string, CliPreset>> = {
-  "claude-code": { file: "claude", argv: () => ["-p"] },
-  codex: { file: "codex", argv: () => ["exec"] },
-  gemini: { file: "gemini", argv: () => [] }, // gemini >=0.24: positional one-shot prompt
-  pi: { file: "pi", argv: () => ["-p"] },
-  custom: { file: "agent", argv: () => [] }
-}
-
-/** standalone render: unified config -> exact spawn {file, argv} for one turn
- * (shared by the gateway and by products that want to SHOW the plan before
- * running it). prompt is appended last. */
-export const cliInvocation = (
-  config: UnifiedAgentConfig,
-  prompt: string,
-  presetMap: Readonly<Record<string, CliPreset>> = cliPresets
-): { file: string; argv: ReadonlyArray<string> } => {
-  const preset = presetMap[config.kind] ?? presetMap.custom
-  const prefix: ReadonlyArray<string> = config.command !== undefined ? (config.args ?? []) : preset.argv(prompt)
-  // an empty prompt is not a turn: appending it would hand a command launch —
-  // `npm install -g …`, say — a stray empty argument it never asked for
-  const tail: ReadonlyArray<string> = prompt === "" ? [] : [prompt]
-  return { file: config.command ?? preset.file, argv: [...prefix, ...tail] }
-}
+import type { AgentKind } from "../kinds.ts"
+import type { OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus } from "../flow.ts"
+import type { UnifiedAgentConfig } from "../config-types.ts"
+import { cliInvocation, cliPresets, type CliPreset } from "./cli-preset.ts"
+import { runTurn, type CliBox } from "./cli-turn.ts"
 
 export interface CliGatewayOptions {
   /** override/add CLI dialects (e.g. a "*claw"-like agent) */
   readonly presets?: Readonly<Record<string, CliPreset>>
-}
-
-interface CliBox {
-  readonly sessionId: string
-  readonly kind: AgentKind
-  readonly config: UnifiedAgentConfig
-  readonly turns: Array<{ role: "user" | "agent"; content: string; at: number }>
-  status: SessionStatus["status"]
-  detail?: string
-  lastActivityAt?: number
-  active?: ChildProcess
-  closed?: boolean
 }
 
 export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {}): SessionGateway => {
@@ -61,44 +23,7 @@ export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {})
   let seq = 0
 
   /** unified config -> { file, argv } for one turn (ask 3, lossless) */
-  const argvFor = (config: UnifiedAgentConfig, prompt: string): { file: string; argv: Array<string> } =>
-    ({ ...cliInvocation(config, prompt, presets), argv: [...cliInvocation(config, prompt, presets).argv] })
-
-  const runTurn = (box: CliBox, prompt: string): Promise<SendOutcome> =>
-    new Promise((resolve) => {
-      const { file, argv } = argvFor(box.config, prompt)
-      const env = { ...process.env as Record<string, string> }
-      for (const [k, v] of (box.config.env ?? new Map())) env[k] = v
-      box.status = "running"
-      box.lastActivityAt = Date.now()
-      const child = spawn(file, argv, { cwd: box.config.cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: true })
-      box.active = child
-      let out = ""
-      let err = ""
-      let settled = false
-      const timer = box.config.turnTimeoutMs === undefined
-        ? undefined
-        : setTimeout(() => { if (!settled) { settled = true; child.kill("SIGTERM"); finish({ ok: false, detail: "turn timed out after " + box.config.turnTimeoutMs + "ms" }) } }, box.config.turnTimeoutMs)
-      const finish = (outcome: SendOutcome) => {
-        box.status = outcome.ok ? "idle" : "failed"
-        box.lastActivityAt = Date.now()
-        if (!outcome.ok) box.detail = outcome.detail
-        if (timer !== undefined) clearTimeout(timer)
-        resolve(outcome)
-      }
-      child.stdout.on("data", (raw: Buffer) => { out += raw.toString("utf-8") })
-      child.stderr.on("data", (raw: Buffer) => { err += raw.toString("utf-8") })
-      child.on("error", (error) => { if (!settled) { settled = true; finish({ ok: false, detail: error.message }) } })
-      child.on("exit", (code) => {
-        if (settled) return
-        settled = true
-        box.active = undefined
-        if (box.closed) { finish({ ok: false, detail: "closed by operator mid-turn" }); return }
-        const text = out.trim()
-        if (code === 0) finish({ ok: text.length > 0, text: text.length > 0 ? text : undefined, detail: text.length > 0 ? undefined : "empty output" })
-        else finish({ ok: false, detail: (err.trim() || text || "exit code " + code).slice(0, 400) })
-      })
-    })
+  const argvFor = (config: UnifiedAgentConfig, prompt: string) => cliInvocation(config, prompt, presets)
 
   return {
     kind,
@@ -126,7 +51,7 @@ export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {})
       if (box === undefined) return { ok: false, detail: "unknown session " + sessionId }
       if (box.status === "running") return { ok: false, detail: "session busy: a turn is already running" }
       const at = Date.now()
-      const outcome = await runTurn(box, text)
+      const outcome = await runTurn(box, argvFor(box.config, text))
       box.turns.push({ role: "user", content: text, at })
       if (outcome.ok && outcome.text !== undefined) box.turns.push({ role: "agent", content: outcome.text, at: Date.now() })
       return outcome

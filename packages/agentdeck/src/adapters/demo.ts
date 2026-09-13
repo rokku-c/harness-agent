@@ -5,10 +5,11 @@
  * product layer (and its tests) can exercise open -> send -> approve -> send
  * with no external dependency.
  */
+import type { AgentKind } from "../kinds.ts"
 import type {
-  AgentKind, OpenSessionRequest, SendOutcome, SessionGateway,
-  SessionStatus, SessionTurn, UnifiedAgentConfig
-} from "../types.ts"
+  OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, SessionTurn
+} from "../flow.ts"
+import type { UnifiedAgentConfig } from "../config-types.ts"
 
 export interface DemoGatewayOptions {
   /** register an ask into the shared consent ledger; returns the call id */

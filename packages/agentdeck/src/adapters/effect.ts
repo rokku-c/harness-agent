@@ -6,7 +6,9 @@
 import { Effect } from "effect"
 import { AgentContext, Until } from "@effect-agent/core"
 import { EffectAgent, type Model } from "@effect-agent/builtin"
-import type { AgentKind, OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, UnifiedAgentConfig } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
+import type { OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus } from "../flow.ts"
+import type { UnifiedAgentConfig } from "../config-types.ts"
 
 export interface EffectGatewayOptions {
   /** model for the in-proc driver; REQUIRED for real use, injectable for tests */

@@ -1,5 +1,6 @@
 import { makeCliGateway, type CliGatewayOptions } from "../adapters/cli.ts"
-import type { AgentKind, SendOutcome, SessionGateway } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
+import type { SendOutcome, SessionGateway } from "../flow.ts"
 import { configFor, launchCommand } from "./command.ts"
 import type { LaunchOutcome, LaunchRequest, Launcher } from "./types.ts"
 

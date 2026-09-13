@@ -3,7 +3,8 @@
  * adapter and enumerate what the deck controls. One deck = one shared
  * consent ledger across every agent it drives.
  */
-import type { ConsentLedger, SessionGateway, SessionStatus } from "./types.ts"
+import type { ConsentLedger } from "./consent-types.ts"
+import type { SessionGateway, SessionStatus } from "./flow.ts"
 import { makeConsentLedger } from "./consent.ts"
 
 export class AgentDeck {

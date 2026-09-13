@@ -8,7 +8,9 @@
 import { Effect } from "effect"
 import { AgentContext, Until } from "@effect-agent/core"
 import { ClaudeCode, type ClaudeCodeOptions } from "@effect-agent/builtin"
-import type { AgentKind, OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, SessionTurn, UnifiedAgentConfig } from "../types.ts"
+import type { AgentKind } from "../kinds.ts"
+import type { OpenSessionRequest, SendOutcome, SessionGateway, SessionStatus, SessionTurn } from "../flow.ts"
+import type { UnifiedAgentConfig } from "../config-types.ts"
 
 export interface ClaudeSdkGatewayOptions {
   /** SDK query fn (production: the real claude-agent-sdk query; tests inject a stub) */
