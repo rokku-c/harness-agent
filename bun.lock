@@ -352,6 +352,7 @@
       "dependencies": {
         "@effect-agent/effect-apps": "workspace:*",
         "@effect-agent/effect-interface": "workspace:*",
+        "@effect-agent/effect-observe": "workspace:*",
       },
     },
     "packages/effect-standalone": {

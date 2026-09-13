@@ -1,28 +1,32 @@
 /**
- * Replay — turn an observation snapshot back into an interactive parity view.
+ * Replay — read a recorded observation frame back as an interactive parity view.
  *
- * A snapshot is a frozen frame of one perspective; re-presenting it keeps the
- * observed state (so the human opens on exactly what was captured) while the
- * action set stays live for acting again. The snapshot type is declared here
- * structurally because @effect-agent/effect-observe is not yet a workspace
- * package: once it lands, replace this local ObservationSnapshot with a
- * type-only import from it — the function body is unchanged.
+ * The monitor plane records the parity view it serves live, so a frame the agent
+ * perspective holds IS a parity view, and reading one back keeps the observed
+ * state: the human opens on exactly what was captured, while the action set
+ * stays live for acting again.
+ *
+ * The frame is `effect-observe`'s, which is what the store writes — `at`,
+ * `perspective`, `target`, and `data` as whatever the sampler returned. Only a
+ * frame that really holds a parity view reads as one: `data` is untyped, so
+ * anything else reads as nothing, where reading its fields anyway hands back a
+ * view with no state that renders as an app with nothing in it. The fields a
+ * frame is filed under — when, from where, about what — are not read here at
+ * all; the view is the frame's own.
  */
 
+import type { ObservationSnapshot } from "@effect-agent/effect-observe"
 import type { ParityAppView } from "./types.ts"
 
-/** Structural shape of effect-observe's ObservationSnapshot. */
-export interface ObservationSnapshot {
-  readonly id?: string
-  readonly capturedAt?: number
-  /** the observed frame, already ParityAppView-shaped */
-  readonly data: ParityAppView
+/** Whether a sampler's reading is a parity view: the names it is filed under and
+ *  the actions the human is offered. */
+const isParityView = (data: unknown): data is ParityAppView => {
+  if (typeof data !== "object" || data === null) return false
+  const view = data as Partial<ParityAppView>
+  return typeof view.ns === "string" && typeof view.appId === "string" && Array.isArray(view.actions)
 }
 
-export const parityFromSnapshot = (snapshot: ObservationSnapshot): ParityAppView => ({
-  ns: snapshot.data.ns,
-  appId: snapshot.data.appId,
-  view: snapshot.data.view,
-  state: snapshot.data.state,
-  actions: snapshot.data.actions,
-})
+export const parityFromSnapshot = (snapshot: ObservationSnapshot): ParityAppView | undefined => {
+  const data = snapshot.data
+  return isParityView(data) ? data : undefined
+}

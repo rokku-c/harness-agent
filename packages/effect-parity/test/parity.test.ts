@@ -73,8 +73,9 @@ test("parityFromSnapshot reconstructs an interactive view with the frozen state"
   const view = fromCatalogEntry(makeEntry())
   const frozen = Object.freeze({ greeting: "hi", open: true })
   const snapshot: ObservationSnapshot = {
-    id: "snap-1",
-    capturedAt: 42,
+    at: 42,
+    perspective: "agent",
+    target: "board",
     data: {
       ns: "ops",
       appId: "board",
@@ -84,8 +85,10 @@ test("parityFromSnapshot reconstructs an interactive view with the frozen state"
     },
   }
   const replayed = parityFromSnapshot(snapshot)
+  if (replayed === undefined) throw new Error("a recorded frame did not read back as its view")
   expect(replayed.state).toBe(frozen)
   expect(replayed.ns).toBe("ops")
   expect(replayed.actions).toHaveLength(1)
   expect(interactiveSpec(replayed)).toContain('data-action="echo"')
+  expect(parityFromSnapshot({ ...snapshot, data: { frames: 3 } })).toBeUndefined()
 })

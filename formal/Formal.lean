@@ -39,6 +39,7 @@ import Formal.Queue
 import Formal.Readout
 import Formal.Redact
 import Formal.Reload
+import Formal.Replay
 import Formal.Resolve
 import Formal.Rollup
 import Formal.Rules
