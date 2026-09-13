@@ -2,10 +2,12 @@
  * The formal proofs, as a check.
  *
  * `formal/` is the Lean model of the mechanisms the product rests on, with the
- * invariants each one owes stated as theorems: the navigation chain never
- * invents a screen and never hangs (Formal/Chain.lean), the derivation never
- * mints an id another screen already has (Formal/Derive.lean). A proof nothing
- * runs is a comment, so — like every other invariant here — it gets a check.
+ * invariants each one owes stated as theorems: a navigation chain that neither
+ * invents a screen nor hangs, an id derivation that cannot mint a duplicate,
+ * config layering whose provenance names the layer the value came from, and so
+ * on — one module per mechanism, each naming the file it models at the top. A
+ * proof nothing runs is a comment, so — like every other invariant here — it
+ * gets a check.
  *
  * Usage:
  *   bun scripts/check-proofs.ts

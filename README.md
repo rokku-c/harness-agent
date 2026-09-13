@@ -314,6 +314,11 @@ bun run examples 06 --live # live supervisor spawning real subagents
 bun run check:proofs       # build the Lean model in formal/ (needs a Lean toolchain)
 ```
 
+`formal/` proves the invariants whose failure is silent — a config provenance
+that names the wrong layer, a navigation chain that loops, a stale disposer that
+revokes its replacement. [formal/README.md](formal/README.md) lists what is
+modelled, and what the model does not claim.
+
 The guards, each of which also runs on its own:
 
 ```bash
