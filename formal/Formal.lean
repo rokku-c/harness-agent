@@ -6,4 +6,5 @@ import Formal.Readout
 import Formal.Config
 import Formal.Compat
 import Formal.Consent
+import Formal.Redact
 import Formal.Swap
