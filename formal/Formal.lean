@@ -27,6 +27,7 @@ import Formal.Queue
 import Formal.Readout
 import Formal.Redact
 import Formal.Reload
+import Formal.Resolve
 import Formal.Screen
 import Formal.Slot
 import Formal.Surface
