@@ -46,6 +46,7 @@ import Formal.Screen
 import Formal.Sets
 import Formal.Surface
 import Formal.Swap
+import Formal.Timeline
 import Formal.Token
 import Formal.ToolKey
 import Formal.TreeOrder

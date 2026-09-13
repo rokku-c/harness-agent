@@ -33,7 +33,7 @@ export class TurnRunner {
     return undefined
   }
   #beginTurn(conversationId: string, text: string): void {
-    this.ledger.begin(conversationId)
+    this.ledger.begin(conversationId, this.host.conversations.history(conversationId))
     const ts = Date.now()
     this.bus.push({ type: "message.in", conversationId, text })
     this.ledger.recordMessage(conversationId, "user", text, ts)

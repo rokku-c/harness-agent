@@ -14,8 +14,13 @@ import type { TimelineLedger } from "./ledger.ts"
 import { WORKSPACE_CONVERSATION, type ConsoleTimelineEntry } from "./types.ts"
 import { pendingApprovals } from "./approvals.ts"
 
-/** full timeline of one conversation; after a restart the live ledger is
- *  gone, so the durable conversation memory renders history instead */
+/**
+ * The full timeline of one conversation. The ledger's timeline is the answer:
+ * it opens onto the durable history the first time this console drives that
+ * conversation, so it holds the conversation and not just this process's part of
+ * it. A conversation this process has not touched has no timeline yet, and its
+ * history is what there is to render.
+ */
 export const timelineOf = (
   ledger: TimelineLedger,
   host: MantisHost,
