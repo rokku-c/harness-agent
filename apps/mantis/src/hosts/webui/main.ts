@@ -19,6 +19,7 @@
  */
 import { join } from "node:path"
 import { envVar } from "../../env.ts"
+import { workspaceFile } from "../../paths.ts"
 import { loadConfig } from "../../config.ts"
 import { buildModelFromConfig } from "../../model.ts"
 import { compositeSink, consoleSink, jsonFileSink, makeLogger, type LogLevel, type LogEntry } from "@effect-agent/logger"
@@ -48,10 +49,8 @@ if (logFile !== undefined) sinks.push(jsonFileSink(logFile, { level: logLevel })
 const logger = makeLogger(compositeSink(...sinks), "mantis")
 for (const warning of config.warnings) logger.warn(warning)
 
-const dataDir = envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui")
-// durable shared workspace: one SQLite database next to the agent UI files
-const workspaceFile = join(dataDir, "workspace.sqlite")
-// durable conversation memory: turns survive restarts (same data root)
+// conversation memory is in-process here: nothing supplies a directory for it,
+// so a restart forgets the turns. durability is opt-in per embedder.
 const memoryDir = undefined
 const web = new WebConsole({
   bus,
@@ -60,7 +59,8 @@ const web = new WebConsole({
   maxReflections: config.model.maxReflections,
   protectedTools: config.approvals.protectedTools,
   approveTimeoutMs: config.approvals.timeoutMs,
-  workspaceFile,
+  // durable shared workspace: one SQLite database next to the agent UI files
+  workspaceFile: workspaceFile(),
   memoryDir,
   logger
 })
@@ -79,7 +79,7 @@ const { url } = serveConsole({
   port: Number(envVar("WEB_PORT") ?? 3737)
 })
 logger.info("mantis web console live on " + url, {
-  workspaceFile,
+  workspaceFile: workspaceFile(),
   memoryDir,
   protectedTools: config.approvals.protectedTools.join(",") || "none"
 })

@@ -3,6 +3,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { noopLogger } from "@effect-agent/logger"
 import { effectConfig } from "./effect-config.ts"
+import { workspaceFile } from "./paths.ts"
 import { WebConsole } from "./hosts/webui/console.ts"
 import { makeConsoleHandler } from "./hosts/webui/server/handler.ts"
 import { makeMantisMcp } from "./hosts/mcp/mcp.ts"
@@ -22,7 +23,7 @@ export const createMantisPlugin = (getConfig: () => unknown) => ({
       maxReflections: config.model.maxReflections,
       protectedTools: config.protectedTools,
       approveTimeoutMs: config.approveTimeoutMs,
-      workspaceFile: config.workspaceDir + "/workspace.sqlite",
+      workspaceFile: workspaceFile(config.workspaceDir),
       logger: noopLogger(),
     })
     const mcp = makeMantisMcp({ console: web })

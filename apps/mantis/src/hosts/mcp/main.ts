@@ -9,8 +9,8 @@
  *
  * Run: bun apps/mantis/src/hosts/mcp/main.ts   (stdio transport)
  */
-import { join } from "node:path"
 import { envVar } from "../../env.ts"
+import { workspaceFile } from "../../paths.ts"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { loadConfig } from "../../config.ts"
 import { buildModelFromConfig } from "../../model.ts"
@@ -41,7 +41,7 @@ const web = new WebConsole({
   maxReflections: config.model.maxReflections,
   protectedTools: config.approvals.protectedTools,
   approveTimeoutMs: config.approvals.timeoutMs,
-  workspaceFile: join(envVar("UI_DIR") ?? join(import.meta.dir, "../../../.ui"), "workspace.sqlite"),
+  workspaceFile: workspaceFile(),
   logger
 })
 const server = makeMantisMcp({ console: web })
