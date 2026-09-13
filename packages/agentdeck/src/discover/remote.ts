@@ -9,7 +9,7 @@
  */
 import type { AgentKind } from "../types.ts"
 import type { RemoteTransport } from "../remote/types.ts"
-import { COLLECTOR, COLLECTOR_LIMIT } from "./collector.ts"
+import { COLLECTOR, COLLECTOR_KINDS, COLLECTOR_LIMIT } from "./collector.ts"
 import { remoteTail } from "./remote-tail.ts"
 import { attachTails } from "./tails.ts"
 import type { DiscoveredSession } from "./types.ts"
@@ -24,7 +24,7 @@ interface Parsed {
   readonly path?: string
 }
 
-const KINDS: ReadonlyArray<string> = ["claude-code", "codex", "gemini", "pi"]
+const KINDS: ReadonlyArray<string> = COLLECTOR_KINDS
 
 const asKind = (value: string): AgentKind | undefined =>
   KINDS.includes(value) ? (value as AgentKind) : undefined

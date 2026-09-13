@@ -13,6 +13,11 @@
  */
 export const COLLECTOR_LIMIT = 200
 
+/** The kinds `COLLECTOR` emits, in its order. It sits beside the script because
+ *  the script is the only thing that can name a kind: a kind it does not emit
+ *  reaches the index as an unrecognised line and its sessions are dropped. */
+export const COLLECTOR_KINDS = ["claude-code", "pi", "codex", "gemini"] as const
+
 export const COLLECTOR = `set -u
 H="$HOME"
 LIM="\${1:-200}"
