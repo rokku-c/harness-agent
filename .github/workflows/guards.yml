@@ -7,7 +7,10 @@
 # pre-existing debt, and a red run that everyone learns to ignore is worse than
 # an honest comment:
 #
-#   * `check-lines` — 56 files predate the 100-line cap `CLAUDE.md` sets.
+#   * `check-lines` — 35 files predate the 100-line cap `CLAUDE.md` sets: 31 test
+#     files and 4 under `agentdeck/src` and `effect-interface/src`. The count is
+#     falling; make it a gate once it reaches zero, because a red run everyone
+#     learns to ignore is worse than an honest comment.
 #   * `typecheck:client` — 14 errors in the browser bundle's types.
 #
 name: guards
