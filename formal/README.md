@@ -11,6 +11,7 @@ like a broken test.
 |---|---|---|
 | `Formal/Authz.lean` | `effect-authz/src/decide.ts` | deny wins wherever it sits, so entry order cannot change a verdict; visibility is the decision, not a second opinion |
 | `Formal/Chain.lean` | `effect-ui/src/screen.ts` | the navigation chain names only screens that exist and terminates |
+| `Formal/Compat.lean` | `effect-compat/src/assess.ts` | a level that did not change is never adjudicated; the violations are exactly the changed levels |
 | `Formal/Config.lean` | `effect-config/src/merge.ts` | the provenance names the layer the value came from; a new default cannot move an operator's override |
 | `Formal/Derive.lean` | `effect-ui/src/screen-derive.ts` | a derived screen id collides with no other, declared or derived |
 | `Formal/Lifecycle.lean` | `effect-interface/src/registry.ts` | register and dispose are symmetric, and a stale disposer cannot revoke its replacement |
