@@ -42,7 +42,7 @@ export interface McpGatewayRule {
 }
 export interface McpGatewayRecorder { record(event: McpGatewayEvent): void | Promise<void> }
 export interface McpGatewayServer { readonly serverId: string; readonly name?: string; readonly era?: string; readonly transport?: "streamable-http" | "stdio"; readonly endpoint?: string; readonly command?: string; readonly args?: readonly string[]; readonly env?: Readonly<Record<string, string>>; readonly headers?: Readonly<Record<string, string>> }
-export interface McpSet { readonly setId: string; readonly name?: string; readonly servers: readonly string[]; readonly allowTools?: readonly string[]; readonly denyTools?: readonly string[] }
+export interface McpSet { readonly setId: string; readonly name: string; readonly servers: readonly string[]; readonly allowTools?: readonly string[]; readonly denyTools?: readonly string[] }
 export interface McpSetBinding { readonly agentId: string; readonly setIds: readonly string[] }
 export interface McpSetResolution extends McpGatewayServer { readonly setId: string; readonly allowed: boolean }
 export interface McpSetRegistry {

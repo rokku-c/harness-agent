@@ -14,5 +14,5 @@ test("agentd binds agents to named MCP sets and rejects stale revisions", () => 
 })
 test("agentd rejects topology errors", () => {
   const control = makeAgentdControl(); control.registerMachine(machine); control.registerAgent(agent)
-  expect(() => control.upsertSet({ setId: "bad", name: "bad", servers: ["missing"], allowTools: ["x"], denyTools: ["x"] })).toThrow()
+  expect(() => control.upsertSet({ setId: "bad", name: "bad", servers: ["missing"] })).toThrow()
 })

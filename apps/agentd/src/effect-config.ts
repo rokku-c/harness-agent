@@ -1,4 +1,5 @@
 import { z, type ConfigDeclaration } from "@effect-agent/effect-config"
+import { mcpSetBindingSchema as binding, mcpSetSchema as set } from "@effect-agent/mcp-gateway"
 import { machine } from "./machine-schema.ts"
 
 const agent = z.object({
@@ -10,14 +11,6 @@ const server = z.object({
   serverId: z.string().min(1), endpoint: z.string().min(1),
   transport: z.enum(["stdio", "streamable-http"]), authRef: z.string().min(1).optional(),
 }).strict()
-const set = z.object({
-  setId: z.string().min(1), name: z.string().min(1), servers: z.array(z.string().min(1)),
-  allowTools: z.array(z.string().min(1)).optional(), denyTools: z.array(z.string().min(1)).optional(),
-}).strict().superRefine((value, ctx) => {
-  const allow = new Set(value.allowTools ?? [])
-  if ((value.denyTools ?? []).some((tool) => allow.has(tool))) ctx.addIssue({ code: "custom", message: "allowTools and denyTools overlap" })
-})
-const binding = z.object({ agentId: z.string().min(1), setIds: z.array(z.string().min(1)) }).strict()
 /**
  * One code artifact to distribute (§7.6). `kind` decides which of §5's two ABI
  * lines is the one that matters: an app is checked against `abi`, a kernel

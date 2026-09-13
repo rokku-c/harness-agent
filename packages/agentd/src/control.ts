@@ -91,7 +91,10 @@ export const makeAgentdControl = (options: AgentdControlOptions = {}): AgentdCon
     registerMachine(machine) { checkId(machine.machineId); machines.set(machine.machineId, machine); bump(); return machine },
     registerAgent(agent) { checkId(agent.agentId); if (!machines.has(agent.machineId)) throw new AgentdError(404, "machine not found"); agents.set(agent.agentId, agent); bump(); return agent },
     registerServer(server) { checkId(server.serverId); if (servers.has(server.serverId)) throw new AgentdError(409, "server already exists"); servers.set(server.serverId, server); bump(); return server },
-    upsertSet(set) { checkId(set.setId); if (set.allowTools?.some((tool) => set.denyTools?.includes(tool))) throw new AgentdError(400, "allow/deny overlap"); if (set.servers.some((id) => !servers.has(id))) throw new AgentdError(404, "server not found"); sets.set(set.setId, set); bump(); return set },
+    // Every way a set arrives is checked against the mcpset grammar first — the
+    // config loader and the `agentd_upsert_mcpset` op — so the one rule about
+    // sets (allow and deny cannot overlap) is stated there, not restated here.
+    upsertSet(set) { checkId(set.setId); if (set.servers.some((id) => !servers.has(id))) throw new AgentdError(404, "server not found"); sets.set(set.setId, set); bump(); return set },
     bindAgent(agentId, setIds) { if (!agents.has(agentId)) throw new AgentdError(404, "agent not found"); if (setIds.some((id) => !sets.has(id))) throw new AgentdError(404, "set not found"); const binding = { ...bindingFor(agentId), setIds, revision: bump() }; bindings.set(agentId, binding); return binding },
     publishBundle(bundle, source) { const published = registry.publish(bundle, source); bump(); return published },
     /**

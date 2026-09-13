@@ -5,6 +5,7 @@
  */
 import { operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
+import { mcpSetSchema } from "@effect-agent/mcp-gateway"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
 /** Any object: what an operator declares about the fleet is passed through as it arrived. */
@@ -20,8 +21,11 @@ export const registryOperations = ({ control }: AgentdSurfaces): readonly Operat
     input: declared, handler: (input) => control.registerAgent(input as never) }),
   operation({ name: "agentd_register_mcp_server", description: "Declare an MCP server agents can be given",
     input: declared, handler: (input) => control.registerServer(input as never) }),
+  // A set is declared against the one mcpset grammar, not passed through free-form:
+  // that grammar is also what the config and the gateway read, so a set means the
+  // same thing however it was declared.
   operation({ name: "agentd_upsert_mcpset", description: "Declare a named set of MCP servers",
-    input: declared, handler: (input) => control.upsertSet(input as never) }),
+    input: mcpSetSchema, handler: (input) => control.upsertSet(input) }),
   operation({ name: "agentd_bind", description: "Give an agent these MCP sets",
     input: sets, handler: (input) => control.bindAgent(input.agentId, input.setIds) }),
   operation({ name: "agentd_publish_bundle", description: "Publish a version of an app or kernel",

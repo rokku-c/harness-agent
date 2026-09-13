@@ -20,6 +20,7 @@
         "@effect-agent/effect-interface": "workspace:*",
         "@effect-agent/effect-standalone": "workspace:*",
         "@effect-agent/effect-ui": "workspace:*",
+        "@effect-agent/mcp-gateway": "workspace:*",
       },
     },
     "apps/ai-gateway": {
@@ -398,6 +399,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@effect-agent/effect-authz": "workspace:*",
+        "@effect-agent/effect-config": "workspace:*",
         "@effect-agent/effect-mcp-http": "workspace:*",
         "@effect-agent/effect-network": "workspace:*",
         "@effect-agent/mcp-registry": "workspace:*",

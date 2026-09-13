@@ -1,5 +1,6 @@
 import type { Registry } from "@effect-agent/mcp-registry"
 import type { McpGatewayServer, McpSet, McpSetBinding, McpSetRegistry, McpSetResolution } from "./contract.ts"
+import { allowDenyOverlap } from "./set-schema.ts"
 
 export interface McpSetServerResolver { resolve(serverId: string): McpGatewayServer | undefined }
 export interface McpSetRegistryOptions { readonly resolver?: McpSetServerResolver | ((serverId: string) => McpGatewayServer | undefined) }
@@ -33,8 +34,7 @@ export function makeMcpSetRegistry(options: McpSetRegistryOptions = {}): McpSetR
     if (sets.has(set.setId)) fail(`duplicate set: ${set.setId}`)
     unique(set.servers, "server in set")
     if (!resolver && set.servers.some((id) => !servers.has(id))) fail(`unknown server in set: ${set.setId}`)
-    const allow = new Set(set.allowTools ?? [])
-    if ((set.denyTools ?? []).some((tool) => allow.has(tool))) fail(`allow-deny overlap in set: ${set.setId}`)
+    if (allowDenyOverlap(set)) fail(`allow-deny overlap in set: ${set.setId}`)
     sets.set(set.setId, { ...set, servers: [...set.servers] })
   }
   const bindAgent = ({ agentId, setIds }: McpSetBinding): void => {

@@ -5,7 +5,7 @@ const server = { serverId: "files", name: "files", era: "modern" }
 function registry() {
   const value = makeMcpSetRegistry()
   value.registerServer(server)
-  value.registerSet({ setId: "safe", servers: ["files"], allowTools: ["read"], denyTools: ["write"] })
+  value.registerSet({ setId: "safe", name: "safe", servers: ["files"], allowTools: ["read"], denyTools: ["write"] })
   value.bindAgent({ agentId: "a1", setIds: ["safe"] })
   return value
 }
@@ -21,11 +21,11 @@ test("set registry rejects duplicate and unknown topology", () => {
   const value = makeMcpSetRegistry()
   value.registerServer(server)
   expect(() => value.registerServer(server)).toThrow("duplicate server")
-  expect(() => value.registerSet({ setId: "bad", servers: ["missing"] })).toThrow("unknown server")
-  value.registerSet({ setId: "safe", servers: ["files"] })
-  expect(() => value.registerSet({ setId: "safe", servers: ["files"] })).toThrow("duplicate set")
+  expect(() => value.registerSet({ setId: "bad", name: "bad", servers: ["missing"] })).toThrow("unknown server")
+  value.registerSet({ setId: "safe", name: "safe", servers: ["files"] })
+  expect(() => value.registerSet({ setId: "safe", name: "safe", servers: ["files"] })).toThrow("duplicate set")
   expect(() => value.bindAgent({ agentId: "a1", setIds: ["missing"] })).toThrow("unknown set")
-  expect(() => value.registerSet({ setId: "overlap", servers: ["files"], allowTools: ["x"], denyTools: ["x"] })).toThrow("overlap")
+  expect(() => value.registerSet({ setId: "overlap", name: "overlap", servers: ["files"], allowTools: ["x"], denyTools: ["x"] })).toThrow("overlap")
 })
 
 test("gateway uses the bound set server before an explicit target", async () => {
