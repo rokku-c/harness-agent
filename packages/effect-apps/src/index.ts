@@ -1,4 +1,5 @@
 export * from "./catalog.ts"
+export * from "./summary.ts"
 export * from "./server.ts"
 export * from "./descriptor.ts"
 export * from "./access.ts"

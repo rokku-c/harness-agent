@@ -15,7 +15,7 @@ import { resolve } from "node:path"
 import type { AppCatalog } from "@effect-agent/effect-apps"
 import { bootManifests } from "../load-manifest.ts"
 import type { LoadContext } from "../load-manifest.ts"
-import { makeAppCatalog } from "./infra.ts"
+import { makeHostCatalog } from "./infra.ts"
 import { makeAppLayer, type AppLayer } from "./app-layer.ts"
 import { makeAppReloader } from "./reload.ts"
 import { makeBundleReloader, type BundleReloader } from "./bundle-reload.ts"
@@ -40,7 +40,7 @@ export const makeAppRuntime = (
   active: ReadonlySet<string>,
 ): AppRuntime => {
   const { host, registry, mcpRegistry, configs, configRuntime, uiViews, network, initializeConfig } = services
-  const catalog = makeAppCatalog({ host, registry, configs, uiViews })
+  const catalog = makeHostCatalog({ host, registry, configs, uiViews })
   const loadContext: LoadContext = {
     host, registry, mcpRegistry, configs, uiViews, network, initializeConfig,
     activeConfig: (id) => configRuntime.active(id),

@@ -4,16 +4,16 @@
  * config, or store value), app_call ({ns,appId,tool,arguments} -> a registry tool),
  * app_reload ({ns,appId} -> re-read that app's code from source in place). Plane
  * reads and calls pass the entry's authorize(op) gate; a denial throws, which the
- * MCP SDK surfaces as an isError result. A refusal to reload throws too: "unchanged
- * and still serving" is a result on the control plane, where 200 is right, and an
- * error here, where a caller asked for a reload and did not get one.
+ * MCP SDK surfaces as an isError result. A refusal to reload throws too: it is a
+ * result on the control plane, and an error here, where a caller asked for one.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
 import { invokeAppTool } from "./tools.ts"
 import { requireAppPlane } from "./access.ts"
-import { appKey, summarize, type AppCatalog, type AppEntry } from "./catalog.ts"
+import { appKey, type AppCatalog, type AppEntry } from "./catalog.ts"
+import { summarize } from "./summary.ts"
 import type { HostReloadResult } from "@effect-agent/effect-host"
 
 type AppPart = "ui" | "state" | "config" | "store"

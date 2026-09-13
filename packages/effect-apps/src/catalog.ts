@@ -1,22 +1,19 @@
 /**
- * effect-apps catalog — caller-supplied registry of namespaced effect apps.
+ * effect-apps catalog — a registry of namespaced effect apps.
  *
  * An app is ns::appId and may expose any combination of an effect-interface
  * registry (tools), a UiDocument (ui.doc) plus runtime state, a config
  * {schema,value,sources} triplet, and a NodeStore storage plane. A per-entry
- * authorize(op) gate guards each plane before it is read or invoked. The
- * catalog is provided by the caller; makeAppCatalog is a default in-memory one.
+ * authorize(op) gate guards each plane before it is read or invoked.
  */
 
 import type { EffectRegistry } from "@effect-agent/effect-interface"
-import { canAccessAppPlane } from "./access.ts"
-import { listAppTools } from "./tools.ts"
 
 /** Planes an app can expose, and the ops authorize() is asked about. */
 export type AppsPlane = "interface" | "ui" | "store" | "config"
 
 /**
- * Minimal JSON KV store. The same shape as `effect-bundle`'s `NodeStore`, written
+ * Minimal JSON KV store, the same shape as `effect-bundle`'s `NodeStore`, written
  * out rather than imported: an app plane is duck-typed, so an app's store is
  * anything with these four methods and the app plane stays clear of the loader.
  */
@@ -51,25 +48,25 @@ export interface AppEntry {
   authorize?(op: AppsPlane): boolean
 }
 
-export interface AppSummary {
-  readonly ns: string
-  readonly appId: string
-  readonly hasInterface: boolean
-  readonly hasUi: boolean
-  readonly hasConfig: boolean
-  readonly hasStore: boolean
-}
-
+/**
+ * The catalog as its readers see it. Reading and writing are two interfaces: a
+ * derived catalog (`apps-catalog.ts`) has no `register` to offer, and the type
+ * says that rather than a method that throws.
+ */
 export interface AppCatalog {
-  /** register an app; returns a disposer that removes exactly this entry. */
-  register(app: AppEntry): () => void
   list(): readonly AppEntry[]
   find(ns: string, appId: string): AppEntry | undefined
 }
 
+/** A catalog apps can be put into; `makeAppCatalog` is the default in-memory one. */
+export interface MutableAppCatalog extends AppCatalog {
+  /** register an app; returns a disposer that removes exactly this entry. */
+  register(app: AppEntry): () => void
+}
+
 export const appKey = (ns: string, appId: string): string => `${ns}::${appId}`
 
-export const makeAppCatalog = (): AppCatalog => {
+export const makeAppCatalog = (): MutableAppCatalog => {
   const apps = new Map<string, AppEntry>()
   return {
     register(app: AppEntry): () => void {
@@ -86,12 +83,3 @@ export const makeAppCatalog = (): AppCatalog => {
     find: (ns, appId) => apps.get(appKey(ns, appId)),
   }
 }
-
-export const summarize = (app: AppEntry): AppSummary => ({
-  ns: app.ns,
-  appId: app.appId,
-  hasInterface: listAppTools(app).length !== 0,
-  hasUi: canAccessAppPlane(app, "ui") && app.ui !== undefined,
-  hasConfig: canAccessAppPlane(app, "config") && app.config !== undefined,
-  hasStore: canAccessAppPlane(app, "store") && app.store !== undefined,
-})

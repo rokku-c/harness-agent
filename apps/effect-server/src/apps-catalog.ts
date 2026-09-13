@@ -32,7 +32,6 @@ export const makeLiveAppCatalog = (options: AppsCatalogOptions): AppCatalog => {
     authorize: (plane) => options.authorize?.(id, plane) ?? false,
   })
   return {
-    register: () => { throw new Error("Live catalog is derived; register with the owning app registry") },
     list: () => [...ids()].map(entryFor),
     find: (targetNs, id) => targetNs === ns && ids().has(id) ? entryFor(id) : undefined,
   }
