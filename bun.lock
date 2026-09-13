@@ -365,10 +365,6 @@
       "name": "@effect-agent/effect-ui",
       "version": "0.0.0",
       "dependencies": {
-        "@effect-agent/ui-definition": "workspace:*",
-        "@effect-agent/ui-protocol": "workspace:*",
-        "@effect-agent/ui-renderer": "workspace:*",
-        "@effect-agent/ui-runtime": "workspace:*",
         "@json-render/core": "^0.20.0",
         "zod": "^4.3.6",
       },

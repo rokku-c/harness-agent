@@ -3,9 +3,8 @@
  *
  * An effect app declares ONLY an EffectUiView contract (spec.ts) — nodes that
  * name @radix-ui/themes components and export as JSON Schema (schema.ts) — and
- * renders it through a UiRenderer picked by id (renderer.ts). Renderers are
- * swappable: htmlRenderer emits standalone HTML, while effectUiWebRenderer
- * bridges the same view into the repo's ui-* declaration/render pipeline.
+ * renders it through a UiRenderer picked by id (renderer.ts), so the renderer is
+ * the app's choice and this package ships one: htmlRenderer.
  */
 
 export * from "./spec.ts"
@@ -23,7 +22,6 @@ export * from "./value-spec.ts"
 export * from "./schema.ts"
 export * from "./renderer.ts"
 export * from "./html-renderer.ts"
-export * from "./web-bridge.ts"
 export * from "./form.ts"
 export * from "./json-spec.ts"
 export * from "./form-spec.ts"

@@ -8,10 +8,6 @@
   },
   "dependencies": {
     "@json-render/core": "^0.20.0",
-    "@effect-agent/ui-definition": "workspace:*",
-    "@effect-agent/ui-protocol": "workspace:*",
-    "@effect-agent/ui-renderer": "workspace:*",
-    "@effect-agent/ui-runtime": "workspace:*",
     "zod": "^4.3.6"
   }
 }

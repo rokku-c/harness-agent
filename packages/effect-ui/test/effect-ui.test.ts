@@ -2,7 +2,6 @@ import { expect, test } from "bun:test"
 
 import { viewSpecSchema, viewToJsonSchema } from "../src/schema.ts"
 import { htmlRenderer } from "../src/html-renderer.ts"
-import { effectUiWebRenderer } from "../src/web-bridge.ts"
 import { makeUiRendererRegistry } from "../src/renderer.ts"
 import type { EffectUiView } from "../src/spec.ts"
 
@@ -45,15 +44,11 @@ test("the view schema is recursive and open: a node names a component, and its p
 })
 
 test("same view renders distinctly across the two renderers via the registry", () => {
-  const registry = makeUiRendererRegistry([htmlRenderer, effectUiWebRenderer])
-  expect(registry.list().sort()).toEqual(["html", "ui-protocol-html"])
+  const registry = makeUiRendererRegistry([htmlRenderer])
+  expect(registry.list()).toEqual(["html"])
+  expect(registry.get("html")).toBe(htmlRenderer)
 
-  const html = registry.render("html", profileView)
-  const bridged = registry.render("ui-protocol-html", profileView)
-  expect(html).not.toBe(bridged)
-  expect(html).toContain('data-effect-ui="profile"')
-  expect(bridged).toContain('data-canvas="profile"')
-
+  expect(registry.render("html", profileView)).toContain('data-effect-ui="profile"')
   expect(() => registry.render("missing", profileView)).toThrow(/not found/)
 })
 
@@ -64,12 +59,4 @@ test("the html renderer names the design system's component and escapes what it 
   expect(html).toContain("Hello &lt;world&gt;")
   expect(html).toContain('data-action="save_profile"')
   expect(html).toContain('data-bind="/name"')
-})
-
-test("the ui-* bridge renders a view through ui-renderer webRenderer with the same component names", () => {
-  const html = effectUiWebRenderer.render(profileView)
-  expect(html).toContain("<h1>Profile</h1>")
-  expect(html).toContain("Save")
-  expect(html).toContain("one")
-  expect(html).toContain('data-component="Flex"')
 })

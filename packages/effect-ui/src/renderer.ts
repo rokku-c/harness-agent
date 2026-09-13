@@ -2,8 +2,8 @@
  * effect-ui renderer seam — the swap point.
  *
  * An app renders an EffectUiView through a UiRenderer chosen by id, never
- * through a concrete implementation. Swapability is demonstrated by the two
- * renderers shipped in this package (html-renderer, web-bridge).
+ * through a concrete implementation, so an app that wants its own output
+ * registers one. What this package ships is the default: html-renderer.
  */
 
 import type { EffectUiView } from "./spec.ts"
