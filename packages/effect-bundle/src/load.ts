@@ -32,9 +32,15 @@ export interface EffectBundleApi {
   /** Runtime this host is — os | browser | sandbox; defaults to "os" (see §7). */
   readonly runtime?: EffectRuntimeKind
   /**
-   * What this host can actually hand an app (§7.2). Absent = the host is not
-   * declaring, and the `requires` check is skipped rather than guessed — the
-   * same stance as `abi`, which also only gates when the host states it.
+   * What this host can actually hand an app (§7.2). Absent = the host has not
+   * declared, and the `requires` check is skipped rather than guessed.
+   *
+   * Not the `abi` stance one field up, which gates on `KERNEL_ABI` when the
+   * host says nothing: there is one kernel ABI and every host implements it,
+   * while a capability is defined by being possible to lack (§7.4), so an
+   * undeclared host has no default to be held to. What bounds the skip is that
+   * this is not the only gate — `requireCapability` refuses at first use, by
+   * name, with the runtime it is on.
    */
   readonly capabilities?: RuntimeCapabilities
   readonly initializeConfig?: (appId: string) => void

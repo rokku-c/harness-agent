@@ -43,12 +43,19 @@ export const runCycle = <A>(env: CycleEnv): Effect.Effect<A, AgentFailure, any> 
     for (let step = env.firstStep; step < maxSteps; step++) {
       yield* Effect.yieldNow()
       if (Option.isSome(env.signals)) {
-        const pending = [...(yield* Queue.takeAll(env.signals.value as any))] as Array<any>
-        for (const signal of pending) {
+        const queue = env.signals.value as Queue.Queue<any>
+        const pending = [...(yield* Queue.takeAll(queue))] as Array<any>
+        for (let index = 0; index < pending.length; index++) {
+          const signal = pending[index]
           if (signal._tag === "Interrupt")
             return yield* Effect.fail(new AgentFailure({ agent: env.driverId, cause: "interrupted by signal" }))
           if (signal._tag === "Pause") {
             yield* env.snapshot(step)
+            // A pause is not the end of the run — it is resumed — and the rest
+            // of this batch was taken off the queue by takeAll and never read.
+            // Dropping it loses an operator's injection with nothing to show
+            // for it; the queue is documented as honoring every signal.
+            yield* Queue.offerAll(queue, pending.slice(index + 1))
             return yield* Effect.fail(new AgentPaused({ runId: env.runId ?? "unknown" }) as unknown as AgentFailure)
           }
           env.box.context = env.box.context.append(...signal.content)

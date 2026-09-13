@@ -4,7 +4,9 @@
  * Concept: dws records are schema-unstable (ids/text/nesting vary by
  * version), so keys are probed defensively. toIncoming drops our own
  * messages and non-text records; parseDwsList unwraps either a bare array
- * or a messages/result payload into a flat list.
+ * or a messages/result payload into a flat list. `meUserId` is not optional:
+ * see the field's note in source.ts - dropping our own messages is the only
+ * thing between this channel and answering itself forever.
  */
 import { sourceConversationId, type DwsSource } from "./source.ts"
 import type { IncomingMessage } from "../../messages.ts"
@@ -19,7 +21,7 @@ const firstOf = (record: Record<string, unknown>, keys: ReadonlyArray<string>): 
 }
 
 /** normalize one raw dws message record; null when not a text message we handle */
-export const toIncoming = (record: Record<string, unknown>, source: DwsSource, meUserId?: string): IncomingMessage | undefined => {
+export const toIncoming = (record: Record<string, unknown>, source: DwsSource, meUserId: string): IncomingMessage | undefined => {
   const id = firstOf(record, ["msgId", "messageId", "id", "msg_id"])
   if (id === "") return undefined
   // text may be nested (text.content / content / richText...) or an array of blocks
@@ -30,7 +32,7 @@ export const toIncoming = (record: Record<string, unknown>, source: DwsSource, m
       : "")
   const senderId = firstOf(record, ["senderId", "senderStaffId", "sender", "userId", "senderId_str"])
   const senderNick = firstOf(record, ["senderNick", "senderName", "nick"])
-  if (meUserId !== undefined && senderId !== "" && senderId === meUserId) return undefined // own message
+  if (senderId !== "" && senderId === meUserId) return undefined // our own message
   return {
     id,
     text,
@@ -48,7 +50,7 @@ export const toIncoming = (record: Record<string, unknown>, source: DwsSource, m
 }
 
 /** parse a dws chat message list json payload into incoming messages */
-export const parseDwsList = (json: string, source: DwsSource, meUserId?: string): ReadonlyArray<IncomingMessage> => {
+export const parseDwsList = (json: string, source: DwsSource, meUserId: string): ReadonlyArray<IncomingMessage> => {
   let payload: unknown
   try {
     payload = JSON.parse(json)

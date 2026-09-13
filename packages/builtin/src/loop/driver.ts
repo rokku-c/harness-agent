@@ -14,8 +14,8 @@ import {
 } from "@effect-agent/core"
 import { callableOps } from "../access.ts"
 import { recoveryContent } from "../checkpoint.ts"
-import type { WireMessage } from "../wire.ts"
 import type { EffectAgentOptions, RunBox } from "./types.ts"
+import { restoreInto, snapshotOf, type RunCheckpoint } from "./snapshot.ts"
 import { finalToolFor } from "./protocol.ts"
 import { runCycle } from "./cycle.ts"
 
@@ -63,12 +63,8 @@ export const EffectAgent = {
           const resumed = Option.isSome(session) ? session.value.resume : undefined
           let firstStep = 0
           if (resumed !== undefined) {
-            const saved = resumed.payload as { context: Content[]; thread: WireMessage[]; step: number }
-            box.context = new AgentContext(saved.context)
-            box.thread.length = 0
-            box.thread.push(...saved.thread)
+            firstStep = restoreInto(box, resumed.payload as RunCheckpoint)
             box.thread.push({ role: "user", content: new AgentContext(recoveryContent(resumed)).render() })
-            firstStep = saved.step
           }
           yield* emit({ _tag: "Step", agent: agentName, step: firstStep })
           const snapshot = (step: number): Effect.Effect<void> =>
@@ -77,7 +73,7 @@ export const EffectAgent = {
               : (store.value.put({
                   ref: { runId }, agent: agentName, task: prepared.context.render(),
                   sensitivities: options.sensitivities ?? [], savedAt: Date.now(),
-                  payload: { context: [...box.context.entries], thread: [...box.thread], step }
+                  payload: snapshotOf(box, step)
                 }) as unknown as Effect.Effect<void>)
           const result: A = yield* runCycle<A>({
             driverId: driver.id, agentName, box, options, emit, firstStep,

@@ -73,9 +73,13 @@ export const compileEffectBundle = async (options: CompileOptions): Promise<Effe
   // copy declared assets so import.meta.url-relative lookups still resolve
   for (const asset of manifest.assets ?? []) {
     const from = resolve(options.appDir, asset.from)
+    // A declared asset that is not there is a failed build, not a skipped copy:
+    // the manifest says the bundle carries it, the artifact would ship without
+    // it, and the app finds out when it looks for the file at run time.
+    if (!existsSync(from)) throw new Error("effect-bundle: declared asset is missing: " + from)
     const to = join(outRoot, asset.to)
     mkdirSync(dirname(to), { recursive: true })
-    if (existsSync(from)) cpSync(from, to, { recursive: true })
+    cpSync(from, to, { recursive: true })
   }
   return manifest
 }

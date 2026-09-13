@@ -35,6 +35,7 @@ export const makeChannel = (
     source: dws?.groupId !== undefined
       ? { kind: "group", id: dws.groupId }
       : { kind: "direct", userId: dws?.userId ?? "" },
-    meUserId: dws?.meUserId
+    // dws.me_user_id / DWS_ME_USER_ID; an absent one is refused in the channel
+    meUserId: dws?.meUserId ?? ""
   })
 }

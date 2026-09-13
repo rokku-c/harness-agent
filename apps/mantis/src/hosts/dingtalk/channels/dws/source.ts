@@ -16,8 +16,17 @@ export interface DwsChannelOptions {
   readonly source: DwsSource
   readonly runner?: import("./runner.ts").DwsRunner
   readonly pollIntervalMs?: number
-  /** the user's own userId: their own messages are never re-answered */
-  readonly meUserId?: string
+  /**
+   * The user's own userId, whose messages are never answered.
+   *
+   * Required, and not a degraded mode when absent: this channel speaks as the
+   * logged-in user, so every reply it sends comes back in the next list call as
+   * a message from that user. Without this the channel answers its own reply,
+   * reads that answer, and answers again - a loop with no error, no output and
+   * nothing to notice. The robot channel refuses to start without its card
+   * template for the same reason.
+   */
+  readonly meUserId: string
   /** optional filter on inbound messages (e.g. only certain senders) */
   readonly filter?: (message: IncomingMessage) => boolean
 }

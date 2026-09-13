@@ -15,6 +15,12 @@ import { parseDwsList } from "./parse.ts"
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
 export const makeDwsChannel = (options: DwsChannelOptions): MessageChannel => {
+  if (options.meUserId === "") {
+    // Not a degraded mode: this channel speaks as the logged-in user, so its
+    // own replies come back in the next list call. Nothing else separates them
+    // from the operator's, and the loop that follows has no error in it.
+    throw new Error("dws channel needs the logged-in user's id (DWS_ME_USER_ID): without it it answers its own replies")
+  }
   const runner: DwsRunner = options.runner ?? dwsBunRunner
   const pollIntervalMs = options.pollIntervalMs ?? 2_000
   const seen = new Set<string>()

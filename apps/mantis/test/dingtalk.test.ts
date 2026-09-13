@@ -144,7 +144,7 @@ describe("dws channel: poll parsing", () => {
         return JSON.stringify({ messages: [] })
       }
     }
-    const channel = makeDwsChannel({ source, runner, pollIntervalMs: 5 })
+    const channel = makeDwsChannel({ source, runner, pollIntervalMs: 5, meUserId: "u1" })
     const deliver = async (m: IncomingMessage) => ({ text: "ack " + m.text, tone: "plain" as const })
     void channel.listen(deliver)
     const start = Date.now()
