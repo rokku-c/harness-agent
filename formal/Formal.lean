@@ -33,4 +33,5 @@ import Formal.Slot
 import Formal.Surface
 import Formal.Swap
 import Formal.ToolKey
+import Formal.TreeOrder
 import Formal.Watch
