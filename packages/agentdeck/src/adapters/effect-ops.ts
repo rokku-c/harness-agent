@@ -25,6 +25,12 @@ interface OpsBox {
   lastActivityAt?: number
 }
 
+/** A pending op aborts by dying with a prefixed message; `send` reads the prefix
+ *  back off the dead turn. Both ends are in this file, so the prefix is a
+ *  constant: renamed on one side alone, the approval card never renders. */
+const AWAIT = "DECK_AWAIT:"
+const DENIED = "DECK_DENIED:"
+
 export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionGateway => {
   const boxes = new Map<string, OpsBox>()
   let seq = 0
@@ -45,8 +51,8 @@ export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionG
           const callId = entry?.callId ?? options.ledger.ask(sessionId, "write_file", input)
           const current = entryFor(sessionId, "write_file")
           if (current === undefined || current.decision === "pending")
-            return yield* Effect.die(new Error("DECK_AWAIT:" + callId))
-          if (current.decision === "deny") return yield* Effect.die(new Error("DECK_DENIED:" + current.callId))
+            return yield* Effect.die(new Error(AWAIT + callId))
+          if (current.decision === "deny") return yield* Effect.die(new Error(DENIED + current.callId))
           // operator approved: the write really happens
           return yield* Effect.succeed({ path: input.path, ok: true })
         })
@@ -90,8 +96,8 @@ export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionG
         box.status = "failed"
         box.detail = message
         box.lastActivityAt = Date.now()
-        if (message.startsWith("DECK_AWAIT:")) return { ok: false, detail: "awaiting operator approval", awaiting: [message.slice("DECK_AWAIT:".length)] }
-        if (message.startsWith("DECK_DENIED:")) return { ok: false, detail: "write denied by operator" }
+        if (message.startsWith(AWAIT)) return { ok: false, detail: "awaiting operator approval", awaiting: [message.slice(AWAIT.length)] }
+        if (message.startsWith(DENIED)) return { ok: false, detail: "write denied by operator" }
         return { ok: false, detail: message }
       }
     },

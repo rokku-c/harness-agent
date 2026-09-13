@@ -1,7 +1,7 @@
 /** OpenAI-compatible chat completions provider. */
 import { Effect, Layer } from "effect"
 import { ModelTag, type ModelService } from "./service.ts"
-import type { ModelCapabilities, WireMessage, WireTool, WireToolCall } from "./types.ts"
+import { DEFAULT_MAX_OUTPUT_TOKENS, type ModelCapabilities, type WireMessage, type WireTool, type WireToolCall } from "./types.ts"
 
 export interface OpenAiConfig {
   readonly api: "openai.chat"
@@ -29,7 +29,7 @@ export const openaiModel = (config: OpenAiConfig): ModelService => ({
             },
             body: JSON.stringify({
               model: config.model,
-              max_tokens: config.maxOutputTokens ?? 1024,
+              max_tokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
               messages: [
                 { role: "system", content: systemPrompt },
                 ...messages.map((message): Record<string, unknown> => {

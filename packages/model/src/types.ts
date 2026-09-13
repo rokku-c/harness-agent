@@ -23,6 +23,11 @@ export interface WireToolCall {
   readonly input: unknown
 }
 
+/** The output budget when the config does not set one. Providers are
+ *  interchangeable configuration, so one config must not mean a different
+ *  budget depending on which one was selected. */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 1024
+
 export interface GenerateResult {
   readonly text: string
   readonly toolCalls: ReadonlyArray<WireToolCall>

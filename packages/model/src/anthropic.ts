@@ -1,7 +1,7 @@
 /** Anthropic Messages provider. */
 import { Effect, Layer } from "effect"
 import { ModelTag, type ModelService } from "./service.ts"
-import type { ModelCapabilities, WireToolCall } from "./types.ts"
+import { DEFAULT_MAX_OUTPUT_TOKENS, type ModelCapabilities, type WireToolCall } from "./types.ts"
 
 export interface AnthropicConfig {
   readonly api: "anthropic.messages"
@@ -32,7 +32,7 @@ export const anthropicModel = (config: AnthropicConfig): ModelService => ({
             },
             body: JSON.stringify({
               model: config.model,
-              max_tokens: config.maxOutputTokens ?? 1024,
+              max_tokens: config.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
               system: systemPrompt,
               messages: messages.map((message): Record<string, unknown> => {
                 if (message.role === "tool")
