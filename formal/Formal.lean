@@ -41,4 +41,5 @@ import Formal.Swap
 import Formal.Token
 import Formal.ToolKey
 import Formal.TreeOrder
+import Formal.UpstreamRewire
 import Formal.Watch
