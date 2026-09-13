@@ -10,6 +10,7 @@
 
 import type { EffectApp, EffectInterface, EffectTool, ToolJsonSchema } from "./contract.ts"
 import { toJsonSchema } from "./contract.ts"
+import { revocable } from "./revocable.ts"
 
 export interface ToolEntry {
   readonly key: string
@@ -75,13 +76,7 @@ export const makeEffectRegistry = (): EffectRegistry => {
 
   return {
     registerInterface(iface: EffectInterface): () => void {
-      interfaces.set(iface.id, iface)
-      let disposed = false
-      return () => {
-        if (disposed) return
-        disposed = true
-        if (interfaces.get(iface.id) === iface) interfaces.delete(iface.id)
-      }
+      return revocable(interfaces, iface.id, iface)
     },
 
     tools,

@@ -1,5 +1,6 @@
 /-
-  Reversible registration — `packages/effect-interface/src/registry.ts`.
+  Reversible registration — `packages/effect-interface/src/revocable.ts`, which
+  is what hands out both the registry's disposer and an app's UI-view one.
 
   An app registers an interface and is handed a disposer. Disabling the app
   calls it, and the registry has to come back to what it was: an app turned off
@@ -11,6 +12,14 @@
   The registry is modelled as a function from id to the registration holding it,
   which is what the implementation's `Map` is. Two ids cannot collide, because a
   function has one value per argument; nothing below has to assume it.
+
+  `Reg` carries an id and a generation, which is the implementation's
+  registration token. A registration is told apart from a later one by that
+  token rather than by its value, because a replacement may be equal to what it
+  replaced — the same interface object registered twice, an identical UI view.
+  `effect-network/src/egress.ts` keeps the same guard with the value itself as
+  the identity: it is a package with no dependencies, so it cannot share this
+  one, and a value that is built fresh per registration is a token.
 
   What is proven:
 
@@ -86,8 +95,9 @@ theorem dispose_set_restores (r : Reg) (reg : Registry) (h : reg r.id = none) :
   · subst hid; simp [eraseId, h]
   · simp [eraseId, hid]
 
-/-- Calling a disposer twice is calling it once: the `disposed` flag, which is
-what makes it safe in a teardown that may already have run. -/
+/-- Calling a disposer twice is calling it once, which is what makes it safe in a
+teardown that may already have run. Nothing has to remember that it ran: after
+the first call there is no registration of its own left to clear. -/
 theorem dispose_idempotent (r : Reg) (reg : Registry) : dispose r (dispose r reg) = dispose r reg := by
   funext id
   by_cases h : id = r.id
