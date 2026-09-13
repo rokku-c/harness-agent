@@ -43,6 +43,14 @@ export interface Machine {
 export type DeclaredMachine = Omit<Machine, "reportedAt">
 export interface AgentInstance { agentId: string; machineId: string; kind: string; version: string; status: AgentStatus }
 export interface McpServerRef { serverId: string; endpoint: string; transport: "stdio" | "streamable-http"; authRef?: string }
+/**
+ * A set of MCP servers an agent is bound to. The name and the fields are
+ * @effect-agent/mcp-gateway's: its `mcpSetSchema` parses every set that arrives
+ * before `upsertSet` stores it, so the two shapes cannot drift without the parse
+ * failing first. A mirror rather than an import on purpose — the gateway reaches
+ * `@modelcontextprotocol/sdk`, and the center stays independent of the MCP
+ * implementation it hands sets to.
+ */
 export interface McpSet { setId: string; name: string; servers: readonly string[]; allowTools?: readonly string[]; denyTools?: readonly string[] }
 export interface AgentBinding { agentId: string; setIds: readonly string[]; bundleIds: readonly string[]; revision: number }
 /**

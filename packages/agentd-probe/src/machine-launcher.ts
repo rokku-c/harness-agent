@@ -8,6 +8,11 @@ import type { LaunchOrder, LaunchResult, LaunchRunner } from "./launch-cycle.ts"
  * It lives here, at the edge, on purpose — `launch-cycle.ts` declares what it
  * needs structurally and stays free of any dialect opinion, and this file is
  * the one place in the package that knows which library supplies them.
+ *
+ * It is also where the control plane's `LaunchOrder` becomes agentdeck's
+ * `LaunchRequest`. Two types for one job: the order is what a machine was told,
+ * the request is what a dialect renderer takes, and neither package should grow
+ * a field for the other's convenience.
  */
 export interface MachineLauncherOptions {
   /** Absent = this host, with agentdeck's built-in dialects. */

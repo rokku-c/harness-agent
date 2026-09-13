@@ -49,6 +49,7 @@ export interface ConfigOutcome {
   readonly reason?: ConfigFailureReason
 }
 
+/** JSON-Schema projection of a zod type — how a config declaration is advertised. */
 export const toJsonSchema = (schema: z.ZodType): unknown => z.toJSONSchema(schema)
 
 export { mergeConfig } from "./merge.ts"
