@@ -166,11 +166,13 @@ def carries : Answer → Bool
   | none => false
   | some r => r.admits
 
-/-- What a reason names: the set that decided, or that nothing routed at all —
-    the two refusals the engine has no set to report for. -/
+/-- What a reason names: the set that decided, that nothing routed at all, or a
+    name the door does not answer with — the three refusals the engine has no set
+    to report for. -/
 inductive Reason where
   | set (setId : String)
   | unrouted
+  | noServerOffers
 deriving DecidableEq, Repr
 
 /-- The page, as the file now draws it: whether it says Allowed, and the set its
@@ -247,5 +249,62 @@ half of this file, said about the same fixture.
 theorem a_page_that_reads_something_else_can_disagree :
     ∃ (sets : List Bound), acrossEverySet sets ≠ firstReachable sets :=
   ⟨[⟨true, false⟩, ⟨true, true⟩], by decide⟩
+
+/-! ## The question the page asks
+
+The badge answers "may this agent reach this tool". A name the door does not
+advertise stands for no pair, so no call could ever name it — and the engine has
+no pair to answer about, but it does have an answer to the walk *without* a tool,
+which is the walk the file used to read. That walk admits whenever the agent is
+bound to a set that reaches a server, so the page said Allowed for a name
+`tools/list` never answers with, and the call it described was refused by the
+door before any set was read. The verdict is therefore the engine's answer to a
+question the door can be asked, and the door's own catalog is what says whether
+it can be asked at all. -/
+
+/-- The operator's question, as the page can ask it: a name `tools/list` answers
+    with, which stands for the pair a call names — or a name nothing offers,
+    which stands for nothing at all. -/
+inductive Asked where
+  | advertised (answer : Answer)
+  | unadvertised
+
+/-- The page as the file has it: a name nothing offers is a refusal of its own,
+    and the walk without a tool is never read for it. -/
+def askedPage : Asked → Page
+  | .unadvertised => ⟨false, some .noServerOffers⟩
+  | .advertised answer => page answer
+
+/-- The page as it was: for a name nothing offers it read the walk it could still
+    make, and showed that answer under the badge. -/
+def walkWithoutTool : Asked → Answer → Page
+  | .unadvertised, without => page without
+  | .advertised answer, _ => page answer
+
+/-- The page refuses a name nothing offers, and says which fact refused it. -/
+theorem the_page_refuses_a_name_nothing_offers :
+    (askedPage .unadvertised).allowed = false
+      ∧ (askedPage .unadvertised).namedSet = some .noServerOffers := by
+  exact ⟨rfl, rfl⟩
+
+/-- The control: the walk without a tool admits for an agent that is bound to a
+    set whose server is up — the ordinary live case — so the page that read it
+    said Allowed for a tool the door could not carry. -/
+theorem the_walk_without_a_tool_admits_for_a_bound_agent :
+    (walkWithoutTool .unadvertised (some ⟨"platform", true, none, by simp⟩)).allowed = true := by
+  rfl
+
+/-- And for that same fixture the file's page refuses it, which is the whole of
+    what the conjunct buys. -/
+theorem the_page_refuses_where_the_walk_without_a_tool_admits :
+    (askedPage .unadvertised).allowed = false
+      ∧ (walkWithoutTool .unadvertised (some ⟨"platform", true, none, by simp⟩)).allowed = true :=
+  ⟨rfl, rfl⟩
+
+/-- A name the door advertises is answered by the engine and by nothing else, so
+    the page cannot invent a refusal for a tool that can be called. -/
+theorem an_advertised_name_is_answered_by_the_engine (answer : Answer) :
+    askedPage (.advertised answer) = page answer := by
+  rfl
 
 end AccessPreview

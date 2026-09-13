@@ -27,6 +27,21 @@ const tools = (field: string, none: string): UiNodeSpec =>
   ] })
 
 /**
+ * Whether the door can offer anything through a server, and what listing it
+ * said when it could not. A failure is the one state here that earns colour, and
+ * it carries its own sentence: a badge that said "failed" and nothing else would
+ * send the operator to the log to learn what the gateway already knows.
+ */
+const listing: UiNodeSpec = cellOf({ component: "Flex", props: { direction: "column", gap: "1", align: "start" }, children: [
+  { component: "Badge", props: { variant: "soft" }, item: "listing/state",
+    visible: { source: { item: "listing/state" }, equals: "failed", not: true } },
+  { component: "Badge", props: { variant: "soft", color: "red" }, item: "listing/state",
+    visible: { source: { item: "listing/state" }, equals: "failed" } },
+  { component: "Text", props: { size: "1", color: "red" }, item: "listing/detail",
+    visible: { source: { item: "listing/detail" } } },
+] })
+
+/**
  * A server leads with its name: an operator reads a topology, not a key. Its id
  * is the repeat key, since the membership list in the Sets table is the one
  * place an id is the content — a second rendering of it here would be a rival
@@ -34,8 +49,8 @@ const tools = (field: string, none: string): UiNodeSpec =>
  */
 const servers: UiNodeSpec = listCard({
   title: "Servers", id: "topology", empty: "No servers registered yet.",
-  headings: ["Server", "Era", "Status"],
-  cells: [cell("name"), cellOf(stateBadge("era")), cellOf(stateBadge("status"))],
+  headings: ["Server", "Era", "Status", "Tools"],
+  cells: [cell("name"), cellOf(stateBadge("era")), cellOf(stateBadge("status")), listing],
   repeat: { source: { state: "/gateway/servers" }, key: "serverId" },
 })
 

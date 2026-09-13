@@ -25,11 +25,13 @@ import type { LiveCatalog } from "./live-catalog.ts"
 import type { IdentitySurfaces } from "./identity-input.ts"
 import { directoryOperations } from "./ops-directory.ts"
 import { tokenOperations } from "./ops-token.ts"
+import { withListings } from "./server-listings.ts"
 
 /** What these operations read: the shared registry, the live config, the audit — and the two engines that decide and issue. */
 export interface GatewaySurfaces extends AccessSurfaces {
   readonly audit: AuditLog
-  readonly catalog: LiveCatalog
+  /** The catalog *as a read*: it rebuilds, and it says how the rebuild went. */
+  readonly live: LiveCatalog
   readonly identities: IdentitySurfaces
 }
 
@@ -46,16 +48,16 @@ const named = (value: string | undefined): string | undefined => {
 export const mcpGatewayOperations = (surfaces: GatewaySurfaces): readonly Operation[] => [
   operation({
     name: "mcp_gateway_topology",
-    description: "The gateway's registry servers, the sets that group them, the agents bound to those sets, its recent decisions, and which servers it could list tools from",
+    description: "The gateway's registry servers and what each answered when its tools were listed, the sets that group them, the agents bound to those sets, the tools it can offer, and its recent decisions",
     access: "read", input: noInput, http: { method: "GET", path: "/mcp-gateway" },
     handler: async () => {
-      await surfaces.catalog.refresh()
+      await surfaces.live.refresh()
       return {
         app: "mcp-gateway",
-        servers: surfaces.registry.list(),
+        servers: withListings(surfaces.registry.list(), surfaces.live.report()),
         sets: surfaces.config.sets,
         bindings: surfaces.config.bindings,
-        catalog: surfaces.catalog.report(),
+        tools: surfaces.offered.list(),
         audit: surfaces.audit.list(),
       }
     },
@@ -68,7 +70,7 @@ export const mcpGatewayOperations = (surfaces: GatewaySurfaces): readonly Operat
   }),
   operation({
     name: "mcp_gateway_access",
-    description: "Whether one agent may reach one tool, and which set, allow-list or deny-list decided it; asked without a tool, whether that agent is bound to any live set at all",
+    description: "Whether one identity may reach one tool, and which set, allow-list or deny-list decided it; the tool is named as tools/list answers it, and without one the question is whether that identity is bound to any live set at all",
     access: "read",
     input: z.object({ agent: z.string().optional(), tool: z.string().optional() }).strict(),
     http: { method: "GET", path: "/mcp-gateway/access" },

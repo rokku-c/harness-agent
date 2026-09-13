@@ -11,6 +11,7 @@
  */
 
 import { failureCallout, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { emptyIdentities, emptyTools, identityChooser, toolChooser } from "./effect-ui-choices.ts"
 import { cell, cellOf, chipList, field, line, list, section, table, text } from "./effect-ui-nodes.ts"
 
 /** True-or-false is the one condition that earns colour: a refusal is a signal. */
@@ -63,8 +64,10 @@ const answer: UiNodeSpec = { component: "Flex", props: { direction: "column", ga
   ] }
 
 export const accessSection: UiNodeSpec = section("Effective access", [
-  field("Agent id", { component: "TextField.Root", bind: "/access/agent" }),
-  field("Tool (optional)", { component: "TextField.Root", bind: "/access/tool" }),
+  field("Identity", identityChooser),
+  emptyIdentities,
+  field("Tool", toolChooser),
+  emptyTools,
   row([{ component: "Button", props: { value: "Preview" }, onPress: "gateway.previewAccess",
     params: { agent: { state: "/access/agent" }, tool: { state: "/access/tool" } } }]),
   failure,

@@ -61,7 +61,7 @@ export const effectUiView: EffectUiView = {
   viewId: "mcp-gateway-console",
   title: "MCP Gateway",
   state: {
-    gateway: { servers: [], sets: [], bindings: [], catalog: { loaded: [], failed: [] } },
+    gateway: { servers: [], sets: [], bindings: [] },
     audit: { events: [] },
     identities: { principals: [], tokens: [] },
     access: { agent: "", tool: "", result: undefined },

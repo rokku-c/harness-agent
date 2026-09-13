@@ -1,5 +1,6 @@
-import { makeRegistrySetResolver, type McpSet, type McpSetBinding, type McpSetRegistry } from "@effect-agent/mcp-gateway"
+import { makeRegistrySetResolver, type McpSet, type McpSetBinding, type McpSetRegistry, type ToolCatalog } from "@effect-agent/mcp-gateway"
 import type { Registry } from "@effect-agent/mcp-registry"
+import { refusalReasons } from "./access-reasons.ts"
 
 export interface AccessSet {
   readonly setId: string
@@ -20,11 +21,13 @@ export interface AccessConfig {
   readonly sets: readonly McpSet[]
   readonly bindings: readonly McpSetBinding[]
 }
-/** What a preview asks: the config it explains, the registry it draws, and the engine that decides. */
+/** What a preview asks: the config it explains, the registry it draws, the engine that decides, and what the door offers. */
 export interface AccessSurfaces {
   readonly config: AccessConfig
   readonly registry: Registry
   readonly sets: McpSetRegistry
+  /** The door's own catalog, keyed by the name `tools/list` answers with. */
+  readonly offered: ToolCatalog
 }
 
 /**
@@ -58,21 +61,30 @@ const boundSets = ({ config, registry }: AccessSurfaces, agentId: string): reado
  * — the file that did that decided differently from the gateway it was
  * previewing, which is worse than having no preview at all: the page is read as
  * the answer, and the call it describes then fails somewhere else.
+ *
+ * The tool is named the way the door names it: the name `tools/list` answers
+ * with, looked up here rather than parsed, and the pair it stands for — the
+ * server as well as the tool — is what the engine is asked about. A call names
+ * both, so a preview that named only the tool could allow a server the call
+ * never routes through, and the page would be read as an answer about it.
+ *
+ * A refusal is one fact of four, and which one is `access-reasons.ts`.
  */
 export const previewAccess = (surfaces: AccessSurfaces, agentId: string, tool?: string): AccessPreview => {
-  const { sets } = surfaces
-  const isBound = sets.bound(agentId)
-  const resolution = sets.resolve({ agent: agentId, ...(tool === undefined ? {} : { tool }) })
-  const allowed = resolution?.allowed === true
-  const reasons: string[] = []
-  if (!allowed) {
-    if (!isBound) reasons.push("no set bound to this agent")
-    else if (resolution === undefined) reasons.push("no bound set has a reachable server")
-    else if (resolution.refusedBy !== undefined) {
-      reasons.push(resolution.refusedBy === "deny"
-        ? `${resolution.setId} explicitly denies ${tool}`
-        : `${resolution.setId} allowlist does not include ${tool}`)
-    }
+  const { sets, offered } = surfaces
+  const entry = tool === undefined ? undefined : offered.find(tool)
+  const bound = sets.bound(agentId)
+  const query = { agent: agentId, ...(entry === undefined ? {} : { serverId: entry.serverId, tool: entry.tool }) }
+  const resolution = sets.resolve(query)
+  // A call names a tool the door advertises, and a name it does not advertise is
+  // no pair anything can be routed to. The walk below still finds a set — it was
+  // asked without a tool — so the refusal has to be stated here as well, or the
+  // page would call a name nothing offers "Allowed" and reach nothing on the
+  // call it describes.
+  const nameable = tool === undefined || entry !== undefined
+  const allowed = nameable && resolution?.allowed === true
+  return {
+    agentId, bound, allowed, sets: boundSets(surfaces, agentId),
+    reasons: allowed ? [] : refusalReasons({ sets, agentId, bound, tool, entry, resolution }),
   }
-  return { agentId, bound: isBound, sets: boundSets(surfaces, agentId), allowed, reasons }
 }

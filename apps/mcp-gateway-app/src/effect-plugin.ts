@@ -56,7 +56,7 @@ export const createMcpGatewayPlugin = (getConfig: () => unknown, context: AppRun
     // one list, two projections: what the console reads and what an agent calls
     // are the same declarations, and the console's preview asks the same set
     // registry the gateway decides with, so it cannot answer differently
-    const operations = mcpGatewayOperations({ config, registry, sets, audit, catalog: live, identities: store })
+    const operations = mcpGatewayOperations({ config, registry, sets, offered: catalog, audit, live, identities: store })
     const console = toHttpHandler(operations)
     const serving = (request: Request): Response | Promise<Response> | undefined =>
       new URL(request.url).pathname === "/mcp-gateway" && request.method === "POST" ? mcp(request) : undefined
