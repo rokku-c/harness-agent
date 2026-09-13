@@ -1,50 +1,50 @@
-# 应用、入口、路由、出口（2026-09-08 当前设计）
+# Apps, entry, routing, egress (current design, 2026-09-08)
 
-## 边界
+## Boundaries
 
-- 内置 App = 纯 handler + schema + 接口声明，不应为嵌入运行创建临时端口。
-- SDK 注册/加载 App 时注册路由及实例工具；停用/卸载时撤销。
-- 平台监听器引用同一个服务路由表。默认任何已注册端口都能访问同样的服务。
-- 端口可显式配置 apps 白名单；不配置表示共享全部服务。未声明隔离不产生隔离。
-- 自管独立进程/端口不由平台承担生命周期、流量或一致性保证。
+- A built-in App = pure handler + schema + interface declaration; it should not create a temporary port for embedded runs.
+- When the SDK registers/loads an App it registers routes and instance tools; disable/unregister revokes them.
+- Platform listeners reference the same service route table. By default every registered port can reach the same services.
+- A port may explicitly configure an apps allowlist; not configuring one means all services are shared. Undeclared isolation produces no isolation.
+- For self-managed standalone processes/ports the platform carries no lifecycle, traffic, or consistency guarantee.
 
 ```text
-端口 A ─┐
-端口 B ─┼─ listener manager ─ shared route table ─ app handler
-端口 C ─┘                          │
+port A ─┐
+port B ─┼─ listener manager ─ shared route table ─ app handler
+port C ─┘                          │
                              SDK context.fetch
                                   │
                           application egress policy
                             ┌─────┴─────┐
-                           本机        主节点
+                            local    main node
                             └─────┬─────┘
-                               外部目标
+                                external target
 ```
 
-## 上游不等于出口
+## Upstream is not egress
 
-AI Gateway providers 每项是 `{id,apiType,baseURL,apiKey?,enabled?}`。
-同一个 apiType 可以有任意多个上游；只要求 id 唯一。
-未指定时在同协议已启用项中轮询；`x-upstream-id` 显式选定某一项，协议不匹配即失败。
-`apiType`决定path和鉴权协议，不代表某个厂商，也不决定从哪台机器发出请求。
-不自动重放失败的模型请求，不透传选择上游的内部请求头。
+Every AI Gateway provider entry is `{id,apiType,baseURL,apiKey?,enabled?}`.
+One apiType can have any number of upstreams; only the id must be unique.
+When unspecified, round-robin over the enabled entries of the same protocol; `x-upstream-id` explicitly selects one, and a protocol mismatch fails.
+`apiType` decides path and auth protocol; it does not stand for a vendor, and it does not decide which machine the request is sent from.
+Failed model requests are not replayed automatically, and the internal headers that select an upstream are not passed through.
 
-## 四种出口策略
+## The four egress policies
 
-| App声明 | 选择 |
+| App declaration | Selection |
 |---|---|
-| main-first（默认） | 优先主节点，主节点未配置/不可选时选本机 |
-| local-first | 优先本机，本机禁用时选主节点 |
-| local-only | 只能本机，无本机出口就失败 |
-| main-only | 只能主节点，peer未配置主节点就失败 |
+| main-first (default) | prefer the main node; when the main node is unconfigured/unselectable, pick local |
+| local-first | prefer local; when local is disabled, pick the main node |
+| local-only | local only; fail when there is no local egress |
+| main-only | main node only; fail when the peer has no main node configured |
 
-“优先”是**发送前选择可用出口**，不是请求失败后换出口重试。
-主节点自身的 main 就是本机出口。无法联网、超时、响应错误均返回调用方，不隐式重放。
+"Prefer" means **choosing an available egress before sending**, not switching egress and retrying after a request fails.
+The main node's own main is its local egress. No network, timeouts, and bad responses are all returned to the caller; there is no implicit replay.
 
-## 网络配置
+## Network configuration
 
-网络配置同样通过 SQLite 和 Config App 管理，appId=`platform-network`。
-首次初始化可从根 effect.yaml 的 network 导入：
+Network configuration is likewise managed through SQLite and the Config App, appId=`platform-network`.
+First initialization can import it from `network` in the root effect.yaml:
 
 ```yaml
 network:
@@ -54,22 +54,22 @@ network:
     - {id: alternate, hostname: 127.0.0.1, port: 8081}
 ```
 
-peer可配置 `main:{url,token}`。主节点必须显式配置 `relayToken` 才接受认证中继。
-默认主节点不是公网代理；没有token、未知app、禁止主节点出口的app都不能中继。
-relay endpoint=`/-/network/egress`，传输时隔离节点凭据和目标凭据，流响应原样返回。
-当前实现是HTTP中继，不声称已经实现节点自动发现、端到端VPN、身份颁发或Tailscale功能。
+A peer can configure `main:{url,token}`. The main node must explicitly configure `relayToken` before it accepts authenticated relaying.
+By default the main node is not a public proxy; a missing token, an unknown app, and an app that forbids main-node egress can all not relay.
+relay endpoint=`/-/network/egress`; in transit node credentials and target credentials are kept apart, and streaming responses are returned as they are.
+The current implementation is an HTTP relay; it does not claim to implement node auto-discovery, end-to-end VPN, identity issuance, or Tailscale features.
 
-## agentd / mcpset 当前最小实现与下一阶段
+## agentd / mcpset: the current minimal implementation and the next stage
 
-本轮已加入最小可运行的 `@effect-agent/agentd`、`agentd` 平台 App 和 `mcp-gateway` 的 mcpset registry。
+This round added the minimally runnable `@effect-agent/agentd`, the `agentd` platform App, and `mcp-gateway`'s mcpset registry.
 
-当前已支持：机器/Agent注册、MCP server引用、mcpset、Agent绑定、revision回执、allow/deny工具过滤。
-尚未完成：真实远程MCP transport、announce/heartbeat HTTP协议、Agent配置适配器写入Claude/Codex文件。
+Currently supported: machine/Agent registration, MCP server references, mcpset, Agent binding, revision receipts, allow/deny tool filtering.
+Not yet done: real remote MCP transport, the announce/heartbeat HTTP protocol, the Agent config adapter writing Claude/Codex files.
 
-Board只管理任务与看板数据，接入治理搬到独立能力：
+Board manages only task and board data; access governance moved to an independent capability:
 
 ```text
-机器 agentd → 配置适配中心 → 生成某种Agent的MCP配置
+machine agentd → config adaptation center → generates some Agent's MCP config
                                   │
                             MCP Gateway
                          ┌────────┴────────┐
@@ -77,55 +77,46 @@ Board只管理任务与看板数据，接入治理搬到独立能力：
                     server1/server2    server2/server3
 ```
 
-- Machine：机器身份、在线状态、允许下发的配置范围。
-- Adapter：Claude/Codex等当前配置格式的生成和应用，避免各app改全局文件。
-- McpSet：稳定setId、成员server引用、工具过滤/策略，允许多个set同时存在。
-- Binding：machine/agent实例 → 允许使用的set集合；配置只指向MCP Gateway入口。
-- 配置下发是显式、可验证操作；机器身份和审批不依赖Board任务或提示词。
-- 当前Gateway已在内存pipeline中按binding→mcpset→server/tool policy解析；下一步接入真实MCP transport。
-- 后续MCP Gateway按set独立发现与调用，鉴权在gateway边界，不能只靠URL中的setId。
+- Machine: machine identity, online status, the range of configuration allowed to be pushed.
+- Adapter: generating and applying the current config formats such as Claude/Codex, so that apps do not each edit global files.
+- McpSet: a stable setId, member server references, tool filtering/policy; several sets may exist at the same time.
+- Binding: machine/agent instance → the set of sets it may use; the configuration points only at the MCP Gateway entry.
+- Configuration push is an explicit, verifiable operation; machine identity and approval do not depend on Board tasks or prompts.
+- The Gateway already resolves binding→mcpset→server/tool policy in an in-memory pipeline; the next step is wiring in real MCP transport.
+- Going forward the MCP Gateway discovers and calls per set independently, with authorization at the gateway boundary — it cannot rely on the setId in the URL alone.
 
-不为旧配置/旧schema保留别名、兼容层或自动迁移。旧库不自动删除；不符当前结构时明确报错。
+No aliases, compatibility layers, or automatic migrations are kept for old configuration/old schemas. Old databases are not deleted automatically; when they do not match the current structure, they fail with an explicit error.
 
-## 本阶段已落地（2026-09-08）
+## Landed in this stage (2026-09-08)
 
-- `@effect-agent/agentd`：Machine/Agent 注册、MCP Server 引用、McpSet、Agent binding、revision/applied 回执。
-- `agentd` App：无端口控制面，注册工具由宿主统一提供。
-- `@effect-agent/mcp-registry`：带 token 的 announce/heartbeat/withdraw；token 不进入 server record。
-- `@effect-agent/agentd` GatewayConfigAdapter：只生成指向 Gateway 的 Agent 配置，不暴露真实 MCP server endpoint，不写用户文件。
-- `@effect-agent/mcp-gateway`：McpSet 绑定策略和 streamable-http upstream adapter 已接入；HTTP upstream 使用宿主注入的 EgressRouter fetch。
-- `POST /mcp-gateway/call`：从 `x-agent-id/x-session-id/x-request-id` 获取身份，调用体只携带 setId/serverId/tool/args。
+- `@effect-agent/agentd`: Machine/Agent registration, MCP Server references, McpSet, Agent binding, revision/applied receipts.
+- The `agentd` App: a portless control plane; the host provides the registration tools uniformly.
+- `@effect-agent/mcp-registry`: announce/heartbeat/withdraw with a token; the token does not enter the server record.
+- `@effect-agent/agentd` GatewayConfigAdapter: generates only Agent configuration that points at the Gateway; it exposes no real MCP server endpoint and writes no user files.
+- `@effect-agent/mcp-gateway`: the McpSet binding policy and the streamable-http upstream adapter are wired in; the HTTP upstream uses the host-injected EgressRouter fetch.
+- `POST /mcp-gateway/call`: takes identity from `x-agent-id/x-session-id/x-request-id`; the call body carries only setId/serverId/tool/args.
 
-仍未落地：真实 registry HTTP announce/heartbeat 路由、stdio upstream、Agent 配置文件适配器的实际 apply、节点级身份认证和目标地址策略。
+Still not landed: the real registry HTTP announce/heartbeat routes, stdio upstream, the actual apply of the Agent config file adapter, node-level identity authentication and target-address policy.
 
-## Registry runtime lease（2026-09-08）
+## Registry runtime lease (2026-09-08)
 
-Registry现在提供纯 handler 控制面：
+The Registry now provides a pure-handler control plane:
 
 - `POST /-/registry/announce` + `Authorization: Bearer ...`
 - `POST /-/registry/heartbeat`
 - `DELETE /-/registry/:serverId`
 - `GET /-/registry/servers`
 
-凭据只用于控制面认证，不进入 server record/list。HTTP handler 本身不监听端口，
-由平台宿主决定挂载入口。Gateway upstream 已支持懒连接 streamable-http MCP，
-但 Registry transport resolver 与 stdio transport 仍留待下一阶段；当前静态配置仍可直接提供 endpoint。
+Credentials are used for control-plane authentication only and do not enter the server record/list. The HTTP handler itself does not listen on a port; the platform host decides where to mount the entry. The Gateway upstream already supports lazily connecting streamable-http MCP, but the Registry transport resolver and stdio transport are still left for the next stage; the current static configuration can still supply the endpoint directly.
 
-## 当前 Registry-backed resolver
+## The current Registry-backed resolver
 
-Gateway 已提供 `makeRegistryTransportResolver` 与 `makeRegistryHttpUpstream`：
-每次调用按 serverId 重新读取 Registry，offline/withdraw 后下一次调用立即不可用；
-endpoint 变化会销毁旧 MCP Client 并懒重建。Gateway 不缓存 Registry 的健康状态。
+The Gateway already provides `makeRegistryTransportResolver` and `makeRegistryHttpUpstream`: every call re-reads the Registry by serverId, so after offline/withdraw the next call is immediately unusable; a changed endpoint destroys the old MCP Client and lazily rebuilds. The Gateway does not cache the Registry's health state.
 
-`mcp-registry` App 现在是无端口运行时插件，提供 `/mcp-registry` 查询和 `/-/registry/*`
-租约控制路由。端口仍由平台 listener manager 管理。
+The `mcp-registry` App is now a portless runtime plugin, providing the `/mcp-registry` query and the `/-/registry/*` lease control routes. Ports are still managed by the platform listener manager.
 
-## Shared Registry end-to-end status（2026-09-08）
+## Shared Registry end-to-end status (2026-09-08)
 
-当前平台组合根创建一个共享 Registry，并通过 AppRuntimeContext 注入 `mcp-registry` 与
-`mcp-gateway`。Gateway 配置只保存 `sets`/`bindings`/policy，不保存 server endpoint；
-server topology 由 Registry App 管理，Gateway 每次调用实时解析。
+The current platform composition root creates one shared Registry and injects it into `mcp-registry` and `mcp-gateway` through AppRuntimeContext. Gateway configuration stores only `sets`/`bindings`/policy, never server endpoint; server topology is managed by the Registry App, and the Gateway resolves it live on every call.
 
-标准 Agent MCP 配置的入口是 `/mcp-gateway`：`tools/list` 暴露 `mcp_gateway_call`，
-`tools/call` 读取传输层身份，再按 binding→set→server 执行。旧的自定义
-`/mcp-gateway/call` 与 effect-server `/mcp` 双轨已删除。
+The entry for a standard Agent MCP configuration is `/mcp-gateway`: `tools/list` exposes `mcp_gateway_call`, `tools/call` reads the transport-level identity, then executes by binding→set→server. The old custom `/mcp-gateway/call` and the effect-server `/mcp` dual track have been deleted.

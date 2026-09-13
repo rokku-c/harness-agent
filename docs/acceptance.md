@@ -48,7 +48,7 @@ Legend: [s] suite green · [L] verified live (this build) · [·] evidence link
 Legacy note: A2UI / ui_render were removed in R31; smokes below are historical.
 Last smoke: R5 (real model deepseek-v4-flash, live instance on 3750): catalog ->
 enable ui_render + task_write -> form render -> button click -> task_write -> 
-workspace has "冒烟测试任务-按钮回传". Evidence: SELFUSE.md R5.
+workspace has "冒烟测试任务-按钮回传" ("smoke-test task - button callback"). Evidence: SELFUSE.md R5.
 R9 regression re-run (same build lineage, CLAWYP_PROTECTED=task_write):
   - protected agent write -> pending -> operator approve -> committed (source agent)
   - A2UI form -> button submit -> second protected write -> approve -> landed

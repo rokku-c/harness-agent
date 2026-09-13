@@ -166,7 +166,7 @@ client a tool timeout above that, or keep writes unprotected (the default).
 Protected calls (`MANTIS_PROTECTED=note_write`) hang on the shared
 ManualGate. Every Ask is sent as a REAL DingTalk interactive card
 (`card/instances/createAndDeliver` + `callbackType: "STREAM"`): the owner
-clicks 同意/拒绝 and the button click arrives on the dingtalk-stream
+clicks approve/deny and the button click arrives on the dingtalk-stream
 TOPIC_CARD subscription and resolves the call via its outTrackId - **no text
 parsing, no chat replies, no textual fallback**. An approval channel without
 `[dingtalk] card_template_id` refuses to start (there is no degraded mode).

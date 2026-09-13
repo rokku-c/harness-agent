@@ -1,40 +1,42 @@
-# 动态画布与组件系统方案
+# Dynamic canvas and component system plan
 
-## 结论
+## Conclusion
 
-目标是“声明定义搭积木、运行时由 Agent 编排、渲染器可替换”。画布也是组件，
-因此可以嵌套、互相引用并点击下钻。定义、数据、行为和视觉实现必须分离。
+The goal is "declarations define the building blocks, the Agent composes them at runtime, and the
+renderer is replaceable". A canvas is a component too, so it can nest, reference each other, and be
+clicked to drill down. Definition, data, behaviour, and visual implementation must be separated.
 
-FastMCP 不进核心：仓库已有 TypeScript MCP SDK 与 `ui-agent`，足够暴露工具；
-FastMCP 仅在未来需要 Python 生态时作为独立 bridge。Gradio 不进产品运行时，
-只适合 Python 模型 Demo/验证。
+FastMCP does not go into the core: the repository already has the TypeScript MCP SDK and `ui-agent`,
+which are enough to expose tools; FastMCP serves as a standalone bridge only if a Python ecosystem is
+needed in the future. Gradio does not go into the product runtime;
+it suits Python model demos/validation only.
 
-## 分层与 package
+## Layers and packages
 
-### 主运行时（现有 effect-agent 链）
+### Main runtime (the existing effect-agent chain)
 
-|层|package|职责|性质|
+|Layer|package|Responsibility|Nature|
 |---|---|---|---|
-|L0|`core`|Agent/Until/Op/Binding/Driver 协议|核心、稳定|
-|L1|`model` `channel` `tools`|模型、消息通道、工具/MCP 契约|核心接口；实现可换|
-|L2|`state` `memory`|Store、EventLog、Checkpoint、长期记忆|核心接口；持久化内置|
-|L3|`builtin`|默认 Agent loop、ClaudeCode、providers|内置默认实现|
-|L4|`gate` `schedule` `script`|审批、调度、沙箱脚本|可选内置能力|
-|L5|`assembly`、`apps/*`|组合根、产品 Host|应用层|
+|L0|`core`|Agent/Until/Op/Binding/Driver protocols|core, stable|
+|L1|`model` `channel` `tools`|model, message channel, tool/MCP contract|core interfaces; implementations replaceable|
+|L2|`state` `memory`|Store, EventLog, Checkpoint, long-term memory|core interfaces; persistence built in|
+|L3|`builtin`|default Agent loop, ClaudeCode, providers|built-in default implementations|
+|L4|`gate` `schedule` `script`|approval, scheduling, sandbox scripts|optional built-in capabilities|
+|L5|`assembly`, `apps/*`|composition root, product Host|application layer|
 
-依赖只向上，`assembly` 是唯一组合根；同层通过 Tag/接口协作。
+Dependencies point upward only; `assembly` is the single composition root; the same layer cooperates through Tag/interfaces.
 
-### 动态 UI 链（与主链平行）
+### Dynamic UI chain (parallel to the main chain)
 
-1. `ui-protocol`：DSL、节点、事件、权限、错误；零业务依赖。
-2. `ui-definition`：Component/Canvas 定义、props schema、slots、版本和 catalog。
-3. `ui-runtime`：树/图实例、命令事务、绑定解析、历史、导航栈。
-4. `ui-renderer`：RendererRegistry 与递归渲染 Host；默认 web-html。
-5. `ui-extension`、`ui-sandbox`、`ui-agent`：动态注册、脚本隔离、Agent/MCP 适配。
+1. `ui-protocol`: DSL, nodes, events, permissions, errors; zero business dependencies.
+2. `ui-definition`: Component/Canvas definitions, props schema, slots, versioning and catalog.
+3. `ui-runtime`: tree/graph instances, command transactions, binding resolution, history, navigation stack.
+4. `ui-renderer`: RendererRegistry and the recursive render Host; default web-html.
+5. `ui-extension`, `ui-sandbox`, `ui-agent`: dynamic registration, script isolation, Agent/MCP adaptation.
 
-当前仓库已有这 7 个 UI package，应保持边界，不把 UI 细节塞进 `core`。
+The repository already has these 7 UI packages; keep the boundaries and do not stuff UI detail into `core`.
 
-## 核心数据模型
+## Core data model
 
 ```ts
 type ComponentDef = { type: string; kind: 'base'|'composite'|'canvas';
@@ -44,38 +46,42 @@ type NodeSpec = { id: string; type: string; props?: unknown;
 type CanvasDef = ComponentDef & { kind: 'canvas'; children: NodeSpec[] }
 ```
 
-Registry 只保存声明和 renderer 引用，不保存 React/Vue 实例。组合组件通过
-`NodeSpec` 引用基础或组合类型；CanvasRef 指向任意 CanvasDef。定义(schema)与
-实现(renderer)分离，扩展必须带版本、权限和能力声明。
+The Registry stores only declarations and renderer references, never React/Vue instances. Composite
+components reference base or composite types through `NodeSpec`; a CanvasRef points at any CanvasDef.
+Definition (schema) and implementation (renderer) are separated, and an extension must carry version,
+permission, and capability declarations.
 
-## 数据绑定与下钻
+## Data binding and drill-down
 
-- `DataStore` 保存远程源、缓存和本地状态；`UIDataSource` 通过异步 `read(signal)`
-  接口接入，`syncDataSource` 负责把快照写入 store；每个 Canvas 创建带父链的 `Scope`。
-  可选的 `invalidate()` 用于 mutation 后立即清除 TTL 缓存。
-- 绑定只允许安全路径/表达式：`$scope.user.id`、`$data.sales.items`、`$event.row`；
-  禁止 `eval`。读写动作经过 schema 校验和 Gate。
-- 点击 CanvasRef 产生 `navigate(canvasId, params)`，把参数写入子 Scope，
-  `currentCanvasStack` 支持返回、刷新恢复和深链；子画布默认隔离，按声明读取 `$parent`。
+- `DataStore` holds remote sources, caches, and local state; `UIDataSource` plugs in through the
+  asynchronous `read(signal)` interface, `syncDataSource` writes the snapshot into the store; every
+  Canvas creates a `Scope` carrying its parent chain. Optional `invalidate()` clears the TTL cache
+  immediately after a mutation.
+- Bindings allow only safe paths/expressions: `$scope.user.id`, `$data.sales.items`, `$event.row`;
+  `eval` is forbidden. Read and write actions pass schema validation and the Gate.
+- Clicking a CanvasRef produces `navigate(canvasId, params)`, writing the params into the child Scope;
+  `currentCanvasStack` supports going back, refresh recovery, and deep links; a child canvas is isolated
+  by default and reads `$parent` per declaration.
 
-## 渲染与动态能力
+## Rendering and dynamic capabilities
 
-Renderer 接口接收已解析 Node + Scope，返回挂载句柄和事件出口。可注册
-`web-html`、React/Vue、React Flow/Konva、tldraw、Three/WebGL 等实现；切换
-renderer 只替换句柄，数据和节点 ID 不变。ThemeRegistry 提供全局→画布→节点
-覆盖的 design tokens（CSS variables），换肤无需改 DSL。
+The Renderer interface takes a resolved Node + Scope and returns a mount handle and an event outlet.
+Implementations such as `web-html`, React/Vue, React Flow/Konva, tldraw, Three/WebGL can be registered;
+switching renderer replaces only the handle, leaving the data and node IDs unchanged. ThemeRegistry
+provides design tokens (CSS variables) overridden global→canvas→node, so re-skinning needs no DSL change.
 
-复杂或高风险逻辑使用 `DynamicScriptHost`：脚本运行在 Worker/iframe/QuickJS
-沙箱，通过 capability 注入数据和动作，只能更新声明状态，不能直接操作宿主 DOM。
+Complex or high-risk logic uses `DynamicScriptHost`: the script runs in a Worker/iframe/QuickJS
+sandbox, receives data and actions through capability injection, can only update declaration state,
+and cannot operate the host DOM directly.
 
-## Agent API 与落地顺序
+## Agent API and landing order
 
-Agent 只调用命令：`registry.list/register`、`canvas.create/insert/link`、
-`node.patch/remove`、`binding.set`、`set-data`、`navigate`、`theme.set`。命令可审计、可回放，
-并由 `ui-agent` 映射为 MCP；节点事件可用 `set_data` action 更新 DataStore，
-同样会转成 `set-data` 命令。主题 registry 将 token 注入 renderer context；未来
-FastMCP bridge 也只做协议转换。
+The Agent calls commands only: `registry.list/register`, `canvas.create/insert/link`,
+`node.patch/remove`, `binding.set`, `set-data`, `navigate`, `theme.set`. Commands are auditable and
+replayable, and `ui-agent` maps them to MCP; a node event can update the DataStore with the `set_data`
+action, which likewise turns into a `set-data` command. The theme registry injects tokens into the
+renderer context; a future FastMCP bridge does protocol conversion only.
 
-实施顺序：先冻结 protocol/definition schema → 补 runtime 事务与持久化 → 默认
-web renderer/CanvasRef 下钻 → theme 与 renderer 热插拔 → sandbox → 协作/远程插件。
-每阶段保持现有测试与每文件 100 行 lint 约束。
+Implementation order: freeze the protocol/definition schema first → fill in runtime transactions and
+persistence → default web renderer/CanvasRef drill-down → theme and renderer hot-swap → sandbox →
+collaboration/remote plugins. Every stage keeps the existing tests and the 100-line-per-file lint constraint.

@@ -1,54 +1,56 @@
-# 统一到 MCP(2026-07-28 新版)的设计映射
+# Design mapping for unifying on MCP (2026-07-28 revision)
 
-目标:除了**权限**(作为 MCP 之上的 facade 层),所有跨 app 的注册与通信都只走
-**Model Context Protocol** 最新版(2026-07-28 时代,modern era)——
-不再维护自研的 announce/call/…;`packages/effect-mesh`(自研 JSON-RPC)已随之**删除**。
+Goal: apart from **permissions** (a facade layer on top of MCP), all cross-app registration and
+communication goes only through the latest **Model Context Protocol** (the 2026-07-28 era, modern
+era) — the self-made announce/call/… is no longer maintained; `packages/effect-mesh` (self-made
+JSON-RPC) has been **deleted** along with it.
 
-## 映射表(planes → MCP)
+## Mapping table (planes → MCP)
 
-| effect 层 | MCP(2026-07-28) |
+| effect layer | MCP (2026-07-28) |
 |---|---|
-| app 注册/回连 | 每个 app = 一个 **MCP server**;主节点 = MCP **client**,连接后跑
-  `server/discover`(modern 探活+能力+extensions+versions)→ 注册 |
-| 接口 plane | **tools**(`tools/list` 返回带 inputSchema 的工具;`tools/call` 执行) |
-| UI plane | **resources**:`ui://…` 资源由 `resources/list`/`resources/read` 提供;
-  会话内渲染走 MCP Apps(`_meta.ui.resourceUri`,host 拉取 → 沙箱 iframe → `ui/*`) |
-| 存储 plane | **resources** 读写(`resources/read`;写通过暴露的写 tool 或
-  resources/templates + modern subscriptions/listen 推送变更) |
-| config plane | 一个只读 resource(`config://ns/app`) + 一个写 tool(`config_set`) |
-| namespace | 落在 **server/工具命名**与连接隔离:`ns__app__tool`(对齐 dsh
-  `mcp__<server>__<tool>`);每个 ns 一个独立 server/client 对,天然隔离 |
-| 双向(home→app UI push) | modern **subscriptions/listen** + notifications/subscriptions/acknowledged;
-  或 MCP Apps 的 host→app push(2026-07-28 语义) |
-| 远程/嵌入 | streamable-http(modern、sessionless)或 stdio;同进程用
-  **InMemoryTransport**(同一协议、零网络) |
-| 权限 | MCP 之上的一层 facade:home 在转发 `tools/call` / `resources/read` 前先查
-  effect-planes 授权表(plane 粒度),拒绝就不发 MCP 请求 → 审计记录 |
+| app registration/callback | each app = one **MCP server**; the main node = MCP **client**, which after connecting runs
+  `server/discover` (modern liveness + capabilities + extensions + versions) → registration |
+| interface plane | **tools** (`tools/list` returns tools carrying an inputSchema; `tools/call` executes) |
+| UI plane | **resources**: `ui://…` resources are served by `resources/list`/`resources/read`;
+  in-session rendering goes through MCP Apps (`_meta.ui.resourceUri`, host fetches → sandboxed iframe → `ui/*`) |
+| storage plane | **resources** read/write (`resources/read`; writes via an exposed write tool or
+  resources/templates + modern subscriptions/listen pushing changes) |
+| config plane | one read-only resource (`config://ns/app`) + one write tool (`config_set`) |
+| namespace | lives in **server/tool naming** and connection isolation: `ns__app__tool` (aligned with dsh
+  `mcp__<server>__<tool>`); one independent server/client pair per ns, isolated by construction |
+| bidirectional (home→app UI push) | modern **subscriptions/listen** + notifications/subscriptions/acknowledged;
+  or MCP Apps' host→app push (2026-07-28 semantics) |
+| remote/embedded | streamable-http (modern, sessionless) or stdio; in-process uses
+  **InMemoryTransport** (same protocol, zero network) |
+| permissions | a facade layer above MCP: home consults the
+  effect-planes authorisation table (plane granularity) before forwarding `tools/call` / `resources/read`;
+  a denial means no MCP request is sent → audit record |
 
-## 关键点
+## Key points
 
-- **In-memory 也是真 MCP**:进程内 app 用 `InMemoryTransport` 一对,home client 与
-  app server 之间就是标准 MCP initialize/discover/tools。这样“进程内 vs 远程”零差异。
-- **不再有自研 wire**:自研 mesh 已删除(2026-09-13);跨 app 通信一律走 MCP 方法。
-- **SDK 版本**:仓库当前 `@modelcontextprotocol/sdk ^1.30`;2026-07-28 的 modern
-  方法(server/discover、subscriptions/listen、Mcp-* headers 等)需把 SDK 升到支持
-  “modern era”的版本,升级前先用其兼容子集(initialize/tools/list/call/resources/read)。
-- 命名隔离:工具名带 `ns__app` 前缀;跨 ns 权限由 facade 决定,名字唯一性由 ns 保证。
+- **In-memory is also real MCP**: an in-process app uses a pair of `InMemoryTransport`, so between home client and
+  app server it is standard MCP initialize/discover/tools. That way "in-process vs remote" has zero difference.
+- **No more self-made wire**: the self-made mesh has been deleted (2026-09-13); cross-app communication always goes through MCP methods.
+- **SDK version**: the repo currently has `@modelcontextprotocol/sdk ^1.30`; the 2026-07-28 modern
+  methods (server/discover, subscriptions/listen, Mcp-* headers, etc.) require upgrading the SDK to a version that supports
+  the "modern era"; before upgrading, use its compatible subset (initialize/tools/list/call/resources/read).
+- Naming isolation: tool names carry the `ns__app` prefix; cross-ns permissions are decided by the facade, and name uniqueness is guaranteed by the ns.
 
-## Phase 落地
+## Phase rollout
 
-- **B-MCP【已完成】**:进程内 app=**MCP server**(packages/effect-mcp buildNodeMcpServer),
-  home=**MCP client** InMemory 注册/转发(`connectNodeToHome`),命名 `ns::appId`。
-- **C【已完成】**:ui/store 作为 **MCP resources** 暴露(`ui://`、`store://{key}` template),
-  home `resources/list|read` 读取(connectNodeToHome.resources/readResource)。
-- **D【已完成,SDK 1.30 web-standard】**:packages/effect-mcp-http `serveMcpHttp` 用
-  `WebStandardStreamableHTTPServerTransport` 把 node 的 MCP server 暴露成 Bun HTTP
-  (per-request fresh transport 规避 GHSA-345p-7cg4-v4c7;GET→405 回退 POST JSON);
-  远端 MCP client 直连成功。2026-07-28 modern 的 server/discover 等需后续升 SDK。
-- 新增 console app:apps/mcp-registry-app、apps/mcp-gateway-app(统一 configSchema + UI)。
+- **B-MCP [done]**: an in-process app = **MCP server** (packages/effect-mcp buildNodeMcpServer),
+  home = **MCP client** InMemory registration/forwarding (`connectNodeToHome`), naming `ns::appId`.
+- **C [done]**: ui/store exposed as **MCP resources** (`ui://`, `store://{key}` template),
+  read by home `resources/list|read` (connectNodeToHome.resources/readResource).
+- **D [done, SDK 1.30 web-standard]**: packages/effect-mcp-http `serveMcpHttp` uses
+  `WebStandardStreamableHTTPServerTransport` to expose a node MCP server as Bun HTTP
+  (per-request fresh transport avoids GHSA-345p-7cg4-v4c7; GET→405 falls back to POST JSON);
+  a remote MCP client connects directly. The 2026-07-28 modern server/discover etc. need a later SDK upgrade.
+- New console apps: apps/mcp-registry-app, apps/mcp-gateway-app (unified configSchema + UI).
 
-- **数据渲染/agent 读取【已完成】**:effect-ui 声明节点支持 `bind`(JSON pointer)→ 投影成
-  json-render `{$bindState:…}`(text/button/formField);数据由 render 时注入(state)。
-  `packages/effect-apps` 提供 MCP 入口:`apps_list / app_read(ui|state|config|store) /
-  app_call`,per-op 授权后浏览+操作任意 namespace 的 app —— agent 读的是数据平面
-  (spec+state+config+store),不是渲染后的 DOM。
+- **Data rendering/agent reading [done]**: effect-ui declaration nodes support `bind` (JSON pointer) → projected into
+  json-render `{$bindState:…}` (text/button/formField); data is injected at render time (state).
+  `packages/effect-apps` provides the MCP entry points: `apps_list / app_read(ui|state|config|store) /
+  app_call`, browsing and operating any namespace's apps after per-op authorisation — what the agent reads is the data plane
+  (spec+state+config+store), not the rendered DOM.

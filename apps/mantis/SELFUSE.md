@@ -4,7 +4,7 @@ Found by using the system as a real user (real model, live HTTP flows), not by
 code reading. Each entry: symptom -> root cause -> fix (or backlog).
 
 ## Fixed
-1. Conversation memory was dead. "我上次和你说过什么话" always came back empty.
+1. Conversation memory was dead. "我上次和你说过什么话" ("what did I tell you last time?") always came back empty.
    - cause: history binding used `Effect.succeed`, which eagerly snapshots the
      transcript at session creation -> frozen forever. The agent never saw its
      later turns.
@@ -38,13 +38,13 @@ code reading. Each entry: symptom -> root cause -> fix (or backlog).
   chat", which is acceptable UX but leaves the form button half-wired.
 ## Acceptance round 2 (independent subagent, real model, port 3740)
 ALL PASS, no issues found:
-- 记录三件事 task: msg+tool timeline complete, seq 1..22 strictly continuous, no duplicates.
-- MEMORY SPOT CHECK PASSED: second message "我刚才让你记的第一件事是什么?" -> agent answered
-  "第一件事是「周末买牛奶」" after recall_notes hits on e1/e2 notes.
+- 记录三件事 ("record three things") task: msg+tool timeline complete, seq 1..22 strictly continuous, no duplicates.
+- MEMORY SPOT CHECK PASSED: second message "我刚才让你记的第一件事是什么?" ("what is the first thing I asked you to remember?") -> agent answered
+  "第一件事是「周末买牛奶」" ("the first thing is 'buy milk this weekend'") after recall_notes hits on e1/e2 notes.
 - /api/ui/latest + /api/events?after=0 healthy JSON; zero non-200, zero process exits, clean warn logs.
 
 ## Round 2 findings (self-use + acceptance round 1 report + robustness)
-- Acceptance round 1 (independent, real model, on OLD pre-fix code): "记录待办" task
+- Acceptance round 1 (independent, real model, on OLD pre-fix code): "记录待办" ("record a todo") task
   FAILED 4/4 - final replies never conformed to the FinalReply JSON contract
   (DecodeError -> AgentFailure -> no reply). Also observed the crash (now fixed).
 - FIX (P0-2): structured-output recovery.
@@ -57,7 +57,7 @@ ALL PASS, no issues found:
      (apps/clawyp/src/agent.ts).
   Tests: test/robustness.test.ts (4). Full suite 176 green, scoped tsc clean.
 - VERIFIED LIVE after the fix (real model deepseek-v4-flash):
-  * the exact task that failed 4/4 now replies in ~12s ("记三件事" -> notes +
+  * the exact task that failed 4/4 now replies in ~12s ("记三件事" ("record three things") -> notes +
     reminder, with an assistant reply).
   * a ui_render card task also replies in ~10s with a rendered surface.
 - Chrome headless (remote-debugging + CDP over WebSocket, no deps) is available at
@@ -82,7 +82,7 @@ ALL PASS, no issues found:
   FIX: tools.ts ui_render description now teaches data-path bindings for forms.
 - VERIFIED IN A REAL BROWSER (Chrome headless + CDP, no deps): after fixes the
   Agent UI renders; typing into the bound TextField and clicking submit produced
-  POST /api/ui/action {"action":"submit_task","values":{"task":"读A2UI协议45分钟"}}
+  POST /api/ui/action {"action":"submit_task","values":{"task":"读A2UI协议45分钟"}} ("read the A2UI protocol for 45 minutes")
   and the real agent then note_wrote + set_reminder'd the task and replied.
   TextField -> data model -> action.context -> conversation round trip WORKS.
 ## Round 3 closing: approval flow verified live
@@ -185,7 +185,7 @@ CLAWYP_WORKSPACE_FILE (explicit env; default unchanged, per-session stores).
 Release smoke (live, real model): tools_catalog -> enable ui_render +
 task_write -> A2UI form with TextField(/form/task) + Button submit_task ->
 POST /api/ui/action {action:submit_task, values:{task:...}} -> agent receives
-[ui.action], writes task "冒烟测试任务-按钮回传" into the shared workspace ->
+[ui.action], writes task "冒烟测试任务-按钮回传" ("smoke-test task - button callback") into the shared workspace ->
 GET /api/workspace shows it. Full loop green.
 
 ## Product goal R6 (product truth + record provenance)
@@ -227,7 +227,7 @@ Acceptance matrix R9 re-run on the current build with CLAWYP_PROTECTED=task_writ
      committed, source "agent" (live).
   2) A2UI form render (real model) -> button click [ui.action] -> agent now
      ACTS on it (guidance below) -> task_write pending -> approve -> the form
-     task "受保护表单任务" lands with source "agent".
+     task "受保护表单任务" ("protected form task") lands with source "agent".
   3) operator seed record stays source "ui".
 Agent-use finding: on a form submit the model initially replied "rendered
 confirm UI, waiting for your decision" instead of writing (a protected write
@@ -384,10 +384,10 @@ Evidence:
   (approver log /tmp/mantis-trial/approver.log).
 - discovery after fix: GET /api/workspace capabilities[10] incl update_record/delete_record.
 
-## Product goal R22 (product pivot: 数字 worker + restrained dark UI)
+## Product goal R22 (product pivot: digital worker + restrained dark UI)
 User verdict on R21: clay skin wrong, IA cluttered - canvas v1 approved with
-the positioning corrected by the user: "要一个和人一样能处理工作，但更快、
-更可并行的 agent"。So mantis = a digital colleague: you delegate work, it
+the positioning corrected by the user: "one that can handle work like a person, but
+faster and more parallel". So mantis = a digital colleague: you delegate work, it
 drives multiple work lines (one conversation each) with durable memory,
 writes into the shared workspace with provenance, asks for approval on
 protected writes; you supervise.
@@ -396,31 +396,31 @@ protected writes; you supervise.
   dense, blue accent, primaryShade 6); app-shell forceColorScheme="dark";
   style.css rebuilt: no decorative layer, only A2UI dark remap + R19
   responsive chrome; index.html keeps style.css after app-shell.css.
-- IA收敛 3+1: App.tsx nav now 会话 / 工作区 / 审批 (+右上最小状态: 审批门/
-  已轮询)。Agent UI + Events tabs removed from the shell (views kept in the
+- IA converges on 3+1: App.tsx nav now Conversations / Workspace / Approvals (+ a minimal top-right
+  status: approval gate/polled). Agent UI + Events tabs removed from the shell (views kept in the
   tree, unreachable); header/badges/status Chinese; store source filter
-  全部/操作者(ui)/Agent; approvals copy describes the gate; ChatView copy:
-  工作线/派活/发送/你 vs mantis.
+  All/Operator (ui)/Agent; approvals copy describes the gate; ChatView copy:
+  work line/delegate/send/you vs mantis.
 Verified headless at :3737 (pm2 live): scheme dark (body #242424), 3 zh
 tabs wide, workspace/approvals/chat screens render, compact 390x844 bottom
-nav 会话/工作区/审批 pinned, zero overflow both sizes. Screenshots
+nav Conversations/Workspace/Approvals pinned, zero overflow both sizes. Screenshots
 /tmp/r22-1600.png + /tmp/r22-390.png. 231 tests green (38 files), tsc clean.
 R23 plan: parallel work lines demo (two tasks at once, both complete) then a
 photo review with the user.
 
-## R21 全视口 UI 扫描（Store 行内编辑/删除 · 2026-09-03）
-临时实例（MANTIS_UI_DIR=/tmp/msweep, :3799, 播种 5 条记录 note/task/reminder）用 Puppeteer 驱动 Chrome 152 验证：
-- 视口 1600×900 / 1024×768 / 768×1024 / 390×844 / 360×640：doc 均无横向/纵向溢出；工作区 3 资源卡片 5 行全部渲染，行内 edit/delete 可见（360 下有 2 个需容器内滚动）；行内按钮 22×22px（<44px，触控偏小——见下）。
-- 编辑 E2E（桌面）：点 edit → 输入聚焦 → 追加文本 Enter → PATCH 200 落盘（jsonl 两条 update op，文本回读含追加串）。
-- 删除 E2E（桌面）：confirm dialog "删除这条记录？" → DELETE 200 → 行移除 + `{"op":"delete","id":…}` tombstone 落盘。
-- 全链路零 JS 异常（空闲 15s 亦稳定）。
-遗留：① 行内动作按钮 22px 对粗指针偏小，建议 coarse-pointer 提升至 ≥34px（对齐 board 的做法）；② 390px 触屏模拟下自动化键盘存盘不稳定（桌面正常），建议真机虚拟键盘过一遍。
+## R21 full-viewport UI sweep (Store inline edit/delete · 2026-09-03)
+A temporary instance (MANTIS_UI_DIR=/tmp/msweep, :3799, seeded with 5 records note/task/reminder), verified with Puppeteer driving Chrome 152:
+- Viewports 1600×900 / 1024×768 / 768×1024 / 390×844 / 360×640: no horizontal/vertical doc overflow anywhere; the workspace's 3 resource cards render all 5 rows, inline edit/delete visible (at 360 two of them need in-container scrolling); inline buttons 22×22px (<44px, small for touch - see below).
+- Edit E2E (desktop): click edit → input focused → append text Enter → PATCH 200 on disk (two update ops in the jsonl, the text read back contains the appended string).
+- Delete E2E (desktop): confirm dialog "删除这条记录？" ("delete this record?") → DELETE 200 → row removed + `{"op":"delete","id":…}` tombstone on disk.
+- Zero JS exceptions across the whole path (stable while idle for 15s as well).
+Leftovers: ① the 22px inline action buttons are small for a coarse pointer; suggest raising to ≥34px under coarse-pointer (matching board's approach); ② under the 390px touch simulation, automated keyboard-driven saves are unstable (desktop is fine); suggest one pass with a real device's virtual keyboard.
 
-## R22 粗指针触控目标（2026-09-03）
-修复 R21 遗留：工作区行内编辑/删除按钮 22px → ≥36px。纯样式（style.css 在 Mantine 之后加载）：
-- mantis：`[data-kind]` 作用域下 ActionIcon/Button/TextInput 在 `@media (pointer: coarse)` 时 min-height/宽 36px。
-- board Worktable：行内操作 ActionIcon 与筛选 chips 同规则 36px。
-验证（Puppeteer + Chrome 152, 390×844 isMobile+touch）：两侧 `(pointer: coarse)` 均命中；board 行内 36×36、chip 57×36；mantis edit/delete 36×36、添加按钮 57×36；均无横向溢出、零 JS 异常。
+## R22 coarse-pointer touch targets (2026-09-03)
+Fixes the R21 leftovers: workspace inline edit/delete buttons 22px → ≥36px. Pure styling (style.css loads after Mantine):
+- mantis: under the `[data-kind]` scope, ActionIcon/Button/TextInput get min-height/width 36px under `@media (pointer: coarse)`.
+- board Worktable: inline-action ActionIcon and filter chips follow the same 36px rule.
+Verified (Puppeteer + Chrome 152, 390×844 isMobile+touch): `(pointer: coarse)` matches on both sides; board inline 36×36, chip 57×36; mantis edit/delete 36×36, add button 57×36; no horizontal overflow either side, zero JS exceptions.
 
 ## R23 - no silent data loss (2026-09-03)
 Trials flagged two frictions: silent "…" truncation of long tool payloads and no
@@ -442,7 +442,7 @@ MANTIS_PROTECTED=note_write,task_write, approve timeout 300s, separate
 ui/workspace/memory under /tmp/mantis-ap):
 - Approve: agent asked to note_write; /api/state showed 1 pending
   {tool:note_write, session:"approve-me"}; the panel rendered the zh card
-  (等待操作者 + tool + session + 同意/拒绝 - screenshot /tmp/r24-card.png);
+  (waiting for operator + tool + session + approve/deny - screenshot /tmp/r24-card.png);
   resolve allow=true -> agent resumed and the record landed with source=agent.
 - Deny: task_write from "approve-deny" pending -> resolve allow=false ->
   agent still replied but NO task record exists (gate held).
@@ -455,14 +455,14 @@ Evidence summary JSON kept in round notes; screenshots /tmp/r24-card.png.
 231 tests green, tsc clean. R23 parallel results unaffected.
 
 ## R23b - REST/MCP cap path fix (2026-09-03)
-R23 单元绿后做真实接口冒烟（临时实例 :3800，REST /api/workspace）：
-超限(50001) add/patch 曾返回 500 "JSON Parse error" —— 两个根因：
-① mcp.ts zod schema 曾写死 max(4000)（且与域上限不一致）; ② zod 违规走 SDK 原始报错，
-append/update 抛错未被转译。修复：zod 只保结构（min(1)），域上限(MAX_RECORD_TEXT=50_000)
-为唯一权威；mcp 写/改 handler try/catch 把 Error 转成 isError "error: ..."。
-现在：10k 正常写入 ok；50001 add/patch → HTTP 200 {ok:false, detail:"record text exceeds 50000 characters (got 50001)"}；
-坏 kind 同样优雅；原记录不受污染。mcp.test 新增 2 例（oversized append 不落库、
-oversized update 不破坏原记录），套件 94→96 pass (377 expects)；scoped tsc 干净。
+After R23's units went green, ran a real-interface smoke test (temporary instance :3800, REST /api/workspace):
+Oversized (50001) add/patch used to return 500 "JSON Parse error" - two root causes:
+① mcp.ts zod schema hard-coded max(4000) (and disagreed with the domain limit); ② a zod violation went through the SDK's raw error,
+so the throw from append/update was never translated. Fix: zod keeps structure only (min(1)), and the domain limit (MAX_RECORD_TEXT=50_000)
+is the single authority; the mcp write/update handler's try/catch turns the Error into isError "error: ...".
+Now: a 10k write is fine; 50001 add/patch → HTTP 200 {ok:false, detail:"record text exceeds 50000 characters (got 50001)"};
+a bad kind is equally graceful; the original record is not polluted. mcp.test gains 2 cases (oversized append is not persisted,
+oversized update does not damage the original record); suite 94→96 pass (377 expects); scoped tsc clean.
 
 ## Product goal R25 (external agent over MCP stdio + hygiene + stability)
 - Fixed a real defect: the MCP stdio server logged to STDOUT (consoleSink uses
@@ -474,7 +474,7 @@ oversized update 不破坏原记录），套件 94→96 pass (377 expects)；sco
   workspace operator-surface getter, state(), restoreUi + module eventHook)
   against the real consumer surface (mcp.ts tools, server routes).
 - The live model gateway began requiring BAIZHI_API_KEY around 17:0x local
-  (401 "缺少 API Key"); no key exists in this shell/pm2 envs, so live-model
+  (401 "缺少 API Key" ("missing API key")); no key exists in this shell/pm2 envs, so live-model
   runs are paused until the user supplies it. Earlier live evidence (R22-R24)
   predates the auth flip and stands.
 - Added apps/mantis/test/console-flow.test.ts: the console roundtrip now has
@@ -514,7 +514,7 @@ oversized update 不破坏原记录），套件 94→96 pass (377 expects)；sco
 - New visual review package of the current product UI (evidence files):
   /tmp/r27-1600-chat.png, /tmp/r27-1600-workspace.png,
   /tmp/r27-1600-approvals.png, /tmp/r27-390-chat.png - shot against the live
-  3737 console (dark restrained theme, 会话/工作区/审批 tabs, mobile 390).
+  3737 console (dark restrained theme, Conversations/Workspace/Approvals tabs, mobile 390).
 - Full regression: 251 tests / 42 files green, tsc clean.
 - Live-model blocker (BAIZHI_API_KEY missing since the gateway enforced auth)
   is at its third goal round; model-free work continues meanwhile.
@@ -583,7 +583,7 @@ oversized update 不破坏原记录），套件 94→96 pass (377 expects)；sco
 - Changes are NOT committed yet (awaiting approval after visual review).
 
 ## Product goal R31 (A2UI removed - superseded by user direction)
-- User: "A2UI不需要了，太过时了". Removed the whole A2UI surface end-to-end:
+- User: "A2UI is no longer needed, it is too dated". Removed the whole A2UI surface end-to-end:
     tools: ui_render op + tools/build/ui.ts + capability decl/impl ui.render
     store: UiStore + console/ui-ops.ts + a2ui/ parser dirs (webui + panel)
     console: acceptUi/restoreUi/state.ui + snapshot consoleState cleanup

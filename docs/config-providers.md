@@ -1,15 +1,15 @@
-# 当前配置与多上游（2026-09-08）
+# Current config and multiple upstreams (2026-09-08)
 
-## 权威配置
+## Authoritative config
 
-默认数据库 `.effect-agent/config.sqlite`，表 `app_config` 保存完整值、来源和revision。
-首次创建配置按 `schema defaults < effect.yaml config < 显式override` 校验后落库。
-之后SQLite为权威；更新YAML不会覆盖已保存值。
+The default database is `.effect-agent/config.sqlite`, table `app_config` stores the full value, sources and revision.
+The first creation of the config is validated as `schema defaults < effect.yaml config < explicit override` and then written to the database.
+After that SQLite is authoritative; updating YAML does not overwrite saved values.
 
-**不支持旧格式、不自动迁移、不自动删库。** 旧数据库结构或旧配置字段不符合当前契约时明确报错。
-操作者自行决定备份、重建或重新填写；测试不会操作真实配置库。
+**No old-format support, no automatic migration, no automatic database drop.** When an old database structure or an old config field does not match the current contract it errors explicitly.
+The operator decides whether to back up, rebuild or refill; tests never touch the real config database.
 
-## 多个命名上游
+## Multiple named upstreams
 
 ```yaml
 config:
@@ -28,32 +28,32 @@ config:
       apiKey: YOUR_KEY_C
 ```
 
-- 数量不限；id唯一；apiType可重复，表示协议而非厂商或单选上游。
-- `enabled:false`停用该项。默认按协议筛选后轮询，可用`x-upstream-id`显式选择。
-- 显式目标不存在、被停用或协议不匹配则失败，不偷偷切换其它上游。
-- 未配置provider时返回503，未知path返回404，无环境变量或内置URL回退。
-- 选择上游之后才通过SDK选择出口（本机/主节点）；详见`platform-network.md`。
-- 三种协议path：`/v1/chat/completions`、`/v1/responses`、`/v1/messages`。
-- 上游鉴权由apiType决定；不拿客户请求凭据补配置，不转发内部选择头。
-- baseURL可含前缀或尾部/v1，流请求/响应保留；失败不自动重放。
+- Unbounded count; id is unique; apiType may repeat, denoting a protocol rather than a vendor or a single-select upstream.
+- `enabled:false` disables the entry. By default it filters by protocol and then round-robins; `x-upstream-id` selects explicitly.
+- An explicit target that does not exist, is disabled, or has a mismatched protocol fails; it does not silently switch to another upstream.
+- With no provider configured it returns 503, an unknown path returns 404, and there is no environment-variable or built-in URL fallback.
+- Only after the upstream is chosen is the egress (local/main node) chosen through the SDK; see `platform-network.md`.
+- Three protocol paths: `/v1/chat/completions`, `/v1/responses`, `/v1/messages`.
+- Upstream auth is determined by apiType; the client request's credentials are not used to fill in config, and internal selection headers are not forwarded.
+- baseURL may contain a prefix or a trailing /v1; streaming requests/responses are preserved; a failure is not replayed automatically.
 
-## UI与生效
+## UI and taking effect
 
-`/console` → CONFIGURATION → ai-gateway。providers是可新增/删除的数组表单，
-每项填写id、apiType、baseURL、key和enabled；可以同时添加多个相同协议上游。
-监听端口不属于ai-gateway配置，归`platform-network`的listeners；独立入口自管端口。
+`/console` → CONFIGURATION → ai-gateway. providers is an array form that can be added to and removed from,
+each entry fills in id, apiType, baseURL, key and enabled; several upstreams of the same protocol can be added at the same time.
+The listening port is not part of ai-gateway config, it belongs to `platform-network`'s listeners; a standalone entry manages its own port.
 
-- 保存并应用：验证 → SQLite → active配置 → 重新加载。
-- 保存待重启：只写SQLite，运行时继续用旧active。
-- 应用已保存配置：显式切换；重启也会激活已保存值。
-- optional字段清空用unset，含schema默认的字段恢复默认值，不重新继承YAML。
+- Save and apply: validate → SQLite → active config → reload.
+- Save pending restart: writes SQLite only, the runtime keeps using the old active config.
+- Apply saved config: an explicit switch; a restart also activates the saved value.
+- Clearing an optional field uses unset; a field with a schema default is restored to its default rather than re-inheriting YAML.
 
-HTTP：
+HTTP:
 
-- `GET /console/api/config/:id`：schema/value/sources/revision/pendingRestart。
-- `POST /console/api/config/:id`：`{override,strategy:"apply"|"restart",unset?:string[]}`。
-- `POST /console/api/config/:id/apply`：应用已保存值。
+- `GET /console/api/config/:id`: schema/value/sources/revision/pendingRestart.
+- `POST /console/api/config/:id`: `{override,strategy:"apply"|"restart",unset?:string[]}`.
+- `POST /console/api/config/:id/apply`: applies the saved value.
 
-数组整体替换，普通字段按顶层patch；非法保存不更改原配置。
-配置内有凭据，数据库和备份应作为敏感文件保护。Agent配置plane默认不可读；
-操作员配置入口是可信本机管理面，不是已实现远程身份认证的管理服务。
+An array is replaced as a whole, ordinary fields are patched at the top level; an invalid save does not change the original config.
+The config contains credentials, so the database and its backups should be protected as sensitive files. The agent config plane is not readable by default;
+the operator config entry point is a trusted local management surface, not a management service with implemented remote authentication.

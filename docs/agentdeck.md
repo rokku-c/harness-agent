@@ -1,343 +1,343 @@
-# agentdeck - 主流 agent 中间抽象控制（产品组件第 1 阶段）
+# agentdeck - middle-abstraction control over mainstream agents (product component, phase 1)
 
-落点：packages/agentdeck（monorepo 内新包，目录即"里面找的地方"）。
+Where it lands: packages/agentdeck (a new package in the monorepo; the directory is the "place to look inside").
 
-三面覆盖（v1 已完成并验证）：
-- 流程控制 SessionGateway + AgentDeck 注册聚合（effect / cli 适配器）
-- session->consent 账本 ConsentLedger（含 auto-approve 策略与决议留痕）
-- 配置统一映射 normalizeConfig（方言字段→统一 model/命令/超时；extra 无损）
+Three surfaces covered (v1 done and verified):
+- Flow control: SessionGateway + AgentDeck registration aggregation (effect / cli adapters)
+- session->consent ledger ConsentLedger (with auto-approve policy and a record of decisions)
+- Unified config mapping normalizeConfig (dialect fields→unified model/command/timeout; extra lossless)
 
-复用既有层：effect 适配器直接驱动 @effect-agent/builtin EffectAgent；
-@effect-agent/builtin 已含 ClaudeCode(agent-sdk) 驱动，可作为 claude-code 的
-进程内变体（下阶段接入）。
+Reuses existing layers: the effect adapter drives @effect-agent/builtin EffectAgent directly;
+@effect-agent/builtin already contains the ClaudeCode(agent-sdk) driver, usable as the
+in-process variant of claude-code (wired up next phase).
 
-验证：7 条组件测试 + 全套 261/44 绿，tsc 基线干净。
+Verification: 7 component tests + full suite 261/44 green, tsc baseline clean.
 
-下一层（产品封装，下阶段）：在 agentdeck 上做"控制室"——跨 agent 会话列表、
-consent 待办/审批、统一配置编辑与 diff。
+Next layer (product packaging, next phase): build the "control room" on agentdeck — cross-agent
+session list, consent to-dos/approvals, unified config editing and diff.
 
 
-## 产品封装 · deckconsole（阶段 2，round 3 打磨完成）
-apps/deckconsole：HTTP 控制室。v1 三面 API + demo agent；本轮加：
-- 快捷启动组 launchers（boot 注入或 DECK_AGENTS 环境变量 JSON，页面上直接点开会话）
-- 每 kind 配置样例 + 页面"载入样例"（claude-code 方言字段/许可模式等直观可见）
-- 同意历史 API（GET /api/consent，含已决条目与 by/时间戳）
-验证：deckconsole e2e 4 条；全套 265+ 条 0 fail；tsc 干净；实起冒烟含 env launcher。
+## Product packaging · deckconsole (phase 2, polish complete at round 3)
+apps/deckconsole: an HTTP control room. v1 three-surface API + demo agent; this round adds:
+- Quick launch groups, launchers (injected at boot or via the DECK_AGENTS env JSON; open a session straight from the page)
+- A config sample per kind + "load sample" on the page (claude-code dialect fields / permission modes visible at a glance)
+- Consent history API (GET /api/consent, with decided entries and by/timestamp)
+Verification: deckconsole e2e 4; full suite 265+ 0 fail; tsc clean; live smoke includes the env launcher.
 
 
-## 产品迭代（round 5）
-- SessionGateway 新增可选 history()（transcript）；demo/effect 适配器记录逐轮消息
-- 产品新端点 GET /api/session/:id/history（transcript + 该 session 的同意日志）
-- 页面「详情」：点击会话行查看对话记录与同意台账（含 by/状态/时间）
-验证：deckconsole e2e 5 条；全套 266/45 0 fail；tsc 干净；浏览器实测详情面板渲染。
+## Product iteration (round 5)
+- SessionGateway gains an optional history() (transcript); demo/effect adapters record per-turn messages
+- New product endpoint GET /api/session/:id/history (transcript + that session's consent log)
+- Page "detail": click a session row to see the conversation record and the consent ledger (with by/status/time)
+Verification: deckconsole e2e 5; full suite 266/45 0 fail; tsc clean; detail panel rendering checked in a real browser.
 
 
-## 产品迭代（round 6）
-- agentdeck 新增 claude-cc 进程内变体（复用 builtin ClaudeCode 驱动包装 anthropic
-  claude-agent-sdk）：统一配置→driver 选项；send = 一次 driver.run(until text)；
-  transcript 一致（claude-sdk.ts）。kind 加入 AgentKind/KNOWN_KINDS。
-- deckconsole boot 选项 claudeSdk.query 注册 claude-cc 并进入 launchers/下拉
-验证：agentdeck 8 条（含 claude-cc stub-SDK 流）全绿；全套 267/45 0 fail；tsc 干净。
+## Product iteration (round 6)
+- agentdeck gains the claude-cc in-process variant (reusing the builtin ClaudeCode driver to wrap the anthropic
+  claude-agent-sdk): unified config→driver options; send = one driver.run(until text);
+  transcript consistent (claude-sdk.ts). kind added to AgentKind/KNOWN_KINDS.
+- deckconsole boot option claudeSdk.query registers claude-cc and puts it into launchers/the dropdown
+Verification: agentdeck 8 (including the claude-cc stub-SDK stream) all green; full suite 267/45 0 fail; tsc clean.
 
 
-## 产品迭代（round 7）· 启动组持久化
-- DECK_FILE/configFile JSON 状态：GET/POST /api/launchers + DELETE /api/launchers/:label?kind=
-- 启动组跨重启保留（测试：boot A 添加 → 停 → boot B 读到 → 删除）
-- 页面：添加启动组（kind+label）、每 chip 旁 × 移除
-验证：deckconsole e2e 6 条（新增持久化跨重启用例）；全套绿；tsc 干净。
+## Product iteration (round 7) · launch group persistence
+- DECK_FILE/configFile JSON state: GET/POST /api/launchers + DELETE /api/launchers/:label?kind=
+- Launch groups survive restarts (test: add on boot A → stop → read on boot B → delete)
+- Page: add a launch group (kind+label), an × next to each chip to remove
+Verification: deckconsole e2e 6 (new persistence-across-restart case); full suite green; tsc clean.
 
 
-## 产品迭代（round 8）· 会话级同意策略
-- 统一配置 consent.autoApproveTools/defaultDecision（新增 allow/deny 透传）在开启会话时生效：
-  demo agent 的 ask 由策略自动裁决（auto 名单或默认 allow/deny → resolve(by auto)），
-  仍全量留痕于 session→同意 映射（含 by:auto 与 deny 记录）
-- 关闭会话清理策略
-验证：e2e 新增自动裁决用例（note_write auto→allow by auto；deny 兜底其余工具→denied 计数），
-agentdeck+deckconsole 14 条绿；全套 269 条 0 fail；tsc 干净。
+## Product iteration (round 8) · session-level consent policy
+- The unified config consent.autoApproveTools/defaultDecision (now with allow/deny passthrough) takes effect when a session is opened:
+  the demo agent's ask is decided automatically by policy (the auto allowlist or the default allow/deny → resolve(by auto)),
+  and is still recorded in full in the session→consent map (including by:auto and deny records)
+- Closing a session clears the policy
+Verification: a new e2e auto-decision case (note_write auto→allow by auto; deny catches the remaining tools→denied count),
+agentdeck+deckconsole 14 green; full suite 269 0 fail; tsc clean.
 
-
-## 产品迭代（round 9）· 可发现性与一键控制
-- 配置样例补全 claude-cc（含 consent 策略）与 demo；页面 kind 下拉同步
-- 新增 POST /api/sessions/close-all（关停全部会话并清策略）+ 页面「全部关闭」
-- 根 README 增发现入口（agentdeck 组件 + deckconsole 产品、路径、启动命令）
-验证：deckconsole e2e 7 条（新增 close-all）；全套 269/45 0 fail；tsc 干净。
-
+
+## Product iteration (round 9) · discoverability and one-click control
+- Config samples completed for claude-cc (with consent policy) and demo; the page's kind dropdown follows
+- New POST /api/sessions/close-all (stops every session and clears policy) + "close all" on the page
+- Root README gains a discovery entry point (agentdeck component + deckconsole product, paths, start command)
+Verification: deckconsole e2e 7 (close-all added); full suite 269/45 0 fail; tsc clean.
+
 
-## 产品迭代（round 10）· 同意流水总览
-- 页面新增「同意流水（session → consent）」：近 20 条全量台账（含 auto 自动裁决），
-  带决策色块（allow/deny/pending）与 by/时间/输入，待批行内可直接 同意/拒绝
-- 与既有：映射计数卡 + 详情面板 + 待批卡三层配合
-验证：浏览器实测渲染 2 条 pending + 4 个行内快捷按钮，无 JS 错误；deckconsole e2e 7/7；全套 269/45 0 fail。
-截图 /tmp/r10-flow.png。
-
+## Product iteration (round 10) · consent flow overview
+- New page section "consent flow (session → consent)": the last 20 entries in full (including auto decisions),
+  with decision chips (allow/deny/pending) and by/time/input; a pending row can be approved/rejected inline
+- Works with the existing three layers: mapping count card + detail panel + pending card
+Verification: real browser renders 2 pending entries + 4 inline shortcut buttons, no JS errors; deckconsole e2e 7/7; full suite 269/45 0 fail.
+Screenshot /tmp/r10-flow.png.
+
 
-## 产品迭代（round 11）· 调用计划可视化
-- 组件：cli.ts 抽出可复用 cliInvocation(unified, prompt) → 精确 spawn {file,argv}（gateway 共用）
-- 产品：/api/config/preview 增 invocation 字段（CLI 类 kind）；页面预览同时显示
-  「统一配置」与「调用计划 (spawn): codex exec <prompt>」（effect/claude-cc/demo 显示进程内驱动说明）
-验证：agentdeck 9 + deckconsole 7 = 16 条绿（含 claude-code -p 与自定义覆盖两条调用计划断言）；
-浏览器实测 codex 预览输出调用计划；全套绿；tsc 干净。截图 /tmp/r11-invoke.png。
+## Product iteration (round 11) · invocation plan visualization
+- Component: cli.ts extracts a reusable cliInvocation(unified, prompt) → the exact spawn {file,argv} (shared by the gateway)
+- Product: /api/config/preview gains an invocation field (for CLI kinds); the page preview shows both
+  "unified config" and "invocation plan (spawn): codex exec <prompt>" (effect/claude-cc/demo show an in-process driver note)
+Verification: agentdeck 9 + deckconsole 7 = 16 green (including two invocation-plan assertions for claude-code -p and a custom override);
+the browser shows the codex preview emitting the invocation plan; full suite green; tsc clean. Screenshot /tmp/r11-invoke.png.
 
 
-## 产品迭代（round 12）· 会话策略 UI 与批量审批
-- 开启会话区新增会话级同意策略输入：自动同意工具（逗号） + 默认决议(ask/allow/deny)，
-  作为 config.consent 随会话创建下发（demo 生效、auto/deny 留痕 by auto）
-- POST /api/consent/bulk {allow} 批量处理全部待批 + 页面「全部同意（批量）」
-验证：deckconsole e2e 8 条（新增 bulk）；浏览器实测 UI：填策略→开 demo→触发审批→
-流水显示 note_write allow by auto 且待批 0。全套 271 条 0 fail；tsc 干净。截图 /tmp/r12-policy-ui.png。
+## Product iteration (round 12) · session policy UI and bulk approval
+- The open-session area gains session-level consent policy inputs: auto-approved tools (comma-separated) + default decision (ask/allow/deny),
+  sent as config.consent when the session is created (effective for demo, auto/deny recorded as by auto)
+- POST /api/consent/bulk {allow} handles every pending item at once + "approve all (bulk)" on the page
+Verification: deckconsole e2e 8 (bulk added); browser-checked UI: fill in a policy → open demo → trigger approval →
+the flow shows note_write allow by auto with 0 pending. Full suite 271 0 fail; tsc clean. Screenshot /tmp/r12-policy-ui.png.
 
 
-## 组件契约验证与文档（round 13）
-- 新增 agentdeck 契约测试：CLI 超时中止（turnTimeoutMs 250ms → timed out + failed 状态，257ms 内返回）、
-  gemini/pi 方言归一 + extra 无损、defaultDecision deny 透传（ask3→ask2 接线）
-- deckconsole README 增 API 速查表 + 环境变量说明
-验证：agentdeck 12 + deckconsole 8；全套 274/45 0 fail；tsc 干净。
+## Component contract verification and docs (round 13)
+- New agentdeck contract tests: CLI timeout abort (turnTimeoutMs 250ms → timed out + failed status, returns within 257ms),
+  gemini/pi dialect normalization + lossless extra, defaultDecision deny passthrough (ask3→ask2 wiring)
+- deckconsole README gains an API cheat sheet + env var documentation
+Verification: agentdeck 12 + deckconsole 8; full suite 274/45 0 fail; tsc clean.
 
 
-## 组件深化（round 14）· 审批驱动真实执行 (effect-ops)
-- 新适配器 makeEffectOpsGateway({model, ledger})：写工具 write_file 每次调用先经共享
-  ConsentLedger 门控——首次 send 挂起并返回 awaiting[callId]；操作者（或 auto 策略）
-  批准后重发同轮才真正执行写并回传 {ok,path}；拒绝则中止且原因可读（deny 路径不执行）
-- 关键机制：普通 Effect.fail 会被 driver 当工具错误吞掉继续跑 → 改用 Effect.die 缺陷
-  中止本轮；错误对象消息提取兼容非 Error 形态
-- AgentKind/KNOWN_KINDS 增 effect-ops
-验证：agentdeck 14/14（允许路径解析写负载 ok/path、拒绝路径无写）；全套 276 条 0 fail；tsc 干净。
-
-
-## 产品接入（round 15）· effect-ops 审批执行循环
-- deckconsole：提供 effectModel 时自动注册/启动组 effect-ops；kind 下拉可选
-  「effect-ops（审批执行循环，需注入模型）」；/api/session/:id/send 透传 awaiting[]
-- e2e（脚本 Model，无需真 key）：开 effect-ops 会话 → send 写 → 返回 awaiting →
-  /api/deck pending 可见 → 审批同意 → 重发同轮 → ok 且文本含 op-result（真实执行）
-验证：deckconsole 9/9（新增产品级闭环）；全套 277 条 0 fail；tsc 干净。
-
-
-## 产品扩展（round 16）· 运行时注册新 agent 方言
-- POST /api/presets {kind,file,args}：不改代码注册新 CLI agent 方言（如 *claw 类），
-  立即可：开该 kind 会话（走预设 argv）、配置预览识别为可调用（显示 spawn 计划）
-- GET /api/presets：builtin + 动态清单；页面把动态方言自动挂进 kind/预览下拉
-- 保留字冲突 409 保护（demo/effect/effect-ops/claude-cc/custom/既有 builtin）
-验证：deckconsole 10/10（新用例：注册 clawlike→开→send 收到 CLAW-RESPONSE→预览 plan sh）；
-全套 278 条 0 fail；tsc 干净。
-
-
-## 收尾（round 17）
-- packages/agentdeck 增 npm scripts（test/test:watch）；apps/deckconsole 增（dev/start/test）
-- 新增 docs/agentdeck-map.md：目标三条需求 + 产品封装的「目标→落点→测试证明」对照矩阵
-- 最新全页截图 /tmp/r17-overview.png（会话/映射/预览/流水/详情五区块 + 1 待批）
-验证：全套 278/45 0 fail；tsc 干净。
-
-
-## 多轮会话回归 + 真机探测（round 18）
-- 补 effect gateway 缺失的 history()（SessionTurn 序列，与 demo/claude-cc 对齐）——真多轮会话
-  的转录面（ask1）
-- 新回归：每轮 send 把 seed + Prior turns 并入下一轮驱动上下文；断言首轮无 recap、
-  次轮含两轮历史与本次 prompt；历史 role 序列 user/agent/user/agent（15/15）
-- 真机探测：claude(codex/gemini/pi/opencode/cursor) 本机均已安装（PATH），
-  真 agent 冒烟只差授权（login/key）；下一步计划真实 CLI 冒烟（只读 prompt 模式 + 超时护栏）
-验证：全套 279/45 0 fail；tsc 干净。
-
-
-## 真机冒烟（round 19）· claude-code 产品级端到端 + CLI 转录补齐
-- 真机验证（只读文本、30-40s 硬护栏、stdin 关闭、/tmp 工作目录）：
-  · claude -p：exit 0 → stdout DECK-OK（模型按本机 claude 配置 deepseek-v4-flash，无碍应答）
-  · codex：沙箱 EPERM（app-server client 初始化被拦）→ 环境限制非适配器问题
-  · pi：~/.pi 目录写被沙箱拦（settings.json.lock EPERM）；gemini：-p 参数导致交互超时
-- 【产品级真机端到端】deckconsole 控制室 open claude-code 会话 → send → 200
-  text="DECK-OK"（一次调用）→ 第二轮真实多轮应答 FIRST-TURN / SECOND-TURN-KNOWS-FIRST
-- 发现缺口并修复：cli 网关缺 history() 转录（demo/claude-cc/effect 均有）→ 补
-  user/agent turns + 新测试；agentdeck 16/16
-验证：全套 280/45 0 fail；tsc 干净。codex/pi/gemini 真机冒烟受阻于沙箱授权/参数，
-列为用户介入项（授权后补跑）。
+## Component deepening (round 14) · approval-driven real execution (effect-ops)
+- New adapter makeEffectOpsGateway({model, ledger}): every call to the write tool write_file is gated first by the shared
+  ConsentLedger — the first send suspends and returns awaiting[callId]; only after the operator (or the auto policy)
+  approves and the same turn is re-sent does the write actually run and return {ok,path}; a rejection aborts with a readable reason (the deny path does not execute)
+- Key mechanism: a plain Effect.fail is swallowed by the driver as a tool error and the loop keeps running → switched to an Effect.die defect
+  to abort the turn; error-object message extraction tolerates non-Error shapes
+- AgentKind/KNOWN_KINDS gain effect-ops
+Verification: agentdeck 14/14 (the allow path parses the write payload ok/path; the deny path writes nothing); full suite 276 0 fail; tsc clean.
+
+
+## Product integration (round 15) · the effect-ops approval execution loop
+- deckconsole: when an effectModel is provided, auto-register/launch-group effect-ops; the kind dropdown offers
+  "effect-ops (approval execution loop, needs an injected model)"; /api/session/:id/send passes awaiting[] through
+- e2e (scripted Model, no real key needed): open an effect-ops session → send a write → awaiting comes back →
+  pending visible at /api/deck → approve → re-send the same turn → ok with op-result in the text (real execution)
+Verification: deckconsole 9/9 (new product-level closed loop); full suite 277 0 fail; tsc clean.
+
+
+## Product extension (round 16) · registering a new agent dialect at run time
+- POST /api/presets {kind,file,args}: register a new CLI agent dialect (e.g. the *claw family) with no code change,
+  and immediately be able to: open a session of that kind (using the preset argv), and have the config preview recognize it as invocable (showing the spawn plan)
+- GET /api/presets: builtin + dynamic list; the page automatically adds dynamic dialects to the kind/preview dropdowns
+- Reserved-name conflict protection with 409 (demo/effect/effect-ops/claude-cc/custom/existing builtin)
+Verification: deckconsole 10/10 (new case: register clawlike→open→send receives CLAW-RESPONSE→preview plan sh);
+full suite 278 0 fail; tsc clean.
+
+
+## Wrap-up (round 17)
+- packages/agentdeck gains npm scripts (test/test:watch); apps/deckconsole gains (dev/start/test)
+- New docs/agentdeck-map.md: a "goal→location→test proof" matrix for the three requirements + product packaging
+- Latest full-page screenshot /tmp/r17-overview.png (five blocks: sessions/mapping/preview/flow/detail + 1 pending)
+Verification: full suite 278/45 0 fail; tsc clean.
+
+
+## Multi-turn session regression + real-machine probing (round 18)
+- Added the history() the effect gateway was missing (a SessionTurn sequence, aligned with demo/claude-cc) — the transcript
+  surface of a genuinely multi-turn session (ask1)
+- New regression: each send folds seed + Prior turns into the next turn's driver context; asserts no recap on the first turn,
+  and that the second turn carries two turns of history plus this prompt; history role sequence user/agent/user/agent (15/15)
+- Real-machine probing: claude (codex/gemini/pi/opencode/cursor) are all installed on this machine (PATH);
+  the real-agent smoke is only missing authorization (login/key); next step is a real CLI smoke (read-only prompt mode + timeout guardrail)
+Verification: full suite 279/45 0 fail; tsc clean.
+
+
+## Real-machine smoke (round 19) · claude-code product-level end-to-end + CLI transcript completion
+- Real-machine verification (read-only text, 30-40s hard guardrail, stdin closed, /tmp working directory):
+  · claude -p: exit 0 → stdout DECK-OK (the model follows this machine's claude config, deepseek-v4-flash; it answers anyway)
+  · codex: sandbox EPERM (app-server client initialization blocked) → an environment limit, not an adapter problem
+  · pi: the ~/.pi directory write is blocked by the sandbox (settings.json.lock EPERM); gemini: the -p argument causes an interactive timeout
+- [Product-level real-machine end-to-end] deckconsole control room opens a claude-code session → send → 200
+  text="DECK-OK" (a single call) → a real multi-turn second turn answering FIRST-TURN / SECOND-TURN-KNOWS-FIRST
+- Found a gap and fixed it: the cli gateway lacked history() transcription (demo/claude-cc/effect all have it) → added
+  user/agent turns + a new test; agentdeck 16/16
+Verification: full suite 280/45 0 fail; tsc clean. Real-machine smoke for codex/pi/gemini is blocked by sandbox authorization/arguments,
+listed as items requiring the user (re-run once authorized).
 
 
-## 冒烟收尾（round 20）
-- gemini：新版语法=位置参数 one-shot；-p 已弃用。实测 -s(沙箱) --output-format text 位置参数 →
-  45s 无输出挂起 → 交互式 OAuth 未授权（用户侧），列入介入项
-- codex/pi：受限根因=沙箱挡住 ~/.codex ~/.pi home 写入（子进程内部 EPERM，非适配器）——不进行
-  未授权的越权重试，列为用户介入项
-- 真机转录 in vivo 验证：修复后 claude-code 会话经产品记录完整转录
-  roles [user,agent,user,agent]，内容精确（Reply with exactly: ONE → ONE / TWO → TWO）
-- 根 README 增组件/产品状态与真机冒烟段
-验证：全套 280/45 0 fail；tsc 干净。
+## Smoke wrap-up (round 20)
+- gemini: the new syntax = positional-argument one-shot; -p is deprecated. Tested -s (sandbox) --output-format text with a positional argument →
+  hung for 45s with no output → interactive OAuth not authorized (user side); listed as an item requiring the user
+- codex/pi: the root cause of the restriction = the sandbox blocks ~/.codex ~/.pi home writes (EPERM inside the child process, not the adapter) — no
+  unauthorized privilege-escalating retry; listed as items requiring the user
+- Real-machine transcript verified in vivo: after the fix, a claude-code session records a complete transcript through the product,
+  roles [user,agent,user,agent], content exact (Reply with exactly: ONE → ONE / TWO → TWO)
+- Root README gains a component/product status and real-machine smoke section
+Verification: full suite 280/45 0 fail; tsc clean.
 
 
-## CLI 预设追真机语法（round 21）
-- gemini 预设改位置参数 one-shot（file gemini argv []）——对应当前真机 0.24.x 语法
-  （-p 已弃用）；codex exec 维持（sandbox/approval 由调用方持）
-- 新增 CLI 语法回归：gemini 渲染为 [prompt] 位置参数；codex 渲染 [exec, prompt]
-- env 复核：BAIZHI_API_KEY 仍缺（effect 真模型继续挂起）
-验证：agentdeck 18/18；全套 282/45 0 fail；tsc 干净。
+## CLI presets follow the real-machine syntax (round 21)
+- The gemini preset switched to positional-argument one-shot (file gemini argv []) — matching the current real machine's 0.24.x syntax
+  (-p deprecated); codex exec stays (sandbox/approval held by the caller)
+- New CLI syntax regression: gemini renders as a [prompt] positional argument; codex renders [exec, prompt]
+- env re-check: BAIZHI_API_KEY still missing (the effect real model stays suspended)
+Verification: agentdeck 18/18; full suite 282/45 0 fail; tsc clean.
 
 
-## 动态方言 UI 浏览器验证（round 22）
-- POST /api/presets 注册 clawlike2 → 页面开启/添加启动组/配置预览三个下拉自动出现
-  「clawlike2（动态方言）」；占用名 demo 注册返回 409（kind already taken）
-- 截图 /tmp/r22-dynpreset.png
-验证：全套 282/45 0 fail。
+## Dynamic dialect UI browser verification (round 22)
+- POST /api/presets registers clawlike2 → "clawlike2 (dynamic dialect)" appears automatically in all three page dropdowns:
+  open-session / add-launch-group / config preview; registering the taken name demo returns 409 (kind already taken)
+- Screenshot /tmp/r22-dynpreset.png
+Verification: full suite 282/45 0 fail.
 
 
-## 产品补缺口（round 23）· 任意会话自由文本发送
-- 发现：会话行只有 demo 快捷按钮，真实 agent（claude-code 等）无提示词入口 → 每行加
-  「提示输入框 + 发送」（回车亦可），awaiting 返回时提示挂起 callId 并引导审批
-- 浏览器验证：demo 会话输入 ask:read {path:/free} → 发送 → 回复 toast + 流水出现
-  read pending（输入/发送/挂起全链路无 JS 错误）；截图 /tmp/r23-freetext.png
-验证：全套 282/45 0 fail；tsc 干净。
+## Product gap fill (round 23) · free-text send on any session
+- Found: session rows only had demo shortcut buttons, so real agents (claude-code etc.) had no prompt entry point → each row now has
+  a "prompt input + send" (Enter also works), and an awaiting return shows the suspended callId and points to approval
+- Browser verification: type ask:read {path:/free} into a demo session → send → a reply toast + the flow shows
+  read pending (the input/send/suspend chain has no JS errors); screenshot /tmp/r23-freetext.png
+Verification: full suite 282/45 0 fail; tsc clean.
 
 
-## 真机 × UI 合体验证（round 24）
-- 浏览器在 claude-code 会话行内输入 'Reply with exactly: DECK-UI-OK' → 点发送 →
-  真实 claude-code 应答 DECK-UI-OK，转录精确 user/agent 各一行；无 JS 错误
-- 截图 /tmp/r24-real-ui.png —— 产品 UI 驱动真实主流 agent 的完整证据链
-验证：全套 282/45 0 fail。
+## Real machine × UI joint verification (round 24)
+- In the browser, typing 'Reply with exactly: DECK-UI-OK' into a claude-code session row → clicking send →
+  real claude-code answers DECK-UI-OK, the transcript is exactly one user/agent line each; no JS errors
+- Screenshot /tmp/r24-real-ui.png — the complete chain of evidence that the product UI drives a real mainstream agent
+Verification: full suite 282/45 0 fail.
 
 
-## 可复现验收（round 25）
-- 新增 apps/deckconsole/scripts/acceptance.ts：无 key 验收 11 项（页面/会话/应答/挂起/审批/
-  映射/预览计划/动态方言注册/全关…）；REAL=1 附真机 claude-code 段
-  运行：bun apps/deckconsole/scripts/acceptance.ts [REAL=1]
-验证：ACCEPTANCE GREEN（11/11，exit 0）；全套 282/45 0 fail；tsc 干净。
+## Reproducible acceptance (round 25)
+- New apps/deckconsole/scripts/acceptance.ts: 11 no-key acceptance items (page/session/answer/suspend/approval/
+  mapping/preview plan/dynamic dialect registration/close-all…); REAL=1 adds a real-machine claude-code section
+  Run: bun apps/deckconsole/scripts/acceptance.ts [REAL=1]
+Verification: ACCEPTANCE GREEN (11/11, exit 0); full suite 282/45 0 fail; tsc clean.
 
 
-## REAL 验收全绿（round 26）
-- REAL=1 acceptance 跑通：13/13（含 real open claude-code + real claude answers ACCEPT-OK）exit 0
-- deckconsole README 增「验收（3 分钟）」段
-验证：全套 282/45 0 fail。
+## REAL acceptance all green (round 26)
+- REAL=1 acceptance passes: 13/13 (including real open claude-code + real claude answers ACCEPT-OK) exit 0
+- deckconsole README gains an "acceptance (3 minutes)" section
+Verification: full suite 282/45 0 fail.
 
 
-## 引导验收 + Gate 接线结论（round 27）
-- 新增 docs/tour.md：分步预期状态引导（启动/自由文本/审批映射/预览计划/方言/详情/真机），
-  每步附截图路径；deckconsole README 增引导链接
-- 探索结论：assembly 为组合根（Gate 为可替换 seam），但 builtin driver.run 尚未从 Gate
-  上下文读取做权威裁决——属 core/loop 改造（平行作者高频区，last-write-wins 风险高），
-  继续列为 deferred；适配器级 effect-ops 门控保持为当前授权闭环实现
-验证：全套 282/45 0 fail。
+## Guided acceptance + Gate wiring conclusion (round 27)
+- New docs/tour.md: a step-by-step expected-state walkthrough (start/free text/approval mapping/preview plan/dialect/detail/real machine),
+  each step with a screenshot path; deckconsole README gains a link to it
+- Exploration conclusion: assembly is the composition root (Gate is a replaceable seam), but builtin driver.run does not yet read from the Gate
+  context to make an authoritative decision — that is a core/loop change (a high-traffic area for parallel authors, high last-write-wins risk),
+  so it stays deferred; the adapter-level effect-ops gating remains the current authorization closed-loop implementation
+Verification: full suite 282/45 0 fail.
 
 
-## 本地安全加固（round 28）
-- Bun.serve 默认绑 0.0.0.0 → deckconsole 现在默认仅绑 127.0.0.1（host 选项/DECK_HOST 可改绑）
-- README 增安全边界段（无鉴权提示，跨机需可信内网或自加鉴权）
-验证：deckconsole 10/10；全套 282/45 0 fail；tsc 干净。
+## Local security hardening (round 28)
+- Bun.serve binds 0.0.0.0 by default → deckconsole now binds only 127.0.0.1 by default (the host option/DECK_HOST can rebind)
+- README gains a security boundary section (a no-auth warning: across machines you need a trusted LAN or your own auth)
+Verification: deckconsole 10/10; full suite 282/45 0 fail; tsc clean.
 
 
-## 孤儿进程清理（round 29）
-- cli 网关：会话中途 close → 杀进程组（detached + SIGTERM，400ms 后 SIGKILL 兜底），
-  监听 'exit' 而非 'close'（避免孙进程握管道导致事件延迟）；返回 closed by operator mid-turn
-- 关键调试：仅杀壳进程不够（孙进程 hold stdout pipe），需负 pid 杀进程组
-验证：agentdeck 19/19（新增 mid-turn close 用例 <1s）；全套 283/45 0 fail；tsc 干净。
+## Orphan process cleanup (round 29)
+- cli gateway: close mid-session → kill the process group (detached + SIGTERM, SIGKILL as a fallback after 400ms),
+  listen for 'exit' rather than 'close' (to avoid grandchild processes holding the pipe and delaying the event); returns closed by operator mid-turn
+- Key debugging: killing only the shell process is not enough (a grandchild holds the stdout pipe); you need a negative pid to kill the process group
+Verification: agentdeck 19/19 (new mid-turn close case <1s); full suite 283/45 0 fail; tsc clean.
 
 
-## 30 轮里程碑（round 30）
-- 截图归档入仓库：apps/deckconsole/docs/screens/（10 张：r4-r24 全周期）
-- 新增 docs/milestone.md：目标落地位置/三需求落点/覆盖 agent/验证证据/边界总览；
-  矩阵文档截图链接改为仓库相对路径
-验证：全套 283/46 0 fail（测试自 round29 起 46 files）。
+## 30-round milestone (round 30)
+- Screenshots archived into the repo: apps/deckconsole/docs/screens/ (10 files: the whole r4-r24 cycle)
+- New docs/milestone.md: goal locations / the three requirement locations / agents covered / verification evidence / boundary overview;
+  the matrix doc's screenshot links changed to repo-relative paths
+Verification: full suite 283/46 0 fail (46 test files since round 29).
 
 
-## 一键验证（round 31）
-- 新增 scripts/verify.sh：三段串联——包测试（agentdeck+deckconsole）→ 无 key 验收(11项) →
-  全量 tsc；sh scripts/verify.sh → VERIFY GREEN exit 0
-- env 复检：BAIZHI_API_KEY 仍缺（effect 真模型挂起不变）
+## One-shot verification (round 31)
+- New scripts/verify.sh: three stages chained — package tests (agentdeck+deckconsole) → no-key acceptance (11 items) →
+  full tsc; sh scripts/verify.sh → VERIFY GREEN exit 0
+- env re-check: BAIZHI_API_KEY still missing (the effect real model stays suspended, unchanged)
 
 
-## 统一面契约（round 32）
-- 新增 surface contract 测试：demo/effect/effect-ops/custom-cli 四适配器逐一断言
-  open/send/close/status/sessions 全部存在、开→idle→关生命周期、sessions 随开/关增减、
-  send 返回 {ok:boolean}、effect-ops ok=false 时带 awaiting、history 若实现则返回数组
-- 防接口漂移：任何新适配器必须通过统一 SessionGateway 表面
-验证：agentdeck 20/20（新增 1 条循环 4 适配器）；全套 284/45 0 fail；tsc 干净。
+## Unified surface contract (round 32)
+- New surface contract test: for each of the four adapters demo/effect/effect-ops/custom-cli, asserts
+  open/send/close/status/sessions all exist, the open→idle→close lifecycle, sessions growing/shrinking with open/close,
+  send returning {ok:boolean}, effect-ops carrying awaiting when ok=false, and history returning an array if implemented
+- Guards against interface drift: any new adapter must pass the unified SessionGateway surface
+Verification: agentdeck 20/20 (1 new case looping over 4 adapters); full suite 284/45 0 fail; tsc clean.
 
 
-## 会话幂等保护（round 33）
-- POST /api/session 指定已开启的 sessionId → 409（session already open）——防同名静默覆盖/泄漏
-验证：deckconsole 11/11（新增 dup 用例）；全套 285/45 0 fail；tsc 干净。
+## Session idempotency protection (round 33)
+- POST /api/session with an already-open sessionId → 409 (session already open) — prevents silent same-name overwrite/leakage
+Verification: deckconsole 11/11 (new dup case); full suite 285/45 0 fail; tsc clean.
 
 
-## 单飞防护（round 34）
-- 同一会话 running 中再发 send → 409 session busy——防连点/重入拉起多份真 agent 进程
-验证：deckconsole 12/12（新增 slow 脚本并发用例：首发跑、次发 409 busy、收尾 ok DONE-BUSY）；
-全套 286/45 0 fail；tsc 干净。
+## Single-flight protection (round 34)
+- Sending again on a session that is running → 409 session busy — prevents double-clicks/re-entry from starting several real agent processes
+Verification: deckconsole 12/12 (new slow-script concurrency case: the first send runs, the second gets 409 busy, the end returns ok DONE-BUSY);
+full suite 286/45 0 fail; tsc clean.
 
 
-## awaiting 恢复 UX（round 35）
-- 新增 POST /api/session/:id/retry：把该会话上次挂起(awaiting)的那轮原样重发
-  （批准后无需重新粘贴提示词）；无挂起轮返回 404；running 409
-- send 路由记录 awaiting 轮的原文；retry 复用并保留 awaiting 语义
-验证：deckconsole 13/13（retry 用例：send→awaiting→批准→retry ok:true retried:true）；
-全套 287/45 0 fail；tsc 干净。
+## awaiting recovery UX (round 35)
+- New POST /api/session/:id/retry: re-sends that session's last suspended (awaiting) turn verbatim
+  (no need to paste the prompt again after approving); 404 when there is no suspended turn; 409 while running
+- The send route records the original text of an awaiting turn; retry reuses it and keeps the awaiting semantics
+Verification: deckconsole 13/13 (retry case: send→awaiting→approve→retry ok:true retried:true);
+full suite 287/45 0 fail; tsc clean.
 
 
-## 启动组携带配置（round 36）
-- launcher 条目支持可选原始 config（cwd/env/command/超时等）：seed 透传 options/DECK_AGENTS 的
-  config；POST /api/launchers 接受 config；GET 回读
-- 页面：chips 带 config（tooltip 显示摘要），点击按存好的配置开会话；添加启动组表单新增
-  可选 JSON 配置输入（解析失败 toast）
-验证：deckconsole 14/14（新用例：带 config 存读 + 配置开会话）；全套 288/45 0 fail；tsc 干净。
+## Launch groups carry config (round 36)
+- Launcher entries accept an optional raw config (cwd/env/command/timeout etc.): the seed passes through the
+  config from options/DECK_AGENTS; POST /api/launchers accepts config; GET reads it back
+- Page: chips carry their config (the tooltip shows a summary), clicking opens a session with the stored config; the add-launch-group form gains an
+  optional JSON config input (a toast on parse failure)
+Verification: deckconsole 14/14 (new cases: config store/read-back + opening a session with config); full suite 288/45 0 fail; tsc clean.
 
-## 发布形态冒烟（round 37）
-- 以第三方视角 import 自 @effect-agent/agentdeck：11 个导出键全部可用；
-  AgentDeck 构造、normalizeConfig(codex codexModel→model + lossless extra)、
-  cliInvocation(codex [exec, hello])、makeConsentLedger + makeDemoGateway 开会话发消息，全程绿色
-验证：ALL_SMOKE_GREEN；全套基线不变 288/45 0 fail。
+## Distribution-shape smoke (round 37)
+- Importing from @effect-agent/agentdeck as a third party: all 11 export keys work;
+  constructing AgentDeck, normalizeConfig (codex codexModel→model + lossless extra),
+  cliInvocation (codex [exec, hello]), makeConsentLedger + makeDemoGateway open a session and send a message, green throughout
+Verification: ALL_SMOKE_GREEN; the full-suite baseline unchanged at 288/45 0 fail.
 
 
-## 终版快照（round 38）
-- 全页截图 r38-final.png 入归档（共 11 张）：chips 显示配置 tooltip、行内发送输入、待批流水
-- milestone 文档同步 31-38 轮功能摘要与最新证据行
+## Final snapshot (round 38)
+- Full-page screenshot r38-final.png archived (11 in total): chips showing the config tooltip, inline send input, pending flow
+- The milestone doc updated with rounds 31-38 feature summaries and the latest evidence line
 
 
-## 验证与证据入库（round 39）
-- REAL=1 sh scripts/verify.sh：三段全绿 exit 0（包测试 + 13 项含真机 claude-code 应答 + tsc）
-- 证据入库 docs/evidence/real-acceptance-round39.txt（可复现真机绿色运行记录）
+## Verification and evidence archived (round 39)
+- REAL=1 sh scripts/verify.sh: all three stages green, exit 0 (package tests + 13 items including a real-machine claude-code answer + tsc)
+- Evidence archived to docs/evidence/real-acceptance-round39.txt (a reproducible record of the real-machine green run)
 
 
-## 样例完整性（round 42）
-- CONFIG_SAMPLES 补 effect-ops 条目；新 e2e 断言 samples 覆盖全部 KNOWN kind（9 键）
-验证：deckconsole 15/15；全套 289/45 0 fail；tsc 干净。
+## Sample completeness (round 42)
+- CONFIG_SAMPLES gains an effect-ops entry; a new e2e asserts samples cover every KNOWN kind (9 keys)
+Verification: deckconsole 15/15; full suite 289/45 0 fail; tsc clean.
 
 
-## 账本语义加固（round 43）
-- resolve 幂等：对已决议的 callId 二次 resolve 返回 false 且不翻转（deny 无法覆盖 allow）
-- mapping() 返回快照列表：后续 ask 不改变已取引用（只读面确认）
-- 评审子代理答复通道异常 → 弃用，转以自测覆盖可疑语义
-验证：agentdeck 22/22（新增 2 条）；全套 291/45 0 fail；tsc 干净。
+## Ledger semantics hardening (round 43)
+- resolve is idempotent: a second resolve on an already-decided callId returns false and does not flip (deny cannot override allow)
+- mapping() returns a snapshot list: a later ask does not change an already-taken reference (read-only surface confirmed)
+- The review subagent's reply channel broke → deprecated, switching to self-tests covering the suspect semantics
+Verification: agentdeck 22/22 (2 new cases); full suite 291/45 0 fail; tsc clean.
 
 
-## env 形状与强转（round 44）
-- 统一 env 形状契约：raw env 对象 → Map（值仅 string 会丢数字/布尔）→ 修正：number/boolean
-  安全 String() 强转；新测试断言 N:5 → "5"
-验证：agentdeck 23/23；全套 292/45 0 fail；tsc 干净。
+## env shape and coercion (round 44)
+- Unified env shape contract: raw env object → Map (string-only values would lose numbers/booleans) → fixed: numbers/booleans
+  safely coerced with String(); a new test asserts N:5 → "5"
+Verification: agentdeck 23/23; full suite 292/45 0 fail; tsc clean.
 
 
-## 未知 kind 显式错误（round 45）
-- POST /api/session 打开从未注册的 kind → 404 + 引导（register via /api/presets 或 custom），
-  不再默默当 custom 起一个不存在命令的进程
-验证：deckconsole 16/16（新用例 kind 404 + guidance）；全套 293/45 0 fail；tsc 干净；
-scripts/verify.sh 仍 VERIFY GREEN。
+## Explicit error for an unknown kind (round 45)
+- POST /api/session opening a kind that was never registered → 404 + guidance (register via /api/presets or custom),
+  instead of silently treating it as custom and starting a process for a command that does not exist
+Verification: deckconsole 16/16 (new case kind 404 + guidance); full suite 293/45 0 fail; tsc clean;
+scripts/verify.sh still VERIFY GREEN.
 
 
-## 独立评审通道关闭（round 46）
-- 子代理终收确认存在 9 条 findings，但正文经两轮回执传输均不可达（仅元信息），正式弃用该通道
-- 补偿：rounds 43-45 自测已覆盖评审目标类别（账本 resolve 幂等/mapping 快照、env 强转、未知
-  kind 404），加上 293 条回归基线，盲区风险已收敛；若日后需要新鲜视角可换用 workflow 形态复跑
+## Independent review channel closed (round 46)
+- The subagent's final receipt confirmed 9 findings, but the body was unreachable across two reply-transport attempts (metadata only), so the channel is formally deprecated
+- Compensation: the self-tests from rounds 43-45 already cover the review's target categories (ledger resolve idempotency/mapping snapshot, env coercion, unknown
+  kind 404), and with the 293-case regression baseline the blind-spot risk has converged; if a fresh perspective is needed later, re-run via a workflow shape
 
 
-## 组件层单飞（round 46）
-- 单飞下沉到组件：cli/effect/effect-ops/claude-sdk 的 send 在 running 时直接返回
-  session busy（不依赖产品路由）；直接使用组件的调用方同样防重入/防双进程
-- 新测试 2 条：cli 慢脚本并发第二次 busy、effect 慢模型并发 busy
-验证：agentdeck 25/25；全套 295/45 0 fail；tsc 干净。
+## Component-level single flight (round 46)
+- Single flight pushed down into the component: send in cli/effect/effect-ops/claude-sdk returns
+  session busy directly while running (it does not depend on the product route); callers that use the component directly get the same re-entry/double-process protection
+- 2 new tests: a slow cli script's second concurrent call is busy, a slow effect model's concurrent call is busy
+Verification: agentdeck 25/25; full suite 295/45 0 fail; tsc clean.
 
 
-## 完成（round 47）· 目标达成标记
-三面抽象 + 主流 agent 适配 + 产品封装全部实现并经 47 轮证据闭环：
-- 组件 packages/agentdeck（@effect-agent/agentdeck）：流程 SessionGateway（含转录/超时/杀组/
-  单飞/awaiting/retry）、session→同意 ConsentLedger（mapping/幂等 resolve/auto 策略）、
-  配置→统一 normalizeConfig（方言/lossless/env Map 强转/consent 透传）+ cliInvocation 计划
-- 适配：effect（进程内）、claude-code（真机 E2E 验证：应答/多轮/精确转录）、claude-cc（SDK）、
-  codex/gemini/pi（CLI 预设按真机语法）、custom + 运行时方言注册（*claw 类免改码）、demo
-- 产品 apps/deckconsole：控制室（会话/审批(策略+批量)/流水/详情/预览/启动组(带配置)/方言/
-  409/404 保护/仅本机绑定）+ 页面实测 + 截图归档 + docs(agentdeck/milestone/map/tour) + 验收脚本
-- 回归：295 tests / 45 files 0 fail；tsc clean；verify.sh VERIFY GREEN；REAL 真机 13 项 exit 0
-待用户介入项（不影响达成）：codex/pi/gemini/effect 真机冒烟需授权/key/sandbox；
-Gate 权威接线属 core/loop 框架改造（记录 deferred）。
+## Done (round 47) · goal-achieved marker
+The three-surface abstraction + mainstream agent adapters + product packaging are all implemented and closed out with 47 rounds of evidence:
+- Component packages/agentdeck (@effect-agent/agentdeck): flow SessionGateway (with transcript/timeout/kill-group/
+  single-flight/awaiting/retry), session→consent ConsentLedger (mapping/idempotent resolve/auto policy),
+  config→unified normalizeConfig (dialect/lossless/env Map coercion/consent passthrough) + the cliInvocation plan
+- Adapters: effect (in-process), claude-code (real-machine E2E verified: answer/multi-turn/precise transcript), claude-cc (SDK),
+  codex/gemini/pi (CLI presets following the real-machine syntax), custom + runtime dialect registration (*claw family, no code change), demo
+- Product apps/deckconsole: the control room (sessions/approvals (policy+bulk)/flow/detail/preview/launch groups (with config)/dialects/
+  409/404 protection/local-only binding) + real-browser testing + screenshot archive + docs(agentdeck/milestone/map/tour) + acceptance script
+- Regression: 295 tests / 45 files 0 fail; tsc clean; verify.sh VERIFY GREEN; REAL real-machine 13 items exit 0
+Items requiring the user (they do not affect achievement): real-machine smoke for codex/pi/gemini/effect needs authorization/key/sandbox;
+authoritative Gate wiring is a core/loop framework change (recorded as deferred).

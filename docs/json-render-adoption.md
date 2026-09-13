@@ -1,47 +1,47 @@
-# json-render 采用与迁移决策
+# json-render adoption and migration decision
 
-## 决策
+## Decision
 
-采用 `vercel-labs/json-render` 作为生成式 UI 底座，不再自行扩展通用 Spec、
-StateStore、catalog、binding、action、stream patch 与框架 renderer。
+Adopt `vercel-labs/json-render` as the generative-UI foundation, and stop extending our own generic
+Spec, StateStore, catalog, binding, action, stream patch, and framework renderer.
 
-当前实验证据：
+Current experimental evidence:
 
-- `@json-render/core@0.20.0` 的 StateStore 已替换 `UIDataStore` 内核，旧测试无改动通过。
-- Canvas 可转换成官方 `Spec`，保留节点、slots、path binding、action 与 CanvasRef。
-- `@json-render/react@0.20.0` 已在真实 `ui-host` 注册，可通过 `set-renderer`
-  切换并完成 HTTP 渲染验收。
-- 全仓回归 348 pass、3 skip、0 fail。
+- The StateStore of `@json-render/core@0.20.0` has already replaced the `UIDataStore` core, and the old tests pass unchanged.
+- A Canvas can be converted into the official `Spec`, keeping nodes, slots, path binding, actions, and CanvasRef.
+- `@json-render/react@0.20.0` is registered in a real `ui-host`; it can be switched with `set-renderer`
+  and has completed HTTP render acceptance.
+- Full-repo regression 348 pass, 3 skip, 0 fail.
 
-## 保留的产品层
+## The product layer we keep
 
-这些不是 json-render 的职责，继续由本仓库维护：
+These are not json-render's responsibility and continue to be maintained by this repository:
 
-- 多 Canvas 图、CanvasRef 目标与下钻/返回导航栈。
-- Agent 修改 UI 的命令事务、乐观版本、审计 journal 与恢复。
-- Gate/权限、extension manifest、动态脚本 capability sandbox。
-- effect-agent Op 与产品 MCP 工具；FastMCP 不进入核心。
+- Multi-Canvas graphs, CanvasRef targets, and the drill-down/back navigation stack.
+- The command transactions by which an Agent modifies the UI, optimistic versions, the audit journal, and recovery.
+- Gate/permissions, the extension manifest, the dynamic script capability sandbox.
+- effect-agent Ops and the product MCP tools; FastMCP does not enter the core.
 
-## package 处理
+## Package handling
 
-| package | 处理 |
+| package | Handling |
 |---|---|
-| `ui-protocol` | 收缩为 Canvas、命令、权限等产品协议；通用节点/action 类型改用 core |
-| `ui-definition` | 变为 json-render Catalog + 多 Canvas 定义仓库 |
-| `ui-runtime` | 保留导航/事务/journal；状态、Spec、patch 委托 core |
-| `ui-renderer` | 变为官方 renderer 的选择与主题适配；完成对等后删除自研 HTML 递归器 |
-| `ui-agent` | 保留 Op/MCP 到产品命令的适配，不复制 catalog schema |
-| `ui-extension` | 保留插件生命周期，组件注册落到 Catalog |
-| `ui-sandbox` | 保留为可选的不可信代码执行边界 |
+| `ui-protocol` | shrink to the product protocols (Canvas, commands, permissions); switch generic node/action types to core |
+| `ui-definition` | becomes a json-render Catalog + multi-Canvas definition repository |
+| `ui-runtime` | keeps navigation/transactions/journal; state, Spec, and patch are delegated to core |
+| `ui-renderer` | becomes the selection of the official renderer and theme adaptation; delete the in-house HTML recurser once parity is reached |
+| `ui-agent` | keeps the Op/MCP → product command adaptation, without copying the catalog schema |
+| `ui-extension` | keeps the plugin lifecycle, with component registration landing in the Catalog |
+| `ui-sandbox` | kept as the optional untrusted-code execution boundary |
 
-不新增第八个长期 package；迁移适配器放在所属层，迁移完成后删除。
+No eighth long-term package is added; migration adapters live in their own layer and are deleted once the migration is done.
 
-## 迁移门槛
+## Migration gates
 
-1. 用官方 Catalog 校验替换手写组件约束，并验证基础/组合组件。
-2. 用官方 action/state binding 替换 `ActionRef` 与自研 path/template 解析。
-3. 用 RFC 6902 patch/SpecStream 替换节点级手写 patch 逻辑，外层仍记 UICommand。
-4. 官方 renderer 覆盖 CanvasRef、主题、宿主事件后删除 `webRenderer`。
-5. 每步保持 Canvas 下钻、journal 恢复、MCP 与全仓测试通过。
+1. Replace the hand-written component constraints with official Catalog validation, and verify base/composite components.
+2. Replace `ActionRef` and the in-house path/template resolution with the official action/state binding.
+3. Replace the node-level hand-written patch logic with RFC 6902 patch/SpecStream, keeping UICommand recorded on the outside.
+4. Delete `webRenderer` once the official renderer covers CanvasRef, theming, and host events.
+5. Every step keeps Canvas drill-down, journal recovery, MCP, and the full-repo tests passing.
 
-Gradio 仍不需要：它是 Python Demo UI，不是本产品的动态画布运行时。
+Gradio is still not needed: it is a Python demo UI, not this product's dynamic canvas runtime.

@@ -1,1228 +1,1468 @@
-# 架构重梳理：SDK · 行为内核 · 操作集合 · 热更新与回滚
+# Architecture rework: SDK · behavior kernel · operation set · hot update and rollback
 
-> 状态：design v0.1（2026-09-10）。本文是**平台级**架构重梳理，把已有实现收进一条主线。
-> 既有分层文档见 `layers.md`（包分层）、`effect-unified-on-mcp.md`（MCP 映射）、
-> `effect-bundle-mesh.md`（bundle/回注册/mesh）、`effect-planes-permissions.md`（plane 与权限）、
-> `platform-network.md`（端口/路由/出口 + agentd/mcpset）。`architecture.md` 是 mantis 专属，不是平台。
+> Status: design v0.1 (2026-09-10). This is a **platform-level** architecture rework that gathers the
+> existing implementations onto one main line.
+> For the existing layer documents see `layers.md` (package layering), `effect-unified-on-mcp.md` (MCP mapping),
+> `effect-bundle-mesh.md` (bundle / register back / mesh), `effect-planes-permissions.md` (planes and permissions),
+> `platform-network.md` (ports/routes/egress + agentd/mcpset). `architecture.md` is mantis-specific, not platform.
 >
-> **已定决策（2026-09-10）**：① 内核热更新粒度 = **K2** —— 内核自身也是可热换的制品，host 只留最小底座；
-> ② **app 自身也要能热更新** —— 单点替换、爆炸半径小于内核热换、独立目标。详见 §6。
-> ③ 支持**容器节点** —— 一个节点承接多个 app 的部署，部署单位从 app 变成"节点 × app 集合"。详见 §8。
+> **Decisions made (2026-09-10)**: ① kernel hot-update granularity = **K2** — the kernel itself is also a
+> hot-swappable artifact, and the host keeps only a minimal base;
+> ② **the app itself must also be hot-updatable** — a single-point replacement, a smaller blast radius than a kernel
+> hot swap, an independent goal. See §6.
+> ③ support for **container nodes** — one node carries the deployment of several apps, and the deployment unit
+> changes from an app to "node × app set". See §8.
 
-## 0. 目标（用户原话）
+## 0. Goal (the user's own words)
 
-> 我们提供的是 **SDK 和内置 app**。app 用 SDK 开发时，会自动把我们的**行为模式代码**带上
-> （定义了**所有用户能做的操作集合**，包括 host 与非 host 节点）；启动后，app 自己的行为之外，
-> 使用 SDK 的行为**由我们的代码操纵**；这个**核心代码可以热更新**；host 可以对**兼容**的 app
-> **推送升级热更新**，**崩溃了也能回滚**。
+> What we provide is the **SDK and the built-in apps**. When an app is developed with the SDK, it
+> automatically carries our **behavior-pattern code** with it (which defines **the whole set of operations a user
+> can perform**, host and non-host nodes included); after startup, beyond the app's own behavior,
+> the behavior that uses the SDK is **driven by our code**; this **core code can be hot-updated**; and the
+> host can **push upgrade hot updates** to **compatible** apps, and **roll back when one crashes**.
 
-**追加（2026-09-10）**：
-- app 是分布式的 → **同一个 app 制品要能跑在 OS / 浏览器 / JS 沙箱**三档，沙箱最轻量（见 §7）。
-- 除内核外，**app 自身也要能热更新**（见 §6.4，是独立目标，不只是内核热换的彩排）。
-- 支持**容器节点**：一个节点（机器/容器/宿主）可**承接多个 app 的部署**（见 §8）。
+**Addendum (2026-09-10)**:
+- apps are distributed → **the same app artifact must be able to run on all three tiers: OS / browser / JS sandbox**, the sandbox being the lightest (see §7).
+- besides the kernel, **the app itself must also be hot-updatable** (see §6.4; it is an independent goal, not just a rehearsal for the kernel swap).
+- support for **container nodes**: one node (machine/container/host) can **carry the deployment of several apps** (see §8).
 
-## 1. 术语定名
+## 1. Terminology
 
-| 词 | 含义 | 一句话判据 |
+| Term | Meaning | One-line criterion |
 |---|---|---|
-| **操作集合 (Operation Set)** | 一个节点上"所有能被做的操作"的完整清单 | 不是散落的函数，而是可枚举、可导出 schema、可授权的一份清单 |
-| **内核 (Kernel)** | 我们随 SDK 提供、**操纵 app 非领域行为**的代码 | app 作者不写它；它由 SDK 自动附着 |
-| **节点 (Node)** | 操作集合的承载者 = `(namespace, appId)` | 分 **host 节点**（平台自身）与 **app 节点**（各 app） |
-| **声明层 / 领域层 / 内核层** | 一次 app 开发的三种归属 | 见 §3 |
+| **Operation Set** | the complete list of "every operation that can be performed" on a node | not scattered functions, but one list that is enumerable, can export schema, and can be authorized |
+| **Kernel** | the code we ship with the SDK that **drives the app's non-domain behavior** | app authors do not write it; the SDK attaches it automatically |
+| **Node** | the carrier of an operation set = `(namespace, appId)` | split into **host nodes** (the platform itself) and **app nodes** (each app) |
+| **Declaration layer / Domain layer / Kernel layer** | the three attributions of one app development | see §3 |
 
-## 2. 诉求 ↔ 现状映射
+## 2. Requirement ↔ current state mapping
 
-| # | 诉求 | 现状 | 证据 |
+| # | Requirement | Current state | Evidence |
 |---|---|---|---|
-| a | 我们提供 SDK + 内置 app | **已有**：`packages/effect-*` 是 SDK，`apps/*` 是内置 app | 49 个包；`bun run check:boundary` 0 error |
-| b | 用 SDK 开发时**自动带上行为模式代码** | **部分已有**：`registerEffectApp` 自动注册 config schema、egress、UI/HTML、interface tools、console path，并在失败时回滚 | `packages/effect-apps/src/registration/register.ts:9-37`；`metadata.ts:20-38` |
-| b' | 它定义**所有能做的操作集合** | **缺**：操作集合今天**没有单一模型**，散在 descriptor 各字段 + MCP 投影里；host 节点的特权面更是散落的 control 路由 | §4 |
-| c | 启动后 SDK 行为**由我们的代码操纵** | **已有**：插件生命周期、路由分发、config 热读、UI 托管、MCP/agent 面、权限、observe 全由内核包住 app 的 `load()` | `packages/effect-apps/src/registration/runtime.ts:6-19`（含注释 "Instance interfaces live exactly as long as the loaded app, including reloads"）；`effect-host/src/lifecycle.ts` |
-| d | **核心代码可热更新** | **半有**：插件可运行时 `enable/disable/unregister`，bundle 可重复加载；但**没有版本化内核制品、没有影子/暂存槽、没有内核↔app 版本协商** | `effect-host/src/lifecycle.ts:19-52`；`/-/planes/:id/(enable|disable)` `effect-host/src/control.ts:9` |
-| e | host 对**兼容** app **推送升级** | **缺**：`abi: "effect-1"` 只被声明、**无任何校验代码**；也无 bundle 分发通道（agentd 只推 MCP 配置） | `effect-bundle/src/manifest.ts:9`；全仓 `abi` 仅出现在 board 清单与 test fixture |
-| f | 崩溃可**回滚** | **缺**：只有配置侧的"失败不再重试"，没有上一可用版本指针；`.effect-bundles/` 里已同时存在两个 board 版本却无索引 | `apps/effect-server/src/boot/runtime.ts:33,38-44`（`failedReloads`）；`.effect-bundles/io.effect-agent.board@{0.13.0,1.0.0}.effect-bundle` |
+| a | we provide the SDK + the built-in apps | **exists**: `packages/effect-*` is the SDK, `apps/*` are the built-in apps | 49 packages; `bun run check:boundary` 0 error |
+| b | developing with the SDK **carries the behavior-pattern code automatically** | **partly exists**: `registerEffectApp` automatically registers config schema, egress, UI/HTML, interface tools, console path, and rolls back on failure | `packages/effect-apps/src/registration/register.ts:9-37`; `metadata.ts:20-38` |
+| b' | it defines **the whole set of operations that can be performed** | **missing**: the operation set today **has no single model**; it is scattered across descriptor fields + the MCP projection, and the host node's privileged surface is even more scattered control routes | §4 |
+| c | after startup, SDK behavior is **driven by our code** | **exists**: plugin lifecycle, route dispatch, config hot-read, UI hosting, MCP/agent surface, permissions, observe are all wrapped around the app's `load()` by the kernel | `packages/effect-apps/src/registration/runtime.ts:6-19` (including the comment "Instance interfaces live exactly as long as the loaded app, including reloads"); `effect-host/src/lifecycle.ts` |
+| d | **the core code can be hot-updated** | **half exists**: plugins can `enable/disable/unregister` at runtime and a bundle can be loaded repeatedly; but there is **no versioned kernel artifact, no shadow/staging slot, no kernel↔app version negotiation** | `effect-host/src/lifecycle.ts:19-52`; `/-/planes/:id/(enable|disable)` `effect-host/src/control.ts:9` |
+| e | the host **pushes upgrades** to **compatible** apps | **missing**: `abi: "effect-1"` is only declared and **no code validates it**; there is also no bundle distribution channel (agentd only pushes MCP config) | `effect-bundle/src/manifest.ts:9`; repo-wide `abi` appears only in the board manifest and a test fixture |
+| f | a crash can be **rolled back** | **missing**: only the config-side "do not retry a failure"; there is no last-known-good version pointer; `.effect-bundles/` already holds two board versions at once but has no index | `apps/effect-server/src/boot/runtime.ts:33,38-44` (`failedReloads`); `.effect-bundles/io.effect-agent.board@{0.13.0,1.0.0}.effect-bundle` |
 
-## 3. 归属三分（本方案的主轴）
+## 3. Three-way attribution (the main axis of this plan)
 
-一次 app 开发 = 三种归属，**互相不改写**：
+One app development = three attributions that **do not rewrite each other**:
 
 ```text
-┌── 声明层 Declaration ── app 作者写「纯数据」
+┌── Declaration ── the app author writes "pure data"
 │     tools(zod) · routes · config schema · ui view · egress · requires
-│     = 操作集合的「源」
-├── 领域层 Domain ─────── app 作者写「命令式」
-│     每个操作的 handler 实现（业务语义）
-└── 内核层 Kernel ─────── 我们写，随 SDK 版本走
-      回注册/注销 · 路由分发 · config 解析与热读 · UI 托管 · MCP/agent 面 ·
-      权限(planes) · parity/observe · 生命周期(加载/enable/升级/回滚)
-      = 操作集合的「生成器 + 执行器」
+│     = the "source" of the operation set
+├── Domain ─────── the app author writes the "imperative"
+│     the handler implementation of each operation (business semantics)
+└── Kernel ─────── we write it, it follows the SDK version
+      register back/unregister · route dispatch · config parsing and hot-read · UI hosting · MCP/agent surface ·
+      permissions(planes) · parity/observe · lifecycle(load/enable/upgrade/rollback)
+      = the "generator + executor" of the operation set
 ```
 
-**规则**：
-1. app 只声明 + 实现领域 handler；**不 import 内核实现细节**（边界检查已强制：`check-boundary.ts` R5）。
-2. 内核通过**包装**注入，不靠约定：`withAppRuntime` 已经是这个形状——它包住 `plugin.load()`，
-   自动把 tools 注册成 interface、把 `stop()` 串成"先撤注册、再停 app"。
-3. 内核语义变化 = 换内核版本，app 声明不动（见 §5）。
+**Rules**:
+1. the app only declares + implements domain handlers; it **does not import kernel implementation details** (the boundary check already enforces this: `check-boundary.ts` R5).
+2. the kernel is injected by **wrapping**, not by convention: `withAppRuntime` already has this shape — it wraps
+   `plugin.load()`, automatically registering tools as interface and chaining `stop()` into "first withdraw the
+   registration, then stop the app".
+3. a change in kernel semantics = swap the kernel version; the app's declarations do not move (see §5).
 
-## 4. 操作集合：统一词表
+## 4. The operation set: one vocabulary
 
-把"能做的一切"收进一张**节点级平面表**（沿用 `effect-planes-permissions.md` §1 的四 plane + 特权 plane）：
+Gather "everything that can be done" into one **node-level plane table** (following the four planes + privileged plane of `effect-planes-permissions.md` §1):
 
-| Plane | 寻址 | 内容 | MCP 投影 | 谁能声明 |
+| Plane | Addressing | Content | MCP projection | Who may declare |
 |---|---|---|---|---|
-| interface | `ns::appId.tool` | zod 化的操作 | `tools/list`/`tools/call` | app（领域）+ 内核（通用） |
-| ui | `ui://ns/appId/<view>` | 语言无关 UiDocument | resources | app |
-| storage | `store://ns/appId/<key>` | 文档式 KV | resources/templates | app（数据） |
-| config | `config://ns/appId` + `config_set` | schema 驱动配置 | resource + 写 tool | app |
-| **lifecycle（特权）** | `ns::host.lifecycle` | enable / disable / unregister / **stage / activate / rollback** | 仅 host 节点 | **只有内核** |
+| interface | `ns::appId.tool` | zod-ified operations | `tools/list`/`tools/call` | app (domain) + kernel (generic) |
+| ui | `ui://ns/appId/<view>` | language-neutral UiDocument | resources | app |
+| storage | `store://ns/appId/<key>` | document-style KV | resources/templates | app (data) |
+| config | `config://ns/appId` + `config_set` | schema-driven config | resource + write tool | app |
+| **lifecycle (privileged)** | `ns::host.lifecycle` | enable / disable / unregister / **stage / activate / rollback** | host nodes only | **the kernel only** |
 
-要点：
-- **host 节点与 app 节点共用同一张表**，差别只在特权 plane：host 有 lifecycle（升级/回滚），app 没有。
-  这是"包括 host 和非 host 节点"的落点。
-- 操作集合由内核从声明层**自动生成**——这就是用户说的"自动把行为模式的代码带上"。
-- 已有实现把一部分做成了：`listAppTools / resolveAppTool / invokeAppTool`（`packages/effect-apps/src/tools.ts:21-39`）
-  提供**对所有 app 统一的** list/resolve/validate/invoke 入口（`apps_list/app_read/app_call` 面）。
+Key points:
+- **host nodes and app nodes share the same table**; the only difference is the privileged plane: host nodes have
+  lifecycle (upgrade/rollback), app nodes do not. This is where "host and non-host nodes included" lands.
+- the operation set is **generated automatically** by the kernel from the declaration layer — this is what the user
+  meant by "automatically carrying the behavior-pattern code with it".
+- the existing implementation already does part of this: `listAppTools / resolveAppTool / invokeAppTool`
+  (`packages/effect-apps/src/tools.ts:21-39`) provide **one uniform** list/resolve/validate/invoke entry point for
+  all apps (the `apps_list/app_read/app_call` surface).
 
-**已落地（2026-09-10，P2-A）**——host 特权面进同一张表，三块：
-- **声明**：`packages/effect-host/src/operations.ts`。`/-/planes` 的四个操作（list / enable / disable /
-  unregister）原本只是 `control.ts` 里的正则；现在是 `HOST_OPERATIONS` 数据，每条带 `method`、`path` 模板、
-  `inputSchema`、`outputSchema`。`control.ts` 只剩执行：`matchHostOperation` → `runHostOperation`。
-  **这不是新增一层，而是把已有的那层写下来**——路径形状从此只有一处（测试锁死这条等式）。
-- **合表**：`packages/effect-apps/src/operations.ts`。`makeNodeOperationTable(host, apps)` 把
-  host 的 lifecycle 与每个 app 的 interface 工具放进同一张 `NodeOperation` 表，地址
-  `${node}::${plane}::${name}`（host 侧即 `host::lifecycle::enable`；app 侧的 node 本身是
-  `ns::appId`，所以形如 `ops::notes::interface::ping`）。特权是**条目上的属性**（`privileged`），
-  不是第二张表：只有 host 节点有 lifecycle，app 永远没有。
-- **服务**：`GET /-/operations`（`apps/effect-server/src/boot/infra.ts`）返回 JSON-safe 投影
-  （`nodeOperationSummary`，**不含 `invoke`**）。列与做分开：这个路由只描述，动手仍走 `/-/planes`
-  那条已经声明过的路径。
+**Landed (2026-09-10, P2-A)** — the host privileged surface joins the same table, in three parts:
+- **Declaration**: `packages/effect-host/src/operations.ts`. The four operations of `/-/planes` (list / enable /
+  disable / unregister) used to be just a regex in `control.ts`; now they are `HOST_OPERATIONS` data, each entry
+  carrying `method`, a `path` template, `inputSchema`, `outputSchema`. `control.ts` keeps only execution:
+  `matchHostOperation` → `runHostOperation`. **This is not a new layer, it is writing down the layer that already
+  existed** — the path shape now exists in exactly one place (a test pins that equation).
+- **One table**: `packages/effect-apps/src/operations.ts`. `makeNodeOperationTable(host, apps)` puts the host's
+  lifecycle and every app's interface tools into one `NodeOperation` table, addressed
+  `${node}::${plane}::${name}` (on the host side `host::lifecycle::enable`; on the app side the node is itself
+  `ns::appId`, so it looks like `ops::notes::interface::ping`). Privilege is **a property on the entry**
+  (`privileged`), not a second table: only host nodes have lifecycle, apps never do.
+- **Service**: `GET /-/operations` (`apps/effect-server/src/boot/infra.ts`) returns a JSON-safe projection
+  (`nodeOperationSummary`, **without `invoke`**). Listing and doing are kept apart: this route only describes;
+  acting still goes through the already-declared `/-/planes` path.
 
-两个刻意的性质（都写在 `operations.ts` 注释里）：`list()` 是**视图不是快照**，每次重读 catalog，
-所以热换（§6.4）后立刻反映、没有需要失效的缓存——节点 MCP server 每请求重建也是同一个道理；
-app 面的可见性直接继承 `listAppTools` 的 `authorize("interface")`，被拒的 plane **根本不在表里**，
-而不是"在表里但调不动"。
+Two deliberate properties (both written in the `operations.ts` comments): `list()` is **a view, not a snapshot**; it
+re-reads the catalog every time, so a hot swap (§6.4) is reflected immediately and there is no cache to invalidate —
+the node MCP server being rebuilt per request is the same idea; and app-surface visibility inherits
+`listAppTools`'s `authorize("interface")` directly, so a denied plane is **simply not in the table**, rather than
+"in the table but not callable".
 
-## 5. 内核版本与兼容
+## 5. Kernel version and compatibility
 
-**今天**：`bundleId` 带 semver（`io.effect-agent.board@1.0.0`），manifest 有 `abi: "effect-1"`，
-config 有 `revision`（`effect-config/src/contract.ts:43`，SQLite 持久化）——**但 abi 从不被校验**。
+**Today**: `bundleId` carries semver (`io.effect-agent.board@1.0.0`), the manifest has `abi: "effect-1"`, config has `revision` (`effect-config/src/contract.ts:43`, persisted in SQLite) — **but abi is never validated**.
 
-**要定**：
-- `abi`（major，兼容线，如 `effect-1`）——决定"能不能装"。
-- `kernelVersion`（semver，内核自身）——决定"行为是否一致"。
-- app 声明 `kernel: "^1.2"` 或 `abi: effect-1`；**加载前 gate**，不满足即**拒绝加载并明确报错**
-  （沿用仓库取向：不符结构明确失败，不静默降级）。
-- 内核与 app 的**双向**兼容：新内核必须能跑声明了旧 abi 的 app；新 app 声明高于宿主的内核 → 拒装。
+**To be decided**:
+- `abi` (major, the compatibility line, e.g. `effect-1`) — decides "can it be installed".
+- `kernelVersion` (semver, the kernel itself) — decides "is the behavior the same".
+- the app declares `kernel: "^1.2"` or `abi: effect-1`; **gate before load**, and if unmet, **refuse to load with an
+  explicit error** (following the repository's stance: a structural mismatch fails loudly, it does not degrade silently).
+- **two-way** kernel↔app compatibility: a new kernel must be able to run apps that declared an older abi; a new app
+  declaring a kernel higher than the host's → refuse to install.
 
-**已落地（2026-09-10，P0）**：`packages/effect-bundle/src/compat.ts` 实现上面这条 gate——
-`KERNEL_ABI = "effect-1"` 是宿主实现的线，`assessBundleCompat(声明, 宿主能力)` 返回
-`{ok}` / `{ok:false, reason:{code: abi-unparseable | abi-mismatch | runtime-unsupported}}`；
-`loadEffectBundle` 在 `import(entry)` **之前**调用它，所以不兼容制品**一行都不执行**。
-认不出的 abi（非 `effect-<major>`）判 `abi-unparseable` 而非默默放行——沿用"不符结构明确失败"的取向。
+**Landed (2026-09-10, P0)**: `packages/effect-bundle/src/compat.ts` implements the gate above —
+`KERNEL_ABI = "effect-1"` is the line the host implements, and `assessBundleCompat(declaration, host capability)`
+returns `{ok}` / `{ok:false, reason:{code: abi-unparseable | abi-mismatch | runtime-unsupported}}`;
+`loadEffectBundle` calls it **before** `import(entry)`, so an incompatible artifact **executes not a single line**.
+An unrecognized abi (not `effect-<major>`) is judged `abi-unparseable` rather than quietly let through — following
+the stance that a structural mismatch fails loudly.
 
-**两条 ABI 线（K2 决定后，见 §6）**：
+**Two ABI lines (after the K2 decision, see §6)**:
 
-| 线 | 两端 | 变化频率 | 判定 |
+| Line | Both ends | Change frequency | Decision |
 |---|---|---|---|
-| `bootstrap ABI` | host 底座 ↔ 内核制品 | 极低 | 内核声明它要的 bootstrap ABI；不满足即拒换内核 |
-| `effect-N` | 内核制品 ↔ app 制品 | 中 | app 声明所需；内核声明它实现的区间；**换内核前先查全部已加载 app** |
+| `bootstrap ABI` | host base ↔ kernel artifact | very low | the kernel declares the bootstrap ABI it needs; if unmet, refuse the kernel swap |
+| `effect-N` | kernel artifact ↔ app artifact | medium | the app declares what it needs; the kernel declares the range it implements; **check every loaded app before swapping the kernel** |
 
-**已有同类机制的现成先例（应当复用，不要再造第二套）**：`docs/script-sandbox.md` §4/§5 已经实现了一整套
-**内容寻址版本 + 分级兼容裁决**：四级破坏（schema / deps / description / behavior）、
-`CompatPolicy` 可配 `strict|warn|ignore`、`assessUpgrade(store, from, to, policy): UpgradeReport`，
-并且**升级与回滚走同一个裁决函数**（§5.2 明写 *"Upgrade direction: old→new (apply the new version)
-and new→old (rollback) use the same adjudication function"*）。§0 把这套总结为 *"one recursive
-mechanism"*——工具级 / 版本级 / 配置级 / agent 级递归共用"scope + policy"一个模式。
-**内核与 app 的版本兼容、回滚裁决应收敛到这一套**，而不是另立 semver 规则。
+**An existing precedent of the same kind of mechanism (reuse it, do not build a second one)**: `docs/script-sandbox.md` §4/§5 already implements a whole
+**content-addressed versioning + graded compatibility adjudication**: four levels of breakage (schema / deps /
+description / behavior), `CompatPolicy` configurable as `strict|warn|ignore`,
+`assessUpgrade(store, from, to, policy): UpgradeReport`, and **upgrade and rollback go through the same adjudication
+function** (§5.2 states it explicitly: *"Upgrade direction: old→new (apply the new version) and new→old (rollback)
+use the same adjudication function"*). §0 summarizes this as *"one recursive mechanism"* — the tool level, version
+level, config level and agent level all recurse on the one "scope + policy" pattern.
+**Kernel↔app version compatibility and rollback adjudication should converge on this**, rather than setting up a
+separate set of semver rules.
 
-**已落地（2026-09-10，P4）**：这套裁决已抽成**零依赖**的 `packages/effect-compat`
-（`assessChange` / `assessUpgrade` / `assessRollback` / `defaultCompat` / `CompatPolicy`），
-`packages/script` 与 `effect-apps` 都从它取，杜绝"第二套"。抽包的理由是依赖方向：
-`packages/script` 依赖原生 `isolated-vm`，app 层不该为了裁决把它拖进来。
-`assessRollback(from, to)` 就是 `assessUpgrade(to, from)`——回滚即反向升级，一行之差。
-输入放宽为结构化的 `AssessableTool` 与 `VersionLike<T>`，所以工具面（§4 的操作集合）与
-版本制品（§5 的 bundle）能共用同一个判定器。
+**Landed (2026-09-10, P4)**: this adjudication has been extracted into the **zero-dependency** `packages/effect-compat`
+(`assessChange` / `assessUpgrade` / `assessRollback` / `defaultCompat` / `CompatPolicy`); both `packages/script` and
+`effect-apps` take it from there, ruling out "a second one". The reason for extracting the package is dependency
+direction: `packages/script` depends on the native `isolated-vm`, and the app layer should not drag that in just to
+adjudicate. `assessRollback(from, to)` is `assessUpgrade(to, from)` — rollback is a reversed upgrade, a one-line
+difference. The inputs are widened to the structured `AssessableTool` and `VersionLike<T>`, so the tool surface
+(§4's operation set) and version artifacts (§5's bundle) can share the same adjudicator.
 
-**已落地（2026-09-10，P2-B）——两条线都成了代码的一部分**：
-- `packages/effect-bundle/src/kernel.ts`：`KernelDeclaration`（`bootstrapAbi` + `abi` + `runtimes`）、
-  `assessKernelCompat` / `assertKernelCompat` / `KernelIncompatibleError`、
-  **`assessKernelAgainst(kernel, apps, host)`**——后者就是 §5 要求的"换内核前先查全部已加载 app"：
-  把**内核当成 host** 去跑同一个 `assessBundleCompat`，返回被这版内核打断的 app 清单（空 = 全部保住）。
-- 判定逻辑没有第二套：`assessAbiLine` / `assessRuntime` 由两条线共用，`Incompatibility` 多了个
-  `line: "bootstrap" | "effect"` 字段——出问题时日志里能直接看出**是哪条线**断的。
-- 测试锁住了两件事：内核要 `bootstrap-2` 而 host 只有 `bootstrap-1` → 拒（`abi-mismatch`，`line: bootstrap`）；
-  一个 `abi: effect-2` 的内核对着已加载的 `effect-1` app → `assessKernelAgainst` 逐个点名。
-- `apps/effect-server/src/boot/kernel.ts` 声明本进程的内核，`bootRuntime` 在**建任何状态之前**先 gate；
-  内核也可以通过 `EffectServerOptions.kernel` 传入（supervisor 将来就从制品仓传它进来）。
+**Landed (2026-09-10, P2-B) — both lines are now part of the code**:
+- `packages/effect-bundle/src/kernel.ts`: `KernelDeclaration` (`bootstrapAbi` + `abi` + `runtimes`),
+  `assessKernelCompat` / `assertKernelCompat` / `KernelIncompatibleError`,
+  **`assessKernelAgainst(kernel, apps, host)`** — the latter is exactly what §5 asks for, "check every loaded app
+  before swapping the kernel": it treats **the kernel as the host** and runs the same `assessBundleCompat`,
+  returning the list of apps this kernel version breaks (empty = all preserved).
+- the decision logic is not duplicated: `assessAbiLine` / `assessRuntime` are shared by both lines, and
+  `Incompatibility` gained a `line: "bootstrap" | "effect"` field — when something goes wrong the log shows
+  directly **which line** broke.
+- the tests pin two things: a kernel wanting `bootstrap-2` while the host only has `bootstrap-1` → refused
+  (`abi-mismatch`, `line: bootstrap`); a kernel with `abi: effect-2` against a loaded `effect-1` app →
+  `assessKernelAgainst` names them one by one.
+- `apps/effect-server/src/boot/kernel.ts` declares this process's kernel, and `bootRuntime` gates **before creating
+  any state**; a kernel can also be passed in through `EffectServerOptions.kernel` (the supervisor will eventually
+  pass it in from the artifact repo).
 
-## 6. 生命周期：加载 / 热更新 / 回滚（**已定 K2**）
+## 6. Lifecycle: load / hot update / rollback (**K2 decided**)
 
-**已定（2026-09-10）**：内核自身也是可热换的制品，host 只保留最小底座。
-即——"内核代码可热更新"是真的热更新，不是"升级 = 重启 host"。
+**Decided (2026-09-10)**: the kernel itself is also a hot-swappable artifact, and the host keeps only a minimal
+base. That is — "the kernel code can be hot-updated" means a real hot update, not "upgrade = restart the host".
 
-### 6.1 host 不变式（永不被热换）
+### 6.1 Host invariants (never hot-swapped)
 
-| 不变式 | 内容 | 现状 |
+| Invariant | Content | Current state |
 |---|---|---|
-| 进程与入口 | 进程、socket/listener、**路由表分发点**（内核换，入口不换） | `effect-network/src/listeners.ts` 已有托管监听器 |
-| 制品仓 | `.effect-bundles/<bundleId>@<version>/` + `kernel-state.json`（active/previous/abi/health） | 目录布局已有，索引缺 |
-| 监管者 | supervisor：暂存 → 健康检查 → 原子翻转 → 提交/回滚 → boot 恢复 | **缺** |
-| 引导 ABI | host ↔ 内核的契约（§5 两条 ABI 线） | **已声明并已行使**（`effect-bundle/src/kernel.ts`，P2-B；P5 第二段起 supervisor 真的从制品仓取内核，错配会开火）。**未被行使**的是 ② 档——见下 |
+| process and entry | the process, socket/listener, the **route-table dispatch point** (the kernel is swapped, the entry is not) | `effect-network/src/listeners.ts` already has a managed listener |
+| artifact repo | `.effect-bundles/<bundleId>@<version>/` + `kernel-state.json` (active/previous/abi/health) | the directory layout exists, the index is missing |
+| supervisor | supervisor: stage → health check → atomic flip → commit/rollback → boot recovery | **missing** |
+| bootstrap ABI | the host ↔ kernel contract (§5's two ABI lines) | **declared and exercised** (`effect-bundle/src/kernel.ts`, P2-B; since P5's second leg the supervisor really takes the kernel from the artifact repo, and a mismatch fires). What is **not exercised** is tier ② — see below |
 
-除上表外的一切——plugin host、各 registry、config runtime、UI 托管、planes、observe、MCP 面、console——
-都是**内核制品**。今天的 `apps/effect-server/src/boot/runtime.ts:17-72` 正是这个"内核 + 底座"的混合体，
-K2 要求把它**拆开**：底座留在 host，其余成为内核 bundle。**已拆（P5 第二段）**——见下。
+Everything outside the table above — plugin host, the various registries, config runtime, UI hosting, planes,
+observe, the MCP surface, console — is a **kernel artifact**. Today's `apps/effect-server/src/boot/runtime.ts:17-72`
+is exactly this "kernel + base" hybrid, and K2 requires **splitting it apart**: the base stays in the host, the rest
+becomes a kernel bundle. **Split done (P5's second leg)** — see below.
 
-**实现逼出来的一次修正（2026-09-10，P5 第二段）**：真去拆的时候，上表下面那句话按字面做是**做不成**的，
-必须改一条判据：
+**A correction the implementation forced (2026-09-10, P5's second leg)**: when we actually went to split it, doing
+the sentence under the table above literally turned out to be **impossible**, and one criterion had to change:
 
-> **内核是代码。任何握着进程级句柄的东西都不是。**
+> **A kernel is code. Anything holding a process-level handle is not.**
 
-- SQLite store 与 listener 正是 P1 在 §7.6 点名的三个"进程级活句柄"里的两个。把它们放进内核，
-  兼容热换就会把这些句柄连根拔起——而这恰恰是 §7.6 说"真正阻塞档①"的东西。所以它们是**服务**：
-  bootstrap 建一次，交给每一个内核 revision。
-- **app 注册表（plugin host）也必须是 host 不变式**，这条是硬的：如果每个内核自带一个 host，
-  换内核就会把每个已装载的 app 一起丢掉——那是 §6.3-**②**（全量重建），而用户明确说过
-  **兼容内核不许逼 app 重建**。app 只向那个稳定的 host 注册一次，内核只拥有自己的 plane。
-- 于是"内核制品"= **行为**（plane 的实现 + 组合它们的逻辑），"host"= **状态与句柄**。
-  这也解释了 §6.3-① 里那句"并交接内核自身的运行态"：在这一版里它**自动成立**，因为运行态本来就在
-  host 手上；将来某个内核要有自己的态，交接才需要真做——**那时才是缺口**。
-- 落到代码：`KERNEL_PLANES`（槽位 id 与 priority）是**host 的数据**，`planeStandIn` 每个槽位注册一次、
-  永不重注册（路由表不动），翻转就是 stand-in 里面那一个指针。
+- the SQLite store and the listener are two of the three "process-level live handles" P1 named in §7.6. Putting them
+  in the kernel would mean a compatible hot swap tears these handles out by the root — and that is precisely what
+  §7.6 says "really blocks tier ①". So they are **services**: bootstrap creates them once and hands them to every
+  kernel revision.
+- **the app registry (plugin host) must also be a host invariant**, and this one is hard: if every kernel brought
+  its own host, swapping the kernel would throw away every loaded app along with it — that is §6.3-**②** (a full
+  rebuild), and the user stated explicitly that **a compatible kernel must not force apps to be rebuilt**. An app
+  registers with that stable host once; the kernel owns only its own planes.
+- so "kernel artifact" = **behavior** (the plane implementations + the logic that composes them), and "host" =
+  **state and handles**. This also explains the phrase "and hand over the kernel's own runtime state" in §6.3-①: in
+  this version it **holds automatically**, because the runtime state is already in the host's hands; if some future
+  kernel has its own state, the handover will have to be really done — **that is when the gap appears**.
+- in code: `KERNEL_PLANES` (slot id and priority) is **the host's data**, `planeStandIn` registers once per slot and
+  never re-registers (the route table does not move); the flip is the single pointer inside the stand-in.
 
-**已落地（2026-09-10，P2-B）与未落地，分清**：
-- 落地的是**契约**：内核现在声明自己要哪条 bootstrap 线、实现对 app 的哪条 `effect-N` 线，
-  `bootRuntime` 在开数据库之前先 gate（`assertKernelBootable`）。判定用的是 §5 的同一套函数。
-- **未落地的是"内核以制品形态加载"**。这一步被有意押后到 P5：可热换的内核需要 supervisor
-  （暂存 → 健康检查 → 原子翻转 → 提交/回滚）在旁边，否则换内核就等于 §6.3-① 明确禁止的那种窗口
-  （新内核已可见、旧内核已卸载、失败只能靠重建补）。所以 P2 只把**料**备齐，不单独引入内核热换。
-- 因此 `assertKernelBootable` 今天**不可能对真实错配开火**：host 与内核同一次构建出来，两边的常量
-  必然相等。它成为真正的闸门，是在 supervisor 能从制品仓取出**另一个**内核的那一刻（P5/P6）。
+**Keep landed (2026-09-10, P2-B) and not landed apart**:
+- what landed is the **contract**: the kernel now declares which bootstrap line it wants and which `effect-N` line
+  it implements for apps, and `bootRuntime` gates before opening the database (`assertKernelBootable`). The decision
+  uses the same set of functions as §5.
+- **what did not land is "the kernel loading as an artifact"**. This step was deliberately deferred to P5: a
+  hot-swappable kernel needs the supervisor (stage → health check → atomic flip → commit/rollback) beside it,
+  otherwise the kernel swap is exactly the window §6.3-① explicitly forbids (the new kernel is already visible, the
+  old kernel is already unloaded, and a failure can only be patched by rebuilding). So P2 only assembles the
+  **material**; it does not introduce a kernel hot swap on its own.
+- therefore `assertKernelBootable` today **cannot fire on a real mismatch**: host and kernel come out of the same
+  build, so the constants on both sides are necessarily equal. It becomes a real gate at the moment the supervisor
+  can take **another** kernel out of the artifact repo (P5/P6).
 
-### 6.2 双缓冲切换（内核级）
+### 6.2 Double-buffered swap (kernel level)
 
 ```text
-        ┌── kernel A (active，正在服务) ─────────────┐
-host ───┤                                            ├─ 路由分发点（唯一，不动）
-        └── kernel B (staged，已加载但不接管路由) ────┘
-   stage B ─► 兼容矩阵(§5 两线 + 全部已加载 app) ─► 健康检查
-        ├─ 失败 ─► 丢弃 B；A 继续服务，**无感**
-        └─ 通过 ─► 原子翻转分发点 ─► A 进入 draining ─► commit(A 变 previous)
-                     └─ 翻转后异常 ─► **翻回 A**（A 在 commit 前绝不卸载）
+        ┌── kernel A (active, serving) ───────────────────────────┐
+host ───┤                                                         ├─ route dispatch point (single, does not move)
+        └── kernel B (staged, loaded but not taking the routes) ──┘
+   stage B ─► compatibility matrix (§5's two lines + every loaded app) ─► health check
+        ├─ failure ─► drop B; A keeps serving, **unnoticed**
+        └─ pass ─► atomic flip of the dispatch point ─► A enters draining ─► commit (A becomes previous)
+                     └─ exception after the flip ─► **flip back to A** (A is never unloaded before commit)
 ```
 
-**核心不变量：A 在 commit 之前绝不卸载**。这就是"旧内核已被卸载后无法回滚"的解药，
-也是 K2 相对 K1 唯一真正难的地方——K1 把这个问题回避了，K2 必须用双缓冲正面解决。
+**The core invariant: A is never unloaded before commit**. That is the antidote to "the old kernel is already
+unloaded, so it cannot be rolled back", and it is the one place K2 is genuinely harder than K1 — K1 sidestepped the
+problem; K2 has to solve it head-on with double buffering.
 
-**已落地（2026-09-10，P5-1）——状态机与指针，未接线**：
-- `packages/effect-bundle/src/repo.ts`：制品仓索引 `kernel-state.json`（active / previous / condemned）。
-  写盘是**原子**的（临时文件 + rename）——写到一半崩掉会同时丢掉 active 和回滚目标，比索引过期更糟。
-  缺文件 = 空仓（首次启动）；**文件损坏 = 报错**，不猜该跑哪个内核。
-  `condemned` 记录本机已经失败过的 revision：不重试，避免"启动 → 崩 → 回退 → 再启动"的循环。
-- `packages/effect-bundle/src/supervisor.ts`：`makeKernelSupervisor({repo, load, activate, probe, apps, host})`，
-  给出 `boot(shipped?)` / `stage(revision)` / `state()` / `active()` / `previous()`。
-  顺序严格照 §6.2：`stage → §5 矩阵 → load → probe → activate（翻转）→ persist → dispose(A)`。
-  翻转本身抛错就**把 A 放回前面**——A 从未停止，所以"放回去"不会因为这次交换引入的原因失败。
-- 内核是泛型 `K`：这状态机关心的是 revision 与指针，不关心内核是什么。`load` 是注入的，
-  今天返回本仓库的内核，将来返回编译好的制品——**切换逻辑不变**。
-- 测试锁住的是不变量本身：翻转发生在旧内核停止**之前**（断言 `activate:B` 早于 `stop:A`）、
-  被拒的候选**一行都没执行**、候选体检不过只丢弃候选、翻转失败翻回 A、boot 回退到 previous 并告警、
-  已 condemned 的 revision 下次不再重试。
+**Landed (2026-09-10, P5-1) — the state machine and the pointer, not wired up**:
+- `packages/effect-bundle/src/repo.ts`: the artifact repo index `kernel-state.json` (active / previous / condemned).
+  The write to disk is **atomic** (temp file + rename) — crashing halfway through would lose both active and the
+  rollback target at once, worse than a stale index. A missing file = an empty repo (first boot); **a corrupt file =
+  an error**; it does not guess which kernel to run. `condemned` records the revisions that have already failed on
+  this machine: no retry, avoiding the "boot → crash → fall back → boot again" loop.
+- `packages/effect-bundle/src/supervisor.ts`: `makeKernelSupervisor({repo, load, activate, probe, apps, host})`,
+  giving `boot(shipped?)` / `stage(revision)` / `state()` / `active()` / `previous()`.
+  The order follows §6.2 strictly: `stage → §5 matrix → load → probe → activate (flip) → persist → dispose(A)`.
+  If the flip itself throws, A is **put back in front** — A never stopped, so "putting it back" cannot fail for any
+  reason introduced by this swap.
+- the kernel is the generic `K`: this state machine cares about revisions and pointers, not about what a kernel is.
+  `load` is injected; today it returns this repository's kernel, in future it returns a compiled artifact — **the
+  swap logic does not change**.
+- what the tests pin is the invariants themselves: the flip happens **before** the old kernel stops (asserting
+  `activate:B` precedes `stop:A`); a rejected candidate **executes not one line**; a candidate that fails its
+  physical only drops the candidate; a failed flip flips back to A; boot falls back to previous and warns; a
+  revision already condemned is not retried next time.
 
-**这一点没做，说清楚**：supervisor **还没有接进 `bootRuntime`**。接线要同时具备"稳定 facade"
-（§6.3-①：host 交给 app 的必须是 facade 而不是内核的具体对象）和切换期请求保护（§6.5-5），
-否则 `activate` 只能是空操作——而空操作的双缓冲是自欺。另外今天 `load(revision)` 对任何 revision
-都构建同一个内核（内核还不是制品），所以"回退"在真实进程里没有可回退的对象。两者一起做才不是演戏：
-那是 P5 的第二段（内核制品化 + facade + 请求保护）。
+**This one was not done, to be clear**: the supervisor **is not yet wired into `bootRuntime`**. Wiring needs both a
+"stable facade" (§6.3-①: what the host hands the app must be a facade, not the kernel's concrete objects) and
+request protection during the swap (§6.5-5); otherwise `activate` can only be a no-op — and a double buffer built
+on a no-op is self-deception. Also, today `load(revision)` builds the same kernel for any revision (the kernel is
+not yet an artifact), so in a real process "fall back" has nothing to fall back to. Doing both together is what
+keeps it from being theatre: that is P5's second leg (kernel artifact-ization + facade + request protection).
 
-> **上面这段是 P5 第一段时的状态，P5 第二段（2026-09-10）已经把它补上**：现在 `activate` 是
-> `dispatch-point.ts` 里的一次指针赋值，`load(revision)` 会从一个**制品目录** `import()` 内核，
-> `retire` 等旧内核的在途请求走完才让它停。下面这张图和上面这段记录的是同一件事的两个时点，
-> 保留原文是为了不把"当初为什么押后"抹掉。
+> **That paragraph is the state at P5's first leg; P5's second leg (2026-09-10) has filled it in**: `activate` is now
+> a single pointer assignment in `dispatch-point.ts`, `load(revision)` will `import()` a kernel from an **artifact
+> directory**, and `retire` waits for the old kernel's in-flight requests to finish before letting it stop. The
+> diagram below and the paragraph above record two points in time of the same thing; the original text is kept so
+> that "why it was deferred at the time" is not erased.
 
-**已落地（2026-09-10，P5 第二段）——接进真实进程**：
-- 分发表不变：`KERNEL_PLANES` 的每个槽位在 host 上有一个**稳定 stand-in**，注册一次，
-  id 与 priority 属于 host。换内核时路由表**一个字节都不动**（§6.3-① 的字面兑现）。
-- 翻转：stand-in 的 `handle` 走 `point.run(...)`，进入时抓住当时的那个内核。所以
-  "已在服务中的请求跟着 A 走完、新请求落到 B"是**机制**而不是承诺。
-- 旧的停止点：`dispose: (kernel) => { await point.retire(kernel); await kernel.dispose() }`，
-  而 `retire` **会拒绝**退休当前在服务的内核——"先翻转再停"从注释变成了一条会抛错的约束。
-- stage 期间还有一道 host 侧的检查：候选内核必须**填满所有已启用槽位**（`probe`）。
-  少填一个槽位意味着路由表里留着一个按 URL 可达的洞——必须在旧内核还在服务时就拒掉，
-  而不是等第一条打到洞里的请求。
-- 两档的现状：**两档都已通**。① 兼容原地热换是纯平移；② 不兼容 → 重建 app 也已落地
-  （2026-09-10，见 §6.3 的「档② 已落地」）。**只有 host 注入 `rebuild` 能力时 ② 才可用**；
-  没注入的主机行为与从前逐字一致（拒换）。
+**Landed (2026-09-10, P5's second leg) — wired into the real process**:
+- the dispatch table does not move: every slot of `KERNEL_PLANES` has a **stable stand-in** on the host, registered
+  once, with the id and priority belonging to the host. On a kernel swap the route table **does not move by a
+  single byte** (the literal fulfilment of §6.3-①).
+- the flip: the stand-in's `handle` goes through `point.run(...)`, grabbing whichever kernel is current on entry.
+  So "requests already in service finish on A, new requests land on B" is **a mechanism**, not a promise.
+- the old kernel's stopping point: `dispose: (kernel) => { await point.retire(kernel); await kernel.dispose() }`,
+  and `retire` **refuses** to retire the kernel currently in service — "flip first, then stop" went from a comment
+  to a constraint that throws.
+- during stage there is also a host-side check: the candidate kernel must **fill every enabled slot** (`probe`).
+  One unfilled slot means the route table has a URL-reachable hole — it has to be refused while the old kernel is
+  still serving, not when the first request lands in the hole.
+- the state of the two tiers: **both tiers now work**. ① a compatible in-place hot swap is a pure translation;
+  ② incompatible → rebuild the apps has also landed (2026-09-10, see "tier ② landed" in §6.3). **Tier ② is available
+  only when the host injects the `rebuild` capability**; a host that does not inject it behaves word-for-word as
+  before (refuse the swap).
 
-**两档代价完全不同**：兼容内核的翻转只是 facade 之后的实现替换（§6.3-①，**app 不动**）；
-不兼容才走全量重建（§6.3-②）。
+**The two tiers cost completely different things**: a compatible kernel's flip is only a replacement of the
+implementation behind the facade (§6.3-①, **apps do not move**); only an incompatible one goes through a full
+rebuild (§6.3-②).
 
-### 6.3 内核热换的两档：兼容则原地换，不兼容才重建 app
+### 6.3 The two tiers of a kernel hot swap: in place when compatible, rebuild the apps only when not
 
-**用户澄清（2026-09-10）**：*兼容的内核**不需要** app 重建——直接（远程）热更新内核即可*。
-所以下面的重建流程不是"唯一可行模型"，而是**第二档**：
+**User clarification (2026-09-10)**: *a compatible kernel does **not** need an app rebuild — just hot-update the kernel (remotely)*.
+So the rebuild flow below is not "the only workable model" but the **second tier**:
 
-| 档 | 条件 | 动作 | 对 app |
+| Tier | Condition | Action | Effect on apps |
 |---|---|---|---|
-| **① 原地热换** | 内核**兼容**（abi 不变 **且** 内核自有运行态可交接） | host 把 facade 后面绑定的实现由 A 换成 B，并交接内核自身的运行态 | **零重建**，app 的 loaded plane 不动 |
-| **② 全量重建** | 内核**不兼容**（abi 变 / 内核内部态结构变 / 有 app 抓住了内核具体对象） | `drain(apps) → unload(apps) → 装载 B → B 重放声明层的 registerEffectApp → 健康检查 → commit` | 全部 app 重建 |
+| **① in-place hot swap** | the kernel is **compatible** (abi unchanged **and** the kernel's own runtime state is handover-able) | the host swaps the implementation bound behind the facade from A to B, and hands over the kernel's own runtime state | **zero rebuild**; the app's loaded planes do not move |
+| **② full rebuild** | the kernel is **incompatible** (abi changed / the kernel's internal state structure changed / some app grabbed a concrete kernel object) | `drain(apps) → unload(apps) → load B → B replays the declaration layer's registerEffectApp → health check → commit` | all apps rebuilt |
 
-**档① 成立的机制前提**：**host 交给 app 的必须是稳定 facade，而不是内核的具体对象**。
-`EffectBundleApi`（`effect-bundle/src/load.ts:20-31`）与 `EffectAppHost`
-（`effect-apps/src/descriptor.ts:29-40`）**就是这个 facade 接缝**。app 只拿 facade，内核在 facade 后面插拔，
-于是"换内核" = 换绑定，app 与路由表内容都不动。这也是 §3 规则 1（app 不 import 内核实现细节）的
-**运行时对应物**：编译期禁 import，运行期禁抓对象。
+**The mechanism tier ① rests on**: **what the host hands the app must be a stable facade, not the kernel's concrete
+objects**. `EffectBundleApi` (`effect-bundle/src/load.ts:20-31`) and `EffectAppHost`
+(`effect-apps/src/descriptor.ts:29-40`) **are that facade seam**. The app takes only the facade; the kernel is
+plugged and unplugged behind the facade, so "swapping the kernel" = swapping the binding, and neither the app nor the
+route table's contents move. This is also the **runtime counterpart** of §3 rule 1 (the app does not import kernel
+implementation details): no imports at compile time, no grabbing objects at runtime.
 
-**档② 可行的依据**：声明层是纯数据、领域 handler 从 bundle 重新 import、状态在 SQLite/config store；
-且"实例接口的生命周期与 app 完全一致，含 reload"本就是现有语义（`registration/runtime.ts:6`）。
-（`packages/effect-apps/src/registration/runtime.ts:6`，注释明写 *including reloads*）。
-**前提**：切换窗口内 app 的内存态必须可重建——哪个 app 有不可重建的内存态，就是这次架构重梳理的检查清单。
+**Why tier ② is workable**: the declaration layer is pure data, domain handlers are re-imported from the bundle, and
+state is in SQLite / the config store; and "an instance interface's lifetime matches the app's exactly, reloads
+included" is already the existing semantics (`registration/runtime.ts:6`).
+(`packages/effect-apps/src/registration/runtime.ts:6`, the comment says explicitly *including reloads*).
+**The precondition**: during the swap window the apps' in-memory state must be rebuildable — whichever app has
+in-memory state that cannot be rebuilt is what this architecture rework's checklist is for.
 
-**档② 已落地（2026-09-10）**——两档现在都在：
+**Tier ② landed (2026-09-10)** — both tiers are now in place:
 
-- **supervisor 一侧**（`packages/effect-bundle/src/supervisor.ts`）：新增注入能力
-  `rebuild?: { teardown(); replay() }`。supervisor 是泛型 K，它不知道 app 是什么，
-  **装卸 app 是 host 的事**——与它今天只通过 `apps(): BundleDeclaration[]` 参与矩阵是同一个分工。
-  注入了就按 `teardown → adopt(B)（load+probe）→ activate(B) → replay → persist → dispose(A)` 走；
-  **没注入则与从前逐字一致**（拒换）——② 是能力，不是默认。
-- **哪一条拒绝才触发 ②**：只有 `apps`（effect 线）拒绝走重建。`incompatible` 是 host↔kernel 的
-  bootstrap 线，**重建 app 也救不了一个本机跑不了的内核**，所以即使注入了 `rebuild` 也照旧拒。
-- **每一步失败都回到 A，且把 app 层放回去**：`adopt` 失败 → 重放 app（A 从未停）；
-  `activate` 失败 → dispose B、切回 A、重放；`replay` 失败 → 切回 A、dispose B、**再试一次重放**，
-  再失败则抛错并明说「this node needs a restart」。这条不是装饰：**报告一次看起来成功的回滚比失败本身更糟**，
-  所以 `rebuild-failed` 事件带 `restored: boolean`。
-- **§6.2 的核心不变式在 ② 里仍然成立**（A 在 commit 前绝不被 `dispose`），这也是上面每条失败都有退路的原因。
-  但 ② 的窗口确实比 ① 长，这一条**如实记下、不掩盖**：app 层在翻转**之前**就下线了
-  （测试断言的正是这个次序：`load:demo-app → stop:demo-app → load:B → load:demo-app`）。
-- **产品接线**（`apps/effect-server/src/boot/runtime.ts`）：`rebuild.replay` 就是**再跑一次 `bootManifests`**，
-  与 boot 同一条路径——重建出来的 app 集不能是一条更薄的、会与第一条漂移的注册路径；
-  `teardown` 反序 dispose 现有 `disposers`。
-- **第三种处置已落地（2026-09-10）**——「**只挂起**不兼容 app」：`rebuild.teardown/replay` 收的是
-  **名字子集**（矩阵点名的那几个），能活的那些**一次都没被碰过**。三条定见写在实现里：
-  挂起**保留槽位**（归还时回到原位，`stop()` 仍按反序装载次序拆除）；矩阵判的是**已加载**而非
-  **可发现**（磁盘上没启用的 bundle 声明不了任何事）；制品的 `appId` 与 `effect.yaml` 的 `id`
-  **不一致就直接拒**（否则会挂起错的那个）。
-  如实记下今天的收益来自哪里：矩阵只点名**做过声明**的 app，所以今天能活下来的正是那些**没带
-  `effect.bundle.json`** 的 app——「没人做过的声明不算声明」。② 从前会把它们全部拆掉，这一段消掉的就是这份误伤。
+- **On the supervisor side** (`packages/effect-bundle/src/supervisor.ts`): a new injected capability
+  `rebuild?: { teardown(); replay() }`. The supervisor is generic in K; it does not know what an app is, and
+  **loading and unloading apps is the host's business** — the same division of labor as its participating in the
+  matrix today only through `apps(): BundleDeclaration[]`. When injected, it runs
+  `teardown → adopt(B) (load+probe) → activate(B) → replay → persist → dispose(A)`;
+  **when not injected, it is word-for-word as before** (refuse the swap) — ② is a capability, not a default.
+- **which refusal triggers ②**: only `apps` (the effect line) refusing goes to a rebuild. `incompatible` is the
+  host↔kernel bootstrap line, and **rebuilding apps cannot save a kernel that cannot run on this machine**, so even
+  with `rebuild` injected it is still refused.
+- **every step's failure goes back to A and puts the app layer back**: `adopt` fails → replay the apps (A never
+  stopped); `activate` fails → dispose B, switch back to A, replay; `replay` fails → switch back to A, dispose B,
+  **try the replay once more**, and if that fails too, throw and say plainly "this node needs a restart". This is
+  not decoration: **reporting a rollback that looks successful is worse than the failure itself**, so the
+  `rebuild-failed` event carries `restored: boolean`.
+- **§6.2's core invariant still holds in ②** (A is never `dispose`d before commit), and that is why every failure
+  above has a way back. But ②'s window really is longer than ①'s, and this is **recorded honestly, not papered
+  over**: the app layer goes offline **before** the flip (the test asserts exactly this order:
+  `load:demo-app → stop:demo-app → load:B → load:demo-app`).
+- **Product wiring** (`apps/effect-server/src/boot/runtime.ts`): `rebuild.replay` is simply **running
+  `bootManifests` again**, the same path as boot — the rebuilt app set must not come from a thinner registration
+  path that would drift from the first one; `teardown` disposes the existing `disposers` in reverse order.
+- **The third disposition landed (2026-09-10)** — "**suspend only** the incompatible apps": `rebuild.teardown/replay`
+  take a **subset of names** (the ones the matrix named), and the ones that can live are **not touched once**.
+  Three convictions are written into the implementation: suspending **keeps the slot** (returning puts it back in
+  place, and `stop()` still tears down in reverse load order); the matrix judges **loaded**, not **discoverable**
+  (a bundle on disk that is not enabled declares nothing); and an artifact whose `appId` and the `effect.yaml` `id`
+  **disagree is refused outright** (otherwise it would suspend the wrong one).
+  Record honestly where today's gain comes from: the matrix names only apps that **made a declaration**, so what
+  survives today is exactly those apps that **carry no `effect.bundle.json`** — "a declaration nobody made is not a
+  declaration". Tier ② used to tear them all down; this unit removes that collateral damage.
 
-### 6.4 app 热换（单点，**独立目标**）
+### 6.4 App hot swap (single point, an **independent goal**)
 
-**要求（用户 2026-09-10）**：除了内核，**app 自己也要能热更新**。这不是内核切换的副产品——两者爆炸半径不同：
+**Requirement (user, 2026-09-10)**: besides the kernel, **the app itself must also be hot-updatable**. This is not a
+by-product of the kernel swap — the two have different blast radii:
 
-| | 内核热换（§6.2） | **app 热换（本节）** |
+| | Kernel hot swap (§6.2) | **App hot swap (this section)** |
 |---|---|---|
-| 影响范围 | **全部** app 随内核重建 | **单个** app；其余 app 不中断 |
-| 触发者 | host / supervisor | host，或该 app 自己的发布流程 |
-| 状态 | 全靠声明层重放 + store | 前后版本**共享同一份 store**，连续性更强 |
-| 窗口 | 较长（全量重建） | 极短（一次注册替换） |
+| Blast radius | **all** apps rebuilt with the kernel | **a single** app; the others are uninterrupted |
+| Triggered by | host / supervisor | the host, or the app's own release process |
+| State | entirely from replaying the declaration layer + the store | the two versions **share one store**, so continuity is stronger |
+| Window | longer (full rebuild) | very short (one registration replacement) |
 
-**流程**：`stage(appId@v2) → 健康检查（对同一 store）→ 原子替换该 app 的 route/interface 注册
-→ drain v1 在飞请求 → dispose v1`。
+**Flow**: `stage(appId@v2) → health check (against the same store) → atomically replace that app's route/interface registration → drain v1's in-flight requests → dispose v1`.
 
-**已有原语说明单点热换本就是 SDK 的设计意图**：
-- `registerMap` 用**代际令牌**而非值比较，注释明写 *"Track generations, not just values:
-  replacement HTML/UI may be identical"*（`packages/effect-apps/src/registration/metadata.ts:6-18`）
-  ——**这就是为单点热替换 UI/HTML 准备的**。
-- `withAppRuntime` 把 interface 注册的作用域绑到该 app 的 loaded 生命周期，`stop` 时先撤注册再停 app
-  （`registration/runtime.ts:12-17`）——单点 reload 时工具会自动正确重注册。
-- `host.unregister(id, expectedPlugin)` 的身份校验保证"替换 v1 不会误删 v2"（`effect-host/src/lifecycle.ts:11-17`）。
+**Existing primitives show a single-point hot swap was the SDK's design intent all along**:
+- `registerMap` compares **generation tokens** rather than values; the comment says explicitly *"Track generations,
+  not just values: replacement HTML/UI may be identical"* (`packages/effect-apps/src/registration/metadata.ts:6-18`)
+  — **this is exactly what a single-point hot replacement of UI/HTML needs**.
+- `withAppRuntime` binds the scope of the interface registrations to that app's loaded lifetime, and on `stop` it
+  withdraws the registrations before stopping the app (`registration/runtime.ts:12-17`) — on a single-point reload
+  the tools automatically re-register correctly.
+- `host.unregister(id, expectedPlugin)`'s identity check guarantees that "replacing v1 will not delete v2 by
+  mistake" (`effect-host/src/lifecycle.ts:11-17`).
 
-**必须一起解决的三件事**：
-1. **工具面兼容**：v2 的 tool schema 变了，正连着旧 schema 的 agent 会打空。用 §5 那套分级裁决
-   （schema 破坏 = `strict`）决定放行 / 告警；并靠 **MCP `notifications/tools/list_changed`** 通知已连接方。
-2. **两版本共存窗口**：drain 期间 v1/v2 同时在，`namespace` 是否要带实例/版本（呼应 §10-Q9）。
-3. **回滚粒度要细到 app**，不只是内核（见 §6.5-7）。
+**Three things that must be solved together**:
+1. **Tool-surface compatibility**: if v2's tool schema changed, an agent currently holding the old schema will come
+   up empty. Use §5's graded adjudication (schema breakage = `strict`) to decide pass / warn; and notify connected
+   parties through **MCP `notifications/tools/list_changed`**.
+2. **The two-versions-coexist window**: during the drain v1 and v2 exist at once; should `namespace` carry the instance/version (echoing §10-Q9).
+3. **The rollback granularity must go down to a single app**, not just the kernel (see §6.5-7).
 
-**已落地（2026-09-10，P4）**——两半，分别在两个包里：
+**Landed (2026-09-10, P4)** — two halves, in two packages:
 
-- **世代槽** `packages/effect-apps/src/registration/generations.ts`：`makeAppSlot(host, appId, {onChange})`
-  给出 `install / rollback / unload / current / previous / generations`。
-  流程是 `install → 读回工具面 → 裁决 → 健康探针 → commit（退休旧世代）`，任一步失败都 **restore 回上一个世代**。
-  裁决用 `assessSurfaceChange`（两代同名工具走 `assessChange`；工具**消失**按 `schema` 级；工具**新增**不算破坏）。
-- **工具面**：不需要对账。`registerTools` 从传进来的 registry 注册一次，而**每个 HTTP 请求重建一个
-  MCP server**（`effect-standalone` 的 HTTP 口与 `apps/effect-server` 都是这样），所以热换后 agent
-  拿到的是新 server 的清单，不存在"连接中的 agent 拿着过期清单"，也就没有要发的
-  `notifications/tools/list_changed`。
-  **修正（2026-09-13）**：这里一度有 `ToolSurface.refresh()` 对账 + `NodeMcpServer` 类型，接缝写在
-  `makeAppSlot` 的 `onChange` 上——但那个接缝从未接线，而"每请求新建"已是同一问题的更简单解法
-  （`packages/effect-apps` 的 `list()` 是"视图而非快照"，同一手法）。已删。
-  删除后 `registerTools` 保留一条**响亮的失败**：两个工具 sanitize 出同一个名字时抛错并点出两个 key，
-  而不是让后写者静默覆盖（`formal/Formal/ToolKey.lean` 的 `two_names_can_serve_as_one_name` 与
-  `a_shared_name_stops_the_surface`）。
+- **Generation slot** `packages/effect-apps/src/registration/generations.ts`: `makeAppSlot(host, appId, {onChange})`
+  gives `install / rollback / unload / current / previous / generations`.
+  The flow is `install → read back the tool surface → adjudicate → health probe → commit (retire the old
+  generation)`, and any step's failure **restores the previous generation**. The adjudication uses
+  `assessSurfaceChange` (a tool with the same name in both generations goes through `assessChange`; a tool that
+  **disappears** counts as the `schema` level; a tool that is **added** is not breakage).
+- **Tool surface**: no reconciliation is needed. `registerTools` registers once from the registry it is given, and
+  **every HTTP request builds a fresh MCP server** (both `effect-standalone`'s HTTP face and `apps/effect-server`
+  work this way), so after a hot swap the agent gets the new server's list; there is no "connected agent holding a
+  stale list", and therefore no `notifications/tools/list_changed` to send.
+  **Correction (2026-09-13)**: there once was a `ToolSurface.refresh()` reconciliation plus a `NodeMcpServer` type,
+  with the seam written on `makeAppSlot`'s `onChange` — but that seam was never wired, and "fresh per request" is
+  already the simpler solution to the same problem (`packages/effect-apps`'s `list()` is "a view, not a snapshot",
+  the same technique). Deleted. After the deletion `registerTools` keeps one **loud failure**: when two tools
+  sanitize to the same name it throws and names both keys, rather than letting the later writer silently overwrite
+  (`formal/Formal/ToolKey.lean`'s `two_names_can_serve_as_one_name` and `a_shared_name_stops_the_surface`).
 
-**与 §6.5-1「暂存槽」的偏离（如实记录）**：没有做"影子身份"（`id#staged` 那种不接管路由的暂存）。
-原因：`effect-host` 的 `register()` 本就是**按 id 覆盖**（`lifecycle.ts:26` 先 unload 旧的再装新的），
-而所有 disposer 都是身份/代际守卫的（`registry.ts:83`、`metadata.ts:6-18`），所以"装新版"本身即切换点。
-代价是**存在一个窗口**：v2 已可见、裁决与探针未过而 v1 已被 unload——失败靠 restore 补回来，而不是靠"旧的从未下线"。
-这正是 §6.3-① 想避免的那种窗口，所以它**不能直接当内核热换用**（内核热换仍需 §6.2 的 A/B 双缓冲）。
-待拍板：见 §11-Q3 / Q15。
+**Deviation from §6.5-1 "staging slot" (recorded honestly)**: no "shadow identity" was built (the `id#staged` kind
+of staging that does not take over the routes). Reason: `effect-host`'s `register()` already **overwrites by id**
+(`lifecycle.ts:26` unloads the old one before installing the new one), and every disposer is identity/generation
+guarded (`registry.ts:83`, `metadata.ts:6-18`), so "install the new version" is itself the switch point.
+The cost is that **a window exists**: v2 is already visible, the adjudication and probe have not passed, and v1 has
+already been unloaded — a failure is patched up by restore, not by "the old one never went offline".
+That is exactly the kind of window §6.3-① wants to avoid, so it **cannot be used directly as a kernel hot swap**
+(a kernel hot swap still needs §6.2's A/B double buffer). To be decided: see §11-Q3 / Q15.
 
-### 6.5 要新增的原语
+### 6.5 Primitives to be added
 
-1. **暂存槽**（内核级与 app 级共用）：`register` 但**不接管路由**的影子身份（如 `id#staged`）。
-   *内核级已落地，但不需要影子身份*：`supervisor.stage()` 本来就是"load 进一个槽、**不动分发点**"，
-   翻转是显式的一次指针赋值（§6.2）。app 级做不到这一点，是因为 app 的切换点就是 `register` 本身
-   （见 §6.4 的偏离说明）。
-2. **健康检查钩子**：`LoadedPlane` 增可选 `health?()`；无则退化为"load 未抛错 + 冒烟请求"。
-   *app 级已落地*为 `InstallOptions.probe(generation)`（不依赖 `LoadedPlane` 改型）。
-3. **制品仓索引 + active/previous 指针**：`kernel-state.json`，内核与 app 都记。
-   *内核那一半已落地*（`effect-bundle/src/repo.ts`，P5-1：active/previous/condemned + 原子写）；
-   **app 侧未做**（`AppSlot.previous()` 还只在内存里）。
-4. **boot 期崩溃回滚**：active 制品 load 失败 → 取 previous 启动 + 告警。
-   *已落地并接进真实进程*（`supervisor.boot()`，P5-1；`main.ts` 传 `.effect-bundles/kernel-state.json`，
-   P5 第二段）——坏 revision 记入 `condemned` 于是不会每次启动重演同一个失败，回退结果可从 `kernelBoot()` 读出。
-5. **切换期请求保护**：分发点翻转是原子的，但 app 层重建**不是**；窗口内的请求要排队或落回 A。
-   *已落地*（`packages/effect-host/src/dispatch-point.ts`，P5 第二段）：`run` 进入时抓住当前目标并计数，
-   `retire` 等它归零，**且拒绝退休当前在服务的内核**。测试断言的是那条真正的性质——
-   翻转已提交、新请求已由新内核应答时，旧内核仍在回答它手上那条在途请求，之后才 `dispose`。
-   注意它保护的是**内核级**翻转；app 级的重建窗口（§6.4 的偏离）不在这条里。
-6. **兼容矩阵判定器**：内核声明实现的 `effect-N` 区间 × 每个已加载 app 的需求 → 放行/拒换/只挂起不兼容 app。
-   *三半均已落地*：单制品那一半是 `effect-bundle/src/compat.ts`（P0），内核 × 全部 app 那一半是
-   `assessKernelAgainst`（P2-B），**第三种处置已落地（2026-09-10，见 §6.3 与下文验收块）**——
-   矩阵给出名字子集，app 层按名字挂起与归还。
-   （P5 第二段起矩阵真的在 `stage` 路径上跑，读的是**已加载** app 的声明而非磁盘上可发现的 app；
-   今天只有制品化的 app 有声明，所以名单短——**没人做过的声明不算声明**，也正是这些 app 免于被误伤。）
-7. **per-app active/previous 指针**：回滚粒度细到单个 app（§6.4-3）。
-   *内存版已落地*（`AppSlot.previous()` + `rollback()`）；**跨重启持久化未做**（见第 3 项）。
-8. **MCP `notifications/tools/list_changed`**：app（或内核）换版本后，通知已连接的 agent 工具面变了。
-   *不需要*：节点服务器每次请求重建，agent 拿到的就是当前清单。通知是给"长期持有连接、工具表会在原地变"
-   的 server 用的，这里没有这种 server。原先的 `ToolSurface.refresh()` 已删（理由见 §6.4 的修正说明）。
+1. **Staging slot** (shared by the kernel level and the app level): a shadow identity that is `register`ed but
+   **does not take over the routes** (such as `id#staged`).
+   *Landed at the kernel level, but no shadow identity was needed*: `supervisor.stage()` is by nature "load into a
+   slot and **do not touch the dispatch point**", and the flip is one explicit pointer assignment (§6.2). The app
+   level cannot do this, because an app's switch point is `register` itself (see the deviation note in §6.4).
+2. **Health check hook**: `LoadedPlane` gains an optional `health?()`; without it, this degrades to "load did not
+   throw + a smoke request".
+   *Landed at the app level* as `InstallOptions.probe(generation)` (without depending on a `LoadedPlane` reshape).
+3. **Artifact repo index + active/previous pointer**: `kernel-state.json`, recorded for both kernel and app.
+   *The kernel half has landed* (`effect-bundle/src/repo.ts`, P5-1: active/previous/condemned + atomic write);
+   **the app side is not done** (`AppSlot.previous()` still lives only in memory).
+4. **Boot-time crash rollback**: if the active artifact fails to load → start from previous + warn.
+   *Landed and wired into the real process* (`supervisor.boot()`, P5-1; `main.ts` passes
+   `.effect-bundles/kernel-state.json`, P5's second leg) — a bad revision goes into `condemned`, so the same
+   failure is not replayed on every boot, and the fallback result can be read from `kernelBoot()`.
+5. **Request protection during the swap**: the dispatch point's flip is atomic, but the app layer's rebuild is
+   **not**; requests inside the window must queue or fall back to A.
+   *Landed* (`packages/effect-host/src/dispatch-point.ts`, P5's second leg): `run` grabs the current target on entry
+   and counts it, `retire` waits for it to reach zero, **and refuses to retire the kernel currently in service**.
+   What the test asserts is the real property — with the flip committed and new requests being answered by the new
+   kernel, the old kernel is still answering the one in-flight request it holds, and only then is it `dispose`d.
+   Note that it protects the **kernel-level** flip; the app-level rebuild window (§6.4's deviation) is not in it.
+6. **Compatibility matrix adjudicator**: the `effect-N` range the kernel declares it implements × each loaded app's
+   requirements → pass / refuse the swap / suspend only the incompatible apps.
+   *All three halves have landed*: the single-artifact half is `effect-bundle/src/compat.ts` (P0), the kernel × all
+   apps half is `assessKernelAgainst` (P2-B), and **the third disposition has landed (2026-09-10, see §6.3 and the
+   acceptance block below)** — the matrix hands out a subset of names and the app layer suspends and returns them
+   by name.
+   (Since P5's second leg the matrix really runs on the `stage` path, reading the declarations of **loaded** apps
+   rather than apps discoverable on disk; today only artifact-ized apps have declarations, so the list is short —
+   **a declaration nobody made is not a declaration**, and it is exactly these apps that escape the collateral
+   damage.)
+7. **Per-app active/previous pointer**: rollback granularity down to a single app (§6.4-3).
+   *The in-memory version has landed* (`AppSlot.previous()` + `rollback()`); **persistence across restarts is not
+   done** (see item 3).
+8. **MCP `notifications/tools/list_changed`**: after an app (or kernel) changes version, notify connected agents
+   that the tool surface changed.
+   *Not needed*: the node server is rebuilt per request, so what the agent gets is the current list. The
+   notification is for servers that "hold a connection for a long time and whose tool table changes in place";
+   there is no such server here. The former `ToolSurface.refresh()` has been deleted (reason in §6.4's correction
+   note).
 
-### 6.6 已有的可复用件（拼装，不必从零造）
+### 6.6 Existing reusable pieces (assemble, do not build from scratch)
 
-- `host.register/unregister(id, expectedPlugin)`：`expectedPlugin` 做**身份校验**，天然防止"删错代际"
-  （`effect-host/src/lifecycle.ts:11-17`）——双缓冲切换正好需要它。
-- 生命周期队列串行化每次变更（`queue.ts`），变更竞态已被处理。
-- 注册即可回滚：`registerEffectApp` 失败 → `rollback(error, dispose)` 反序清理
-  （`registration/register.ts:34-36`、`disposal.ts`）。
-- bundle 加载 = `import(entry)` + `register(api)` + **幂等 disposer**（`effect-bundle/src/load.ts` 的
-  `loadEffectBundle`）。
-- boot 失败反序 dispose 已加载项（`load-manifest.ts:19-25`）——回滚顺序已是对的。
-- `EffectBundleApi`（`load.ts`）是 **host↔app 的接缝**：host 把它交给 bundle，app 用它注册自己。
-  **修正（2026-09-10，P5 第二段）**：它**不是** host↔内核的接缝——内核拿的不是这个。
-  内核的接缝是 `apps/effect-server/src/kernel/types.ts` 的 `KernelContext`（host 给内核的**服务与句柄**）
-  与 `KernelInstance`（内核还回来的**装载面**）：`loadKernel()` 用 `import()` 装制品，
-  要求它导出 `createKernel(context)`。两条接缝分开，正是 §6.1 那条修正的落点。
+- `host.register/unregister(id, expectedPlugin)`: `expectedPlugin` does an **identity check**, which naturally
+  prevents "deleting the wrong generation" (`effect-host/src/lifecycle.ts:11-17`) — exactly what a double-buffered
+  swap needs.
+- the lifecycle queue serializes every change (`queue.ts`); change races are already handled.
+- registration is rollback-ready: `registerEffectApp` fails → `rollback(error, dispose)` cleans up in reverse order
+  (`registration/register.ts:34-36`, `disposal.ts`).
+- bundle load = `import(entry)` + `register(api)` + an **idempotent disposer** (`effect-bundle/src/load.ts`'s
+  `loadEffectBundle`).
+- a boot failure disposes the loaded entries in reverse order (`load-manifest.ts:19-25`) — the rollback order is already right.
+- `EffectBundleApi` (`load.ts`) is the **host↔app seam**: the host hands it to the bundle and the app uses it to
+  register itself.
+  **Correction (2026-09-10, P5's second leg)**: it is **not** the host↔kernel seam — that is not what the kernel
+  gets. The kernel's seam is `KernelContext` in `apps/effect-server/src/kernel/types.ts` (the **services and
+  handles** the host gives the kernel) and `KernelInstance` (the **load surface** the kernel hands back):
+  `loadKernel()` uses `import()` to load the artifact and requires it to export `createKernel(context)`. The two
+  seams being separate is exactly where §6.1's correction lands.
 
-## 7. 运行时可移植性：OS / 浏览器 / JS 沙箱
+## 7. Runtime portability: OS / browser / JS sandbox
 
-**要求（用户 2026-09-10）**：app 是分布式的，所以**同一个 app 制品要能跑在 OS 进程、浏览器、
-或 JS 沙箱里**；沙箱更轻量。
+**Requirement (user, 2026-09-10)**: apps are distributed, so **the same app artifact must be able to run in an OS
+process, in a browser, or in a JS sandbox**; the sandbox is lighter.
 
-### 7.1 三个运行时目标
+### 7.1 Three runtime targets
 
-| 目标 | 宿主 | 能提供 | 不能提供 |
+| Target | Host | Can provide | Cannot provide |
 |---|---|---|---|
-| **os** | effect-server 进程（Bun/Node） | fs、SQLite、socket/listener、子进程、crypto | — |
-| **browser** | 页面 / Worker | fetch、IndexedDB/localStorage、WebCrypto、MessageChannel、DOM | fs、子进程、监听端口 |
-| **sandbox** | 受限 JS 运行时 | **只有注入的能力对象** | 一切 ambient（含网络与存储） |
+| **os** | the effect-server process (Bun/Node) | fs, SQLite, socket/listener, child processes, crypto | — |
+| **browser** | a page / Worker | fetch, IndexedDB/localStorage, WebCrypto, MessageChannel, DOM | fs, child processes, listening ports |
+| **sandbox** | a restricted JS runtime | **only the injected capability objects** | everything ambient (network and storage included) |
 
-### 7.2 唯一规则：能力注入，不 ambient
+### 7.2 The one rule: capability injection, not ambient
 
-app 只能通过**注入的能力**访问世界。**这条规则仓库已经在强制执行**：`scripts/check-boundary.ts:213`
-把 `Bun.serve/spawn/file`、裸 `fetch`、`WebSocket`、`process.*` 判为 **error**，且当前
-`bun run check:boundary` = 0 error —— 也就是说**未被豁免的 app 天然可移植**。
+An app can only reach the world through **injected capabilities**. **The repository already enforces this rule**:
+`scripts/check-boundary.ts:213` judges `Bun.serve/spawn/file`, bare `fetch`, `WebSocket` and `process.*` as
+**error**, and `bun run check:boundary` is currently 0 error — that is, **apps that are not exempted are portable by
+construction**.
 
-**欠债（已实测，见 §7.6）**：`effect.boundary.json` 的 `ioExemptApps` 豁免了 6 个（board、mantis、
-deckconsole、ui-host、ai-gateway-app、playground）。它们直接 `Bun.serve` / 读文件，**天生跑不了 browser/sandbox**。
-这是"可移植"要求下的既有欠债清单。注意豁免名单与实测**并不完全重合**：`playground` 被豁免但实测未触及
-系统 API，而 `effect-server` 有 ambient 依赖却不在豁免名单里（它是宿主，走 `allowSystemIoFrom`）。
-即——**豁免名单是政策，不是能力证据**。
+**Debt (measured, see §7.6)**: `effect.boundary.json`'s `ioExemptApps` exempts 6 of them (board, mantis,
+deckconsole, ui-host, ai-gateway-app, playground). They call `Bun.serve` / read files directly and **cannot run in a
+browser/sandbox by construction**. This is the existing debt list under the "portable" requirement. Note that the
+exemption list and the measurement **do not fully coincide**: `playground` is exempt but does not touch system APIs
+in the measurement, while `effect-server` has ambient dependencies yet is not on the exemption list (it is the host,
+it goes through `allowSystemIoFrom`). That is — **the exemption list is policy, not evidence of capability**.
 
-### 7.3 已有的四块底子
+### 7.3 Four pieces of groundwork that already exist
 
-1. **ABI 外置**：`compileEffectBundle` 用 `--external @effect-agent/* --external zod`
-   （`effect-bundle/src/compile.ts`），其意就是"bundle 能跑在任何提供这些的宿主里"——
-   **这正是内核可热换而 app 不必重编的机制基础**，也是"同一个 app 换运行时"的前提。
-   当时 target 写死 `--target bun`，**P3 已按 `runtimes` 出多份**（见 §7.5-2）。
-2. **存储已在协议后面**：`store://ns/appId/<key>` + `NodeStore`（`effect-planes-permissions.md` §3）
-   把"存储"变成**可代理的能力**——OS 上落 SQLite，浏览器落 IndexedDB，
-   **沙箱里没有本地存储就代理回 home**。因此 §6.3 的"内存态必须可重建"要升级为
-   **"跨运行时也成立"**。
-3. **沙箱已经存在**：`packages/script` 有真实沙箱执行模型
-   （`ScriptRuntime.runtime: "quickjs" | "graaljs" | "node-vm" | "isolated-vm"`，见 `script-sandbox.md` §2），
-   `packages/ui-sandbox` 把它包成**权限门控**的 `UISandbox`
-   （`execute:script` / `read:data` / `render` / `emit:event`，`ui-sandbox/src/index.ts:9`）。
-   今天它承载的是**脚本工具**，不是整个 app —— 要扩成"app 也能跑在沙箱里"。
-4. **浏览器宿主已有先例**：console 的客户端 bundle（`apps/effect-server/public/effect-ui-client.js`）
-   本就在浏览器里跑；`effect-bundle-mesh.md` §5 的 P3-lite 已做过"浏览器宿主里 board bundle 回注册
-   + mesh 到 `ops::board`"。
+1. **ABI kept external**: `compileEffectBundle` uses `--external @effect-agent/* --external zod`
+   (`effect-bundle/src/compile.ts`), meaning "a bundle can run in any host that provides these" —
+   **this is exactly the mechanism that lets the kernel be hot-swapped without recompiling the app**, and the
+   precondition for "the same app, a different runtime". At the time the target was hard-coded to `--target bun`;
+   **P3 emits several, per `runtimes`** (see §7.5-2).
+2. **Storage already sits behind a protocol**: `store://ns/appId/<key>` + `NodeStore`
+   (`effect-planes-permissions.md` §3) turn "storage" into **a proxiable capability** — SQLite on OS, IndexedDB in
+   a browser, and **in a sandbox with no local storage, proxied back home**. So §6.3's "in-memory state must be
+   rebuildable" has to be upgraded to **"must also hold across runtimes"**.
+3. **A sandbox already exists**: `packages/script` has a real sandbox execution model
+   (`ScriptRuntime.runtime: "quickjs" | "graaljs" | "node-vm" | "isolated-vm"`, see `script-sandbox.md` §2), and
+   `packages/ui-sandbox` wraps it into a **permission-gated** `UISandbox`
+   (`execute:script` / `read:data` / `render` / `emit:event`, `ui-sandbox/src/index.ts:9`).
+   Today it carries **script tools**, not a whole app — it needs to be extended so that "an app can run in a sandbox
+   too".
+4. **A browser host already has a precedent**: the console's client bundle
+   (`apps/effect-server/public/effect-ui-client.js`) already runs in the browser; `effect-bundle-mesh.md` §5's
+   P3-lite has already done "the board bundle registering back inside a browser host + meshing to `ops::board`".
 
-### 7.4 与 K2 的交叉
+### 7.4 Intersection with K2
 
-- 内核制品也要按运行时出多份；**切换时目标运行时必须一致**（不能把浏览器的内核装进 OS host）。
-- 推送升级（§8）多一个匹配维度：`abi` × `runtime` × 版本区间。目标宿主的 runtime 不在 app 声明的
-  集合里就**拒推**（不匹配明确失败）。
-- 注意 `IsolatedVmRuntime` 是原生模块、**bun 加载不了**（`script-sandbox.md` §2 明写，自动退化
-  `NodeVmRuntime`）——"沙箱"这一档的**实际隔离强度取决于宿主**，必须在 manifest 里如实声明，
-  不能宣称一个统一的沙箱等级。
+- kernel artifacts must also be emitted per runtime; **on a swap the target runtime must match** (a browser kernel cannot be installed into an OS host).
+- push upgrades (§8) gain one more matching dimension: `abi` × `runtime` × version range. If the target host's runtime is not in the set the app declares, **refuse the push** (a mismatch fails loudly).
+- note that `IsolatedVmRuntime` is a native module and **bun cannot load it** (`script-sandbox.md` §2 says so explicitly; it degrades automatically to `NodeVmRuntime`) — the **actual isolation strength** of the "sandbox" tier depends on the host, and must be declared honestly in the manifest; a uniform sandbox level cannot be claimed.
 
-### 7.5 缺口
+### 7.5 Gaps
 
-1. ~~manifest 加 `runtimes: ["os"|"browser"|"sandbox"]`（与 §5 的 `abi` 并列的**第二维兼容**）~~ ✅
-   已落地（`packages/effect-bundle/src/compat.ts`；缺省 `["os"]`，加载前 gate）。
-2. ~~`compileEffectBundle` 支持多 target 产物~~ ✅ **已落地（2026-09-10，P3）**：
-   `compile.ts` 的 `targets` / `BUILD_TARGET` / `entryFor(runtime)` 按 manifest 声明的 `runtimes`
-   各出一份 `entry.<runtime>.js`，写进制品 manifest 的 `entries`；`entry` 保留为主产物
-   （`os` 优先），**旧制品（无 `entries`）照原样加载**。
-   **对原方案的一处偏离**：原写"bun / browser / neutral"三档，实际只有两档
-   ——`sandbox` 与 `browser` 共用 `--target browser`。理由是沙箱与浏览器的差别**不在产出的字节里**
-   （都在"没有 node 内建"这一侧），而在**宿主注入什么**；为它单开一个只是换个标签的编译档是装饰。
-3. ~~运行时适配层~~ ✅ **已落地（2026-09-10，P3）**。能力词表与判定在
-   `packages/effect-bundle/src/capabilities.ts`（`CAPABILITY_NAMES` = clock / storage / crypto / network、
-   `capabilitiesOf`、`describeCapabilities`、`requireCapability`、`capabilityGaps`），
-   **构造器**在同包的 `packages/effect-bundle/src/runtime.ts`：
-   `ambientCapabilities(runtime, overrides)`（os | browser：真时钟 + WebCrypto，存储缺省进程内存）
-   与 `sandboxCapabilities(injected)`（**什么都不 ambient**——没被注入的时钟就是没有，哪怕进程里有）。
-   两个构造器而非三个：os 与浏览器差在"能提供什么"，不差在 seam 怎么搭。
-   **分开的理由是依赖方向**：loader（`effect-bundle`）必须在 import 之前就做拒绝，
-   所以词表与判定归 `capabilities.ts`，构造器归 `runtime.ts`；loader 不 import 构造器，
-   于是"判定早于加载"是文件边界保证的，不需要靠包边界去撑。
-4. **沙箱承载完整 app**：**一半已落地（2026-09-10，P3）**。宿主那半有了——
-   `loadEffectBundle` 接受 `runtime: "sandbox"` + `capabilities`，制品能在沙箱宿主里加载、执行、返回 disposer；
-   `requires` 声明与 `capabilityGaps` 的拒绝 gate 就落在 `load.ts`
-   （与 §5 的 abi/runtime gate **同一处**，`assertCapabilityCompat` 紧挨 `assertBundleCompat`）。
-   **还缺**：真正的隔离执行——今天 entry 仍在宿主进程里跑，"沙箱"是**能力上的**而非**隔离上的**。
-   要成真得把 `packages/script`（quickjs / graaljs / node-vm）接成宿主，
-   且按 §7.4 如实声明隔离强度。
-5. 浏览器侧存储后端（IndexedDB）与"存储代理回 home"的落点。
-6. **浏览器侧至今没有真实页面宿主**：`ambientCapabilities("browser", …)` 提供一个浏览器**能力集**，
-   但没有任何东西把 entry 真的放进页里跑过。P3 的验收里"os 与浏览器行为一致"因此是
-   **在同一个进程里换能力集**跑出来的——能力 seam 是真的，页面不是。
-   这也决定了 §7.5-5 的落点：IndexedDB 后端要先有个页面可以放。
+1. ~~the manifest gains `runtimes: ["os"|"browser"|"sandbox"]` (a **second compatibility dimension** alongside §5's `abi`)~~ ✅
+   landed (`packages/effect-bundle/src/compat.ts`; default `["os"]`, gate before load).
+2. ~~`compileEffectBundle` supporting multi-target output~~ ✅ **landed (2026-09-10, P3)**:
+   `compile.ts`'s `targets` / `BUILD_TARGET` / `entryFor(runtime)` emit one `entry.<runtime>.js` per `runtimes`
+   the manifest declares, written into the artifact manifest's `entries`; `entry` stays as the main output
+   (`os` preferred), and **old artifacts (no `entries`) load as before**.
+   **One deviation from the original plan**: it said three tiers, "bun / browser / neutral", but there are only two
+   in practice — `sandbox` and `browser` share `--target browser`. The reason is that the difference between a
+   sandbox and a browser is **not in the bytes produced** (both are on the "no node builtins" side) but in **what
+   the host injects**; opening a separate compile tier for it that only changes the label would be decoration.
+3. ~~Runtime adaptation layer~~ ✅ **landed (2026-09-10, P3)**. The capability vocabulary and the decision live in
+   `packages/effect-bundle/src/capabilities.ts` (`CAPABILITY_NAMES` = clock / storage / crypto / network,
+   `capabilitiesOf`, `describeCapabilities`, `requireCapability`, `capabilityGaps`), and the **constructors** live
+   in the same package's `packages/effect-bundle/src/runtime.ts`:
+   `ambientCapabilities(runtime, overrides)` (os | browser: a real clock + WebCrypto, storage defaulting to process
+   memory) and `sandboxCapabilities(injected)` (**nothing ambient** — a clock that was not injected does not exist,
+   even if the process has one). Two constructors rather than three: os and browser differ in "what can be
+   provided", not in how the seam is built.
+   **The reason for the split is dependency direction**: the loader (`effect-bundle`) must refuse before the import,
+   so the vocabulary and the decision belong to `capabilities.ts` and the constructors to `runtime.ts`; the loader
+   does not import the constructors, so "decide before loading" is guaranteed by a file boundary and does not need
+   the package boundary to hold it up.
+4. **A sandbox carrying a whole app**: **half landed (2026-09-10, P3)**. The host half is there —
+   `loadEffectBundle` accepts `runtime: "sandbox"` + `capabilities`, and an artifact can load, execute and return a
+   disposer inside a sandbox host; the `requires` declaration and the `capabilityGaps` refusal gate land in `load.ts`
+   (**the same place** as §5's abi/runtime gate, `assertCapabilityCompat` right next to `assertBundleCompat`).
+   **Still missing**: real isolated execution — today the entry still runs in the host process, and "sandbox" is
+   **about capability**, not **about isolation**. For it to be real, `packages/script` (quickjs / graaljs / node-vm)
+   has to be wired in as a host, and the isolation strength declared honestly per §7.4.
+5. the browser-side storage backend (IndexedDB) and where "storage proxied back home" lands.
+6. **There is still no real page host on the browser side**: `ambientCapabilities("browser", …)` provides a
+   browser **capability set**, but nothing has ever actually put an entry into a page and run it. So P3's acceptance
+   for "os and browser behave identically" was produced by **swapping capability sets inside one process** — the
+   capability seam is real, the page is not. This also settles where §7.5-5 lands: an IndexedDB backend needs a page
+   to sit in first.
 
-### 7.6 P1 盘点结论（实测，2026-09-10）
+### 7.6 P1 inventory conclusions (measured, 2026-09-10)
 
-自动化部分由 `bun run inventory` 生成到 **`docs/app-portability-inventory.md`**（可复核、可重跑），
-`bun run check:inventory` 作为 gate。实测结论：
+The automated part is generated by `bun run inventory` into **`docs/app-portability-inventory.md`** (reviewable,
+re-runnable), with `bun run check:inventory` as the gate. The measured conclusions:
 
-| 事实 | 数字 |
+| Fact | Number |
 |---|---|
-| app 总数 | 10 |
-| 有 ambient 依赖（今天只能跑 `os`） | 6 — ai-gateway、board、deckconsole、effect-server、mantis、ui-host |
-| 代码上未触及系统 API | 4 — agentd、mcp-gateway-app、mcp-registry-app、playground |
-| 声明了 `runtimes` 的制品 | 1 — board = `["os"]` |
+| apps in total | 10 |
+| have ambient dependencies (can only run `os` today) | 6 — ai-gateway, board, deckconsole, effect-server, mantis, ui-host |
+| do not touch system APIs in code | 4 — agentd, mcp-gateway-app, mcp-registry-app, playground |
+| artifacts that declare `runtimes` | 1 — board = `["os"]` |
 
-**"未触及系统 API" ≠ "能跑在 browser / sandbox"**：只能说明它自己没直接碰，依赖的包可能碰了，
-或用了只在 OS 成立的语义。P3 之后这条判据**有了一个跑得动的样本**：`fixtures/app-portable`
-在 os / browser / sandbox 三档下都真的加载并执行过（§7.5、§10 P3）。
-但它是**专为可移植性写的 fixture**，不是上面这 10 个 app 中的任何一个——
-**盘点结果本身没有被这句话推翻**：那 6 个 app 的 ambient 依赖还在。
+**"Does not touch system APIs" ≠ "can run in a browser / sandbox"**: it only says that it does not touch them
+directly; a package it depends on may, or it may use semantics that only hold on OS. After P3 this criterion
+**has a sample that actually runs**: `fixtures/app-portable` really loads and executes on all three tiers, os /
+browser / sandbox (§7.5, §10 P3). But it is a **fixture written specifically for portability**, not any of the 10
+apps above — **the inventory's own conclusion is not overturned by that**: those 6 apps' ambient dependencies are
+still there.
 
-人工复核的**不可重建态**（§6.3-② 的前提；脚本查不出，只能人读）：
+**Non-rebuildable state** from the manual review (the precondition for §6.3-②; a script cannot find it, only a human reading can):
 
-| app | 事实 | 对内核热换的含义 |
+| app | Fact | Meaning for a kernel hot swap |
 |---|---|---|
-| board | **唯一以 bundle 形态加载的 app**（`src/effect-bundle-entry.ts` → `registerEffectApp`）；`storage/database.ts:9` 打开 SQLite | 状态已落库、内存态可重建。真风险是**句柄**：档① 原地换内核时，新内核若重新打开同一 SQLite 文件就成了双写者——要么复用旧句柄，要么等 drain 完再移交 |
-| mantis | 平台上注册的只是**声明式门面**（`src/effect-app.ts:11` —— 只有 config + UI）。钉钉 worker / webui 面板是**独立进程**（pm2 托管），它们的 `setInterval`（`hosts/webui/panel/store/panel.ts:16-31`）与模块级 `let host`（`hosts/dingtalk/main.ts:22`）**不参与内核切换** | 内核热换对 mantis 门面的代价是零；但那两个进程也**不在治理范围内**——要收进来得等 §8 的容器节点 |
-| agentd | `src/effect-plugin.ts:7,19` 模块级 `let runtimeControl` + `??=` 记忆化单例 | **进程级活句柄**：档① 原地换内核时它仍指向旧内核对象——正是 §6.3「app 抓住了内核具体对象」的实例 |
-| deckconsole / ui-host / ai-gateway | 各开 SQLite（`ui-host/src/activity.ts:17`、`deckconsole/src/domain/launchers.ts:15`）或直接 `Bun.serve`；**都没有 `effect.bundle.json`** | 今天**不在 bundle 生命周期内**，§6 的切换机制够不着它们——P2/P3 要把它们收进制品形态，否则"推送升级"只覆盖 board 一个 |
-| effect-server | 宿主本身（走 `allowSystemIoFrom`） | 归 §6.1 host 不变式，不是被热换的对象 |
+| board | **the only app loaded as a bundle** (`src/effect-bundle-entry.ts` → `registerEffectApp`); `storage/database.ts:9` opens SQLite | state is already in the database and the in-memory state is rebuildable. The real risk is **handles**: on tier ①'s in-place kernel swap, if the new kernel reopens the same SQLite file there are two writers — either reuse the old handle or wait for the drain and then hand it over |
+| mantis | what is registered on the platform is only a **declarative facade** (`src/effect-app.ts:11` — just config + UI). The DingTalk worker / webui panel are **separate processes** (pm2-managed), and their `setInterval` (`hosts/webui/panel/store/panel.ts:16-31`) and module-level `let host` (`hosts/dingtalk/main.ts:22`) **do not take part in the kernel swap** | a kernel hot swap costs the mantis facade nothing; but those two processes are also **outside the governance scope** — bringing them in has to wait for §8's container nodes |
+| agentd | `src/effect-plugin.ts:7,19` module-level `let runtimeControl` + a `??=` memoized singleton | **a process-level live handle**: on tier ①'s in-place kernel swap it still points at the old kernel object — exactly §6.3's instance of "an app grabbed a concrete kernel object" |
+| deckconsole / ui-host / ai-gateway | each opens SQLite (`ui-host/src/activity.ts:17`, `deckconsole/src/domain/launchers.ts:15`) or calls `Bun.serve` directly; **none has an `effect.bundle.json`** | today they are **not inside the bundle lifecycle**, and §6's swap mechanism cannot reach them — P2/P3 must bring them into artifact form, otherwise "push upgrades" only covers board |
+| effect-server | the host itself (goes through `allowSystemIoFrom`) | falls under §6.1's host invariants; it is not the thing being hot-swapped |
 
-**这条复核给出的结论比预期具体**：真正阻塞档① 的不是"状态在内存里"——状态基本都已落 SQLite / `store://`；
-而是**三样进程级活句柄**：SQLite 文件句柄、原生定时器、模块级 `let` 指向的内核对象。
-它们恰好是 §6.3 档① 前置条件的三种失败形态，也直接支撑 §11-Q18（内核运行态如何交接）。
-第二个结论是覆盖面：**今天 bundle 机制只覆盖 10 个 app 里的 1 个**，"推送升级"要成平台能力，先得把
-其余 app 收进制品形态（§10 的 P2/P3）。
+**This review's conclusion is more concrete than expected**: what really blocks tier ① is not "the state is in
+memory" — the state is basically all in SQLite / `store://`; it is **three kinds of process-level live handle**: a
+SQLite file handle, a native timer, and the kernel object a module-level `let` points at. They are exactly the three
+failure modes of §6.3 tier ①'s precondition, and they directly support §11-Q18 (how to hand over kernel runtime
+state). The second conclusion is coverage: **today the bundle mechanism covers 1 of the 10 apps**; for "push
+upgrades" to become a platform capability, the rest of the apps have to be brought into artifact form first (§10's
+P2/P3).
 
-## 8. 容器节点：一个节点承接多个 app
+## 8. Container nodes: one node carrying several apps
 
-**要求（用户 2026-09-10）**：支持**容器节点** —— 一个节点（机器 / 容器 / 宿主）可以**承接多个 app 的部署**。
+**Requirement (user, 2026-09-10)**: support **container nodes** — one node (machine / container / host) can **carry the deployment of several apps**.
 
-### 8.1 节点构成
+### 8.1 What a node is made of
 
 ```text
-容器节点（machine / container / browser host / sandbox host）
-├── bootstrap        host 不变式：进程 · listener · 制品仓 · supervisor · 引导 ABI   ← §6.1
-├── 内核制品          按目标运行时出多份；可热换                                    ← §6.2 K2
-└── N 个 app 实例
+container node (machine / container / browser host / sandbox host)
+├── bootstrap       host invariants: process · listener · artifact repo · supervisor · bootstrap ABI  ← §6.1
+├── kernel artifact  one per target runtime; hot-swappable                                            ← §6.2 K2
+└── N app instances
      ├── app@v1   ns=ops/board
-     ├── app@v2   ns=workspace-b/board     ← 同 app 多实例（不同 ns）
+     ├── app@v2   ns=workspace-b/board     ← several instances of the same app (different ns)
      └── other-app
 ```
 
-节点内每个 app 实例独立 `stage / activate / rollback`（§6.4），互不影响；
-节点整体**只有不兼容内核热换时才全量重建**（§6.3-②）——兼容内核原地换（§6.3-①），节点内 app 不受影响。
+Inside a node each app instance does `stage / activate / rollback` independently (§6.4) and they do not affect each
+other; the node as a whole **is only fully rebuilt on an incompatible kernel hot swap** (§6.3-②) — a compatible
+kernel is swapped in place (§6.3-①) and the node's apps are unaffected.
 
-### 8.2 已有的对应物（不要重复造）
+### 8.2 Existing counterparts (do not build them again)
 
-| 已有 | 复用为 |
+| Existing | Reused as |
 |---|---|
-| agentd **Machine**（机器身份、在线状态、允许下发的配置范围） | 容器节点的身份与在线状态 |
-| board-v2 的 **probe**（目标机驻场程序、拉取式命令通道、NAT 友好） | 节点上的宿主程序 —— **已落地**：`packages/agentd-probe` + `bun run node:probe`，只有出站，见 §8.5-1 |
-| mesh 的 node = `(namespace, bundleId, endpoint)` | 节点内 app 实例的寻址 |
-| effect-bundle 的 **namespace 覆盖**（"一个 bundle 可被多次加载，每次落不同 ns → 同 app 多实例共存"，`effect-bundle-mesh.md` §3） | 同 app 多实例部署 |
-| mcp-registry 的 announce / heartbeat / withdraw 租约 | 节点注册与保活的可复用形态（**复用形态，但不复用它的 `static` 租约**：注册进配置不等于活着 — 见 §8.5-1） |
-| K2 host 不变式 + 内核热换（§6.1/§6.2） | 节点底座的升级 |
-| app 热换（§6.4） | 节点内单个 app 的升级与回滚 |
+| agentd **Machine** (machine identity, online status, the config scope it may be sent) | a container node's identity and online status |
+| board-v2's **probe** (a resident probe on the target machine, pull-based command channel, NAT-friendly) | the host program on a node — **landed**: `packages/agentd-probe` + `bun run node:probe`, outbound only, see §8.5-1 |
+| mesh's node = `(namespace, bundleId, endpoint)` | addressing an app instance inside a node |
+| effect-bundle's **namespace override** ("one bundle can be loaded several times, each landing in a different ns → several instances of the same app coexist", `effect-bundle-mesh.md` §3) | deploying several instances of the same app |
+| mcp-registry's announce / heartbeat / withdraw lease | a reusable shape for node registration and keep-alive (**reuse the shape, not its `static` lease**: being registered in the config is not being alive — see §8.5-1) |
+| K2 host invariants + kernel hot swap (§6.1/§6.2) | upgrading a node's base |
+| app hot swap (§6.4) | upgrading and rolling back a single app inside a node |
 
-### 8.3 节点要声明什么
+### 8.3 What a node must declare
 
-- `runtimes`（os / browser / sandbox）——决定这个节点**能装哪些 app**（§7.4 的第二维兼容）。
-- `namespaces`——允许承载的隔离域。
-- 承接上限与资源（CPU/内存/磁盘、app 数上限、配额）——**app 数上限已决**；CPU/内存配额与
-  "要不要**调度**"仍未决（§11-Q17）。
+- `runtimes` (os / browser / sandbox) — decides **which apps this node can install** (§7.4's second compatibility dimension).
+- `namespaces` — the isolation domains it is allowed to carry.
+- capacity limits and resources (CPU/memory/disk, an app-count ceiling, quotas) — **the app-count ceiling is
+  decided**; CPU/memory quotas and "should there be **scheduling**" are still open (§11-Q17).
 
-**已落地（2026-09-10，§8.3 / §11-Q17）**——声明不再只是记录，而是**准入**：
+**Landed (2026-09-10, §8.3 / §11-Q17)** — a declaration is no longer just a record, it is **admission**:
 
-- 形状：`Machine` / `DeclaredMachine` 加 `namespaces: readonly string[]` 与可选 `maxApps?: number`
-  （`packages/agentd/src/types.ts`）。两档严格度沿用 §8.5-1 已有的分法：配置文件里可省
-  （省 = 什么都不承载），announce 形状里 `namespaces` 必填。
-- **规则只有一条，且放在节点计划里**：`packages/agentd/src/capacity.ts` 的 `admitApps(node, apps)`
-  由 `makeNodeArtifactAdapter().plan()` 在兼容性裁决**之前**调用。白名单默认**拒绝**：
-  没声明 `namespaces` 的节点什么都不承载；拒绝消息指名是哪个域、以及节点**确实**声明了什么
-  （`node node-1 does not carry namespace "workspace-b" for board; it carries ops`）——
-  "invalid placement" 对运维不是可行动的消息。
-- **为什么不在 `bindNode`**（这是对本文原计划的一处偏离，理由是实测的）：`announceNode` 会**覆盖**
-  机器记录，所以节点能在绑定写入**之后**收回自己的声明。写在绑定处的规则会继续下发一份节点已经否认的部署；
-  写在计划处，读到的才是**当前**声明。`apps/agentd/test/node-admission.test.ts` 就是这条的证明——
-  绑定一个字没动，一次 announce 让同一个计划从 200 变 400。
-- **`maxApps` 缺席 ≠ 0**：没声明上限的节点读作"声明了没有上限"，如实报告；平台不替它编一个数字。
-  `0` 是另一种声明——正在排空的节点不收 app。schema 因此**不给 `maxApps` 默认值**（§11-Q17 的答复）。
-- 计数在域检查**之后**：运维看到的是这个部署第一件真正错的事，而不是第二件。
-- `runtimes` 这一维不动：仍由 SDK 自己的兼容闸（`assessBundleForMachine`）裁决。`capacity.ts`
-  只补上限那两件**与兼容性无关、只与节点自己的声明有关**的事——正因为如此，它能在一个制品还不存在时
-  就拒绝一次放置。
-- probe 侧：`bun run node:probe` 新增 `--namespaces a,b`（**必填**，缺了拒绝启动）与 `--max-apps n`（可选）。
-  必填的理由与 `--capabilities` 同构但更尖锐：空 ns 集合是一个**合法**声明（"什么都不承载"），
-  所以打错的 flag 在计划期与一次刻意的排空长得一模一样。
-- 测试 18 条：`packages/agentd/test/capacity.test.ts`（规则 7）、
-  `apps/agentd/test/node-admission.test.ts`（服务面 4）、`apps/agentd/test/machine-schema.test.ts`
-  （两档严格度 4）、`apps/agentd/test/probe-cli.test.ts`（CLI 启动门槛 3）。
-  反事实：注释掉 `plan()` 里那一行 `admitApps`，**恰好**八条断言"被拒"的测试变红（`capacity` 5、`node-admission` 3），
-  三条断言"放行"的保持绿——规则确实是新的，且没有一条老测试依赖它。
-- **验收（真实控制面 + 真实驻场程序）**：`bun run app:host agentd --app-routes --config @seed.json`
-  起真控制面（节点 `m1` 声明 `namespaces: ["ops"]`，绑定 `ops::board@1.0.0`），
-  `bun run node:probe --namespaces ops` → `applied revision 3: place ops::board@1.0.0`；
-  同一绑定、只把 CLI 的 `--namespaces` 换成 `workspace-b` → 每一拍都是
-  `fault plan: … node m1 does not carry namespace "ops" for board; it carries workspace-b`。
-  **绑定一个字都没改**，变的只是节点自己的声明——这就是"闸门放在计划处"的现场证据。
+- shape: `Machine` / `DeclaredMachine` gain `namespaces: readonly string[]` and an optional `maxApps?: number`
+  (`packages/agentd/src/types.ts`). The two tiers of strictness follow the split already established in §8.5-1: it
+  may be omitted in the config file (omitted = carries nothing), and `namespaces` is required in the announce shape.
+- **there is exactly one rule, and it lives in the node plan**: `packages/agentd/src/capacity.ts`'s
+  `admitApps(node, apps)`, called by `makeNodeArtifactAdapter().plan()` **before** the compatibility adjudication.
+  The allowlist **refuses** by default: a node that did not declare `namespaces` carries nothing; the refusal
+  message names which domain, and what the node **does** declare
+  (`node node-1 does not carry namespace "workspace-b" for board; it carries ops`) — "invalid placement" is not an
+  actionable message for an operator.
+- **why not in `bindNode`** (this is a deviation from this document's original plan, for a measured reason):
+  `announceNode` **overwrites** the machine record, so a node can withdraw its declaration **after** the binding was
+  written. A rule written at the binding would keep handing out a deployment the node has already denied; written
+  at the plan, what is read is the **current** declaration. `apps/agentd/test/node-admission.test.ts` is the proof —
+  not one word of the binding moved, and one announce turned the same plan from 200 into 400.
+- **an absent `maxApps` ≠ 0**: a node that did not declare a ceiling reads as "declared no ceiling", reported
+  honestly; the platform does not invent a number for it. `0` is a different declaration — a node being drained
+  takes no apps. The schema therefore **gives `maxApps` no default** (§11-Q17's answer).
+- the count comes **after** the domain check: the operator sees the first thing that is actually wrong with this deployment, not the second.
+- the `runtimes` dimension does not move: it is still adjudicated by the SDK's own compatibility gate
+  (`assessBundleForMachine`). `capacity.ts` only adds the two ceiling matters that are **unrelated to
+  compatibility and related only to the node's own declaration** — which is exactly why it can refuse a placement
+  before the artifact even exists.
+- on the probe side: `bun run node:probe` gains `--namespaces a,b` (**required**; missing means it refuses to
+  start) and `--max-apps n` (optional). The reason for requiring it is isomorphic to `--capabilities` but sharper:
+  an empty ns set is a **legitimate** declaration ("carries nothing"), so a mistyped flag looks exactly like a
+  deliberate drain at plan time.
+- 18 tests: `packages/agentd/test/capacity.test.ts` (rule 7),
+  `apps/agentd/test/node-admission.test.ts` (service surface 4), `apps/agentd/test/machine-schema.test.ts`
+  (the two strictness tiers 4), `apps/agentd/test/probe-cli.test.ts` (CLI startup gates 3).
+  Counterfactual: commenting out the one `admitApps` line in `plan()` turns **exactly** eight tests asserting
+  "refused" red (`capacity` 5, `node-admission` 3) and leaves the three asserting "let through" green — the rule
+  really is new, and no old test depends on it.
+- **acceptance (a real control surface + a real resident probe)**: `bun run app:host agentd --app-routes --config @seed.json`
+  starts the real control surface (node `m1` declares `namespaces: ["ops"]`, binding `ops::board@1.0.0`), and
+  `bun run node:probe --namespaces ops` → `applied revision 3: place ops::board@1.0.0`;
+  with the same binding, changing only the CLI's `--namespaces` to `workspace-b` → every beat is
+  `fault plan: … node m1 does not carry namespace "ops" for board; it carries workspace-b`.
+  **Not one word of the binding changed**; only the node's own declaration did — this is the on-site evidence that
+  "the gate belongs at the plan".
 
-### 8.4 部署单位：从 app 变成"节点 × app 集合"
+### 8.4 The deployment unit: from an app to "node × app set"
 
-§9 的推送从"推一个 app"升级为"推一个**节点的期望 app 集合**"：
+§9's push goes from "push one app" to "push **one node's desired app set**":
 
 ```ts
-// 落地形状（packages/agentd/src/types.ts）
-NodeAppPlacement { bundleId, version, ns, enabled? }   // 写下来的：*在哪*，不是*是什么*
-ResolvedNodeApp  = BundleRef + { ns, enabled? }        // 解析后的：制品自身的事实 + 地址
+// the landed shape (packages/agentd/src/types.ts)
+NodeAppPlacement { bundleId, version, ns, enabled? }   // what is written down: *where*, not *what*
+ResolvedNodeApp  = BundleRef + { ns, enabled? }        // resolved: the artifact's own facts + an address
 DesiredNode { node: Machine, revision, kernel?: BundleRef, apps: ResolvedNodeApp[] }
 ```
 
-**放置不重述 `abi` / `runtimes`**（这是实现期修正的一处设计）：放置只写"哪个制品的哪个版本落在哪个 ns"，
-`abi` / `runtimes` / `kind` 一律来自注册表。若放置能自己重复这些行，它就能与它所放置的制品**相矛盾**，
-而制品自己的声明也就无从强制了。`bindNode` 因此是"解析"而不是"记录"：
-放置里的 `bundleId@version` 先在 registry 里查到，再拼成 `ResolvedNodeApp`。
-诚实的一处代价：配置面（`effect-config.ts` 的 `nodeApp`）因此**看不见 `kind`**，
-"往 app 槽里放内核"这类范畴错误只能在控制面被拒（那里才看得到 `kind`）。
+**A placement does not restate `abi` / `runtimes`** (this is one design corrected during implementation): a
+placement only writes "which version of which artifact lands in which ns"; `abi` / `runtimes` / `kind` all come
+from the registry. If a placement could repeat those lines itself, it could **contradict** the artifact it places,
+and the artifact's own declaration would no longer be enforceable. `bindNode` is therefore "resolution", not
+"recording": the placement's `bundleId@version` is looked up in the registry first, then assembled into a
+`ResolvedNodeApp`. One honest cost: the config surface (`effect-config.ts`'s `nodeApp`) therefore **cannot see
+`kind`**, so a category error like "put a kernel in an app slot" can only be refused at the control surface (which
+is where `kind` is visible).
 
-回执仍复用 agentd 的 `revision` + `reportApplied` 409 stale 机制（`agentd/src/control.ts:24`）——
-今天的 `DesiredAgentConfig{agentId, revision, sets, servers}` 正是这个形状的前身。
-拉取式通道（probe）天然解决"节点离线再上线"：**desired 集合本身就是恢复来源**。
-（"这个节点现在在不在"这一维与驻场程序都已落地，见 §8.5-1。）
+Receipts still reuse agentd's `revision` + `reportApplied` 409 stale mechanism (`agentd/src/control.ts:24`) —
+today's `DesiredAgentConfig{agentId, revision, sets, servers}` is the predecessor of that shape.
+The pull-based channel (the probe) solves "a node goes offline and comes back" by construction: **the desired set
+is itself the source of recovery**.
+(The "is this node here right now" dimension and the resident probe have both landed; see §8.5-1.)
 
-**已落地（2026-09-10，§8.4）**——部署单位真的从"一个 app"变成了"节点 × app 集合"：
-- `packages/agentd/src/nodes.ts` —— `makeNodeArtifactAdapter()`（`kind: "effect-node"`），
-  `NodeDeployment { nodeId, kernel?, apps: NodeAppArtifact[], metadata: { nodeId, revision } }`，
-  plan / apply / validate 与 `bundles.ts` 的适配器同形；`metadata` 字段名与别的 agentd 计划一致，
-  所以**一条回执规则覆盖全部**，节点级没有第二套并发规则。
-- **裁决仍是那一份**：`assessBundleForMachine` 原样调用，本文件只加"逐项迭代 + 给失败贴地址"
-  （`cannot place workspace-b::board@1.0.0 on node-1: …`）——集合有十二项时，"计划失败"不是可行动的消息。
-- **身份是放置而非制品**：`nodeAppId = ns::bundleId@version`。同一制品落在两个 ns 是两个放置（§8.1），
-  同一地址出现两次才是矛盾（`bindNode` 与 `validateNodeDeployment` 各拦一道）。
-- **内核槽与 app 槽不互换**：内核槽里放 app、app 槽里放内核，两边都在 bind 期与适配器 `validate` 期被拒。
-- **确定性 diff**：新增 `packages/agentd/src/stable.ts`（递归按键排序的 `stableString` / `same`）。
-  起因是一个**真 bug**：`JSON.stringify` 对键序敏感，而 `artifactOf` 与 `validateBundleArtifact`
-  构造同一对象的键序不同，于是每次 plan 都吐出一条幻影 `update`。修在共享位置，`bundles.ts`（P6）
-  一起受益——不是只在新代码里绕开。
-- 服务面：`GET /agentd/node?node=`、`GET /agentd/node/plan?node=`、`POST /agentd/node/report`；
-  MCP 工具 `agentd_bind_node` / `agentd_desired_node` / `agentd_plan_node` / `agentd_report_node_applied`；
-  配置面 `nodeBindings` 种子字段（排在 `bundles` 之后，好让放置能指名上面刚发布的制品）。
-- **仍未做**：CPU/内存配额与调度（§8.3 的 `namespaces` 与 app 数上限已落地）；跨进程送字节**已落地**（§8.2 末）；
-  §8.5-5 的"离线恢复取回退还是前滚"已定（前滚，见 §8.5-1 的驻场程序一节）；
-  驻场程序本身也已落地。（§6.3-② 的全量重建档已落地，见下文。）
+**Landed (2026-09-10, §8.4)** — the deployment unit really did go from "one app" to "node × app set":
+- `packages/agentd/src/nodes.ts` — `makeNodeArtifactAdapter()` (`kind: "effect-node"`),
+  `NodeDeployment { nodeId, kernel?, apps: NodeAppArtifact[], metadata: { nodeId, revision } }`,
+  with plan / apply / validate of the same shape as `bundles.ts`'s adapter; the `metadata` field names match the
+  other agentd plans, so **one receipt rule covers everything** and there is no second concurrency rule at the node
+  level.
+- **the adjudication is still the one copy**: `assessBundleForMachine` is called as is; this file only adds
+  "iterate item by item + attach an address to a failure" (`cannot place workspace-b::board@1.0.0 on node-1: …`) —
+  when the set has twelve items, "the plan failed" is not an actionable message.
+- **identity is the placement, not the artifact**: `nodeAppId = ns::bundleId@version`. The same artifact landing in
+  two namespaces is two placements (§8.1); the same address appearing twice is the contradiction (`bindNode` and
+  `validateNodeDeployment` each stop it once).
+- **the kernel slot and app slots are not interchangeable**: an app in the kernel slot or a kernel in an app slot is refused both at bind time and in the adapter's `validate`.
+- **deterministic diff**: a new `packages/agentd/src/stable.ts` (recursively key-sorted `stableString` / `same`).
+  The cause was a **real bug**: `JSON.stringify` is sensitive to key order, and `artifactOf` and
+  `validateBundleArtifact` build the same object with different key orders, so every plan emitted a phantom
+  `update`. Fixed in the shared place, so `bundles.ts` (P6) benefits too — rather than working around it only in
+  the new code.
+- service surface: `GET /agentd/node?node=`, `GET /agentd/node/plan?node=`, `POST /agentd/node/report`;
+  MCP tools `agentd_bind_node` / `agentd_desired_node` / `agentd_plan_node` / `agentd_report_node_applied`;
+  config surface `nodeBindings` seed field (placed after `bundles`, so a placement can name the artifact just
+  published above).
+- **Still not done**: CPU/memory quotas and scheduling (§8.3's `namespaces` and app-count ceiling have landed);
+  sending bytes across processes **has landed** (§8.2's end); §8.5-5's "on offline recovery, roll back or roll
+  forward" is decided (roll forward, see the resident probe section of §8.5-1); and the resident probe itself has
+  also landed. (§6.3-②'s full-rebuild tier has landed; see below.)
 
-### 8.5 缺口
+### 8.5 Gaps
 
-1. ~~节点注册 / 心跳 / 租约（agentd Machine 有雏形，mcp-registry 有可复用形态）~~ ✅ **已落地**
-   （2026-09-10，见下）——机制、控制面、传输面、**驻场程序**都有了。见下面的「驻场程序（probe）已落地」。
-2. ~~节点级 desired app 集合 + 回执~~ ✅ **已落地**（2026-09-10，见 §8.4）：`DesiredNode` +
-   `makeNodeArtifactAdapter()`，一份计划覆盖内核 + N 个 app，回执走同一条 409 规则。
-3. ~~节点内多 app 的隔离（ns 已有）与**配额**~~ —— ns 已是放置的地址（§8.4 用了），
-   `namespaces` 白名单与 app 数上限**已落地**（2026-09-10，见 §8.3）；CPU/内存配额与调度仍未决
-   （§11-Q17）。
-4. **不兼容内核切换 = 全节点 app 一起重建**（§6.3-②），所以**节点越大、该档的窗口越长**——
-   这给 §11-Q2「内核制品粒度」加了权重：整块内核换一次动全部 app，拆细能缩小重建面。
-   兼容内核走 §6.3-① 原地换，代价与节点规模无关。节点级计划让这件事**可见**了
-   （一次 plan 列出要换的整个集合），但重建窗口本身没有被缩小。
-   **② 档本身已落地（2026-09-10）**：重建会发生、会成功、失败会回滚，但窗口长度仍随节点规模增长——
-   §11-Q2 与「只挂起不兼容 app」（§6.5-6 第三种处置）是缩小它的两条路——**后者已落地（2026-09-10）**：
-   重建面现在只等于**声明过且跟不上新线**的那几个 app，没做声明的 app 不再陪跑；但声明齐全的节点上
-   这一档仍可能等于全节点，所以 §11-Q2 还没做完。
-5. 节点离线/崩溃后的期望态恢复（拉取式 + desired 集合即来源，但要定"版本回退还是前滚"）——
-   **已定：前滚**（2026-09-10，见下面「驻场程序」一节的答复）。前提也都在了：§8.5-1 之后"离线"是一个
-   **可读、可测**的状态，不再是靠 `Machine.status` 猜；驻场程序回来时拉的是**当前** revision。
-   回退作为**运维动作**存在（改绑定），被表达成一次向前的期望态变更，节点侧不需要第二套机制。
+1. ~~node registration / heartbeat / lease (agentd Machine has a draft, mcp-registry has a reusable shape)~~ ✅
+   **landed** (2026-09-10, see below) — the mechanism, the control surface, the transport surface and the
+   **resident probe** all exist. See "Resident probe landed" below.
+2. ~~node-level desired app set + receipt~~ ✅ **landed** (2026-09-10, see §8.4): `DesiredNode` +
+   `makeNodeArtifactAdapter()`, one plan covering the kernel + N apps, receipts going through the same 409 rule.
+3. ~~isolation between several apps in a node (ns already exists) and **quotas**~~ — ns is already the placement's
+   address (§8.4 uses it), the `namespaces` allowlist and the app-count ceiling **have landed** (2026-09-10, see
+   §8.3); CPU/memory quotas and scheduling are still open (§11-Q17).
+4. **an incompatible kernel swap = every app in the node is rebuilt together** (§6.3-②), so **the bigger the node,
+   the longer that tier's window** — which gives §11-Q2 "kernel artifact granularity" extra weight: one whole-kernel
+   swap moves all apps, and splitting it finer shrinks the rebuild surface. A compatible kernel goes through
+   §6.3-①'s in-place swap, whose cost is independent of node size. A node-level plan makes this **visible**
+   (one plan lists the whole set to be swapped), but the rebuild window itself has not been shrunk.
+   **Tier ② itself has landed (2026-09-10)**: the rebuild happens, succeeds, and rolls back on failure, but the
+   window's length still grows with node size — §11-Q2 and "suspend only the incompatible apps" (§6.5-6's third
+   disposition) are the two ways to shrink it — **the latter has landed (2026-09-10)**: the rebuild surface now
+   equals only those apps that **declared and cannot keep up with the new line**; apps that made no declaration no
+   longer tag along. But on a node with complete declarations this tier can still equal the whole node, so §11-Q2 is
+   not finished.
+5. desired-state recovery after a node goes offline or crashes (pull-based + the desired set as the source, but
+   "roll back or roll forward" has to be decided) — **decided: roll forward** (2026-09-10, see the answer in the
+   "resident probe" section below). The preconditions are all in place too: after §8.5-1 "offline" is a **readable,
+   testable** state, no longer guessed from `Machine.status`; when the resident probe comes back it pulls the
+   **current** revision. Rollback exists as an **operator action** (change the binding), expressed as a forward
+   desired-state change; the node side needs no second mechanism.
 
-**§8.5-1 已落地（2026-09-10）——节点在线是观察出来的，不是声明出来的**：
-- `packages/agentd/src/presence.ts` —— `makeNodePresence({ leaseTtlMs, clock })` 提供
-  `announce` / `heartbeat` / `withdraw` / `presence` / `list`。租约**读时求值**：没有定时器、没有 sweep，
-  也就没有"清理任务没跑所以死节点还活着"这一档。
-- **在线与身份分开两张表**：`machines` 是节点**是什么**（身份、能力——运行与否都成立），
-  `presence` 是它**此刻在不在**。`GET /agentd` 把 `machines[].status`（节点自己说的）与
-  `nodeLiveness`（服务端看到的）**并排**给出，读者能分清哪个是哪个——这也是 HTTP 测试断言的一对。
-- **与 mcp-registry 的有意分歧**：不复用它的 `static` 租约（代码注册即视为活着）。
-  节点这边**没有** static 一档，因为"它写在配置文件里"正是这一条要终止的冒充。
-  测试就是"配置里声明的机器在 announce 之前是离线的"。
-- **时钟取两个的较大值**：`age = max(0, 墙钟差, 单调钟差)`。NTP 往回跳会让墙钟年龄变小，
-  一个已经死掉的节点能靠别人校时续命；取最大值使租约**不可能被回拨延长**
-  （往前跳则提前过期——fail-closed）。默认单调源 `performance.now()` 的生命周期恰好等于这张内存表。
-  测试："墙钟回拨救不活一个已死的租约"。
-- **过期 ≠ 删除**：租约到期只把节点变离线，机器记录、绑定、期望集合逐字节不变
-  （`same(whileUp, desiredNode(...))` 为真），且离线节点的 `desired` 照常可读、可回执。
-  因为 desired 集合本身就是恢复来源（§8.4）——让心跳失效去摧毁它要恢复的东西，是自相矛盾的。
-  `withdraw` 同样只结束"在不在"，不结束"这个节点"：干净关机不是退役。
-- **续约不动 revision，改声明才动**：回执是关于"该跑什么"的，心跳若 bump，会让每个**没有绑定**的
-  agent 的在途回执全部 409（无绑定时 `desired()` 用的是全局 revision）。但 announce 里
-  `capabilities` 变了**是**期望态变化——它改变的是"这里能推什么"。两条都测了。
-- **时间由服务端定**：`DeclaredMachine = Omit<Machine, "reportedAt">`，探测体里**没有**这个字段；
-  多带一个 `at` 是 400 而不是被忽略——忽略会让调用方以为自己说了算。`reportedAt` 由服务端盖章。
-- **声明的形状分两档，差别不是修辞**：配置面 `capabilities` 缺省即 `[]`（运维省略意为"没有"），
-  探测面**必填**——缺省成 `[]` 是一次**静默清空**，之后每次 plan 都会拒绝却不说为什么。
-  故探测体是"要么说清自己，要么被拒"，畸形体返回 **400 并指名缺哪个字段**（不是 500 替调用方背锅）。
-  `namespaces`（§8.3）沿用同一条：配置面默认空，announce 侧必填。
-- **凭据**：`nodeToken` 可选，走 `authorization: Bearer`（与 mcp-registry 的 announce/heartbeat 同一约定），
-  不进请求体——秘密不进 body，也就不进 body 日志。比较用 `timingSafeEqual`。
-  没配就是开放的，且 `nodeLiveness().tokenRequired` **把这件事说出来**：没上膛的枪不该看起来像上了膛。
-- 服务面：`POST /agentd/node/{announce,heartbeat,withdraw}`、`GET /agentd/node/presence[?node=]`
-  （不带 `node` 给整张表），MCP 工具 `agentd_announce_node` / `agentd_heartbeat_node` /
-  `agentd_withdraw_node` / `agentd_node_presence`；`GET /agentd` 增加 `nodeLiveness`。
-- 测试 24 条：`packages/agentd/test/presence.test.ts`（机制 9）、
-  `apps/agentd/test/node-liveness.test.ts`（传输面 6）、`packages/agentd/test/node-presence.test.ts`（控制面 9）。
-  四条反事实各自**只**杀掉一条测试：单调钟 → "回拨救不活"；`rejectClientTime` → "节点不能自己说何时被看见"；
-  `parseBody` 的 400 映射 → "畸形体是 400 且指名字段"；从 header 取 token → "有 token 时拒绝且不改动状态"。
-- **一处诚实的代价**：这张表**不落盘**，控制面重启后所有节点先显示离线，直到下一次 announce/heartbeat。
-  这是有意的——从磁盘恢复的租约表是一堆**没人做过的声明**；TTL 30s，代价窗口约一个心跳。
-- **仍未做**：CPU/内存配额与调度（§11-Q17）；`namespaces` 白名单与 app 数上限**已落地**，见 §8.3。
+**§8.5-1 landed (2026-09-10) — a node being online is observed, not declared**:
+- `packages/agentd/src/presence.ts` — `makeNodePresence({ leaseTtlMs, clock })` provides
+  `announce` / `heartbeat` / `withdraw` / `presence` / `list`. The lease is **evaluated at read time**: no timer,
+  no sweep, and therefore no "the cleanup job did not run, so a dead node is still alive" tier.
+- **liveness and identity are two separate tables**: `machines` is what a node **is** (identity, capabilities —
+  true whether it runs or not), `presence` is whether it **is here right now**. `GET /agentd` gives
+  `machines[].status` (what the node says itself) and `nodeLiveness` (what the server sees) **side by side**, so a
+  reader can tell which is which — this is also the pair the HTTP tests assert.
+- **a deliberate divergence from mcp-registry**: its `static` lease (registered in code counts as alive) is not
+  reused. On the node side there **is no** static tier, because "it is written in the config file" is exactly the
+  pretense this item exists to end. The test is "a machine declared in the config is offline before it announces".
+- **the clock takes the larger of the two**: `age = max(0, wall-clock delta, monotonic delta)`. An NTP jump
+  backwards makes the wall-clock age smaller, so a node that is already dead could extend its life off someone
+  else's time correction; taking the maximum makes it **impossible to extend a lease by turning the clock back**
+  (a jump forwards expires it early — fail-closed). The default monotonic source `performance.now()` has a lifetime
+  exactly equal to this in-memory table. Test: "turning the wall clock back cannot revive a dead lease".
+- **expiry ≠ deletion**: a lease expiring only turns the node offline; the machine record, the binding and the
+  desired set are unchanged byte for byte (`same(whileUp, desiredNode(...))` is true), and an offline node's
+  `desired` is readable and reportable as usual. Because the desired set is itself the source of recovery (§8.4) —
+  having a heartbeat failure destroy the very thing it is meant to recover is self-contradictory. `withdraw`
+  likewise ends only "is it here", not "this node": a clean shutdown is not a decommissioning.
+- **renewing does not move the revision; changing a declaration does**: a receipt is about "what should run", so
+  if a heartbeat bumped it, every in-flight receipt of an agent **with no binding** would 409 (with no binding,
+  `desired()` uses the global revision). But `capabilities` changing in an announce **is** a desired-state change —
+  what it changes is "what can be pushed here". Both are tested.
+- **the time is set by the server**: `DeclaredMachine = Omit<Machine, "reportedAt">`, and this field is **not** in
+  the probe body; carrying an extra `at` is a 400 rather than being ignored — ignoring it would let the caller
+  think it has the last word. `reportedAt` is stamped by the server.
+- **the declaration shape has two tiers and the difference is not rhetoric**: on the config surface `capabilities`
+  defaults to `[]` (the operator omitting it means "none"), and on the probe surface it is **required** —
+  defaulting to `[]` is a **silent wipe**, after which every plan refuses without saying why. So the probe body is
+  "either state yourself clearly or be refused", and a malformed body returns **400 naming the missing field** (not
+  a 500 taking the blame on the caller's behalf). `namespaces` (§8.3) follows the same rule: empty by default on
+  the config surface, required on the announce side.
+- **credentials**: `nodeToken` is optional and goes through `authorization: Bearer` (the same convention as
+  mcp-registry's announce/heartbeat), not in the request body — a secret that does not enter the body does not
+  enter the body logs either. The comparison uses `timingSafeEqual`. Unconfigured means open, and
+  `nodeLiveness().tokenRequired` **says so out loud**: a gun that is not loaded should not look loaded.
+- service surface: `POST /agentd/node/{announce,heartbeat,withdraw}`, `GET /agentd/node/presence[?node=]`
+  (without `node` it gives the whole table), MCP tools `agentd_announce_node` / `agentd_heartbeat_node` /
+  `agentd_withdraw_node` / `agentd_node_presence`; `GET /agentd` gains `nodeLiveness`.
+- 24 tests: `packages/agentd/test/presence.test.ts` (mechanism 9),
+  `apps/agentd/test/node-liveness.test.ts` (transport surface 6), `packages/agentd/test/node-presence.test.ts`
+  (control surface 9).
+  Four counterfactuals each kill **only** one test: the monotonic clock → "turning the clock back cannot revive";
+  `rejectClientTime` → "a node cannot say itself when it was seen"; `parseBody`'s 400 mapping → "a malformed body is
+  a 400 that names the field"; taking the token from a header → "with a token, refuse and change no state".
+- **one honest cost**: this table **does not go to disk**, so after a control-surface restart all nodes show
+  offline until the next announce/heartbeat. This is intentional — a lease table restored from disk is a pile of
+  **declarations nobody ever made**; the TTL is 30s, so the cost window is about one heartbeat.
+- **still not done**: CPU/memory quotas and scheduling (§11-Q17); the `namespaces` allowlist and the app-count ceiling **have landed**, see §8.3.
 
-**驻场程序（probe）已落地（2026-09-10）——目标机上真的有一个东西在调这套控制面**：
-- `packages/agentd-probe/` —— `startProbe({ url, machine, token?, intervalMs?, apply?, fetch?, schedule?, onEvent? })`
-  返回 `{ nodeId, status(), stop() }`。一拍是：`announce`（已持租约则 `heartbeat`）→ 拉
-  `GET /agentd/node/plan` → apply → `POST /agentd/node/report`。
-- **只有出站**：不发监听、不开端口，所以 NAT 后的机器不需要任何入站路径（与"app 不自己开端口"同一条）。
-  用原生 `fetch` 而不是 app 的 egress router——router 答的是"一个 **app** 能去哪"，而 probe 不是
-  本机上的 app，它是这台机器自己的声音。
-- **"拉 desired"就是拉 plan**：`plan` 的返回里已经含**完全解析**的 `desired: NodeDeployment` 与裁决结果，
-  再读一次 `/agentd/node` 是两次可能打架的读。§8.4 的"一份计划覆盖内核 + N 个 app"正为此。
-- **不做的事在 `apply` 的默认值里说清楚**：默认 `apply` 即 `makeNodeArtifactAdapter().apply`——校验并返回
-  该部署，不凭空发明；它**不**把制品字节搬到机器上。真机传自己的 `apply`，回执里带的就是它返回的东西：
-  "应用了什么"是机器的回答，不是 probe 的假设。要真的收字节就传 `stage`（§8.2 末），probe 把它接成
-  `stagingApply`：取回、校验、落盘，回执里带每个制品落在了哪里。
-- **同一 revision 不重复 apply、不重复回执**：`reported` 记住上次回执的 revision，相同即 `in-sync`。
-  否则每 1.5 秒来一张回执，回执就不再是回执，而是一个恰好带着部署的心跳。
-- **故障分类 = 七种回答，各有各的处置**（`packages/agentd-probe/src/errors.ts`）：
+**Resident probe landed (2026-09-10) — there really is something on the target machine calling this control surface**:
+- `packages/agentd-probe/` — `startProbe({ url, machine, token?, intervalMs?, apply?, fetch?, schedule?, onEvent? })`
+  returns `{ nodeId, status(), stop() }`. One beat is: `announce` (`heartbeat` if it already holds a lease) → pull
+  `GET /agentd/node/plan` → apply → `POST /agentd/node/report`.
+- **outbound only**: it opens no listener and no port, so a machine behind NAT needs no inbound path at all (the
+  same rule as "an app does not open its own ports"). It uses native `fetch` rather than an app's egress router —
+  the router answers "where can **an app** go", and the probe is not an app on this machine, it is this machine's
+  own voice.
+- **"pull desired" is pulling the plan**: `plan`'s response already contains the **fully resolved**
+  `desired: NodeDeployment` and the adjudication result, so reading `/agentd/node` again would be two reads that
+  can disagree. §8.4's "one plan covering the kernel + N apps" is exactly for this.
+- **what it does not do is stated clearly in `apply`'s default**: the default `apply` is
+  `makeNodeArtifactAdapter().apply` — it validates and returns that deployment, it does not invent anything; it
+  does **not** move artifact bytes onto the machine. A real machine passes its own `apply`, and the receipt carries
+  what it returned: "what was applied" is the machine's answer, not the probe's assumption. To really take bytes,
+  pass `stage` (§8.2's end) and the probe wires it to `stagingApply`: fetch back, validate, write to disk, and the
+  receipt carries where each artifact landed.
+- **the same revision is not applied twice and not reported twice**: `reported` remembers the revision of the last
+  receipt, and an identical one means `in-sync`. Otherwise a receipt arrives every 1.5 seconds, and a receipt is no
+  longer a receipt but a heartbeat that happens to carry a deployment.
+- **failure classification = seven answers, each with its own disposition** (`packages/agentd-probe/src/errors.ts`):
 
-  | 种类 | 是什么 | 循环怎么办 |
+  | Kind | What it is | What the loop does |
   |---|---|---|
-  | `unreachable` | 压根没有 HTTP 响应 | 继续打；节点会在控制面自然过期——这是实话 |
-  | `refused` | 401 / 400 —— 控制面拒绝的是**我们** | **停**；同一次调用会被同样拒绝到永远，再打是空转 |
-  | `unavailable` | 5xx —— 到了，但坏了 | 继续打 |
-  | `lapsed` | 404 "node is not present" —— 租约过期了 | 同一个节拍内**重新 announce** |
-  | `stale` | 409 —— 我们 apply 时期望态动了 | 下一拍重拉；这是进展，不是失败 |
-  | `plan` | 计划器拒绝了**这个部署**（400） | 报出来；不 apply、不声称成功、也不发回执 |
-  | `apply` | 本机侧抛了（含无法归因的错误） | 报出来、回**失败回执**、继续重试 |
+  | `unreachable` | no HTTP response at all | keep trying; the node will expire naturally on the control surface — that is the truth |
+  | `refused` | 401 / 400 — what the control surface refuses is **us** | **stop**; the same call would be refused the same way forever, retrying is spinning |
+  | `unavailable` | 5xx — it arrived, but it is broken | keep trying |
+  | `lapsed` | 404 "node is not present" — the lease expired | **announce again** within the same beat |
+  | `stale` | 409 — the desired state moved while we were applying | pull again next beat; this is progress, not failure |
+  | `plan` | the planner refused **this deployment** (400) | report it; do not apply, do not claim success, and do not send a receipt |
+  | `apply` | the local side threw (including errors that cannot be attributed) | report it, send back a **failure receipt**, keep retrying |
 
-  七条共有一点：**没有一条是成功**。这一层存在的意义就是"够不着控制面"不能读成"部署已应用"。
-  回执形状仍是平台那一条 `{ nodeId, revision, state }`，`state` 是 probe 自己的负载
-  （`{ok:true, deployment}` / `{ok:false, error}`），不是第二套回执规则。
-- **`stop()` 的告别必须送达才算干净**：够不着时 `stop()` **抛**，而不是悄悄返回——吞掉失败的 `stop`
-  会为"仍被列在线上直到租约过期"的节点报告一次干净退出，而退出与记录不一致正是 withdraw 要防的那件事。
-  记忆化到 promise：SIGINT 与 SIGTERM 同时来也只有**一次** withdraw。
-- **`leaseTtlMs` 进了配置面**（`apps/agentd/src/effect-config.ts`）：租约 TTL 是运维策略不是常量，
-  而且**不可设的 TTL 就是没人能看着它过期的租约**——验收测试靠它把 TTL 压到 300ms 看它真的过期。
-- CLI：`bun run node:probe --url <base> --id <m> [--name] --capabilities a,b --namespaces a,b
-  [--max-apps n] [--token] [--stage <dir>] [--interval]`，
-  人类可读输出全走 stderr（stdout 留给协议）；SIGINT/SIGTERM 走 withdraw，干净退出 0，告别失败退出 1。
-  `--namespaces` 与 `--capabilities` 都是启动门槛：**缺了就拒绝启动**，而不是让节点带着空声明上线，
-  再用一连串拒绝去解释（§8.3）。
-- 测试 22 条：`packages/agentd-probe/test/`（传输 5、单拍 7、循环策略 4、退出 2）+
-  `apps/agentd/test/probe-acceptance.test.ts`（真 socket，2）+ `probe-refusal.test.ts`（反向，2）。
-  九条反事实各自**只**杀掉自己的测试：`unreachable`→`refused`、`refused` 停摆、`lapsed` 重公告、
-  `in-sync` 跳过、失败回执、plan 的 400 分类、`stale` 分类、`stop` 记忆化、`leaseTtlMs` 透传。
-- **验收（真实控制面，不是模拟）**：`bun run app:host agentd --app-routes` 起真实控制面，
-  `bun run node:probe` 起真实驻场程序——announce 后 `nodeLiveness` 在线 → 心跳续约（100ms 节拍 / 1200ms 租约，
-  过了一整个租约仍在线，`lastSeen` 前进）→ 收到 `{ok:true, deployment}` 回执（放置为 `ops::board@1.0.0`）
-  且 `at` 不再变 → 节拍拉到 60s（**真停摆**，不是测试钩子）后 300ms 租约过期：`online:false` 而
-  `withdrawn:false`，机器记录、desired 集合、回执**逐字节不变** → `stop()` 后 `withdrawn:true`，
-  机器记录与部署仍在（干净关机不是退役）。反向两条：真正没人监听的端口 → 一直打、`beats:0`、
-  `stop()` 抛；错 token → 401，**只**试一次就停，且控制面侧该节点始终 `online:false`。
-- **§8.5-5 的答复（回退还是前滚）：前滚。** 节点不在线期间期望态只会前进（它就存在控制面里，
-  离线节点的 `desired` 照常可读、可回执），节点回来时拉到的是**当前** revision；`reported` 只用于
-  "同一 revision 不重复做"，所以不存在"回来把旧版本又装回去"的路径。回退并没有消失——它是**运维动作**：
-  把绑定改回 `bundleId@version` 旧版本，期望态前进一步，节点拉到新 revision 照常 apply。
-  两者因此不冲突：**回退被表达成一次向前的期望态变更**，节点侧不需要第二套机制，
-  也不会凭"上次装的是哪个版本"自行决定装什么。
-- **仍未做**：CPU/内存配额与调度（§11-Q17；`namespaces` 与 app 数上限已落地）；跨进程送字节**已落地**（§8.2 末）；
-  probe 只报"应用了哪个 revision"，不报"本机崩溃过、已回退到 previous"（P5 有信号
-  `kernelBoot().fellBack` / `condemned`，还没进回执形状）；probe 进程自身由谁守护、拉起、重启
-  （今天它是一个进程，机器侧的进程管理不在这里）。
+  All seven share one point: **not one of them is success**. The reason this layer exists is that "cannot reach
+  the control surface" must not be read as "the deployment was applied". The receipt shape is still the platform's
+  one `{ nodeId, revision, state }`, with `state` being the probe's own payload
+  (`{ok:true, deployment}` / `{ok:false, error}`), not a second set of receipt rules.
+- **`stop()`'s farewell must be delivered to count as clean**: when it cannot reach the control surface `stop()`
+  **throws** rather than quietly returning — a `stop` that swallows the failure would report a clean exit for a node
+  that is "still listed online until its lease expires", and an exit disagreeing with the record is exactly what
+  withdraw exists to prevent. Memoized into a promise: SIGINT and SIGTERM arriving together still withdraw only
+  **once**.
+- **`leaseTtlMs` went into the config surface** (`apps/agentd/src/effect-config.ts`): a lease TTL is an operator
+  policy, not a constant, and **an unsettable TTL is a lease nobody can watch expire** — the acceptance test uses
+  it, squeezing the TTL to 300ms to watch it really expire.
+- CLI: `bun run node:probe --url <base> --id <m> [--name] --capabilities a,b --namespaces a,b
+  [--max-apps n] [--token] [--stage <dir>] [--interval]`,
+  human-readable output all goes to stderr (stdout is left for the protocol); SIGINT/SIGTERM go through withdraw,
+  a clean exit is 0, a failed farewell is 1. Both `--namespaces` and `--capabilities` are startup gates:
+  **missing means it refuses to start**, rather than letting a node come online with an empty declaration and then
+  explaining it with a string of refusals (§8.3).
+- 22 tests: `packages/agentd-probe/test/` (transport 5, one beat 7, loop policy 4, exit 2) +
+  `apps/agentd/test/probe-acceptance.test.ts` (a real socket, 2) + `probe-refusal.test.ts` (the reverse direction,
+  2). Nine counterfactuals each kill **only** their own test: `unreachable`→`refused`, `refused` stalling,
+  `lapsed` re-announcing, the `in-sync` skip, the failure receipt, the plan 400 classification, the `stale`
+  classification, `stop` memoization, `leaseTtlMs` pass-through.
+- **acceptance (a real control surface, not a simulation)**: `bun run app:host agentd --app-routes` starts the
+  real control surface and `bun run node:probe` starts the real resident probe — after the announce,
+  `nodeLiveness` is online → the heartbeat renews (100ms beat / 1200ms lease; past a whole lease it is still
+  online and `lastSeen` advances) → a `{ok:true, deployment}` receipt arrives (the placement is
+  `ops::board@1.0.0`) and `at` stops changing → the beat is stretched to 60s (**a real stall**, not a test hook)
+  and 300ms later the lease expires: `online:false` while `withdrawn:false`, with the machine record, the desired
+  set and the receipt **unchanged byte for byte** → after `stop()`, `withdrawn:true` while the machine record and
+  the deployment are still there (a clean shutdown is not a decommissioning). Two in the reverse direction: a port
+  with genuinely nobody listening → it keeps trying, `beats:0`, and `stop()` throws; a wrong token → 401, it tries
+  **only** once and stops, and on the control side that node is `online:false` throughout.
+- **§8.5-5's answer (roll back or roll forward): roll forward.** While a node is offline the desired state only
+  moves forward (it lives on the control surface, and an offline node's `desired` is readable and reportable as
+  usual), and when the node comes back what it pulls is the **current** revision; `reported` is used only for "do
+  not repeat the same revision", so there is no path for "come back and reinstall the old version". Rollback has
+  not disappeared — it is an **operator action**: change the binding back to the old `bundleId@version`, the
+  desired state advances one step, and the node pulls the new revision and applies it as usual. So the two do not
+  conflict: **a rollback is expressed as a forward desired-state change**, the node side needs no second
+  mechanism, and it will not decide by itself what to install based on "which version was installed last time".
+- **still not done**: CPU/memory quotas and scheduling (§11-Q17; `namespaces` and the app-count ceiling have
+  landed); sending bytes across processes **has landed** (§8.2's end); the probe reports only "which revision was
+  applied", not "this machine crashed and fell back to previous" (P5 has the signals
+  `kernelBoot().fellBack` / `condemned`, not yet in the receipt shape); who supervises, starts and restarts the
+  probe process itself (today it is one process, and machine-side process management is not here).
 
-## 9. 推送与回执（复用 agentd）
+## 9. Push and receipt (reusing agentd)
 
-`agentd` 已经有"下发 + 回执"的骨架，正好是 bundle 推送要的形状：
+`agentd` already has the skeleton of "hand down + receipt", which is exactly the shape a bundle push needs:
 
-| 现有 | 复用为 |
+| Existing | Reused as |
 |---|---|
-| Machine / Agent 注册 | 目标机器与 agent 实例 |
-| `AgentBinding.revision` + `reportApplied` 的 **409 stale** | 升级回执的乐观并发（`agentd/src/control.ts:24`） |
-| `AdapterPlan{agentId, revision, desired, changes}` | 升级计划的 diff 展示（`agentd/src/types.ts:8`） |
-| `GatewayConfigAdapter` 生成 `{ mcpServers: { effectGateway: { url, headers: { "x-agent-id" } } }, metadata: { agentId, revision, sets } }` | 同形扩成制品面：**已落地**（P6）为 `BundleAgentConfig`（`agentd/src/bundles.ts`） |
+| Machine / Agent registration | the target machine and the agent instance |
+| `AgentBinding.revision` + `reportApplied`'s **409 stale** | optimistic concurrency for upgrade receipts (`agentd/src/control.ts:24`) |
+| `AdapterPlan{agentId, revision, desired, changes}` | showing the diff of an upgrade plan (`agentd/src/types.ts:8`) |
+| `GatewayConfigAdapter` generating `{ mcpServers: { effectGateway: { url, headers: { "x-agent-id" } } }, metadata: { agentId, revision, sets } }` | extended into an artifact surface of the same shape: **landed** (P6) as `BundleAgentConfig` (`agentd/src/bundles.ts`) |
 
-**边界**（不要混）：
-- board 只管任务；**工具调用**归 mcp-gateway（见 `docs/mcp-gateway-surface.md`）；
-- **代码制品分发**归 agentd。三者不互相越界。
+**Boundaries** (do not mix them up):
+- board manages only tasks; **tool calls** belong to mcp-gateway (see `docs/mcp-gateway-surface.md`);
+- **code artifact distribution** belongs to agentd. The three do not cross into each other.
 
-**节点级扩展**：§8.4 的 `DesiredNode` 是同一机制的上一层封装——推送单位从"一个 app"变成
-"节点 × 期望 app 集合"，回执与 stale 判定不变。
+**Node-level extension**: §8.4's `DesiredNode` is a wrapper one layer up on the same mechanism — the push unit
+goes from "one app" to "node × desired app set", and the receipt and stale decision do not change.
 
-**已落地（2026-09-10，P6）**——三条边界里 agentd 那一条真的通了：
-- `packages/agentd/src/bundles.ts` —— `BundleRef`（`{ bundleId, version, abi, runtimes?, kind?, bootstrapAbi? }`）与
-  `makeBundleArtifactAdapter()`（`kind: "effect-bundle"`），plan/apply/validate 与网关适配器同形。
-- **裁决不是第二套规则**：`assessBundleForMachine` 把 app 路由到 `assessBundleCompat`、
-  把内核路由到 `assessKernelCompat`（都是 `effect-bundle` 的实现），自己只做这一个分流。
-  测试直接断言"推送端的判定 == 装载端的判定"。
-- **机器能力**写在 `Machine.capabilities` 里（`abi:effect-1` / `bootstrap:bootstrap-1` / `runtime:os`）；
-  缺省即回落到 SDK 自己的默认值，但**拼错的 `runtime:` 报错而不回落**——回落会让 OS 制品被推到浏览器机器上。
-- **制品落到内核仓**：`kernelRevisionOf(bundle, revision, dir)` 让被推送的制品**直接**成为
-  `KernelRevision`，也就是 `supervisor.stage()` / `EffectServer.stageKernel()` 的入参。中间没有转译层，
-  所以推送端与装载端不可能各说各话。`revision` 由接收方给（收据的号 ≠ 仓的号，两台机器两个仓）。
-- **版本共存即回滚**：绑定以 `bundleId@version` 命名，回退就是绑回旧版本——不需要第二套回滚机制。
-- 服务面：`GET /agentd/plan?agent=<id>` 出计划，拒绝时用适配器自己抛的 400 与消息；
-  MCP 工具 `agentd_publish_bundle` / `agentd_bind_bundles` / `agentd_plan_bundles`。
-- 配置面：`bundles` + `bundleBindings` 两个种子字段，parse 期就拦住"把两条 ABI 线混在一起"的写法
-  （内核缺 `bootstrapAbi`、app 带 `bootstrapAbi`）。
-- **仍未做**：回执今天只报"应用了哪个 revision"，不报"这个内核在本机崩溃过、已回退到 previous"——后者 P5 已有信号
-  （`kernelBoot().fellBack` / `condemned`），但还没进收据形状。
+**Landed (2026-09-10, P6)** — of the three boundaries, agentd's really works now:
+- `packages/agentd/src/bundles.ts` — `BundleRef` (`{ bundleId, version, abi, runtimes?, kind?, bootstrapAbi? }`)
+  and `makeBundleArtifactAdapter()` (`kind: "effect-bundle"`), with plan/apply/validate of the same shape as the
+  gateway adapter.
+- **the adjudication is not a second set of rules**: `assessBundleForMachine` routes an app to
+  `assessBundleCompat` and a kernel to `assessKernelCompat` (both `effect-bundle` implementations) and does only
+  that one fan-out itself. The test asserts directly that "the push side's decision == the load side's decision".
+- **machine capabilities** are written in `Machine.capabilities` (`abi:effect-1` / `bootstrap:bootstrap-1` /
+  `runtime:os`); absent means falling back to the SDK's own defaults, but **a misspelled `runtime:` errors rather
+  than falling back** — a fallback would let an OS artifact be pushed to a browser machine.
+- **the artifact lands in the kernel repo**: `kernelRevisionOf(bundle, revision, dir)` makes the pushed artifact
+  **directly** a `KernelRevision`, i.e. the input to `supervisor.stage()` / `EffectServer.stageKernel()`. There is
+  no translation layer in between, so the push side and the load side cannot each say something different.
+  The `revision` is given by the receiver (the number on the receipt ≠ the number in the repo; two machines, two
+  repos).
+- **coexisting versions are the rollback**: the binding is named `bundleId@version`, so rolling back is binding back to the old version — no second rollback mechanism needed.
+- service surface: `GET /agentd/plan?agent=<id>` produces the plan, and on refusal it uses the adapter's own 400
+  and message; MCP tools `agentd_publish_bundle` / `agentd_bind_bundles` / `agentd_plan_bundles`.
+- config surface: the two seed fields `bundles` + `bundleBindings`, which stop the "mixing the two ABI lines"
+  spellings at parse time (a kernel missing `bootstrapAbi`, an app carrying `bootstrapAbi`).
+- **still not done**: today the receipt reports only "which revision was applied", not "this kernel crashed on
+  this machine and fell back to previous" — P5 already has the signals for the latter
+  (`kernelBoot().fellBack` / `condemned`), but they are not in the receipt shape yet.
 
-**已落地（2026-09-10，§8.2 / P6 字节传输）**——推送链最后一段空白补上了：节点能真的**拿到**制品。
+**Landed (2026-09-10, §8.2 / P6 byte transfer)** — the last blank in the push chain is filled: a node can really **get** the artifact.
 
-- **字节从哪来**：`publishBundle(bundle, source?)` 多了第二个参数——一个**目录**，也就是
-  `compileEffectBundle` 写出的那个（`<outDir>/<bundleId>.effect-bundle/`）。配置面在 bundle 上写 `source`
-  即可（`seed.ts` 会把它从 `BundleRef` 里剥掉再发布：它是"发布这个动作的输入"，不是制品的一个字段）。
-- **制品仓存的是引用，不是副本**（`packages/agentd/src/artifacts.ts`）。复制会凭空发明一套制品生命周期——
-  第二处放同样字节的地方，以及一个没人问过的回收问题——去防一个**如实报告就够**的情况：源没了。
-  引用过期是一个事实，悄悄变空的制品是谎话。符号链接**拒绝**而非跟随：节点拿的是这些字节，
-  跟随一条链会把"发布这个目录"变成"发布这个路径能摸到的一切"。
-- **摘要定义一次，两端共用**（`artifact-listing.ts` 的 `listingDigest`）。摘要是一份**契约**：
-  两端算法不同，就会把机群上每一个制品都报成损坏，而那个 bug 看起来是机群级故障而不是编码器不一致。
-  列表按路径排序后求摘要，所以答案与 `readdir` 顺序无关。
-- **线上格式是 JSON + base64**（`artifact-wire.ts`）。Bun 1.3.4 运行时**没有** `Bun.Archive`
-  （`bun-types` 里有，运行时是 `undefined`），所以 tar 意味着这个仓库自己实现一个 tar；一个编译过的制品是 KB 量级，
-  诚实的交换是无聊的格式。`fromWire` 先逐文件校验 sha256、再校验整份列表的摘要，
-  最后才返回字节——**半写好的制品比缺失的制品更糟**（装载端会去 import 它）。
-- **它证明的是完整性，不是真实性**：字节就是列表描述的那些字节。"这份列表该不该信"是 `nodeToken` 的问题
-  （§8.5-1），这里不重新回答。摘要在发布时记下、字节在读取时现读，所以**源在发布之后被改过**，
-  会作为"加不起来的列表"出行，并被 `fromWire` 指名拒绝——这正是想要的失败。
-- **一次版本一次内容由仓主裁决**（`bundle-registry.ts`）：重复发布 `bundleId@version` 一律 409
-  （`bundle already published`），**不比较字节**——版本身份归仓所有，同一 id 的第二次发布就是同一个版本的第二个写者，
-  而已经取过第一个的节点手里握着的是另一份。字节在注册表**接受之后**才记录，所以一次被拒的发布不会留下
-  一个 agent 绑不上的目录。`ArtifactStore.publish` 因此**没有**重复分支：走不到的路不留代码。
-- **凭证在校验面，不在路由面**：`artifact(bundleId, token?)` 与其它节点动词共用**同一个**
-  `authorized(token)` 比较（`control.ts`），于是 `nodeLiveness()` 报告的是一道闸而不是两道可能各说各话的闸。
-  读制品**不动 revision**：一次 fetch 改变的不是"该跑什么"，会动就会作废所有在途回执。
-- **机器侧安装**（`packages/agentd-probe/src/stage.ts`）：`stagingApply({ root, control })`——先把整份部署
-  全部取回并校验，**再**写任何一个目录。一份应用了一半的部署跑的是两个 build 的混合体，正是这条链路存在的理由；
-  而"一个都没应用"留着上一版完好无损，外加一张指名原因的回执。每个制品写成 `<root>/<id>.effect-bundle/`。
-- **写入是"先建旁边、再改名"**（`stage-write.ts`）：`<dir>.staging/` 建好再 rename 盖过去，读者看到的要么是旧制品、
-  要么是新制品，不会是两者的并集。改名前的删除不是原子的，这是**较小的恶**——那个窗口留下的是"缺"（干净的"没装"），
-  而合并出来的目录是一个没人构建过的 build。线上的路径是**远程输入**，落盘前逐段拒绝 `..`/绝对路径/空段：
-  否则一条精心构造的列表项就能让控制面挑机器上哪个文件被覆盖。
-- **`fromWire` 之后还校验"答的是不是我问的"**：响应自带的 id 与请求的 id 不一致即拒——
-  否则字节会被归档到一个从未校验过摘要的 id 下。
-- **probe 接上了**：`ProbeOptions.stage` = 安装根目录。缺省仍是 `declarativeApply`（只被告知该跑什么、不取字节）。
-  由 probe 自己接线而不是让调用方传 `apply`：取字节要用的凭证和别的节点动词是同一个，而 probe 之外的调用方
-  没有渠道把它交出去。真机 CLI：`bun run node:probe --stage <dir>`。
-- 服务面：`GET /agentd/artifact?id=<bundleId@version>`，应答 `{ ok, artifact: { id, digest, files[] } }`；
-  `status()` 增 `artifactIds`（有字节的版本——与"已发布"不是一回事）。
-- 测试 28 条：`packages/agentd/test/artifacts.test.ts`（引用式制品仓 6）、`artifact-wire.test.ts`（逐字节往返与拒绝 6）、
-  `artifact-control.test.ts`（发布/读回/凭证/不动 revision 5）、`packages/agentd-probe/test/stage.test.ts`（落盘 2）
-  与 `stage-refusal.test.ts`（先校验后写入、路径越界、id 不符 3，夹具在 `artifact-fixture.ts`）、
-  `apps/agentd/test/artifact-route.test.ts`（服务面 4）、
-  `apps/agentd/test/probe-staging.test.ts`（真实控制面 + 真实 probe 2）。
-  反事实：同时关掉三处闸门（`fromWire` 的两次摘要校验、`localOf` 的越界检查、`artifact()` 的凭证检查），
-  **恰好**七条断言"被拒"的测试变红（wire 2、stage 2、probe-staging 1、artifact-route 1、artifact-control 1），
-  其余 1064 条保持绿——三条闸门各自是新的，且没有一条老测试依赖它们。
-- **验收**：`apps/agentd/test/probe-staging.test.ts` 起真控制面（bundle 带 `source` 目录）+ 真 probe（`stage` 指向空目录），
-  probe 取回并落盘 `board@1.0.0.effect-bundle/entry.os.js`，回执带 `staged: [{ id, dir, digest, files }]`；
-  同一个用例在控制面起来之后**原地改掉源文件**，回执变成
-  `ok:false, error: artifact board@1.0.0 file entry.os.js does not match its digest (…)`，而根目录下**一个字节都没写**。
-- **验收（真实控制面 + 真实 probe，两个进程）**：`bun run app:host agentd --port 8137 --app-routes --config @seed.json`
-  起真控制面（bundle `board@1.0.0` 带 `source`，节点 `m1` 声明 `namespaces: ["ops"]`，绑定 `ops::board@1.0.0`），
-  `bun run node:probe --url http://127.0.0.1:8137 --id m1 --namespaces ops --token … --stage <空目录>`
-  → `applied revision 3: place ops::board@1.0.0`，`<空目录>/board@1.0.0.effect-bundle/`
-  下真的出现 `entry.os.js` 与 `nested/extra.js`（字节与源目录逐字节一致）。
-  再把**源目录原地改掉**（控制面启动时已读过列表）后重跑，每一拍都是
-  `could not apply revision 3: artifact board@1.0.0 file entry.os.js does not match its digest (820a96… → ad3af2…)`，
-  控制面上的回执是 `{ ok: false, error: … }`，而 `<空目录>` 里**一个文件都没有**——
-  连先到且校验通过的内核那个目录也没有，因为整份部署是一次判定。
-- **仍未做**：源目录的守卫（谁能写、什么时候能写）不在这一层——它是发布方的卫生问题，不是传输层的问题；
-  回执不带"这个内核在本机崩溃过、已回退到 previous"（同上）；probe 进程自身由谁守护、拉起、重启。
+- **where the bytes come from**: `publishBundle(bundle, source?)` gained a second parameter — a **directory**,
+  the one `compileEffectBundle` writes (`<outDir>/<bundleId>.effect-bundle/`). The config surface just writes
+  `source` on the bundle (`seed.ts` strips it out of the `BundleRef` before publishing: it is "the input to the
+  publish action", not a field of the artifact).
+- **the artifact repo stores a reference, not a copy** (`packages/agentd/src/artifacts.ts`). Copying would invent
+  an artifact lifecycle out of thin air — a second place holding the same bytes, and a reclamation question nobody
+  asked — to guard against a case where **reporting honestly is enough**: the source is gone. An expired reference
+  is a fact; an artifact that quietly became empty is a lie. Symlinks are **refused** rather than followed: the node
+  takes these bytes, and following a chain would turn "publish this directory" into "publish everything this path
+  can reach".
+- **the digest is defined once and shared by both ends** (`artifact-listing.ts`'s `listingDigest`). A digest is a
+  **contract**: if the two ends' algorithms differ, every artifact on the fleet is reported as corrupt, and that bug
+  looks like a fleet-level failure rather than an encoder disagreement. The list is sorted by path before the digest
+  is taken, so the answer does not depend on `readdir` order.
+- **the wire format is JSON + base64** (`artifact-wire.ts`). The Bun 1.3.4 runtime **has no** `Bun.Archive`
+  (`bun-types` has it, but at runtime it is `undefined`), so tar would mean this repository implementing a tar
+  itself; a compiled artifact is on the order of KB, and the honest exchange is a boring format. `fromWire` first
+  verifies each file's sha256, then the digest of the whole list, and only then returns the bytes — **a
+  half-written artifact is worse than a missing one** (the load side would go and import it).
+- **what it proves is integrity, not authenticity**: the bytes are the bytes the list describes. "Should this list
+  be trusted" is `nodeToken`'s question (§8.5-1) and is not answered again here. The digest is recorded at publish
+  time and the bytes are read at read time, so **a source changed after publishing** shows up as "a list that does
+  not add up" and is refused by `fromWire` by name — which is exactly the failure wanted.
+- **one version, one content, adjudicated by the repo owner** (`bundle-registry.ts`): publishing a
+  `bundleId@version` twice is always 409 (`bundle already published`), **without comparing bytes** — version
+  identity belongs to the repo, and a second publish of the same id is a second writer of the same version, while a
+  node that already took the first one holds a different copy. The bytes are recorded only **after** the registry
+  accepts, so a refused publish does not leave behind a directory an agent cannot bind. `ArtifactStore.publish`
+  therefore has **no** duplicate branch: a path that cannot be reached keeps no code.
+- **the credential is at the validation surface, not the routing surface**: `artifact(bundleId, token?)` shares
+  **one** `authorized(token)` comparison with the other node verbs (`control.ts`), so `nodeLiveness()` reports one
+  gate rather than two that might disagree. Reading an artifact **does not move the revision**: a fetch does not
+  change "what should run", and if it did it would invalidate every in-flight receipt.
+- **machine-side installation** (`packages/agentd-probe/src/stage.ts`): `stagingApply({ root, control })` — it
+  fetches and verifies the whole deployment first, and only **then** writes any directory. A half-applied
+  deployment runs a mixture of two builds, which is exactly why this link exists; whereas "nothing applied" leaves
+  the previous version intact, plus a receipt naming the reason. Each artifact is written as
+  `<root>/<id>.effect-bundle/`.
+- **writes are "build beside it, then rename"** (`stage-write.ts`): `<dir>.staging/` is built and then renamed
+  over, so a reader sees either the old artifact or the new one, never the union of the two. The deletion before
+  the rename is not atomic, and that is **the lesser evil** — what that window leaves behind is an absence (a
+  clean "not installed"), whereas a merged directory is a build nobody ever built. The wire path is **remote
+  input**, so `..` / absolute paths / empty segments are refused segment by segment before writing: otherwise a
+  carefully constructed list entry could make the control surface pick which file on the machine gets overwritten.
+- **after `fromWire` there is one more check, "is this the answer to what I asked"**: if the id on the response
+  does not match the id requested, refuse — otherwise the bytes would be filed under an id whose digest was never
+  verified.
+- **the probe is wired up**: `ProbeOptions.stage` = the installation root. The default is still
+  `declarativeApply` (told only what should run, fetching no bytes). It is wired by the probe itself rather than
+  having the caller pass `apply`: the credential needed to fetch bytes is the same one the other node verbs use, and
+  a caller outside the probe has no channel to hand it over. Real-machine CLI: `bun run node:probe --stage <dir>`.
+- service surface: `GET /agentd/artifact?id=<bundleId@version>`, answering
+  `{ ok, artifact: { id, digest, files[] } }`; `status()` gains `artifactIds` (the versions that have bytes —
+  not the same thing as "published").
+- 28 tests: `packages/agentd/test/artifacts.test.ts` (reference-style artifact repo 6),
+  `artifact-wire.test.ts` (byte-for-byte round trip and refusals 6), `artifact-control.test.ts` (publish / read
+  back / credential / revision not moving 5), `packages/agentd-probe/test/stage.test.ts` (writing to disk 2) and
+  `stage-refusal.test.ts` (verify before write, path escape, id mismatch 3; the fixture is in
+  `artifact-fixture.ts`), `apps/agentd/test/artifact-route.test.ts` (service surface 4),
+  `apps/agentd/test/probe-staging.test.ts` (a real control surface + a real probe 2).
+  Counterfactual: turning off all three gates at once (`fromWire`'s two digest checks, `localOf`'s escape check,
+  `artifact()`'s credential check) turns **exactly** seven tests asserting "refused" red (wire 2, stage 2,
+  probe-staging 1, artifact-route 1, artifact-control 1) and leaves the other 1064 green — the three gates are each
+  new, and no old test depends on them.
+- **acceptance**: `apps/agentd/test/probe-staging.test.ts` starts a real control surface (with the bundle carrying
+  a `source` directory) + a real probe (`stage` pointing at an empty directory); the probe fetches and writes
+  `board@1.0.0.effect-bundle/entry.os.js`, and the receipt carries `staged: [{ id, dir, digest, files }]`;
+  the same case **edits the source file in place** after the control surface is up, and the receipt becomes
+  `ok:false, error: artifact board@1.0.0 file entry.os.js does not match its digest (…)` while **not a single byte**
+  is written under the root directory.
+- **acceptance (a real control surface + a real probe, two processes)**:
+  `bun run app:host agentd --port 8137 --app-routes --config @seed.json` starts the real control surface (bundle
+  `board@1.0.0` with `source`, node `m1` declaring `namespaces: ["ops"]`, binding `ops::board@1.0.0`), and
+  `bun run node:probe --url http://127.0.0.1:8137 --id m1 --namespaces ops --token … --stage <empty dir>`
+  → `applied revision 3: place ops::board@1.0.0`, and `<empty dir>/board@1.0.0.effect-bundle/` really contains
+  `entry.os.js` and `nested/extra.js` (byte-for-byte identical to the source directory).
+  Then **editing the source directory in place** (the control surface read the list at startup) and re-running gives,
+  on every beat:
+  `could not apply revision 3: artifact board@1.0.0 file entry.os.js does not match its digest (820a96… → ad3af2…)`,
+  the receipt on the control surface is `{ ok: false, error: … }`, and `<empty dir>` has **not a single file** —
+  not even the kernel directory that arrived first and passed verification, because the whole deployment is one
+  decision.
+- **still not done**: guarding the source directory (who may write to it, when) is not at this layer — it is the
+  publisher's hygiene, not the transport layer's problem; the receipt does not carry "this kernel crashed on this
+  machine and fell back to previous" (same as above); who supervises, starts and restarts the probe process itself.
 
-## 10. 落地顺序
+## 10. Landing order
 
-| 阶段 | 内容 | 验收 |
+| Phase | Content | Acceptance |
 |---|---|---|
-| ~~**P0**~~ ✅ | `abi` + `runtimes` 声明与 gate（两条 ABI 线 + runtime 维度） | 装声明不兼容 abi/runtime 的 bundle → 明确报错；现有 board bundle 行为不变 |
-| ~~**P1**~~ ✅ | **盘点**（§6.3 / §7.2 的前提）：逐个 app 的 ambient 依赖（R5 已能查出）+ 内核切换后不可重建的态 + 需要的 runtime | 有清单；不可重建项要么迁进 store，要么明确标为已知限制 |
-| ~~**P2**~~ ✅ | 操作集合统一枚举（含 host 特权面）+ **host/kernel 拆分**：把 `bootRuntime` 拆成 bootstrap（不变式）与内核制品 | 操作集合那一半**已达成**（`/-/operations` 列出 host + 全部 app，含 schema）；拆分的另一半在 P5 第二段补齐——`boot/runtime.ts` 现在只留不变式，内核成为 `src/kernel/` 的制品契约，`loadKernel()` 可从制品目录 `import()` 出**另一个**内核（P2-B 当时把"制品形态"押后，正是缺 supervisor 与请求保护，见 §6.1） |
-| ~~**P3**~~ ✅ | **多 target 编译** + 运行时适配层（能力注入） | **已落地**：同一个 app 制品按声明的 `runtimes` 各出一份 entry，OS 宿主与浏览器宿主给同一组注入能力时**行为逐字节一致**；沙箱宿主报告的能力集**等于实际注入的那组**（空沙箱报空，不报"进程有所以它有"）；宿主给不齐 `requires` 声明的能力 → 在 import 之前拒绝并指名缺哪个。**未做**：真正的隔离沙箱（今天 entry 仍在宿主进程里跑）、真实浏览器页面宿主 |
-| ~~**P4**~~ ✅ | **app 热换**：健康检查 + 单点切换（本地）+ per-app previous 指针（暂存槽按 §6.4 的偏离说明未采用；`tools/list_changed` 经复核不需要，见 §6.4 修正说明） | 单个 app 换版本成功、其余 app 不中断；schema 破坏被裁决拦下或告警；热换后 agent 拿到的是当前工具面；失败时旧版照常服务 |
-| ~~**P5**~~ ✅ | **内核级双缓冲**切换 + active/previous 指针 + boot 崩溃回滚。先做 §6.3-① **兼容原地热换**，再做 ② 全量重建档 | ① **已落地并接进真实进程**：内核从制品目录 `import()` 装入、经 §5 两线裁决与槽位覆盖探针后翻转，旧内核 drain 完才停；app 零重建（测试断言 `load()` 全程只调用一次）。② **已落地**（2026-09-10，见下）：不兼容内核改为**重建 app 后装上**——`rebuild` 能力注入式，
-  未注入则与从前逐字一致（拒换）。内核制品的**编译器**也已落地（2026-09-10，见下）：内核不再是"手写目录"，`bun run kernel:build` 就能打出装载器认的制品 |
-| ~~**P6**~~ ✅ | agentd 推送内核与 app 制品 + 回执（远程，按机器，含 runtime 匹配） | **已落地**：推送走 `makeBundleArtifactAdapter`，机器能力从 `Machine.capabilities` 读，不匹配在 **plan 期**就被拒（复用 `effect-bundle` 的裁决，非第二套规则）；被推送的制品经 `kernelRevisionOf` 直接成为可 stage 的 `KernelRevision`；回执 revision 一致、stale 409。跨进程传输层**已落地**（§8.2 末：制品仓 + `GET /agentd/artifact` + probe 暂存） |
+| ~~**P0**~~ ✅ | `abi` + `runtimes` declaration and gate (two ABI lines + the runtime dimension) | installing a bundle that declares an incompatible abi/runtime → an explicit error; the existing board bundle's behavior is unchanged |
+| ~~**P1**~~ ✅ | **inventory** (the precondition for §6.3 / §7.2): each app's ambient dependencies (R5 can already detect these) + state that cannot be rebuilt after a kernel swap + the runtime it needs | a list exists; non-rebuildable items either move into the store or are explicitly marked as known limitations |
+| ~~**P2**~~ ✅ | unified enumeration of the operation set (the host privileged surface included) + **host/kernel split**: splitting `bootRuntime` into bootstrap (invariants) and a kernel artifact | the operation-set half **is achieved** (`/-/operations` lists the host + every app, schema included); the other half of the split was completed in P5's second leg — `boot/runtime.ts` now keeps only the invariants, the kernel becomes an artifact contract under `src/kernel/`, and `loadKernel()` can `import()` **another** kernel from an artifact directory (P2-B deferred "artifact form" at the time, precisely for lack of a supervisor and request protection, see §6.1) |
+| ~~**P3**~~ ✅ | **multi-target compilation** + the runtime adaptation layer (capability injection) | **landed**: the same app artifact emits one entry per declared `runtimes`, and an OS host and a browser host given the same set of injected capabilities **behave byte-for-byte identically**; the capability set a sandbox host reports **equals the one actually injected** (an empty sandbox reports empty, not "the process has it so it has it"); a host that cannot supply the capabilities a `requires` declares → refuse before the import and name which is missing. **Not done**: a truly isolated sandbox (today the entry still runs in the host process), a real browser page host |
+| ~~**P4**~~ ✅ | **app hot swap**: health check + single-point switch (local) + a per-app previous pointer (the staging slot was not adopted, per §6.4's deviation note; `tools/list_changed` turned out not to be needed, see §6.4's correction note) | a single app changes version successfully and the other apps are uninterrupted; schema breakage is stopped by adjudication or warned; after the hot swap the agent gets the current tool surface; on failure the old version keeps serving |
+| ~~**P5**~~ ✅ | **kernel-level double-buffered** swap + active/previous pointers + boot crash rollback. First §6.3-① **compatible in-place hot swap**, then ② the full-rebuild tier | ① **landed and wired into the real process**: the kernel is loaded by `import()` from an artifact directory, and the flip happens after §5's two-line adjudication and the slot-coverage probe, with the old kernel stopping only after its drain finishes; apps are rebuilt zero times (the test asserts `load()` is called only once throughout). ② **landed** (2026-09-10, see below): an incompatible kernel switched to **install after rebuilding the apps** — the `rebuild` capability is injection-based and
+  without it the behavior is word-for-word as before (refuse the swap). The kernel artifact's **compiler** has also landed (2026-09-10, see below): the kernel is no longer a "hand-written directory", and `bun run kernel:build` produces an artifact the loader recognizes |
+| ~~**P6**~~ ✅ | agentd pushing kernel and app artifacts + receipts (remote, per machine, runtime matching included) | **landed**: the push goes through `makeBundleArtifactAdapter`, machine capabilities are read from `Machine.capabilities`, and a mismatch is refused **at plan time** (reusing `effect-bundle`'s adjudication, not a second set of rules); the pushed artifact becomes a stageable `KernelRevision` directly through `kernelRevisionOf`; the receipt revision matches and a stale one is 409. The cross-process transport layer **has landed** (§8.2's end: artifact repo + `GET /agentd/artifact` + probe staging) |
 
-**P0 / P1 已落地（2026-09-10）**：
-- `packages/effect-bundle/src/compat.ts` —— `EffectRuntimeKind`、`KERNEL_ABI`、`assessBundleCompat` /
-  `assertBundleCompat` / `describeCompat`、`BundleIncompatibleError`。纯函数，可在 load **之前**算（§6.2 的 stage 要用）。
-- `loadEffectBundle` 在 `import(entry)` **之前** gate：不兼容制品一行都不执行（测试证明 registry 保持空）。
-- `manifest.runtimes` 缺省即 `["os"]` —— 保守默认，故现有 board bundle 行为不变；board 已显式声明 `["os"]`。
-- `bun run inventory` 生成 `docs/app-portability-inventory.md`；`bun run check:inventory` 是 gate。
-- 顺带把 `scripts/check-boundary.ts` 的扫描原语抽到 `scripts/lib/source-scan.ts`，两个脚本共用一套
-  （抽取后边界检查输出不变：48 包 · 0 error · 0 warning），并修掉一个潜在漏网——`.test.tsx` 之前没被排除。
-  （P4 新增 `packages/effect-compat` 后为 49 包 · 0 error · 0 warning。）
+**P0 / P1 landed (2026-09-10)**:
+- `packages/effect-bundle/src/compat.ts` — `EffectRuntimeKind`, `KERNEL_ABI`, `assessBundleCompat` /
+  `assertBundleCompat` / `describeCompat`, `BundleIncompatibleError`. Pure functions, computable **before** the
+  load (§6.2's stage needs them).
+- `loadEffectBundle` gates **before** `import(entry)`: an incompatible artifact executes not a single line (the test proves the registry stays empty).
+- `manifest.runtimes` defaults to `["os"]` — a conservative default, so the existing board bundle's behavior does not change; board already declares `["os"]` explicitly.
+- `bun run inventory` generates `docs/app-portability-inventory.md`; `bun run check:inventory` is the gate.
+- in passing, `scripts/check-boundary.ts`'s scanning primitives were extracted into
+  `scripts/lib/system-io-scan.ts`, shared by both scripts (after the extraction the boundary check's output is
+  unchanged: 48 packages · 0 error · 0 warning), and a potential escapee was fixed — `.test.tsx` was not excluded
+  before. (After P4 added `packages/effect-compat` it is 49 packages · 0 error · 0 warning.)
 
-**P4 已落地（2026-09-10）**：
-- `packages/effect-apps/src/registration/generations.ts` —— `makeAppSlot` / `readAppSurface` /
-  `assessSurfaceChange`。流程 `install → 读回工具面 → 裁决 → 探针 → commit（退休旧世代）`，
-  任一步失败 `restore` 回上一世代；`rollback()` 就是 `install()` 反过来（§5）。
-- `packages/effect-mcp/src/node-server/tools.ts` —— `registerTools` 注册一次，与 registry 一致；
-  两个工具 sanitize 出同一个名字时**抛错点名**，而不是静默覆盖。
-  （原 `ToolSurface.refresh()` 对账机制已删：HTTP 口每请求重建 server，热换天然反映——见 §6.4 的修正说明。）
-- `packages/effect-compat` —— 把 §5 的裁决模型从 `packages/script` 抽成**零依赖**包
-  （`assessChange` / `assessUpgrade` / `assessRollback`），`script` 改为转出，避免 app 层为了裁决
-  去依赖 `isolated-vm` 原生模块。
-- 偏离：app 级未做"暂存槽"，理由与代价（存在切换窗口）见 §6.4。
+**P4 landed (2026-09-10)**:
+- `packages/effect-apps/src/registration/generations.ts` — `makeAppSlot` / `readAppSurface` /
+  `assessSurfaceChange`. The flow is `install → read back the tool surface → adjudicate → probe → commit (retire
+  the old generation)`, and any step's failure `restore`s the previous generation; `rollback()` is `install()` run
+  backwards (§5).
+- `packages/effect-mcp/src/node-server/tools.ts` — `registerTools` registers once, consistent with the registry;
+  when two tools sanitize to the same name it **throws and names them**, rather than silently overwriting.
+  (The former `ToolSurface.refresh()` reconciliation mechanism has been deleted: the HTTP face rebuilds the server
+  per request, so a hot swap is reflected by construction — see §6.4's correction note.)
+- `packages/effect-compat` — §5's adjudication model extracted from `packages/script` into a **zero-dependency**
+  package (`assessChange` / `assessUpgrade` / `assessRollback`), with `script` re-exporting, so that the app layer
+  does not have to depend on the `isolated-vm` native module just to adjudicate.
+- deviation: no "staging slot" at the app level; the reason and the cost (a swap window exists) are in §6.4.
 
-**P2 部分落地（2026-09-10）——只落了"操作集合"，内核制品押后**：
-- `packages/effect-host/src/operations.ts` + `packages/effect-apps/src/operations.ts`：
-  `/-/planes` 的四个操作从正则变成声明（`HOST_OPERATIONS`，带 input/output schema），
-  再与每个 app 的 interface 工具合成一张 `NodeOperation` 表（`makeNodeOperationTable`）。
-- `GET /-/operations` 把它服务出来（JSON-safe 投影，不含 `invoke`）。
-- `packages/effect-bundle/src/kernel.ts`：`BOOTSTRAP_ABI`、`KernelDeclaration`、`assessKernelCompat`、
-  `assessKernelAgainst`（换内核前先查全部已加载 app 的矩阵）。`bootRuntime` 在建状态前先 gate。
-- **没做**：内核以**制品形态**加载、bootstrap 里不含内核逻辑。理由：没有 supervisor 就没有安全的翻转点，
-  单独做只会造出 §6.3-① 禁止的窗口。整块交给 P5。
+**P2 partly landed (2026-09-10) — only the "operation set" landed; the kernel artifact was deferred**:
+- `packages/effect-host/src/operations.ts` + `packages/effect-apps/src/operations.ts`: the four operations of
+  `/-/planes` went from a regex to declarations (`HOST_OPERATIONS`, with input/output schema), then merged with
+  each app's interface tools into one `NodeOperation` table (`makeNodeOperationTable`).
+- `GET /-/operations` serves it (a JSON-safe projection, without `invoke`).
+- `packages/effect-bundle/src/kernel.ts`: `BOOTSTRAP_ABI`, `KernelDeclaration`, `assessKernelCompat`,
+  `assessKernelAgainst` (the matrix that checks every loaded app before a kernel swap). `bootRuntime` gates before
+  creating state.
+- **not done**: loading the kernel in **artifact form**, and keeping kernel logic out of bootstrap. Reason: without
+  a supervisor there is no safe flip point, and doing it alone would only create the window §6.3-① forbids. The
+  whole block was handed to P5.
 
-**P5 第一段已落地（2026-09-10）**：
-- `packages/effect-bundle/src/repo.ts` —— `kernel-state.json`（active / previous / condemned），原子写。
-- `packages/effect-bundle/src/supervisor.ts` —— `makeKernelSupervisor`：`stage` 走
-  `§5 矩阵 → load → probe → 翻转 → persist → 停旧`，翻转失败翻回；`boot(shipped?)` 回退到 previous 并告警。
-- 验收靠 12 条测试，断言的是不变量（旧内核在 commit 前绝不停止；被拒候选一行都不执行），
-  不是"happy path 能跑"。
-- **未做**：接进 `bootRuntime`（要 facade + 请求保护）、内核编译成制品。这就是 P5 的第二段。
+**P5's first leg landed (2026-09-10)**:
+- `packages/effect-bundle/src/repo.ts` — `kernel-state.json` (active / previous / condemned), atomic write.
+- `packages/effect-bundle/src/supervisor.ts` — `makeKernelSupervisor`: `stage` runs
+  `§5 matrix → load → probe → flip → persist → stop the old one`, and a failed flip flips back; `boot(shipped?)`
+  falls back to previous and warns.
+- acceptance rests on 12 tests, asserting the invariants (the old kernel never stops before commit; a rejected
+  candidate executes not one line), not "the happy path runs".
+- **not done**: wiring it into `bootRuntime` (needs a facade + request protection), and compiling the kernel into an artifact. That is P5's second leg.
 
-**P5 第二段已落地（2026-09-10）——内核制品化 + 稳定 facade + 请求保护**：
-- `packages/effect-host/src/dispatch-point.ts` —— §6.5-5 的请求保护：`activate` 是一次指针赋值，
-  `run` 在**进入时**抓住当前目标并计数，`retire` 等它归零**并且拒绝退休当前在服务的目标**
-  （"先翻转再停"从注释变成了会抛错的约束）。
-- `apps/effect-server/src/kernel/` —— 内核成为可构造、可整体停止的单元：
-  `types.ts` 声明 `KERNEL_PLANES`（槽位 id + priority 属于 **host 的数据**）、
-  `index.ts` 是**制品契约**（`createKernel(context)`）、`planes.ts` 是随本仓库发布的实现、
-  `load.ts` 负责"从 `revision.dir` `import()` 一个制品"与"每个槽位一个稳定 stand-in"。
-- 接线（`boot/runtime.ts`）：`load(revision)` → 制品或本仓库内核；`activate` → `point.activate`；
-  `probe` → **host 侧检查候选是否填满所有槽位** + 内核自查 `health()`；`dispose` → `retire` 完再 `dispose`。
-  `supervisor.boot()` 在**所有 app 注册完之后**才跑（内核的 plane 是对着已知 app 装载的）。
-- 崩溃回滚成了产品行为：`main.ts` 传 `kernelStateFile: .effect-bundles/kernel-state.json`；
-  测试与嵌入式宿主不传，得到内存索引（没有哪次启动该依赖可写的 cwd）。
-- 外面能推内核了：`EffectServer.stageKernel(revision)` 是 P6 的入口，`kernelBoot()` 报告回退结果。
-- 验收（`apps/effect-server/test/kernel-swap.test.ts`，真起服务、真写制品目录、真 `import()`）：
-  内核从临时目录装入并接管；**换内核时 app 的 `load()` 全程只被调用一次**（零重建）；
-  翻转已提交、新请求已由新内核应答时，旧内核仍在回答它手上那条在途请求，之后才 `dispose`
-  （测试断言 `dispose:hold` 出现在放行之后）；留给槽位的制品被拒且旧内核不动；坏 revision 记 `condemned`
-  并在下次启动回退。
-- ~~**仍未做**：内核制品仍得**手写目录**——P3 落地的是 **app** 的多 target 编译（`compileEffectBundle`），
-  **内核制品编译器不在其中**；推送侧是 P6。~~ → **已补上（2026-09-10）**，见下面「内核制品编译器」一段。
-- **② 档已补齐（2026-09-10，后续一次）**：不兼容内核不再只是拒换，改为「重建 app 后装上」。
-  见 §6.3 的「档② 已落地」——supervisor 加了注入式 `rebuild` 能力，产品侧 `replay` 就是再跑一次 `bootManifests`。
+**P5's second leg landed (2026-09-10) — kernel artifact-ization + a stable facade + request protection**:
+- `packages/effect-host/src/dispatch-point.ts` — §6.5-5's request protection: `activate` is one pointer
+  assignment, `run` grabs the current target **on entry** and counts it, and `retire` waits for it to reach zero
+  **and refuses to retire the target currently in service** ("flip first, then stop" went from a comment to a
+  constraint that throws).
+- `apps/effect-server/src/kernel/` — the kernel becomes a constructible, wholly stoppable unit:
+  `types.ts` declares `KERNEL_PLANES` (the slot id + priority belonging to **the host's data**),
+  `index.ts` is the **artifact contract** (`createKernel(context)`), `planes.ts` is the implementation shipped
+  with this repository, and `load.ts` handles "`import()` an artifact from `revision.dir`" and "one stable stand-in
+  per slot".
+- wiring (`boot/runtime.ts`): `load(revision)` → the artifact or this repository's kernel; `activate` →
+  `point.activate`; `probe` → **a host-side check that the candidate fills every slot** + the kernel's own
+  `health()`; `dispose` → `retire` first, then `dispose`. `supervisor.boot()` runs only **after all apps are
+  registered** (the kernel's planes are loaded against known apps).
+- crash rollback became product behavior: `main.ts` passes `kernelStateFile: .effect-bundles/kernel-state.json`;
+  tests and embedded hosts do not pass it and get an in-memory index (no boot should depend on a writable cwd).
+- the kernel can now be pushed from outside: `EffectServer.stageKernel(revision)` is P6's entry point, and `kernelBoot()` reports the fallback result.
+- acceptance (`apps/effect-server/test/kernel-swap.test.ts`, really starting the service, really writing an
+  artifact directory, really `import()`ing): the kernel is loaded from a temp directory and takes over; **when the
+  kernel is swapped the app's `load()` is called only once throughout** (zero rebuild); with the flip committed
+  and new requests answered by the new kernel, the old kernel is still answering the one in-flight request it
+  holds, and only then is it `dispose`d (the test asserts `dispose:hold` appears after the release); an artifact
+  left over a slot is refused and the old kernel does not move; a bad revision is recorded as `condemned` and
+  falls back on the next boot.
+- ~~**still not done**: a kernel artifact still has to be a **hand-written directory** — what P3 landed was
+  multi-target compilation of **apps** (`compileEffectBundle`), and **the kernel artifact compiler was not part of
+  it**; the push side is P6.~~ → **filled in (2026-09-10)**, see the "kernel artifact compiler" section below.
+- **tier ② was filled in (2026-09-10, a later pass)**: an incompatible kernel is no longer just refused; it is
+  changed to "rebuild the apps, then install". See "tier ② landed" in §6.3 — the supervisor gained the injected
+  `rebuild` capability, and on the product side `replay` is running `bootManifests` again.
 
-**P5 第二段顺带修正了 §6.1 的一条**：见 §6.1 末尾的"实现逼出来的一次修正"。
+**P5's second leg also corrected one item of §6.1 in passing**: see "a correction the implementation forced" at the end of §6.1.
 
-**§6.3-② 已落地（2026-09-10）——K2 决策里最后没做的那一半**：
-- `packages/effect-bundle/src/supervisor.ts`：新增注入能力 `AppRebuild { teardown, replay }` 与
-  `stage()` 的 ② 分支。**注入了就重建，没注入就与从前逐字一致**（拒换）——能力而非默认。
-- **只有 effect 线拒绝走重建**：bootstrap 线不符仍一律拒，因为重建 app 救不了一个本机跑不了的内核。
-  测试专门锁这一条（注入 `rebuild` 后仍然拒，且 `teardown` 一次都没被调用）。
-- **失败路径是承重的**：`adopt` / `activate` / `replay` 各自失败都回到 A 并重放 app；
-  重放也失败则**明说节点需要重启**（`rebuild-failed` 事件带 `restored: boolean`），
-  不报告一次看起来成功的回滚。§6.2 的不变式在 ② 里仍成立（A 在 commit 前绝不 dispose）。
-- 产品侧（`apps/effect-server/src/boot/runtime.ts`）：`replay` 就是再跑一次 `bootManifests`，
-  与 boot 共用同一条注册路径。
-- 验收：`packages/effect-bundle/test/supervisor.test.ts` 新增 7 条（① 不受影响、② 的完整次序、
-  bootstrap 线仍拒、三条失败路径、teardown 失败即归还）；
-  `apps/effect-server/test/kernel-swap.test.ts` 新增 2 条产品级测试（真起服务、真 import 制品、真发请求），
-  断言 app 层在翻转**之前**下线、并在成功后回到服务。
-- **承重性验过**：把 `stage()` 里的 ② 分支改回拒换 → 5 条新单测立刻红；
-  把产品侧的 `rebuild` 注入去掉 → 2 条产品测试立刻红。
-- **未做**：窗口本身没有被缩短（§11-Q2）——§6.5-6 的第三种处置已在下一段落地，重建面缩小了，窗口长度没变。
+**§6.3-② landed (2026-09-10) — the last unmade half of the K2 decision**:
+- `packages/effect-bundle/src/supervisor.ts`: a new injected capability `AppRebuild { teardown, replay }` and
+  `stage()`'s ② branch. **Injected means rebuild; not injected means word-for-word as before** (refuse the swap) —
+  a capability, not a default.
+- **only the effect line's refusal goes to a rebuild**: a bootstrap-line mismatch is still always refused,
+  because rebuilding apps cannot save a kernel that cannot run on this machine. A test pins this specifically
+  (still refused after injecting `rebuild`, and `teardown` is not called once).
+- **the failure paths are load-bearing**: `adopt` / `activate` / `replay` each returning to A on failure and
+  replaying the apps; if the replay fails too, it **says plainly that the node needs a restart** (the
+  `rebuild-failed` event carries `restored: boolean`) rather than reporting a rollback that looks successful.
+  §6.2's invariant still holds in ② (A is never disposed before commit).
+- product side (`apps/effect-server/src/boot/runtime.ts`): `replay` is running `bootManifests` again, sharing the
+  same registration path as boot.
+- acceptance: `packages/effect-bundle/test/supervisor.test.ts` gains 7 (① unaffected, ②'s full order, the
+  bootstrap line still refused, the three failure paths, returning on a teardown failure);
+  `apps/effect-server/test/kernel-swap.test.ts` gains 2 product-level tests (really starting the service, really
+  importing the artifact, really sending a request), asserting the app layer goes offline **before** the flip and
+  comes back into service after it succeeds.
+- **load-bearing verified**: turning `stage()`'s ② branch back into a refusal → 5 new unit tests go red
+  immediately; removing the product side's `rebuild` injection → 2 product tests go red immediately.
+- **not done**: the window itself was not shortened (§11-Q2) — §6.5-6's third disposition landed in the next section, shrinking the rebuild surface but not the window's length.
 
-**§6.5-6 第三种处置已落地（2026-09-10）——只挂起不兼容 app，能活的不陪跑**：
-- `packages/effect-bundle/src/supervisor.ts`：`AppRebuild` 改成**子集寻址**且参数必需——
-  `teardown(apps)` / `replay(apps)` 拿到的是矩阵点名的名字；`SupervisorOptions.apps()` 报**已加载**的声明。
-  `KernelAppIncompatibility.app` 从 `BundleDeclaration.bundleId`（带版本，如
-  `io.effect-agent.board@1.0.0`）改成 **app 层的名字**（`effect.bundle.json` 的 `appId`，即
-  `effect.yaml` 的 `id`）——挂起是按 app 层的名字做的，两个名字混用就会挂错 app。
-- `apps/effect-server/src/boot/app-layer.ts`（新）：挂起**保留槽位、只交出 disposer**，
-  于是归还回到原位、`stop()` 仍按反序**装载**次序拆（不是上一次重建的追加次序）；
-  归还走的是与 boot **同一条** `bootManifests`（按 `only` 收窄），不另开一条更薄的注册路径；
-  归还没有把某个 app 放回去就抛错，不让一次重建报告一个不成立的"成功"。
-- `apps/effect-server/src/load-manifest.ts`：`declarationOf(dir, appId)`，制品 `appId` 与 manifest `id`
-  不一致即拒（`ships a bundle calling itself X, but its manifest calls it Y`）。
-- **今天真正被救下的是"没做声明"的 app**：矩阵只点名带 `effect.bundle.json` 的 app，其余在 ② 里
-  本来会被一起拆掉——这正是本单元消掉的误伤。精确匹配 ABI + "有已加载的坏 app 就拒 boot"意味着
-  "声明了但跟不上"的子集今天不可达，所以端到端就用这条真实的轴来证。
-- 验收：`apps/effect-server/test/kernel-suspend.test.ts`（真起服务、真换内核：换线成功与失败两条路径下，
-  声明过的 app 是 `load→stop→load`，没声明的 app 只有一次 `load`，全程在服务）；
-  `apps/effect-server/test/app-layer.test.ts` 5 条（挂起保位、未知名字忽略、归还原位、
-  归还丢 app 会说话、归还到从未有过的槽位也会说话）；
-  `packages/effect-bundle/test/supervisor.test.ts` 与 `kernel.test.ts` 改名为子集断言。
-- **承重性验过**（每轮都恰好只红它自己那几条）：A 挂起忽略子集 + 归还全量 → 4 红；
-  B 归还改成追加而非入位 → 1 红；C 去掉"归还丢 app"的判定 → 2 红；
-  D 去掉 `declarationOf` 的 `appId` 判定 → 恰好 1 红（那条名字不一致的测试）。
+**§6.5-6's third disposition landed (2026-09-10) — suspend only the incompatible apps; the ones that can live do not tag along**:
+- `packages/effect-bundle/src/supervisor.ts`: `AppRebuild` became **subset-addressed** with required parameters —
+  `teardown(apps)` / `replay(apps)` receive the names the matrix named; `SupervisorOptions.apps()` reports the
+  **loaded** declarations. `KernelAppIncompatibility.app` changed from `BundleDeclaration.bundleId` (with version,
+  e.g. `io.effect-agent.board@1.0.0`) to **the app-layer name** (`effect.bundle.json`'s `appId`, i.e. `effect.yaml`'s
+  `id`) — suspending is done by app-layer name, and mixing the two names would suspend the wrong app.
+- `apps/effect-server/src/boot/app-layer.ts` (new): suspending **keeps the slot and hands over only the disposer**,
+  so returning puts it back in place and `stop()` still tears down in reverse **load** order (not the append order
+  of the last rebuild); returning goes through the **same** `bootManifests` as boot (narrowed by `only`), not a
+  separate, thinner registration path; and if returning did not put some app back it throws, so one rebuild cannot
+  report a "success" that does not hold.
+- `apps/effect-server/src/load-manifest.ts`: `declarationOf(dir, appId)` refuses when the artifact's `appId` and
+  the manifest's `id` disagree (`ships a bundle calling itself X, but its manifest calls it Y`).
+- **what is really saved today are the apps that "made no declaration"**: the matrix names only apps carrying an
+  `effect.bundle.json`; the rest would have been torn down along with them under ② — that is exactly the
+  collateral damage this unit removes. Exact ABI matching + "refuse boot when there is a loaded bad app" means the
+  "declared but cannot keep up" subset is unreachable today, so the end-to-end proof uses this real axis.
+- acceptance: `apps/effect-server/test/kernel-suspend.test.ts` (really starting the service, really swapping the
+  kernel: on both the succeeding and the failing line change, a declared app does `load→stop→load`, an undeclared
+  app gets only one `load`, and it is in service throughout);
+  `apps/effect-server/test/app-layer.test.ts` 5 (suspending keeps the slot, an unknown name is ignored, returning
+  restores the position, returning with a lost app speaks up, and returning to a slot that never existed speaks up
+  too); `packages/effect-bundle/test/supervisor.test.ts` and `kernel.test.ts` renamed to subset assertions.
+- **load-bearing verified** (each round turns exactly its own few red): A suspending ignores the subset + returns
+  everything → 4 red; B returning appends instead of placing → 1 red; C removing the "returning lost an app" check
+  → 2 red; D removing `declarationOf`'s `appId` check → exactly 1 red (the name-mismatch test).
 
-**内核制品编译器已落地（2026-09-10）——补上 P3 → P5 → P6 链条里唯一缺的一环**：
-- 这条链此前每一环都在：P3 能把 **app** 编成制品（`compileEffectBundle`）、P5-2 能从 `revision.dir`
-  `import()` 内核制品（`kernel/load.ts`）、P6 能把字节推到节点。**唯独没有东西能"造出"一个内核制品**——
-  stage 一个内核得手写一个导出 `createKernel` 的 `kernel.js`，所以"推内核"在生产上不可执行。
-- `packages/effect-bundle/src/kernel-manifest.ts`：`KERNEL_ENTRY`（`kernel.js`）、`KERNEL_MANIFEST`
-  （`kernel.bundle.json`）、`KernelBundleManifest`、`readKernelManifest`。内核**不**带 `effect.bundle.json`
-  ——那个形状说的是 `appId` / `namespace` / `transport`，内核一个都没有；内核有的是两条 ABI 线。
-  两条线缺一条就不是"有默认值的内核"，而是**没人能裁决的制品**，所以在**读 manifest 时**就拒，
-  而不是等到目标机上换到一半才发现。
-- `packages/effect-bundle/src/compile-kernel.ts`：`compileKernelRevision({ kernelDir, outDir })` ——
-  一次 `bun build`（`--target bun`），产物 `<bundleId>.effect-bundle/kernel.js` + 一份写回
-  **编译后** entry 的 `kernel.bundle.json`。形状与 app 编译器同形，没有第二套制品格式。
-- `packages/effect-bundle/src/externals.ts`：两种制品共用同一组 external（`@effect-agent/*` / `zod` /
-  `react` / `react-dom`）。**这不是为了整齐，是必须**：把 ABI 打进去，内核就会在自己那份
-  `@effect-agent/effect-host` 副本上注册 plane，而那份副本不是宿主的分发点——内核会"跑起来"却不真的接在宿主上。
-  代价如实记下：制品只能在宿主能解析这些包的地方装载，也就是**装进宿主的模块图里**，不能扔到任意目录。
-- 本仓库的内核现在真的能被打出来：`apps/effect-server/src/kernel/kernel.bundle.json` 是它的声明，
-  `bun run kernel:build [outDir]`（`scripts/build-kernel.ts`）产出 `.effect-bundles/` 下的制品目录——
-  与运行时的 `kernel-state.json` 同一个根，`KernelRevision.dir` 指向的就是它。
-- 验收：`packages/effect-bundle/test/compile-kernel.test.ts` 3 条（产物就是装载器 import 的那个目录、
-  缺 `bootstrapAbi` 在**编译期**拒且一个字节都不写、坏入口报 `kernel build failed`）；
-  `apps/effect-server/test/kernel-artifact.test.ts` 3 条（本仓库内核的 manifest 与 `KERNEL` 是**同一个内核**的
-  两种说法、本仓库内核真的能被编译成装载器认的目录、**编译出来的制品真的充当一次内核 revision**
-  ——真起服务、真翻转、`/-/config` 被编译出的字节应答）。
-- **承重性验过**（每轮只红它自己那几条）：A 产物 manifest 写回源 entry 而非 `KERNEL_ENTRY` → 2 红；
-  B 吞掉 `bun build` 的失败 → 1 红；C 给缺失的 `bootstrapAbi` 补一个默认值 → 1 红。
-- **不在范围**：§11-Q2 的制品粒度（整块 vs 可拆）；内核多 target（内核只声明 `os`）；运行态交接（§11-Q18）。
+**The kernel artifact compiler landed (2026-09-10) — filling the one link missing from the P3 → P5 → P6 chain**:
+- every other link in this chain was already there: P3 can compile an **app** into an artifact
+  (`compileEffectBundle`), P5-2 can `import()` a kernel artifact from `revision.dir` (`kernel/load.ts`), and P6
+  can push bytes to a node. **The one thing missing was something that can "produce" a kernel artifact** —
+  staging a kernel meant hand-writing a `kernel.js` exporting `createKernel`, so "pushing a kernel" was not
+  executable in production.
+- `packages/effect-bundle/src/kernel-manifest.ts`: `KERNEL_ENTRY` (`kernel.js`), `KERNEL_MANIFEST`
+  (`kernel.bundle.json`), `KernelBundleManifest`, `readKernelManifest`. A kernel does **not** carry an
+  `effect.bundle.json` — that shape describes `appId` / `namespace` / `transport`, none of which a kernel has; what
+  a kernel has is the two ABI lines. Missing one of the two lines is not "a kernel with a default" but **an
+  artifact nobody can adjudicate**, so it is refused **when the manifest is read**, not after the swap is halfway
+  done on the target machine.
+- `packages/effect-bundle/src/compile-kernel.ts`: `compileKernelRevision({ kernelDir, outDir })` — one
+  `bun build` (`--target bun`), producing `<bundleId>.effect-bundle/kernel.js` plus a `kernel.bundle.json` written
+  back with the **compiled** entry. The same shape as the app compiler, with no second artifact format.
+- `packages/effect-bundle/src/externals.ts`: both artifact kinds share the same set of externals
+  (`@effect-agent/*` / `zod` / `react` / `react-dom`). **This is not for tidiness, it is mandatory**: bundle the ABI
+  in and the kernel will register its planes on its own copy of `@effect-agent/effect-host`, and that copy is not
+  the host's dispatch point — the kernel would "run" without actually being attached to the host. The cost,
+  recorded honestly: an artifact can only be loaded where the host can resolve these packages, that is,
+  **installed into the host's module graph**, not thrown into an arbitrary directory.
+- this repository's kernel can now really be built: `apps/effect-server/src/kernel/kernel.bundle.json` is its
+  declaration, and `bun run kernel:build [outDir]` (`scripts/build-kernel.ts`) produces the artifact directory
+  under `.effect-bundles/` — the same root as the runtime's `kernel-state.json`, and what `KernelRevision.dir`
+  points at.
+- acceptance: `packages/effect-bundle/test/compile-kernel.test.ts` 3 (the output is exactly the directory the
+  loader imports; a missing `bootstrapAbi` is refused **at compile time** and not one byte is written; a bad entry
+  reports `kernel build failed`); `apps/effect-server/test/kernel-artifact.test.ts` 3 (this repository's kernel
+  manifest and `KERNEL` are two statements of **the same kernel**; this repository's kernel really can be compiled
+  into a directory the loader recognizes; and **the compiled artifact really serves as a kernel revision** —
+  really starting the service, really flipping, with `/-/config` answered by the compiled bytes).
+- **load-bearing verified** (each round turns only its own few red): A the output manifest writes back the source
+  entry instead of `KERNEL_ENTRY` → 2 red; B swallowing `bun build`'s failure → 1 red; C giving a missing
+  `bootstrapAbi` a default → 1 red.
+- **out of scope**: §11-Q2's artifact granularity (monolithic vs splittable); multi-target kernels (the kernel only declares `os`); runtime-state handover (§11-Q18).
 
-**P6 已落地（2026-09-10）——制品分发接上装载端**：
-- `packages/agentd/src/bundles.ts` —— `BundleRef` / `MachineCapability` / `assessBundleForMachine` /
-  `kernelRevisionOf` / `makeBundleArtifactAdapter`。`publishBundle` + `bindBundles` 进控制面，
-  绑定以 `bundleId@version` 命名，于是**回滚就是绑回旧版本**（仓里本来就并存 `board@0.13.0` 与 `board@1.0.0`）。
-- 拒绝发生在**计划期**：适配器 `plan()` 对照 `Machine.capabilities` 裁决每个制品，不合格直接 400，
-  一个字节都不下发。判据来自 `effect-bundle` 的 `assessBundleCompat` / `assessKernelCompat`，
-  测试断言推送端与装载端的判定**逐字段相等**。
-- 两条 ABI 线不混：`publishBundle`、适配器 validate、`effect-config` 的 superRefine 三处都拦
-  "内核缺 `bootstrapAbi`"与"app 带 `bootstrapAbi`"。
-- 落地路径：`kernelRevisionOf(pushed, revision, dir)` → `KernelRevision` → `stageKernel()`。
-  测试用真 supervisor 证明推送来的制品能被接受、翻转、并把前一个记成 `previous`。
-- 服务面：`GET /agentd/plan?agent=<id>`；MCP 工具 `agentd_publish_bundle` / `agentd_bind_bundles` /
-  `agentd_plan_bundles`；配置种子 `bundles` + `bundleBindings`。
-- 验收（`packages/agentd/test/bundles.test.ts` 14 条 + `apps/agentd/test/agentd-app.test.ts` 3 条）：
-  推送内核 + app → 回执 revision 一致；runtime 不匹配、effect 线不匹配、bootstrap 线不匹配各自被拒且
-  指名道姓；stale 回执 409；绑定旧版本回退无新机制；机器不声明能力时用 SDK 缺省；`runtime:` 拼错报错；
-  推送端的判定 == 装载端的判定。
-- **仍未做**：收据不带"本机崩溃回退过"的信号；
-  这三点里"节点级封装"已由下面的 §8.4 补上，"不兼容内核 → 全节点重建"已由 §6.3-② 补上。
+**P6 landed (2026-09-10) — artifact distribution connected to the load side**:
+- `packages/agentd/src/bundles.ts` — `BundleRef` / `MachineCapability` / `assessBundleForMachine` /
+  `kernelRevisionOf` / `makeBundleArtifactAdapter`. `publishBundle` + `bindBundles` enter the control surface, and
+  bindings are named `bundleId@version`, so **rolling back is binding back to the old version** (the repo already
+  holds `board@0.13.0` and `board@1.0.0` side by side).
+- the refusal happens **at plan time**: the adapter's `plan()` adjudicates each artifact against
+  `Machine.capabilities`, and a failing one is a flat 400 with not a byte sent down. The criteria come from
+  `effect-bundle`'s `assessBundleCompat` / `assessKernelCompat`, and the test asserts the push side's and the load
+  side's decisions are **equal field by field**.
+- the two ABI lines do not mix: `publishBundle`, the adapter's validate, and `effect-config`'s superRefine all
+  stop "a kernel missing `bootstrapAbi`" and "an app carrying `bootstrapAbi`".
+- the landing path: `kernelRevisionOf(pushed, revision, dir)` → `KernelRevision` → `stageKernel()`.
+  The test uses a real supervisor to prove a pushed artifact can be accepted, flipped, and have its predecessor
+  recorded as `previous`.
+- service surface: `GET /agentd/plan?agent=<id>`; MCP tools `agentd_publish_bundle` / `agentd_bind_bundles` /
+  `agentd_plan_bundles`; config seeds `bundles` + `bundleBindings`.
+- acceptance (`packages/agentd/test/bundles.test.ts` 14 + `apps/agentd/test/agentd-app.test.ts` 3): pushing a
+  kernel + an app → the receipt revision matches; a runtime mismatch, an effect-line mismatch and a bootstrap-line
+  mismatch are each refused and each **names names**; a stale receipt is 409; binding to the old version rolls back
+  with no new mechanism; when a machine declares no capabilities the SDK defaults are used; a misspelled
+  `runtime:` errors; the push side's decision == the load side's decision.
+- **still not done**: the receipt does not carry the "crashed and fell back on this machine" signal;
+  of these three points, "node-level wrapping" has been filled in by §8.4 below, and "incompatible kernel → rebuild
+  the whole node" has been filled in by §6.3-②.
 
-**§8.4 已落地（2026-09-10）——部署单位从"一个 app"变成"节点 × app 集合"**：
-- `packages/agentd/src/nodes.ts` —— `makeNodeArtifactAdapter()`（`kind: "effect-node"`）+
-  `DesiredNode` / `NodeAppPlacement` / `ResolvedNodeApp`（`types.ts`）。plan / apply / validate 与
-  `bundles.ts` 的适配器同形，`metadata: { nodeId, revision }` 沿用同一字段名，于是**回执仍只有一条 409 规则**。
-- **裁决没被复制**：`assessBundleForMachine` 原样调用，本文件只加"逐项迭代 + 给失败贴地址"。
-- **放置是解析出来的，不是记下来的**：`bindNode` 拿 `bundleId@version` 去 registry 查，拼出 `ResolvedNodeApp`。
-  这是实现期的一处修正——放置若重述 `abi`/`runtimes`，它就能与所放置的制品相矛盾，制品自己的声明也就不再可强制。
-- **顺手修了一个真 bug**：`JSON.stringify` 键序敏感，`artifactOf` 与 `validateBundleArtifact` 构造同对象的键序不同，
-  于是每次 plan 都吐一条幻影 `update`。抽出 `packages/agentd/src/stable.ts` 递归排序后比较，P6 的 `bundles.ts` 一并受益。
-- 服务面：`GET /agentd/node`、`GET /agentd/node/plan`、`POST /agentd/node/report`；MCP 工具
-  `agentd_bind_node` / `agentd_desired_node` / `agentd_plan_node` / `agentd_report_node_applied`；配置种子 `nodeBindings`。
-- 验收（`packages/agentd/test/nodes.test.ts` 7 条 + `apps/agentd/test/node-bindings.test.ts` 4 条）：
-  一份计划覆盖内核 + N 个 app、一份回执；同一制品两个 ns 是两个放置、同一地址两次被拒；
-  拒绝消息**指名是哪个放置落在哪台机器**；内核槽与 app 槽互不通用；stale 回执 409；回滚 = 改绑定。
+**§8.4 landed (2026-09-10) — the deployment unit went from "one app" to "node × app set"**:
+- `packages/agentd/src/nodes.ts` — `makeNodeArtifactAdapter()` (`kind: "effect-node"`) +
+  `DesiredNode` / `NodeAppPlacement` / `ResolvedNodeApp` (`types.ts`). plan / apply / validate are the same shape
+  as `bundles.ts`'s adapter, and `metadata: { nodeId, revision }` reuses the same field names, so **there is still
+  only one 409 rule for receipts**.
+- **the adjudication was not copied**: `assessBundleForMachine` is called as is; this file only adds "iterate item by item + attach an address to a failure".
+- **a placement is resolved, not recorded**: `bindNode` takes `bundleId@version` to the registry and assembles a
+  `ResolvedNodeApp`. This is one correction made during implementation — if a placement restated `abi`/`runtimes`
+  it could contradict the artifact it places, and the artifact's own declaration would no longer be enforceable.
+- **a real bug fixed along the way**: `JSON.stringify` is key-order sensitive, and `artifactOf` and
+  `validateBundleArtifact` built the same object with different key orders, so every plan emitted a phantom
+  `update`. `packages/agentd/src/stable.ts` was extracted to sort recursively before comparing, and P6's
+  `bundles.ts` benefits too.
+- service surface: `GET /agentd/node`, `GET /agentd/node/plan`, `POST /agentd/node/report`; MCP tools
+  `agentd_bind_node` / `agentd_desired_node` / `agentd_plan_node` / `agentd_report_node_applied`; config seed
+  `nodeBindings`.
+- acceptance (`packages/agentd/test/nodes.test.ts` 7 + `apps/agentd/test/node-bindings.test.ts` 4): one plan
+  covering the kernel + N apps and one receipt; the same artifact in two namespaces is two placements, the same
+  address twice is refused; the refusal message **names which placement landed on which machine**; the kernel slot
+  and app slots are not interchangeable; a stale receipt is 409; rollback = change the binding.
 
-**P3 已落地（2026-09-10）——能力注入成了可执行的东西，不只是条文**：
-- `packages/effect-bundle/src/capabilities.ts` —— 词表与判定（`CAPABILITY_NAMES` /
-  `capabilitiesOf` / `describeCapabilities` / `requireCapability` / `capabilityGaps`）。
-- `packages/effect-bundle/src/runtime.ts` —— 构造器：`ambientCapabilities(runtime, overrides)` 与
-  `sandboxCapabilities(injected)`。**两个而非三个**：os 与浏览器差在"能提供什么"，不差在 seam 怎么搭。
-- `load.ts` 的 `assertCapabilityCompat` 紧挨 `assertBundleCompat` —— 拒绝 gate **只有一处**，
-  与 §5 的 abi/runtime 同址；`requires` 是 app 自己的声明，宿主猜出来的需求不算需求。
-- `compile.ts` 按 manifest 的 `runtimes` 各出一份 `entry.<runtime>.js` 并与 `entry` 一起写进制品；
-  **旧制品没有 `entries` 也照旧加载**（回落 `entry`），所以这不是一次破坏性变更。
-- 依赖方向被刻意摆正：判定归 `capabilities.ts`（它必须在 import 前就拒绝），构造器归 `runtime.ts`，
-  loader 只 import 前者——否则 loader 就得依赖运行时实现才能做门禁。
-- 验收（`packages/effect-bundle/test/runtime-portability.test.ts`，fixture `fixtures/app-portable`）：
-  同一制品在 os 宿主与 browser 宿主下 `stamp()` 结果**逐字段相等**（注入确定性时钟/密码学，
-  所以"行为一致"不是"都跑起来了"）；空沙箱 `capabilitiesOf` 为 `[]` 而非"进程有什么就有什么"；
-  宿主给不齐 `requires` → 报 `requires [clock, crypto] but this host is sandbox: [storage]`，
-  **且报的是 gate 的错、不是 entry 自己那句"no clock was injected"**
-  （把 gate 注掉重跑，测试确实红——这条断言验过是承重的，不是装饰）；browser/sandbox 产物里
-  `node:` 无残留。
-- **未做，且要说清楚**：entry 今天仍在**宿主进程里**跑——"沙箱"是**能力上的**，不是**隔离上的**；
-  浏览器档也只是"一个带浏览器能力集的宿主"，**没有真实页面**跑过（§7.5-5/6）。
+**P3 landed (2026-09-10) — capability injection became something executable, not just a clause**:
+- `packages/effect-bundle/src/capabilities.ts` — the vocabulary and the decision (`CAPABILITY_NAMES` /
+  `capabilitiesOf` / `describeCapabilities` / `requireCapability` / `capabilityGaps`).
+- `packages/effect-bundle/src/runtime.ts` — the constructors: `ambientCapabilities(runtime, overrides)` and
+  `sandboxCapabilities(injected)`. **Two rather than three**: os and browser differ in "what can be provided", not
+  in how the seam is built.
+- `load.ts`'s `assertCapabilityCompat` sits right next to `assertBundleCompat` — there is **exactly one** refusal
+  gate, at the same place as §5's abi/runtime; `requires` is the app's own declaration, and a requirement the host
+  guessed does not count as a requirement.
+- `compile.ts` emits one `entry.<runtime>.js` per `runtimes` in the manifest and writes them into the artifact
+  alongside `entry`; **an old artifact with no `entries` loads as before** (falling back to `entry`), so this is
+  not a breaking change.
+- the dependency direction was deliberately set right: the decision belongs to `capabilities.ts` (it must refuse
+  before the import) and the constructors to `runtime.ts`, and the loader imports only the former — otherwise the
+  loader would have to depend on a runtime implementation just to do its gatekeeping.
+- acceptance (`packages/effect-bundle/test/runtime-portability.test.ts`, fixture `fixtures/app-portable`): the
+  same artifact's `stamp()` result on an os host and a browser host is **equal field by field** (a deterministic
+  clock/crypto is injected, so "behaves identically" is not "both ran"); an empty sandbox's `capabilitiesOf` is
+  `[]` rather than "whatever the process has it has"; a host that cannot supply `requires` → reports
+  `requires [clock, crypto] but this host is sandbox: [storage]`, **and the error reported is the gate's, not the
+  entry's own "no clock was injected"** (commenting the gate out and re-running does turn the test red — this
+  assertion is verified load-bearing, not decoration); and the browser/sandbox output has no `node:` residue.
+- **not done, and to be stated clearly**: the entry still runs **in the host process** today — "sandbox" is
+  **about capability**, not **about isolation**; and the browser tier is only "a host with a browser capability
+  set", with **no real page** ever having run it (§7.5-5/6).
 
-**配置存储的拒绝要可执行（2026-09-10）——`bun run up` 真的被一条陈旧记录挡住了**：
-- 现象：`.effect-agent/config-v2.sqlite` 里 mantis 那行还是重构前的形状（`webPort/host/configFile/approvals`），
-  `validateStored` 依约拒绝（**存量就是权威，不规范化、不重写**），于是启动整体失败。这本身是对的，
-  错的是**拒绝之后没有出路**：消息只说"operator must rebuild the config store"，既不说**哪个文件**，
-  也不说**怎么做**，而且当时 `ConfigStore`/`ConfigRegistry` 根本没有"丢记录"这个操作——
-  运维唯一能想到的做法是删库，而库里还有另外 7 个 app 的记录（board 是 `override`、ui-host 是 `yaml`，
-  删掉就是**真丢数据**）。
-- `ConfigStore.remove(appId)`（`sqlite.ts` 落到 `DELETE FROM app_config WHERE appId = ?`）——
-  **只针对被点名的 app**。不做 `ConfigRegistry.rebuild(appId, layers)`：丢记录**不等于**重建，
-  重建要靠**当前 schema + 调用方给的层**重新播种，而 yaml 层（effect.yaml 的 `config:`）**不在库里**，
-  在这里播种只会得到一个"验证通过但不是运维那份"的配置。所以命令**只丢不播**，播种留给下一次 `initialize`。
-- 拒绝要能被分辨：`ConfigFailureReason = "rebuild-required"` 进 `ConfigOutcome.reason`，
-  经 registry 的错误边界原样穿过（`storageFailure`）。**不能靠字符串匹配猜**——
-  哪些失败该附操作指引、哪些不该，是类型说的，不是文案说的。
-- `apps/effect-server/src/config-runtime/runtime.ts` 组合出的消息含 app / 文件 / **确切命令**：
-  `Invalid config for mantis: … — store: .effect-agent/config-v2.sqlite; rebuild it with: bun run config:rebuild mantis`。
-  存储文件名只在 `config-runtime/config-file.ts` 里写一次（启动与命令必须指同一个文件）。
-- `scripts/rebuild-config.ts`（`bun run config:rebuild <appId...>`）：只丢被点名的记录，
-  逐条报告"record dropped / no record"，**不自动播种**，也不是启动路径的一部分——
-  重建永远是运维的显式动作。
-- 验收：`packages/effect-config/test/rebuild.test.ts` 5 条（拒绝被标成可重建**且记录原封不动**、
-  非重建失败**不带**这个标记、丢一个不动别人、下次 `initialize` 按当前 schema+yaml 层重播种到 revision 1、
-  丢不存在的记录是空操作）＋ `record-rejection.test.ts` 补上"reason 穿过错误边界"（3 条路径 × 7 种坏行）
-  ＋ `apps/effect-server/test/config-rebuild.test.ts` 2 条（消息含文件与命令；**真跑一次 CLI**，
-  断言 board 那行逐字段不变、之后启动成功且 yaml 层回到 `sources`）。
-- **四条反证**（各自只杀自己那条）：① 去掉 `storageFailure` 的 reason → 7 条红；② 去掉 `validateStored`
-  的 reason → 恰好 2 条红；③ `deleteRecord` 改成删整张表 → 4 条红（含产品侧 CLI 那条）；
-  ④ 让 CLI 顺手播一次 schema 默认值 → CLI 那条红（yaml 层真的被吃掉）。
-- 真机验证：对仓库里那份真实 store 跑 `bun run up` → 得到带文件与命令的拒绝 → 照做 → **启动成功**
-  （mantis 与 agentd 重播种到 revision 1，board 仍 rev 2 原样）。
-- **如实记账的代价**：启动是**遇到第一个陈旧记录就失败**，所以多个 app 一起陈旧时要一条一条来
-  （这次是 2 条）——"一次列出所有需要重建的 app"是没做的那一步。
+**Config-store refusals must be actionable (2026-09-10) — `bun run up` really was blocked by one stale record**:
+- symptom: the mantis row in `.effect-agent/config-v2.sqlite` was still in its pre-refactor shape
+  (`webPort/host/configFile/approvals`), `validateStored` refused it as agreed (**what is stored is authoritative;
+  it is not normalized, not rewritten**), and so the whole startup failed. That is right in itself; what was wrong
+  is that **there was no way out after the refusal**: the message only said "operator must rebuild the config
+  store", without saying **which file** or **how**, and at the time `ConfigStore`/`ConfigRegistry` had no "drop a
+  record" operation at all — the only thing an operator could think of was deleting the database, and the database
+  holds the records of 7 other apps (board is an `override`, ui-host is `yaml`), so deleting it would be **really
+  losing data**.
+- `ConfigStore.remove(appId)` (`sqlite.ts` lands on `DELETE FROM app_config WHERE appId = ?`) —
+  **only for the app named**. No `ConfigRegistry.rebuild(appId, layers)`: dropping a record is **not** rebuilding;
+  a rebuild has to re-seed from **the current schema + the layers the caller gives**, and the yaml layer
+  (effect.yaml's `config:`) **is not in the database**, so seeding here would produce only a config that "validates
+  but is not the operator's". So the command **drops, it does not seed**, and seeding is left to the next
+  `initialize`.
+- the refusal must be distinguishable: `ConfigFailureReason = "rebuild-required"` goes into
+  `ConfigOutcome.reason` and passes through the registry's error boundary as is (`storageFailure`). **It must not
+  be guessed by string matching** — which failures should carry operator guidance and which should not is said by
+  the type, not by the copy.
+- the message composed by `apps/effect-server/src/config-runtime/runtime.ts` contains the app / the file / the
+  **exact command**: `Invalid config for mantis: … — store: .effect-agent/config-v2.sqlite; rebuild it with: bun run config:rebuild mantis`.
+  The store file name is written once, in `config-runtime/config-file.ts` (startup and the command must point at
+  the same file).
+- `scripts/rebuild-config.ts` (`bun run config:rebuild <appId...>`): drops only the records named, reports
+  "record dropped / no record" one by one, **does not seed automatically**, and is not part of the startup path —
+  a rebuild is always an explicit operator action.
+- acceptance: `packages/effect-config/test/rebuild.test.ts` 5 (a refusal is marked rebuildable **and the record is
+  untouched**; a non-rebuild failure does **not** carry the marker; dropping one does not touch the others; the
+  next `initialize` re-seeds to revision 1 from the current schema + yaml layer; dropping a nonexistent record is a
+  no-op) + `record-rejection.test.ts` adding "the reason crosses the error boundary" (3 paths × 7 kinds of bad row)
+  + `apps/effect-server/test/config-rebuild.test.ts` 2 (the message contains the file and the command; **really
+  running the CLI once**, asserting the board row is unchanged field by field, that startup then succeeds, and that
+  the yaml layer is back in `sources`).
+- **four counterproofs** (each kills only its own): ① removing `storageFailure`'s reason → 7 red; ② removing
+  `validateStored`'s reason → exactly 2 red; ③ changing `deleteRecord` to delete the whole table → 4 red
+  (including the product-side CLI one); ④ letting the CLI seed schema defaults in passing → the CLI one red (the
+  yaml layer really does get eaten).
+- real-machine verification: running `bun run up` against the repository's real store → a refusal carrying the
+  file and the command → following it → **startup succeeds** (mantis and agentd re-seeded to revision 1, board
+  still rev 2 as it was).
+- **the honestly-recorded cost**: startup **fails on the first stale record it meets**, so when several apps are
+  stale at once it has to be one at a time (2 this time) — "list every app that needs rebuilding at once" is the
+  step that was not done.
 
-**应用独立性（2026-09-10）——不依赖其他 app 的 app 能单独 host，默认只开 MCP 面**：
+**App independence (2026-09-10) — an app that depends on no other app can be hosted alone, with only the MCP surface open by default**:
 
-- 改动前的事实：`requires` 声明在**两处**（descriptor 与 effect.yaml manifest）却**没有一行代码读它**；
-  唯一真实的依赖边（gateway → mcp-registry）是 `boot/runtime.ts` 一行硬编码满足的。于是
-  "这个 app 不依赖其他 app"是一句没人验证的话，而"单独 host 一个 app"根本没有入口——
-  只有 bespoke 的 stdio `main.ts` 与测试代码。
-- 新包 `packages/effect-standalone`：
-  - `registerStandaloneApp(app, { config })` = `makePluginHost()`（**不**传 `control: true`）
-    + `makeEffectRegistry()` + 内存 config store + `registerEffectApp`。kernel / listeners /
-    config-runtime / console / `/-/planes` **都是组成根独有的**，这里没有——是"构造上不存在"，
-    不是"忘了挂"。共享 MCP Registry **无条件注入**（与组成根一致）：它是**宿主上下文对象，不是 app**。
-  - `dependencyGaps(app, [app.id])`（`src/dependencies.ts`）= 声明与"这个宿主真的 host 了什么"的差集；
-    非空 → **在开端口之前**抛 `dependencyError`，消息指名缺谁。与 effect-bundle 的 `capabilityGaps`
-    （clock/storage/crypto/network）同一个形状，只是轴不同：app↔app vs 运行时能力。
-  - `startStandaloneApp`（streamable HTTP）与 `startStandaloneStdio`（stdio，不开端口）。
-    **默认面是可枚举的**：`surface` 是返回值的一部分并被测试断言。app 声明的 `routes`/`path`
-    仍注册在 plugin host 上，但不经过这个面就不达——"只开 MCP"是**这个 face 的性质**，
-    `appRoutes: true` 才把 app 自己的面加进来；控制面始终不开。
-- 声明只留一处：`requires` 从 `EffectManifest` 与 8 个 app 的 effect.yaml 里**删掉**，
-  写进 `apps/mcp-gateway-app/src/effect-app.ts` 的 descriptor。descriptor 是 loader 真正读的
-  authoring 契约；那处没人读的声明正是这次要消灭的"纯写入型元数据"。组成根那行硬编码**保留**（已加注），
-  因为把它数据化要在 enable 之前 import 所有 descriptor，会改 boot 的形状——如实记为未做。
-- 入口：`bun run app:host <appId> [--port n] [--app-routes] [--stdio] [--config <json|@file>]`
-  （`scripts/host-app.ts`；清单读取在 `scripts/lib/app-manifest.ts`，`import.meta.dir` 改了层级）。
-  app 由 `apps/<id>/effect.yaml` 的 **`id`** 指定（目录名 ≠ id：`mcp-gateway-app` → `mcp-gateway`），
-  config 层取该文件的 `config:`；人类可读输出全走 stderr（`--stdio` 时 stdout 是协议）。
-  **`--config` 不发明第二套层语义**：它就是 effect-config 自己的 `override` 层
-  （`default < yaml < override`），**逐键合并在 yaml 之上、不替换它**；不传就是今天的行为，逐字节一致。
-  它存在的理由是：单独 host 的用途就是"把某个 app 跑起来看看"，而 board 的 yaml 指的正是**真实**的
-  `.effect-agent/board.sqlite`（2026-09-10 踩到过一次，写进去两条垃圾任务）。启动时把每个 config 键来自
-  哪一层打到 stderr（`dataFile from yaml` / `dataFile from override`）——**只报层、不打印值**，因为 config
-  里可能有凭据；`@file` 相对**当前工作目录**解析，读不到就拒绝启动。
-  **边界 R4/R5 的正面交代**：新入口是 `scripts/`（不在扫描范围）与 `packages/effect-standalone`
-  （R4/R5 只对 `pkg.kind === "app"` 生效），**没有往 `ioExemptApps` 加任何名字**；
-  端口按仓库约定由**宿主**开、app 不开端口，生命周期对称注销。
-- 验收（真跑，真 socket）：
-  - `apps/board/test/standalone-host.test.ts`：board 真起来 → **真 MCP 客户端**
-    （SDK 的 `Client` + `StreamableHTTPClientTransport`）连真端口 → listTools 含 board_state →
-    board_create 落进该 store（`counts.todo === 1`）→ 同一端口上 `/board` 与 `/-/planes` 都是 404；
-    `stop()` 之后**同端口能重新 bind**（端口真的被释放）；另有一条 override 用例：
-    `config` 指向 manifest 的文件、`override` 把它挪到别处 → app 打开的是**挪到的那个**，
-    manifest 指的那个**始终不存在**。
-  - `apps/mcp-gateway-app/test/standalone-refusal.test.ts`：仓库里唯一真实的依赖边——
-    gateway 单独启动**失败**，消息里同时有 `mcp-gateway` 与 `mcp-registry`。
-  - `packages/effect-standalone/test/`：面清单、`appRoutes` 打开 app 面但仍不开控制面、
-    拒绝**先于开端口**（fake listener 断言 bind 次数为 0）、stdio 面（真 MCP 客户端走 in-memory transport）、
-    共享 registry 被注入（fixture 的 plugin 读 `context.mcpRegistry` 并把它报回来）；
-    `override.test.ts`：override 逐键压过 yaml 且 `sources` 记为 `override`、空 override 不抹掉下层、
-    没有层时值来自 schema 且 `sources` 记为 `default`。
-  - `apps/board/test/host-cli.test.ts`：真进程跑 `bun scripts/host-app.ts board`（scratch cwd，真 SIGINT，
-    因为 manifest 里的数据文件是**相对路径**，cwd 才决定哪个文件才是"真的"）——带 `--config` 时
-    manifest 指的 `.effect-agent/board.sqlite` **没有被创建**、override 指的文件被创建、stderr 报
-    `from override`；不带时反过来（`from yaml` + manifest 文件被创建），两端互为反事实。
-    另两条：`@absent.yaml` 与 `--config '[1,2]'` 都在**托管之前**退出 1（后者用的是 config registry
-    自己的"layers must be objects"，不是 host 另立的规则）。
-  - 组成根零回归：用**真实 root effect.yaml** 在临时端口 + 临时 config store 起 composition root →
-    `/-/status` 200、`/-/operations` 200、`/board/` 200、控制面 404，启用集含 gateway 时
-    registry 闭包仍然成立（插件没抛"requires the shared MCP registry"）。
-- **五条反证**（各自只杀自己那条）：① 注掉依赖 gate → 恰好两条拒绝用例红；② face 无视 `appRoutes`
-  全放行 → 默认面那条红；③ 非 MCP 路径永远 404 → `appRoutes` 那条红；④ 不注入共享 registry →
-  注入那条红；⑤ 去掉 `stop()` 自建的 `closed` 标志 → **全绿**，证明那层守卫是多余的
-  （`asyncDisposer` 已记忆化、sqlite store 二次 `close()` 直接返回）——于是**删掉它**，
-  而不是留着当装饰。
-- **如实记账的代价 / 未做**：① 这里**不开 egress router**，所以声明了 `egress` 且真的发请求的 app
-  单独 host 时 `context.fetch` 会拒绝（board 不发请求，所以它单独跑没问题）；
-  ② 没有 config 面，所以"单独 host 一个 app 并改它的配置"今天做不到，config 层只能来自
-  effect.yaml 或调用方（`--config` 走的是 config registry 的 **override** 层，不是 config 面）；
-  ③ 组成根的依赖闭包仍是硬编码那一行；④ 跨进程分发制品、§8.3 的 CPU/内存配额与调度
-  仍不在本次范围（§8.3 的 `namespaces` 与 app 数上限已落地）；驻场 probe 已落地，见 §8.5-1。
+- the fact before the change: `requires` was declared in **two places** (the descriptor and the effect.yaml
+  manifest) and **not one line of code read it**; the only real dependency edge (gateway → mcp-registry) was
+  satisfied by one hard-coded line in `boot/runtime.ts`. So "this app depends on no other app" was a sentence
+  nobody verified, and "host one app alone" had no entry point at all — only bespoke stdio `main.ts` files and test
+  code.
+- the new package `packages/effect-standalone`:
+  - `registerStandaloneApp(app, { config })` = `makePluginHost()` (**without** `control: true`)
+    + `makeEffectRegistry()` + an in-memory config store + `registerEffectApp`. kernel / listeners /
+    config-runtime / console / `/-/planes` are **all unique to the composition root** and are not here — they are
+    "absent by construction", not "forgotten to be wired". The shared MCP Registry is **injected
+    unconditionally** (the same as the composition root): it is a **host context object, not an app**.
+  - `dependencyGaps(app, [app.id])` (`src/dependencies.ts`) = the set difference between the declarations and
+    "what this host really hosts"; non-empty → throw `dependencyError` **before opening the port**, with the
+    message naming who is missing. The same shape as effect-bundle's `capabilityGaps`
+    (clock/storage/crypto/network), only a different axis: app↔app vs runtime capability.
+  - `startStandaloneApp` (streamable HTTP) and `startStandaloneStdio` (stdio, no port opened).
+    **The default surface is enumerable**: `surface` is part of the return value and is asserted by a test. The
+    `routes`/`path` an app declares are still registered on the plugin host, but are unreachable without going
+    through this face — "only MCP is open" is **a property of this face**, and `appRoutes: true` is what adds the
+    app's own surface; the control surface is never opened.
+- the declaration kept in one place only: `requires` was **deleted** from `EffectManifest` and from the 8 apps'
+  effect.yaml files and written into the descriptor in `apps/mcp-gateway-app/src/effect-app.ts`. The descriptor is
+  the authoring contract the loader really reads; that unread declaration is exactly the "write-only metadata" this
+  pass exists to eliminate. The hard-coded line in the composition root is **kept** (with a comment now), because
+  making it data would mean importing every descriptor before enable, which would change boot's shape — recorded
+  honestly as not done.
+- entry point: `bun run app:host <appId> [--port n] [--app-routes] [--stdio] [--config <json|@file>]`
+  (`scripts/host-app.ts`; manifest reading is in `scripts/lib/app-manifest.ts`, with `import.meta.dir`'s level
+  changed). The app is specified by the **`id`** in `apps/<id>/effect.yaml` (the directory name ≠ the id:
+  `mcp-gateway-app` → `mcp-gateway`), and the config layer comes from that file's `config:`; human-readable output
+  all goes to stderr (with `--stdio`, stdout is the protocol).
+  **`--config` does not invent a second set of layer semantics**: it is effect-config's own `override` layer
+  (`default < yaml < override`), **merged key by key on top of yaml, not replacing it**; not passing it is today's
+  behavior, byte for byte. The reason it exists is that hosting one app alone is for "run some app and take a look",
+  and board's yaml points at the **real** `.effect-agent/board.sqlite` (we stepped on this once, 2026-09-10,
+  writing two junk tasks into it). At startup it prints which layer each config key came from to stderr
+  (`dataFile from yaml` / `dataFile from override`) — **it reports the layer only, it does not print values**,
+  because a config may hold credentials; `@file` is resolved relative to the **current working directory**, and if
+  it cannot be read startup is refused.
+  **An upfront account of boundaries R4/R5**: the new entry point is `scripts/` (outside the scan scope) and
+  `packages/effect-standalone` (R4/R5 only apply to `pkg.kind === "app"`), and **no name was added to
+  `ioExemptApps`**; ports are opened by the **host** per the repository's convention, apps do not open ports, and
+  the lifecycle is symmetrically unregistered.
+- acceptance (really running, a real socket):
+  - `apps/board/test/standalone-host.test.ts`: board really starts → a **real MCP client**
+    (the SDK's `Client` + `StreamableHTTPClientTransport`) connects to the real port → listTools contains
+    board_state → board_create lands in that store (`counts.todo === 1`) → on the same port both `/board` and
+    `/-/planes` are 404; after `stop()` **the same port can be bound again** (the port really was released);
+    plus one override case: `config` points at the manifest's file and `override` moves it elsewhere → the app
+    opens **the one it was moved to**, and the one the manifest points at **never exists**.
+  - `apps/mcp-gateway-app/test/standalone-refusal.test.ts`: the repository's one real dependency edge — starting
+    gateway alone **fails**, and the message contains both `mcp-gateway` and `mcp-registry`.
+  - `packages/effect-standalone/test/`: the surface list, `appRoutes` opening the app surface while still not
+    opening the control surface, the refusal coming **before the port opens** (a fake listener asserting bind count
+    0), the stdio surface (a real MCP client over an in-memory transport), and the shared registry being injected
+    (the fixture's plugin reads `context.mcpRegistry` and reports it back); `override.test.ts`: override beats yaml
+    key by key and `sources` records `override`, an empty override does not wipe the lower layer, and with no layer
+    the value comes from the schema and `sources` records `default`.
+  - `apps/board/test/host-cli.test.ts`: a real process runs `bun scripts/host-app.ts board` (a scratch cwd, a real
+    SIGINT, because the data file in the manifest is a **relative path** and the cwd is what decides which file is
+    "the real one") — with `--config`, the `.effect-agent/board.sqlite` the manifest points at **is not created**,
+    the file the override points at is created, and stderr reports `from override`; without it, the reverse
+    (`from yaml` + the manifest file created), the two ends being each other's counterfactual.
+    Two more: `@absent.yaml` and `--config '[1,2]'` both exit 1 **before hosting** (the latter using the config
+    registry's own "layers must be objects", not a separate rule the host invented).
+  - zero regression for the composition root: starting the composition root with the **real root effect.yaml** on
+    a temp port + a temp config store → `/-/status` 200, `/-/operations` 200, `/board/` 200, the control surface
+    404, and with gateway in the enabled set the registry closure still holds (the plugin did not throw "requires
+    the shared MCP registry").
+- **five counterproofs** (each kills only its own): ① commenting out the dependency gate → exactly two refusal
+  cases red; ② the face ignoring `appRoutes` and letting everything through → the default-surface one red;
+  ③ non-MCP paths always 404 → the `appRoutes` one red; ④ not injecting the shared registry → the injection one
+  red; ⑤ removing the `closed` flag `stop()` built itself → **all green**, proving that guard is redundant
+  (`asyncDisposer` is already memoized, and a second `close()` on the sqlite store returns directly) — so it was
+  **deleted** rather than kept as decoration.
+- **honestly-recorded costs / not done**: ① there is **no egress router** here, so an app that declares `egress`
+  and really sends requests will have `context.fetch` refuse when hosted alone (board sends no requests, so it runs
+  alone fine); ② there is no config surface, so "host one app alone and change its config" is not possible today,
+  and the config layer can only come from effect.yaml or the caller (`--config` goes through the config registry's
+  **override** layer, not the config surface); ③ the composition root's dependency closure is still that one
+  hard-coded line; ④ distributing artifacts across processes, and §8.3's CPU/memory quotas and scheduling, are
+  still out of this scope (§8.3's `namespaces` and app-count ceiling have landed); the resident probe has landed,
+  see §8.5-1.
 
-P0 是纯增量。**P4（app 热换）与 P5（内核热换）是两个独立目标**，但共用同一套原语——
-先做 P4，顺便把 P5 需要的料备齐；P5 之前不引入内核热换。
-P3 与 P4/P5 互不依赖（一个是可移植性，一个是切换机制），但都建立在 P1 的盘点结论上。
+P0 is purely additive. **P4 (app hot swap) and P5 (kernel hot swap) are two independent goals**, but they share
+the same set of primitives — do P4 first and assemble the material P5 needs along the way; no kernel hot swap is
+introduced before P5.
+P3 and P4/P5 do not depend on each other (one is portability, the other a swap mechanism), but both rest on P1's
+inventory conclusions.
 
-## 11. 待定（需要拍板）
+## 11. Open questions (need a decision)
 
-1. ~~内核热更新粒度~~ → **已定 K2**（§6）。
-2. **内核制品的粒度**：整块内核一个 bundle，还是可拆多块（路由 / config / UI / MCP 面各自可换）？
-   拆得越细切换窗口越小，但兼容矩阵与一致性越难维护。
-3. **切换窗口的请求语义**：排队（超时多久）还是落回 A（可能读到半新半旧）？
-4. **bootstrap 的边界**：§6.1 那四项够不够——"路由**表内容**"算内核、"分发**点**"算 host，
-   这条线要不要再往下压（listener 是否也归内核）？
-5. **abi 不匹配策略**：拒绝加载，还是隔离运行 + 告警？（"拒换内核"与"只挂起不兼容 app"是两种粒度）
-   —— 第二种粒度**已实现（2026-09-10，§6.5-6 第三种处置）**；"加载时就隔离运行"仍未决，今天的失配
-   只在切换时处置，不在装载时。
-6. **兼容判定**：只看 abi major，还是同时校验 kernel semver range？
-7. **回滚点保留**：只留 1 个 previous，还是 N 个（磁盘 vs 可回滚性）？
-8. **host 特权面模型化**：host 节点要不要也写 descriptor（现在是散落的 `/-/planes/*` control 路由）？
-   *半答（P2-A）*：已经不是散落的了——`HOST_OPERATIONS` 把四条声明成数据并进了节点操作表。
-   还没定的是**要不要再往前一步**：给它一个和 app 同形的 descriptor（带 lifecycle 特权面），
-   让 host 也走 `registerEffectApp` 那条路，而不是一张只有四条的表。
-9. **namespace 与版本**：同名 app 多版本共存时，ns 是否要带版本（影响 §4 寻址）。
-10. **沙箱档的定位**：app 跑在沙箱里是"完整 app 的等价物"还是"能力降级的 app"（哪些操作必须缺席）？
-11. **浏览器档的双向通道**：host→app push 在浏览器里走什么（`effect-bundle-mesh.md` §5 留的 WS 常驻）？
-12. **存储后端优先级**：先做 IndexedDB，还是先做"沙箱/浏览器存储代理回 home"？
-13. **runtime 不匹配的粒度**：拒装整个 app，还是只禁用其在该运行时不可用的那部分操作？
-14. **app 热换的触发者**：只由 host 推送（§8）驱动，还是 app 作者也能自行触发（本地开发热重载）？
-15. **两版本共存窗口的长度**：drain 有没有上限（超时后强制切断旧版本？），以及窗口内的请求是否允许跨版本。
-16. **"兼容内核"由谁判定**：只看 `abi`，还是还要看**内核自有运行态的结构版本**（manifest 里得加一个内核态 schema 版本）？
-17. **节点资源**：节点是否声明配额（app 数上限、CPU/内存），以及要不要**调度**（决定某个 app 放哪个节点）？
-    —— **已答一半（2026-09-10）**：加的是 **app 数上限**（`Machine.maxApps`，可选；
-    缺席读作"声明了没有上限"而不是 0，平台不替节点编数字），并在节点计划处作为准入执行（见 §8.3）。
-    **CPU/内存配额没有加**：它们需要节点上报可用量、需要一个计量口径，而今天两边都不存在，
-    加一个没人填的数字字段只会让"声明"变成装饰。**调度同样没加**：放置今天由 `nodeBindings` 写死，
-    是运维的选择；等真的出现"多节点、同一 app 该落哪台"的问题时再引入，而不是先立一个调度器去找它的用途。
-18. **内核运行态怎么交接**（§6.3-①）：plugin registry / route table / config runtime 的内存态是
-    序列化交给新内核，还是新内核从 store 自行重建？ 
+1. ~~kernel hot-update granularity~~ → **decided: K2** (§6).
+2. **kernel artifact granularity**: one whole kernel as one bundle, or splittable into several (routing / config /
+   UI / MCP surface each swappable)? The finer the split, the smaller the swap window, but the harder the
+   compatibility matrix and consistency are to maintain.
+3. **request semantics inside the swap window**: queue (with what timeout), or fall back to A (which may read half-new, half-old)?
+4. **bootstrap's boundary**: are §6.1's four items enough — "the route **table's contents**" is the kernel and "the
+   dispatch **point**" is the host; should this line be pushed further down (does the listener belong to the kernel
+   too)?
+5. **abi mismatch policy**: refuse to load, or run isolated + warn? ("refuse the kernel swap" and "suspend only the
+   incompatible app" are two granularities) — the second granularity **is implemented (2026-09-10, §6.5-6's third
+   disposition)**; "run isolated at load time" is still open, and today a mismatch is only handled at swap time,
+   not at load time.
+6. **compatibility decision**: look only at the abi major, or also validate the kernel semver range?
+7. **how many rollback points to keep**: only 1 previous, or N (disk vs rollback-ability)?
+8. **modelling the host privileged surface**: should a host node also write a descriptor (today these are
+   scattered `/-/planes/*` control routes)? *Half answered (P2-A)*: they are no longer scattered —
+   `HOST_OPERATIONS` declared the four as data and put them into the node operation table. What is not yet decided
+   is **whether to go one step further**: give it a descriptor of the same shape as an app's (carrying the
+   lifecycle privileged surface) and let the host also go down the `registerEffectApp` path, rather than a table
+   with only four entries.
+9. **namespace and version**: when several versions of an app of the same name coexist, should the ns carry the version (affects §4's addressing).
+10. **what the sandbox tier is for**: is an app running in a sandbox "the equivalent of a whole app" or "an app with degraded capabilities" (which operations must be absent)?
+11. **the browser tier's two-way channel**: what does host→app push go through in a browser (the resident WS left open in `effect-bundle-mesh.md` §5)?
+12. **storage backend priority**: do IndexedDB first, or do "sandbox/browser storage proxied back home" first?
+13. **the granularity of a runtime mismatch**: refuse to install the whole app, or disable only the operations unavailable in that runtime?
+14. **who triggers an app hot swap**: driven only by a host push (§8), or can the app author trigger it too (hot reload during local development)?
+15. **the length of the two-versions-coexist window**: is there a cap on the drain (force-cut the old version after a timeout?), and may requests inside the window cross versions.
+16. **who decides "a compatible kernel"**: only the `abi`, or also **the structural version of the kernel's own runtime state** (which would mean adding a kernel-state schema version to the manifest)?
+17. **node resources**: does a node declare quotas (app-count ceiling, CPU/memory), and should there be
+    **scheduling** (deciding which node an app lands on)?
+    — **half answered (2026-09-10)**: what was added is the **app-count ceiling** (`Machine.maxApps`, optional; an
+    absence reads as "declared no ceiling" rather than 0, and the platform does not invent a number for the node),
+    enforced as admission at the node plan (see §8.3).
+    **CPU/memory quotas were not added**: they need a node to report available amounts and need a measurement
+    convention, and today neither exists, so adding a numeric field nobody fills in would only turn the
+    "declaration" into decoration. **Scheduling was likewise not added**: placement is hard-coded by `nodeBindings`
+    today and is the operator's choice; introduce it when the question "several nodes, which one should this app
+    land on" actually appears, rather than setting up a scheduler first and looking for its use.
+18. **how kernel runtime state is handed over** (§6.3-①): is the in-memory state of the plugin registry / route
+    table / config runtime serialized and handed to the new kernel, or does the new kernel rebuild it from the
+    store itself?
 
-## 12. 与既有文档的关系
+## 12. Relationship to the existing documents
 
 ```text
-本文（主线）：声明层 → 内核 → 操作集合 → 运行时可移植性 → 生命周期(升级/回滚)
-   ├─ layers.md                     包分层（L0-L5，代数层）
-   ├─ effect-unified-on-mcp.md      app=MCP server、四 plane 的 MCP 投影
-   ├─ effect-planes-permissions.md  plane 寻址 + 权限（§4 的词表、§7 的存储代理）
-   ├─ effect-bundle-mesh.md         制品形态、回注册、mesh、浏览器宿主先例（§6/§7 的制品基础）
-   ├─ script-sandbox.md             沙箱执行 + 内容寻址版本 + 分级兼容裁决 + 回滚（§5/§7 的现成先例）
-   ├─ platform-network.md           端口/路由/出口 + agentd/mcpset（§8 的分发基础）
-   └─ mcp-gateway-surface.md        工具面统一入口（agent 侧只有一个 /mcp-gateway）
+this document (the main line): declaration layer → kernel → operation set → runtime portability → lifecycle (upgrade/rollback)
+   ├─ layers.md                      package layering (L0-L5, the algebraic layers)
+   ├─ effect-unified-on-mcp.md       app = MCP server, the MCP projection of the four planes
+   ├─ effect-planes-permissions.md   plane addressing + permissions (§4's vocabulary, §7's storage proxy)
+   ├─ effect-bundle-mesh.md          artifact form, register back, mesh, the browser-host precedent (§6/§7's artifact basis)
+   ├─ script-sandbox.md              sandbox execution + content-addressed versions + graded compatibility adjudication + rollback (§5/§7's ready-made precedent)
+   ├─ platform-network.md            ports/routes/egress + agentd/mcpset (§8's distribution basis)
+   └─ mcp-gateway-surface.md         the unified entry point to the tool surface (on the agent side there is only one /mcp-gateway)
 ```

@@ -1,71 +1,71 @@
-# mantis 产品画布（v1 · 用户修正）
+# mantis product canvas (v1 · user correction)
 
-> 目的：把"给谁用、解决什么、最小闭环、明确不做"钉在一页纸上，
-> 让每一轮开发可被验收。此文档获批前不写功能代码。
+> Purpose: pin "who it is for, what it solves, the minimal loop, what is explicitly out of scope" onto one page,
+> so that every development round can be accepted. No feature code is written before this document is approved.
 
-## 1. 一句话定位（按用户原话修正）
-**mantis = 一个像同事一样的数字 worker**：像人一样接活干活，但更快、可并行。
-你（操作者）派活 → mantis 拆成多条工作线并行推进（每线有独立会话与记忆），
-写共享工作区（记录带来源、可回溯），受保护写操作弹审批卡请你放行，重启不失忆。
-控制台 = 它的工作台 + 你的监督台（每条工作线进展可见，随时可以介入）。
+## 1. One-line positioning (corrected per the user's own words)
+**mantis = a digital worker that behaves like a colleague**: it takes on work and does it like a person, but faster and parallel.
+You (the operator) delegate work → mantis splits it into several work lines that advance in parallel (each line has its own conversation and memory),
+writes to the shared workspace (records carry provenance and can be traced back), raises an approval card for protected writes asking you to let it through, and does not lose memory across a restart.
+The console = its workbench + your supervision console (every work line's progress is visible, and you can step in at any time).
 
-## 2. 目标用户与痛点
-| 用户 | 痛点 | mantis 答什么 |
+## 2. Target users and pain points
+| User | Pain point | What mantis answers |
 |---|---|---|
-| 派活的人 | agent 要么一次性聊天、要么要人盯着每一步 | 把活交给它：它自己拆解、自己推进、只在需要时问你 |
-| 要"人手"的团队 | 活多而机械/重复/可并行 | 数字 worker 更快、并行走多条线，人只监督与把关 |
-| 团队审计 | 谁改了什么没有留痕 | 记录级 provenance + 审批留痕 + 重启不丢状态 |
+| The person delegating | an agent is either a one-off chat or needs someone watching every step | hand the work to it: it splits it up itself, drives it itself, and asks you only when needed |
+| A team that needs "hands" | lots of mechanical/repetitive/parallelizable work | a digital worker is faster and runs several lines in parallel; people only supervise and gate |
+| Team audit | no trail of who changed what | record-level provenance + an approval trail + state that survives a restart |
 
-## 3. 核心工作流（主场景）
-**循环 A（派活→并行→批→归档）**：你派一个多步任务 → mantis 拆成工作线
-（每会话一条）并行推进：读记忆 → 查/写工作区 → 受保护写弹审批卡
-（工具+输入+来自哪条线）→ 你放行 → 它继续 → 结果带来源落工作区并可回溯。
-**循环 B（并行可见）**：两条工作线同时跑，监督台并列可见进展，可随时介入任一线。
-**循环 C（重启可信）**：重启后每条线记得对话、恢复已启用工具、记录原样。
-**循环 B（接一个外部 agent）**：对方 MCP 接入 → 自动获得记忆 + 工具面 +
-审批语义；一份 agents.md 说清契约。
-**循环 C（重启可信）**：进程重启后同一会话记得对话、恢复已启用工具、记录原样。
+## 3. Core workflows (main scenarios)
+**Loop A (delegate→parallel→approve→archive)**: you delegate a multi-step task → mantis splits it into work lines
+(one per conversation) that advance in parallel: read memory → read/write the workspace → a protected write raises an approval card
+(tool + input + which line it came from) → you let it through → it continues → the result lands in the workspace with its provenance and can be traced back.
+**Loop B (parallel is visible)**: two work lines run at the same time, the supervision console shows their progress side by side, and you can step into either line at any time.
+**Loop C (restarts are trustworthy)**: after a restart every line remembers the conversation, restores its enabled tools, and keeps its records as they were.
+**Loop B (onboarding an external agent)**: the other side connects over MCP → it automatically gets memory + the tool surface +
+approval semantics; one agents.md states the contract clearly.
+**Loop C (restarts are trustworthy)**: after a process restart the same conversation remembers the dialogue, restores its enabled tools, and keeps its records as they were.
 
-## 4. MVP 范围（界面只做这些）
-1. **会话台**：每条工作线一条会话（消息+步骤），选线看进展；可派活/介入。
-2. **工作区**：它写的所有记录按资源分组 + 来源过滤 + 可回溯；也能手记一条。
-3. **审批台**：待批卡（工具+输入+来自哪条线）同意/拒绝。
-4. **系统状态**：健康/审批开关（右上角最小）。
-> 提醒、dingtalk、事件流全部隐藏/降级实验，不进首屏；A2UI 已按你意见移除（R31，过时）。
+## 4. MVP scope (the UI does only these)
+1. **Conversations**: one conversation per work line (messages + steps); pick a line to see progress; you can delegate/step in.
+2. **Workspace**: every record it writes, grouped by resource + filtered by source + traceable; you can also write one by hand.
+3. **Approvals**: pending cards (tool + input + which line it came from) approved/denied.
+4. **System status**: health / approval toggle (minimal, top right).
+> Reminders, dingtalk, and the event stream are all hidden/demoted to experiments and do not enter the first screen; A2UI was removed per your view (R31, outdated).
 
-## 5. 明确不做（anti-scope）
-- ❌ Claymorphism / 童趣视觉（已按你意见否决）
-- ❌ perry 路线（R17 已弃）
-- ❌ 再加新资源类型或新工具（除非画布闭环需要）
-- ❌ dingtalk/dws 主战场、多机器部署、计费/多租户
-- ❌ 各种"能力陈列"型 UI（tools_catalog 展示等留给 agent 文档）
+## 5. Explicitly out of scope (anti-scope)
+- ❌ Claymorphism / childlike visuals (vetoed per your view)
+- ❌ the perry route (dropped in R17)
+- ❌ adding more new resource types or new tools (unless the canvas loop needs them)
+- ❌ dingtalk/dws as a main battleground, multi-machine deployment, billing/multi-tenancy
+- ❌ every kind of "capability showcase" UI (tools_catalog display and the like are left to the agent docs)
 
-## 6. 视觉与信息架构基准（克制专业风）
-- 方向：**深色、信息密度优先**（监控台/Linear 深色质感），去除厚重装饰与浅色化；
-- 布局：宽屏 = 顶栏(品牌/状态) + 左栏或顶部标签(会话/工作区/审批) + 主内容；
-  窄屏 = 底部最小导航（保留 R19 响应式成果）；
-- 原则：一屏一任务；审批卡信息完整；来源徽章克制；无空态装饰。
-> 待定小项（不影响画布）：主色用冷蓝/暖橙其一；字体已用系统栈。
+## 6. Visual and information-architecture baseline (restrained professional)
+- Direction: **dark, information density first** (monitoring-console/Linear dark feel), stripping heavy ornament and light-washing;
+- Layout: wide screen = top bar (brand/status) + left rail or top tabs (conversations/workspace/approvals) + main content;
+  narrow screen = minimal bottom navigation (keeping the R19 responsive work);
+- Principles: one task per screen; approval cards carry complete information; restrained provenance badges; no empty-state ornament.
+> Small open items (they do not affect the canvas): the primary colour is either cool blue or warm orange; the font already uses the system stack.
 
-## 7. 功能去留映射（当前代码 → 界面位置）
-| 能力（已实现，保留） | 界面 |
+## 7. Feature keep/drop mapping (current code → UI location)
+| Capability (implemented, kept) | UI |
 |---|---|
-| workspace 声明式资源 + provenance | Store 页 |
-| conversation timeline / durable memory | 会话台 |
-| enable + 工具面跨重启 | 会话台状态行（只读展示） |
-| approvals + session 上下文 | 审批台 |
-| ~~ui_render (A2UI)~~ | 已移除（R31） |
-| set_reminder / dingtalk | 隐藏/实验 |
-| events/state API | 系统状态（右上角最小） |
+| workspace declarative resources + provenance | Store page |
+| conversation timeline / durable memory | Conversations |
+| enable + tool surface across restarts | Conversations status row (read-only display) |
+| approvals + session context | Approvals |
+| ~~ui_render (A2UI)~~ | removed (R31) |
+| set_reminder / dingtalk | hidden/experimental |
+| events/state API | System status (minimal, top right) |
 
-## 8. 成功判据（这一版算好）
-- 派一个含受保护写的多步任务 → 不盯着也能完成并汇报，审批 ≤3 次点击放行；
-- **并行**：两条任务同时派，两条工作线都完成、监督台并列可见（时间 ≈ 单条）；
-- 重启后同线对话+工具面+记录三样全在（回归验收）；
-- 你 30 秒截图能说出"这是一个更快、可并行的数字同事"。
+## 8. Success criteria (this version counts as good)
+- Delegate a multi-step task containing a protected write → it completes and reports without being watched, and approval is ≤3 clicks to let through;
+- **Parallel**: two tasks delegated at once, both work lines complete and the supervision console shows them side by side (time ≈ one line);
+- After a restart the same line's conversation + tool surface + records are all present (regression acceptance);
+- In a 30-second screenshot you can say "this is a faster, parallel digital colleague".
 
-## 9. 下一步（R22）
-1. 回滚 clay 浅色层 → 干净深色专业主题（保留 R19 响应式）；
-2. 按第 4 节收敛到 3+1 屏（会话/工作区/审批 + 右上状态），隐藏实验；
-3. 文案转向"数字同事/派活/工作线"语义；
-4. 跑通循环 A（含一次审批）录验收证据；R23 再做并行（循环 B）验收。
+## 9. Next steps (R22)
+1. Roll back the clay light layer → a clean dark professional theme (keeping the R19 responsive work);
+2. Converge to 3+1 screens per section 4 (conversations/workspace/approvals + top-right status), hide the experiments;
+3. Turn the copy toward "digital colleague/delegate/work line" semantics;
+4. Run Loop A end to end (including one approval) and record acceptance evidence; R23 then does the parallel (Loop B) acceptance.

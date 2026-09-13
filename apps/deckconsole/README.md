@@ -1,50 +1,50 @@
-# deckconsole · agentdeck 控制室（产品层第 1 版）
+# deckconsole · agentdeck control room (product layer v1)
 
-在 packages/agentdeck 组件上封装的小产品：HTTP 控制室（JSON API + 单个暗色管理页），
-把三个统一面直接暴露给人用：
+A small product wrapped around the packages/agentdeck component: an HTTP control room (JSON API +
+a single dark admin page) that exposes the three unified surfaces directly for human use:
 
-- 会话/流程：POST /api/session（开启，任意 kind + 原始配置自动归一）、
-  POST /api/session/:id/send、POST /api/session/:id/close
-- session→同意：GET /api/deck 返回 pending 与每 session 的映射统计；
-  POST /api/consent/:callId { allow } 审批
-- 配置→统一：GET /api/config/preview?kind=&raw=（原始 JSON → 归一结果，页面可交互预览）
-- 页面 GET / （会话表、一键触发审批、同意/拒绝、配置归一预览）
+- session/flow: POST /api/session (open; any kind + raw config auto-normalized),
+  POST /api/session/:id/send, POST /api/session/:id/close
+- session→consent: GET /api/deck returns pending and the per-session mapping stats;
+  POST /api/consent/:callId { allow } decides one call
+- config→unified: GET /api/config/preview?kind=&raw= (raw JSON → normalized result, interactive preview in the page)
+- page GET / (session table, one-click approval trigger, allow/deny, config normalization preview)
 
-启动：bun apps/deckconsole/src/main.ts（DECK_PORT 默认 4851）。
-内置 demo agent（无模型/无二进制）可完整演示 open→send→ask→approve；
-其余 kind 走 CLI gateway（claude-code/codex/gemini/pi/custom），effect 需在
-startDeckServer({ effectModel }) 注入模型提供者。
+Start: bun apps/deckconsole/src/main.ts (DECK_PORT defaults to 4851).
+The built-in demo agent (no model / no binary) demonstrates the full open→send→ask→approve
+flow; other kinds go through the CLI gateway (claude-code/codex/gemini/pi/custom), and effect
+needs a model provider injected at startDeckServer({ effectModel }).
 
-验证：apps/deckconsole/test/deckconsole.test.ts（3 条 e2e，真起 HTTP 服务）。
+Verification: apps/deckconsole/test/deckconsole.test.ts (3 e2e cases, starts a real HTTP server).
 
 
-## API 速查（JSON）
+## API quick reference (JSON)
 
-| 方法 路径 | 作用 |
+| method path | purpose |
 |---|---|
-| GET / | 管理页 |
-| GET /api/deck | kinds/launchers/sessions/pending/mapping 统计/samples |
-| POST /api/session | 开启会话 {kind, sessionId?, config(原始配置→自动归一), prompt?} |
-| POST /api/session/:id/send | 跑一轮 {text}（demo 支持 ask:tool JSON 标记触发审批） |
-| POST /api/session/:id/close | 关闭会话 |
-| GET /api/session/:id/history | transcript + 该会话同意日志 |
-| POST /api/sessions/close-all | 关停全部会话并清理策略 |
-| GET /api/consent | 全量同意台账 |
-| POST /api/consent/bulk | 批量处理待批 {allow} |
-| POST /api/consent/:callId | 审批 {allow} |
-| GET /api/config/preview?kind=&raw= | 配置归一预览 + CLI 调用计划 |
-| GET /api/config/samples | 每 kind 原始配置样例 |
-| GET/POST /api/launchers · DELETE /api/launchers/:label?kind= | 启动组 CRUD（DECK_FILE 持久化） |
+| GET / | admin page |
+| GET /api/deck | kinds/launchers/sessions/pending/mapping stats/samples |
+| POST /api/session | open a session {kind, sessionId?, config(raw config→auto-normalized), prompt?} |
+| POST /api/session/:id/send | run one turn {text} (the demo triggers an approval on an ask:tool JSON marker) |
+| POST /api/session/:id/close | close the session |
+| GET /api/session/:id/history | transcript + that session's consent log |
+| POST /api/sessions/close-all | close every session and clear policies |
+| GET /api/consent | the full consent ledger |
+| POST /api/consent/bulk | bulk-resolve pending approvals {allow} |
+| POST /api/consent/:callId | decide one call {allow} |
+| GET /api/config/preview?kind=&raw= | config normalization preview + CLI invocation plan |
+| GET /api/config/samples | raw config samples per kind |
+| GET/POST /api/launchers · DELETE /api/launchers/:label?kind= | launcher group CRUD (persisted to DECK_FILE) |
 
-环境：DECK_PORT、DECK_AGENTS(JSON launchers)、DECK_FILE(启动组状态文件)。
+Environment: DECK_PORT, DECK_AGENTS (JSON launchers), DECK_FILE (launcher group state file).
 
-## 安全边界
-- 默认仅绑定 127.0.0.1（本机）。startDeckServer({ host }) 或 DECK_HOST 可改绑；
-  控制台无鉴权且可启动任意命令，跨机使用请置于可信内网或自行加鉴权层。
+## Security boundary
+- Binds 127.0.0.1 (localhost) only by default. startDeckServer({ host }) or DECK_HOST rebinds it;
+  the console has no authentication and can launch arbitrary commands, so for cross-machine use put it on a trusted intranet or add your own auth layer.
 
 
-## 验收（3 分钟）
-无 key：bun apps/deckconsole/scripts/acceptance.ts   （11 项核心流，exit 0 = 绿）
-真机：  REAL=1 bun apps/deckconsole/scripts/acceptance.ts （+ claude-code 真实应答段，13 项）
-页面：  DECK_PORT=4851 bun apps/deckconsole/src/main.ts → http://127.0.0.1:4851
-引导：  docs/tour.md（分步预期状态 + 截图索引）
+## Acceptance (3 minutes)
+No key: bun apps/deckconsole/scripts/acceptance.ts   (11 core flows, exit 0 = green)
+Real:   REAL=1 bun apps/deckconsole/scripts/acceptance.ts (+ a real claude-code reply segment, 13 items)
+Page:   DECK_PORT=4851 bun apps/deckconsole/src/main.ts → http://127.0.0.1:4851
+Tour:   docs/tour.md (step-by-step expected states + screenshot index)
