@@ -13,7 +13,7 @@
 
 import type { UiNodeSpec } from "./spec.ts"
 import type { UiRepeatSpec } from "./value-spec.ts"
-import { emptyRows } from "./empty-rows.ts"
+import { emptyRows, stateRows, whenRows } from "./empty-rows.ts"
 
 export const text = (value: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
   ({ component: "Text", props: { value, ...props } })
@@ -91,6 +91,10 @@ const pathOf = (repeat: UiRepeatSpec): string => "state" in repeat.source ? repe
  * A card holding one table from one source, with the list's own emptiness above
  * its rows. The source's read state is deliberately not stated here: the section
  * that owns the source says it once, above every list that read feeds.
+ *
+ * The table itself is drawn only while it has a row — a header row over no rows
+ * is a table of columns of nothing, and the notice above it already says the true
+ * thing. Both read the same condition, so they cannot disagree.
  */
 export const listCard = ({ title, id, empty, headings, cells, repeat }: ListCard): UiNodeSpec =>
-  section(title, [emptyRows(id, pathOf(repeat), empty), table(headings, cells, repeat)])
+  section(title, [emptyRows(id, pathOf(repeat), empty), whenRows(stateRows(pathOf(repeat)), table(headings, cells, repeat))])

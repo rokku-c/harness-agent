@@ -6,19 +6,11 @@
  * every console are re-exported from it; the rest are this page's own.
  */
 
-import type { UiActionParam, UiNodeSpec } from "@effect-agent/effect-ui"
+import type { UiNodeSpec } from "@effect-agent/effect-ui"
 
 export {
-  cell, cellOf, field, heading, line, section, stateBadge, table, text,
+  cell, cellOf, field, heading, line, press, section, stateBadge, table, text,
 } from "@effect-agent/effect-ui"
-
-/** A press: what it says, the action it runs, and the values that action reads. */
-export const press = (
-  label: string, onPress: string,
-  params?: Readonly<Record<string, UiActionParam>>,
-  props: Readonly<Record<string, unknown>> = {},
-): UiNodeSpec =>
-  ({ component: "Button", props: { value: label, ...props }, onPress, ...(params === undefined ? {} : { params }) })
 
 /** An identifier addresses a record; it is a key, so it wears the code chip, never the first cell. */
 export const code = (item: string): UiNodeSpec => ({ component: "Code", item })

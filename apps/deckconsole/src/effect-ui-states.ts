@@ -10,17 +10,9 @@
  * verdict's loading and failure notices as they come.
  */
 
-import type { UiCondition, UiNodeSpec } from "@effect-agent/effect-ui"
+import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { stateRows } from "@effect-agent/effect-ui"
 import { failureNotice, loadingRows, sourceStatusPath } from "@effect-agent/effect-ui/source-status"
-
-/**
- * Whether the list fed by this path has a first row. One predicate, read two
- * ways: the notice below says "nothing here" when there is none, and the list
- * itself is drawn only when there is one — because a header row over no rows is
- * a table saying there are columns of nothing, and the notice already says the
- * true thing.
- */
-const firstRow = (path: string): UiCondition => ({ source: { state: `${path}/0` } })
 
 /**
  * "Nothing here" — said only once whatever feeds the list has answered. An empty
@@ -34,16 +26,9 @@ export const emptyList = (answered: string, path: string, message: string): UiNo
   children: [{
     component: "Text",
     props: { value: message, color: "gray", size: "2" },
-    visible: { ...firstRow(path), not: true },
+    visible: { ...stateRows(path), not: true },
   }],
 })
-
-/** What acts on a list — the list itself, or the press that empties it — while
-that list has a row: a header row over no rows is a table saying there are
-columns of nothing, and "close all sessions" under the notice that none is open
-is an offer to close nothing. */
-export const whenRows = (path: string, node: UiNodeSpec): UiNodeSpec =>
-  ({ ...node, visible: firstRow(path) })
 
 /** The three notices for one list, when the source answers more than that list. */
 export const sharedStates = (id: string, path: string, empty: string, rows = 3): readonly UiNodeSpec[] =>

@@ -1,15 +1,28 @@
 /**
- * The conversation surface: the composer the page exists for, the timeline it
- * feeds, and the conversations whose timelines can be read. The timeline sits
- * above the list that fills it, so a press near the bottom of the page does not
- * push its own result past the fold.
+ * The conversation surface: the timeline an operator reads and the composer that
+ * adds to it.
+ *
+ * Both name the same conversation, and it is the one the read answered for. The
+ * read writes its answer — id and turns together — to `/mantis/conversation`, so
+ * the turns on screen and the conversation a message goes to are one fact read
+ * from one path. A field of its own for the id would be a second, and a message
+ * typed beside a timeline it is not addressed to is how a turn reaches a
+ * conversation nobody was reading.
+ *
+ * The whole surface is offered only while a conversation has been read, because
+ * that is the only thing that can address one. Before it there is nothing here
+ * at all — not an empty card with a sentence in it: the doors that fill it are
+ * the two sections above, and a page that says "press Read below" three times
+ * over two empty cards is a page whose button is under the fold.
  */
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { row } from "@effect-agent/effect-ui"
 import { acceptedBadge, errorBadge, refusalBadge } from "./effect-ui-feedback.ts"
-import { sharedSourceStates } from "./effect-ui-list.ts"
-import { cell, cellOf, codeCell, field, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
+import { field, press, section, stateBadge, text } from "./effect-ui-nodes.ts"
+
+/** The conversation this surface is about: the id the read answered with. */
+const readState = { source: { state: "/mantis/conversation/conversationId" } } as const
 
 /** One turn of a transcript: a card per entry, since turns read as turns, not rows. */
 const turnCard: UiNodeSpec = {
@@ -26,12 +39,18 @@ const turnCard: UiNodeSpec = {
   ],
 }
 
-/** The app's primary task, first under the header, with its outcome under the button. */
+/**
+ * The task itself, with its outcome under the button. The turn is waited out, so
+ * the outcome is the whole turn's: the reply is in the timeline by the time this
+ * says the message was accepted.
+ */
 const composer: UiNodeSpec = section("Send message", [
-  field("Conversation id", { component: "TextField.Root", bind: "/message/conversationId" }),
+  // whose message this is: the conversation the page read, named once — the
+  // button below carries the same value, so what is read here is what it sends
+  row([text("Conversation", { size: "1", color: "gray" }), { component: "Code", bind: "/mantis/conversation/conversationId" }]),
   field("Message", { component: "TextArea", bind: "/message/text" }),
-  row([{ component: "Button", props: { value: "Send" }, onPress: "mantis.send",
-    params: { conversationId: { state: "/message/conversationId" }, text: { state: "/message/text" } } }]),
+  row([press("Send", "mantis.send", {
+    conversationId: { state: "/mantis/conversation/conversationId" }, text: { state: "/message/text" } })]),
   row([
     acceptedBadge("/mantis/send/accepted", "Message accepted"),
     refusalBadge("/mantis/send"),
@@ -40,35 +59,15 @@ const composer: UiNodeSpec = section("Send message", [
 ])
 
 const timeline: UiNodeSpec = section("Conversation timeline", [
-  // whose timeline this is: an operator who loaded one from the list below has
-  // to see which row it came from
-  { component: "Flex", props: { gap: "2", align: "center" },
-    visible: { source: { state: "/mantis/conversation/conversationId" } },
-    children: [text("Conversation", { size: "1", color: "gray" }), { component: "Code", bind: "/mantis/conversation/conversationId" }] },
   { component: "Flex", props: { direction: "column", gap: "3" },
     repeat: { source: { state: "/mantis/conversation/entries" }, key: "seq" }, children: [turnCard] },
-  // a repeat over an empty list renders nothing at all, so a loaded
-  // conversation with no turns is said out loud: the guard is the conversation
-  // it belongs to, and the note itself asks the first turn whether there is one
-  { component: "Flex", props: { direction: "column" },
-    visible: { source: { state: "/mantis/conversation/conversationId" } },
-    children: [{ component: "Text", props: { value: "This conversation has no turns yet.", size: "2", color: "gray" },
-      visible: { source: { state: "/mantis/conversation/entries/0" }, not: true } }] },
-  // and before any conversation has been loaded, the timeline names the press
-  // that fills it instead
-  { component: "Text", props: { value: "Press Load timeline on a conversation to fill this timeline.", size: "2", color: "gray" },
-    visible: { source: { state: "/mantis/conversation/conversationId" }, not: true } },
+  // a repeat over an empty list renders nothing at all, so a conversation that
+  // was read and holds no turns is said out loud
+  { component: "Text", props: { value: "This conversation has no turns yet.", size: "2", color: "gray" },
+    visible: { source: { state: "/mantis/conversation/entries/0" }, not: true } },
 ])
 
-const conversations: UiNodeSpec = section("Conversations", [
-  ...sharedSourceStates("state", "/mantis/state/conversations", "No conversation has been held yet."),
-  table(["Conversation", "Turns", "Action"],
-    [codeCell("conversationId"), cell("turns"),
-      cellOf(row([{ component: "Button", props: { value: "Load timeline", size: "1" }, onPress: "mantis.conversation",
-        params: { conversationId: { item: "conversationId" } } }]))],
-    { source: { state: "/mantis/state/conversations" }, key: "conversationId" }),
-  // a load that failed is reported by the list that was pressed, not silently
-  row([errorBadge("/mantis/conversation")]),
-])
-
-export const chatNodes: readonly UiNodeSpec[] = [composer, timeline, conversations]
+export const chatNodes: readonly UiNodeSpec[] = [
+  { ...composer, visible: readState },
+  { ...timeline, visible: readState },
+]

@@ -4,9 +4,9 @@
  * row carries it — the row's own, not a second copy of it over the table.
  */
 
-import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { failureBadge, row, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { cell, cellOf, code, press, section, table, text } from "./effect-ui-nodes.ts"
-import { whenRows, sharedStates } from "./effect-ui-states.ts"
+import { sharedStates } from "./effect-ui-states.ts"
 
 /**
  * The tool is what the row is about; the session is the key it belongs to. Allow
@@ -26,7 +26,7 @@ export const consentNodes: readonly UiNodeSpec[] = [
   section("Pending consent", [
     text("Nothing an agent asks for runs until it is decided here.", { size: "2", color: "gray" }),
     ...sharedStates("deck", "/deck/pending", "No consent requests are waiting."),
-    whenRows("/deck/pending", table(["Tool", "Session", "Decision"], decisionCells, { source: { state: "/deck/pending" }, key: "callId" })),
+    whenRows(stateRows("/deck/pending"), table(["Tool", "Session", "Decision"], decisionCells, { source: { state: "/deck/pending" }, key: "callId" })),
     row([failureBadge("/result/consent/error")]),
   ]),
 ]

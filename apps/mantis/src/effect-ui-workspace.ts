@@ -5,7 +5,7 @@
  * below, since the ids it takes are read off the rows.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { itemRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { sharedSourceStates } from "./effect-ui-list.ts"
 import { cell, cellOf, codeCell, heading, table, text } from "./effect-ui-nodes.ts"
 import { addForm, recordForm } from "./effect-ui-workspace-forms.ts"
@@ -25,11 +25,12 @@ const resourceCard: UiNodeSpec = {
   children: [
     { component: "Heading", props: { size: "3" }, item: "label" },
     bound("write/description", { size: "2", color: "gray" }),
-    table(["Record", "Source", "Id"],
-      [cell("text"), cellOf(bound("source", { size: "1", color: "gray" })), codeCell("id")],
-      { source: { item: "records" }, key: "id" }),
-    // a table with no rows is a bare header, which reads as broken; a record's
-    // own field is the only presence test a repeat item can offer
+    // a record's own field is the only presence test a repeat item can offer,
+    // and the table and the notice beside it read it the same way
+    whenRows(itemRows("records"),
+      table(["Record", "Source", "Id"],
+        [cell("text"), cellOf(bound("source", { size: "1", color: "gray" })), codeCell("id")],
+        { source: { item: "records" }, key: "id" })),
     { component: "Text", props: { value: "No records yet.", size: "2", color: "gray" },
       visible: { source: { item: "records/0" }, not: true } },
   ],

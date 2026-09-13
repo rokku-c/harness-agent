@@ -18,7 +18,25 @@
  * Repeating them per list states one failed read three times on one page.
  */
 import type { UiNodeSpec } from "./spec.ts"
+import type { UiCondition } from "./value-spec.ts"
 import { sourceStatusPath } from "./source-status.ts"
+
+/**
+ * "This list has a first row" — the one condition the list itself, the notice
+ * that stands in for it, and the press that empties it all read. Written once so
+ * the three cannot disagree about whether there is anything: a list drawn while
+ * the notice says it is empty, or a header row over no rows, is one surface
+ * stating a fact twice and getting it wrong once.
+ *
+ * `stateRows` for a list in view state, `itemRows` for one under a repeat item.
+ */
+export const stateRows = (path: string): UiCondition => ({ source: { state: `${path}/0` } })
+export const itemRows = (path: string): UiCondition => ({ source: { item: `${path}/0` } })
+
+/** What acts on a list — the list, or the press that empties it — while it has
+ * a first row. The dual of `emptyMessage`, on the same condition. */
+export const whenRows = (firstRow: UiCondition, node: UiNodeSpec): UiNodeSpec =>
+  ({ ...node, visible: firstRow })
 
 /**
  * The primitive: "this list has no first row yet", said in place of the rows.
@@ -33,7 +51,7 @@ import { sourceStatusPath } from "./source-status.ts"
 export const emptyMessage = (path: string, message: string): UiNodeSpec => ({
   component: "Text",
   props: { value: message, color: "gray", size: "2" },
-  visible: { source: { state: `${path}/0` }, not: true },
+  visible: { ...stateRows(path), not: true },
 })
 
 /**

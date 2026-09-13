@@ -10,7 +10,7 @@
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 
-export { cell, cellOf, field, heading, list, line, section, stateBadge, table, text } from "@effect-agent/effect-ui"
+export { cell, cellOf, field, heading, list, line, press, section, stateBadge, table, text } from "@effect-agent/effect-ui"
 
 /** An identifier is a key, not content, so a cell that holds one is a chip. */
 export const codeCell = (item: string): UiNodeSpec =>

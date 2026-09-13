@@ -6,10 +6,10 @@
  * and have the same shape, so each one says in a line what it is.
  */
 
-import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { failureBadge, row, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { sourceStates } from "@effect-agent/effect-ui/source-status"
 import { cellOf, code, line, press, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
-import { whenRows } from "./effect-ui-states.ts"
+
 
 const launcherCells: readonly UiNodeSpec[] = [
   cellOf(stateBadge("kind")),
@@ -25,12 +25,12 @@ export const catalogNodes: readonly UiNodeSpec[] = [
   section("Launchers", [
     text("Saved configurations this deck can launch, one per label.", { size: "2", color: "gray" }),
     ...sourceStates("launchers", "No launchers are registered."),
-    whenRows("/launchers/launchers", table(["Agent", "Launcher", "Actions"], launcherCells, { source: { state: "/launchers/launchers" }, key: "label" })),
+    whenRows(stateRows("/launchers/launchers"), table(["Agent", "Launcher", "Actions"], launcherCells, { source: { state: "/launchers/launchers" }, key: "label" })),
     row([failureBadge("/result/launcher/error")]),
   ]),
   section("Presets", [
     text("CLI commands the deck can invoke, one per agent kind.", { size: "2", color: "gray" }),
     ...sourceStates("presets", "No CLI presets are registered."),
-    whenRows("/presets/presets", table(["Agent", "Command"], presetCells, { source: { state: "/presets/presets" }, key: "kind" })),
+    whenRows(stateRows("/presets/presets"), table(["Agent", "Command"], presetCells, { source: { state: "/presets/presets" }, key: "kind" })),
   ]),
 ]
