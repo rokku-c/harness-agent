@@ -36,6 +36,25 @@ const claims = (dir: string): { files: number; theorems: number } => {
   }
 }
 
+/**
+ * The modules `formal/Formal.lean` does not import.
+ *
+ * `lake build` compiles that root module's import closure and nothing else — a
+ * module sitting in the directory but absent from the list is never compiled. So
+ * `claims` above would count theorems out of a file no build ever reached, and a
+ * proof that had stopped holding would be reported as one that holds. This is
+ * checked rather than assumed because adding the file is the step that gets
+ * forgotten, and nothing else about the build says so.
+ */
+const unimported = (dir: string): readonly string[] => {
+  const root = readFileSync(join(dir, "..", "Formal.lean"), "utf-8")
+  const imported = new Set([...root.matchAll(/^import Formal\.(\S+)/gm)].map((match) => match[1]))
+  return readdirSync(dir)
+    .filter((name) => name.endsWith(".lean"))
+    .map((name) => name.replace(/\.lean$/, ""))
+    .filter((module) => !imported.has(module))
+}
+
 const main = (): number => {
   const lake = findLake()
   if (lake === undefined) {
@@ -44,6 +63,12 @@ const main = (): number => {
     return 1
   }
   const model = join(import.meta.dir, "..", "formal", "Formal")
+  const missing = unimported(model)
+  if (missing.length > 0) {
+    console.log(`check-proofs: ${missing.join(", ")} is in formal/Formal/ but not imported by`
+      + " formal/Formal.lean — the build never compiles it")
+    return 1
+  }
   const built = Bun.spawnSync({ cmd: [lake, "build"], cwd: join(model, ".."), stdout: "pipe", stderr: "pipe" })
   const output = `${built.stdout.toString()}${built.stderr.toString()}`.trim()
   if (built.exitCode !== 0) {

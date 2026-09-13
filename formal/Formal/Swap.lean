@@ -1,5 +1,5 @@
 /-
-  The swap — `packages/effect-bundle/src/supervisor.ts`.
+  The swap — `packages/effect-bundle/src/supervisor-swap.ts`.
 
   Replacing a running kernel has two orders available. Load the new one and
   point the dispatcher at it, then stop the old one — or stop the old one first
@@ -26,10 +26,10 @@
 
   Modelling note: this models the *ordering*, not the supervisor. Staging,
   the compat matrix and the health check are the conditions under which a flip
-  is allowed to happen at all, and they are what the file's `stage` does; what
-  a flip does to the slots is four lines. The identity of the two kernels is
-  the only thing carried, because the whole question is which one is behind the
-  other.
+  is allowed to happen at all — they are `refusalFor` and `adopt` in
+  `supervisor-runtime.ts`, one file over; what a flip does to the slots is four
+  lines. The identity of the two kernels is the only thing carried, because the
+  whole question is which one is behind the other.
 -/
 
 namespace EffectBundle
