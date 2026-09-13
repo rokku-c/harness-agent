@@ -20,12 +20,12 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { pathToFileURL } from "node:url"
 import { resolve } from "node:path"
 import { makeNodeStore } from "@effect-agent/effect-planes"
+import { compileEffectBundle, entryFor, loadEffectBundle } from "../src/index.ts"
+import type { RuntimeCapabilities } from "../src/index.ts"
 import {
   ambientCapabilities, capabilitiesOf, capabilityGaps, describeCapabilities,
   makeClock, makeCrypto, requireCapability, sandboxCapabilities,
-} from "@effect-agent/effect-runtime"
-import { compileEffectBundle, entryFor, loadEffectBundle } from "../src/index.ts"
-import type { RuntimeCapabilities } from "../src/index.ts"
+} from "../src/index.ts"
 
 const APP = resolve(import.meta.dir, "fixtures/app-portable")
 const OUT = resolve(import.meta.dir, ".bundle-portable")

@@ -466,12 +466,13 @@ deckconsole、ui-host、ai-gateway-app、playground）。它们直接 `Bun.serve
 3. ~~运行时适配层~~ ✅ **已落地（2026-09-10，P3）**。能力词表与判定在
    `packages/effect-bundle/src/capabilities.ts`（`CAPABILITY_NAMES` = clock / storage / crypto / network、
    `capabilitiesOf`、`describeCapabilities`、`requireCapability`、`capabilityGaps`），
-   **构造器**在 `packages/effect-runtime/src/capabilities.ts`：
+   **构造器**在同包的 `packages/effect-bundle/src/runtime.ts`：
    `ambientCapabilities(runtime, overrides)`（os | browser：真时钟 + WebCrypto，存储缺省进程内存）
    与 `sandboxCapabilities(injected)`（**什么都不 ambient**——没被注入的时钟就是没有，哪怕进程里有）。
    两个构造器而非三个：os 与浏览器差在"能提供什么"，不差在 seam 怎么搭。
    **分开的理由是依赖方向**：loader（`effect-bundle`）必须在 import 之前就做拒绝，
-   所以词表与判定归它；它**不能**反向依赖 `effect-runtime`。
+   所以词表与判定归 `capabilities.ts`，构造器归 `runtime.ts`；loader 不 import 构造器，
+   于是"判定早于加载"是文件边界保证的，不需要靠包边界去撑。
 4. **沙箱承载完整 app**：**一半已落地（2026-09-10，P3）**。宿主那半有了——
    `loadEffectBundle` 接受 `runtime: "sandbox"` + `capabilities`，制品能在沙箱宿主里加载、执行、返回 disposer；
    `requires` 声明与 `capabilityGaps` 的拒绝 gate 就落在 `load.ts`
@@ -1049,14 +1050,14 @@ DesiredNode { node: Machine, revision, kernel?: BundleRef, apps: ResolvedNodeApp
 **P3 已落地（2026-09-10）——能力注入成了可执行的东西，不只是条文**：
 - `packages/effect-bundle/src/capabilities.ts` —— 词表与判定（`CAPABILITY_NAMES` /
   `capabilitiesOf` / `describeCapabilities` / `requireCapability` / `capabilityGaps`）。
-- `packages/effect-runtime/src/capabilities.ts` —— 构造器：`ambientCapabilities(runtime, overrides)` 与
+- `packages/effect-bundle/src/runtime.ts` —— 构造器：`ambientCapabilities(runtime, overrides)` 与
   `sandboxCapabilities(injected)`。**两个而非三个**：os 与浏览器差在"能提供什么"，不差在 seam 怎么搭。
 - `load.ts` 的 `assertCapabilityCompat` 紧挨 `assertBundleCompat` —— 拒绝 gate **只有一处**，
   与 §5 的 abi/runtime 同址；`requires` 是 app 自己的声明，宿主猜出来的需求不算需求。
 - `compile.ts` 按 manifest 的 `runtimes` 各出一份 `entry.<runtime>.js` 并与 `entry` 一起写进制品；
   **旧制品没有 `entries` 也照旧加载**（回落 `entry`），所以这不是一次破坏性变更。
-- 依赖方向被刻意摆正：判定归 `effect-bundle`（它必须在 import 前就拒绝），构造器归 `effect-runtime`，
-  后者依赖前者，反向依赖不存在——否则 loader 就得依赖运行时实现才能做门禁。
+- 依赖方向被刻意摆正：判定归 `capabilities.ts`（它必须在 import 前就拒绝），构造器归 `runtime.ts`，
+  loader 只 import 前者——否则 loader 就得依赖运行时实现才能做门禁。
 - 验收（`packages/effect-bundle/test/runtime-portability.test.ts`，fixture `fixtures/app-portable`）：
   同一制品在 os 宿主与 browser 宿主下 `stamp()` 结果**逐字段相等**（注入确定性时钟/密码学，
   所以"行为一致"不是"都跑起来了"）；空沙箱 `capabilitiesOf` 为 `[]` 而非"进程有什么就有什么"；

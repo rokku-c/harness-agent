@@ -24,9 +24,6 @@ export const ROOT_SCREEN = "root"
 /** The reserved root an entered screen's parameters live under. */
 export const NAV_ROOT = "/_nav"
 
-/** Where an entered screen's parameters are read from. Paths here are the runtime's, not a view's. */
-export const navParam = (name: string): string => `${NAV_ROOT}/${name}`
-
 /** The screen the app starts on, titled for the host's navigation bar. */
 const rootScreen = (view: EffectUiView, nodes: readonly UiNode[]): UiScreen =>
   ({ id: ROOT_SCREEN, title: view.title ?? view.viewId, nodes })
@@ -40,10 +37,6 @@ export const screensOf = (view: EffectUiView): readonly UiScreen[] => {
   const derived = view.screens === undefined ? deriveScreens(view, [ROOT_SCREEN]) : undefined
   return [rootScreen(view, derived?.lead ?? view.nodes), ...(view.screens ?? derived?.screens ?? [])]
 }
-
-/** The screen an id names, or `undefined` — a link to a screen that is gone lands where the caller says. */
-export const screenById = (screens: readonly UiScreen[], id: string | undefined): UiScreen | undefined =>
-  screens.find((screen) => screen.id === id)
 
 /**
  * The screens from the first one down to `id`, for a link that arrived cold:

@@ -1,5 +1,6 @@
 export * from "./compat.ts"
 export * from "./capabilities.ts"
+export * from "./runtime.ts"
 export * from "./kernel.ts"
 export * from "./kernel-manifest.ts"
 export * from "./repo.ts"

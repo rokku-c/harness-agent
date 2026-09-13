@@ -1,10 +1,11 @@
 /**
- * Runtime adapters — the injected capabilities of §7.2, built for each runtime.
+ * Runtime constructors — the other half of `capabilities.ts`.
  *
- * The vocabulary and the check live one line up in `@effect-agent/effect-bundle`
- * (they are adjudication, and the loader has to apply them before importing
- * anything). This file is the other half: *implementations*. How an OS host
- * builds a clock, and what a sandbox host is handed.
+ * `capabilities.ts` is the vocabulary and the check: what a host may provide,
+ * and whether it can provide what an artifact declared it needs. That half has
+ * to be adjudicated *before* anything is loaded, so it is the loader's. This
+ * half is the implementations: how an OS host builds a clock, and what a
+ * sandbox host is handed. Nothing imports it to decide anything — only to run.
  *
  * The distinction the constructors encode is the one that decides whether
  * "runs in a sandbox" is a fact or a slogan:
@@ -20,13 +21,8 @@
  */
 
 import { makeNodeStore } from "@effect-agent/effect-planes"
-import type { EffectRuntimeKind } from "@effect-agent/effect-bundle"
-import type { Clock, CryptoCapability, RuntimeCapabilities } from "@effect-agent/effect-bundle"
-
-export {
-  CAPABILITY_NAMES, capabilitiesOf, capabilityGaps, describeCapabilities, requireCapability,
-} from "@effect-agent/effect-bundle"
-export type { CapabilityName, Clock, CryptoCapability, RuntimeCapabilities } from "@effect-agent/effect-bundle"
+import type { EffectRuntimeKind } from "./compat.ts"
+import type { Clock, CryptoCapability, RuntimeCapabilities } from "./capabilities.ts"
 
 /** Build a {@link Clock} from whichever timer primitive the *host* has. */
 export const makeClock = (
@@ -37,14 +33,14 @@ export const makeClock = (
   return {
     now,
     after: (ms) => schedule === undefined
-      ? Promise.reject(new Error("effect-runtime: no timer is available to this host"))
+      ? Promise.reject(new Error("effect-bundle: no timer is available to this host"))
       : new Promise<void>((resolve) => { schedule(() => resolve(), ms) }),
   }
 }
 
 /** Build a {@link CryptoCapability} from a WebCrypto-shaped object. */
 export const makeCrypto = (webcrypto: Crypto | undefined = globalThis.crypto): CryptoCapability => {
-  if (webcrypto === undefined) throw new Error("effect-runtime: no WebCrypto is available to this host")
+  if (webcrypto === undefined) throw new Error("effect-bundle: no WebCrypto is available to this host")
   return {
     randomUUID: () => webcrypto.randomUUID(),
     digest: async (algorithm, data) => {

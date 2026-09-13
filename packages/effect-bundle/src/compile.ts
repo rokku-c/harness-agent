@@ -34,7 +34,7 @@ export interface CompileOptions {
  * `browser` for both browser and sandbox, deliberately: `--target browser`
  * forbids node builtins, which is what a sandbox needs from the *compiler*. The
  * difference between the two is not in the emitted bytes — it is in what the
- * host injects at load time (`effect-runtime`), and pretending otherwise by
+ * host injects at load time (`runtime.ts`), and pretending otherwise by
  * inventing a third build mode would misplace the distinction.
  */
 const BUILD_TARGET: Readonly<Record<EffectRuntimeKind, "bun" | "browser">> = {

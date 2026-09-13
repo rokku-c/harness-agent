@@ -30,7 +30,3 @@ export const resolveComponent = (name: string): ComponentType<never> | undefined
   }
   return isComponent(node) ? node as ComponentType<never> : undefined
 }
-
-/** Every name a view may use, for a client that wants to offer them. */
-export const radixNames = (): ReadonlyArray<string> =>
-  Object.keys(exports).filter((name) => isComponent(exports[name]))

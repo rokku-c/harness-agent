@@ -7,7 +7,8 @@
  * `compat.ts` because it is the same kind of thing — one adjudication over
  * declarations, computed before anything is loaded, with a verdict the loader
  * can act on. The *implementations* (an OS clock, a sandbox with only what was
- * injected) are `@effect-agent/effect-runtime`, one line down.
+ * injected) are `runtime.ts`, beside this file, which nothing imports to decide
+ * anything.
  *
  * Every field is optional on purpose: the honest model is "a host may lack any
  * of these". `sandbox` in particular is defined by lacking ambient power, so a

@@ -32,8 +32,8 @@ export interface UiActionSpec {
   /** The address to call. An action has this, `opens`, or both. */
   readonly url?: string
   /**
-   * A screen id to enter. The action's parameters become that screen's — read
-   * them through `navParam` (screen.ts) rather than by spelling the path.
+   * A screen id to enter. The action's parameters become that screen's, under
+   * the reserved root `/_nav` (screen.ts) — a screen reads them as state.
    */
   readonly opens?: string
   /** Request parameters. Action parameters supplied by a control take precedence. */

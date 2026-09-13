@@ -364,15 +364,6 @@
         "@effect-agent/effect-interface": "workspace:*",
       },
     },
-    "packages/effect-runtime": {
-      "name": "@effect-agent/effect-runtime",
-      "version": "0.0.0",
-      "dependencies": {
-        "@effect-agent/effect-bundle": "workspace:*",
-        "@effect-agent/effect-network": "workspace:*",
-        "@effect-agent/effect-planes": "workspace:*",
-      },
-    },
     "packages/effect-standalone": {
       "name": "@effect-agent/effect-standalone",
       "version": "0.0.0",
@@ -625,8 +616,6 @@
     "@effect-agent/effect-parity": ["@effect-agent/effect-parity@workspace:packages/effect-parity"],
 
     "@effect-agent/effect-planes": ["@effect-agent/effect-planes@workspace:packages/effect-planes"],
-
-    "@effect-agent/effect-runtime": ["@effect-agent/effect-runtime@workspace:packages/effect-runtime"],
 
     "@effect-agent/effect-server": ["@effect-agent/effect-server@workspace:apps/effect-server"],
 
