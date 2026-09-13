@@ -1,16 +1,22 @@
 export const states = [
-  { id: "todo", label: "待开始" }, { id: "doing", label: "进行中" },
-  { id: "blocked", label: "受阻" }, { id: "done", label: "已完成" },
-  { id: "cancelled", label: "已取消" },
+  { id: "todo", label: "To do" }, { id: "doing", label: "Doing" },
+  { id: "blocked", label: "Blocked" }, { id: "done", label: "Done" },
+  { id: "cancelled", label: "Cancelled" },
 ];
-export const viewNames = { board: "看板视图", tree: "层级视图", table: "列表视图" };
-export const store = { tasks: [], counts: {}, view: "board", query: "", state: "", loaded: false, collapsed: new Set() };
+export const viewNames = { board: "Board", tree: "Tree", table: "Table", calendar: "Calendar", documents: "Documents" };
+export const store = {
+  tasks: [], counts: {}, agents: [], runs: new Map(), view: "board", query: "", state: "",
+  loaded: false, collapsed: new Set(), month: new Date(),
+  documents: [], document: null, docLoaded: false, docFocus: undefined,
+};
+/** A parent's own state is what an operator set; what its children make of it is the rollup. */
+export const displayState = task => task.rollup?.state ?? task.state;
 export const stateLabel = id => states.find(state => state.id === id)?.label ?? id;
 export const taskMap = tasks => new Map(tasks.map(task => [task.id, task]));
 export function visibleTasks() {
   const query = store.query.trim().toLocaleLowerCase();
-  return store.tasks.filter(task => (!store.state || task.state === store.state) &&
-    (!query || [task.title, task.body, task.id].join(" ").toLocaleLowerCase().includes(query)))
+  return store.tasks.filter(task => (!store.state || displayState(task) === store.state) && (!query ||
+    [task.title, task.body, task.id, store.runs.get(task.id)?.agentId ?? ""].join(" ").toLocaleLowerCase().includes(query)))
     .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 }
 export function descendants(tasks, id) {
@@ -23,10 +29,4 @@ export function descendants(tasks, id) {
     }
   }
   return result;
-}
-export function formatTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", {
-    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
-  });
 }

@@ -17,6 +17,9 @@ for (const [field, value] of [
       registry.read("demo"), registry.save("demo", { limit: 8 })]) {
       expect(result.ok).toBe(false)
       expect(result.error).toContain("operator must rebuild")
+      // ...and the caller can act on that: the reason survives the registry's
+      // error boundary, so nothing downstream has to match on the message.
+      expect(result.reason).toBe("rebuild-required")
       expect(db.query("SELECT * FROM app_config").all()).toEqual(before)
     }
   } finally { db.close() }

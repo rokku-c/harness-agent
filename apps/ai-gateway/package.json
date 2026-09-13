@@ -9,6 +9,8 @@
     "effect": "^3.22.1",
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
-    "@effect-agent/effect-apps": "workspace:*"
+    "@effect-agent/effect-interface": "workspace:*",
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*"
   }
 }

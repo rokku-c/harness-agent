@@ -7,6 +7,8 @@
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",
+    "@effect-agent/effect-standalone": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "scripts": {"start": "bun src/hosts/web/main.ts", "start:mcp": "bun src/hosts/mcp/main.ts", "test": "bun test test/"}

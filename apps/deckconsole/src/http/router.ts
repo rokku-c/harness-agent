@@ -1,24 +1,27 @@
-import { sessions } from "../controller/sessions.ts"
-import { turns } from "../controller/turns.ts"
-import { launchers } from "../controller/launchers.ts"
-import { presets } from "../controller/presets.ts"
-import { consent } from "../controller/consent.ts"
-import { overview } from "../controller/overview.ts"
+/**
+ * The deck's one entry: the assets it serves, then its operations, then its own
+ * 404.
+ *
+ * Every domain route is an operation now, so this file routes and nothing more -
+ * a request no operation claimed is a path this deck does not have, and the
+ * answer to it stays the deck's own.
+ */
+import { toHttpHandler, type Operation } from "@effect-agent/effect-interface"
+import { deckFailure } from "../ops/refusal.ts"
 import { assets } from "./assets.ts"
-import { json } from "./protocol.ts"
-import type { DeckDomain } from "../domain/deck.ts"
 
-export const makeRouter = (domain: DeckDomain, basePath: string) => async (request: Request) => {
-  const url = new URL(request.url)
-  try {
-    const asset = await assets(request, url.pathname, basePath)
-    if (asset) return asset
-    for (const controller of [sessions, turns, launchers, presets, consent, overview]) {
-      const response = await controller(request, url, domain)
-      if (response) return response
+const json = (value: unknown, status: number): Response => Response.json(value, { status })
+
+export const makeRouter = (operations: readonly Operation[], basePath: string) => {
+  const api = toHttpHandler(operations, { onError: deckFailure })
+  return async (request: Request): Promise<Response> => {
+    const url = new URL(request.url)
+    try {
+      const asset = await assets(request, url.pathname, basePath)
+      if (asset) return asset
+      return (await api(request)) ?? json({ ok: false, detail: "not found " + request.method + " " + url.pathname }, 404)
+    } catch (error) {
+      return json({ ok: false, detail: error instanceof Error ? error.message : String(error) }, 500)
     }
-    return json({ ok: false, detail: "not found " + request.method + " " + url.pathname }, 404)
-  } catch (error) {
-    return json({ ok: false, detail: error instanceof Error ? error.message : String(error) }, 500)
   }
 }

@@ -1,13 +1,29 @@
 /**
  * HTTP integration: serve this string as text/html from the existing console route.
- * #rail + #panel are the ONLY id-bearing elements (client test pins doc order).
+ * The document is one empty root; every visible thing is a React tree the client
+ * bundle builds, so the page and the app cannot describe two different consoles.
+ *
+ * The two inline bits exist because the bundle is large and the browser paints
+ * before it runs. `color-scheme` decides the colour of the canvas the browser
+ * paints *behind* the app, and the design system only sets it once its theme
+ * element is in the DOM — so until then the canvas follows the operating system
+ * rather than the reader's chosen appearance, and a reader who chose Light on a
+ * dark machine sees the page flash dark on every load. Stamping the stored mode
+ * on the document element before first paint, and reading it in CSS, closes that
+ * window. The stamp uses the same rule the console uses: only an explicit
+ * "light" or "dark" is a decision, anything else is the system's.
  */
+const bootMode = `try{var m=localStorage.getItem("effect-theme");if(m==="light"||m==="dark")document.documentElement.dataset.themeMode=m}catch(e){}`
+
 export const consolePage: string = `<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <title>effect-agent · Console</title>
-<script src="/console-client.js" defer></script></head><body data-shell-view="home">
-<div class="status-bar" data-ui-role="status-bar"><button type="button" class="status-home" aria-label="Home">⌂</button><span class="status-title">effect-agent</span><span class="status-state">Loading system status…</span><span class="status-time" data-status-time></span><button type="button" class="status-theme" aria-label="Appearance">◐</button></div>
-<main class="c-body" data-ui-role="workspace"><nav id="rail" class="c-nav ui-role-dock" data-ui-role="dock" aria-label="App navigation"></nav><section id="panel" class="c-panel" data-ui-role="app-surface" aria-label="App content"></section></main>
-<button type="button" class="shell-menu" aria-label="Back to Home">☰</button>
-</body></html>`
+<script>${bootMode}</script>
+<link rel="stylesheet" href="/console-client.css">
+<style>
+html,body{height:100%;margin:0}#console-root{height:100%}
+html[data-theme-mode="light"]{color-scheme:light}
+html[data-theme-mode="dark"]{color-scheme:dark}
+</style>
+<script src="/console-client.js" defer></script></head><body><div id="console-root"></div></body></html>`

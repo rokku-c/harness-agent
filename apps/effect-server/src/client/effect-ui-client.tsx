@@ -1,33 +1,44 @@
 import * as React from "react"
+import "@radix-ui/themes/styles.css"
+import "./console-shell.css"
 import { createRoot } from "react-dom/client"
-import { JSONUIProvider, Renderer } from "@json-render/react"
 import { makeEffectUiRegistry } from "./effect-ui-catalog.tsx"
+import { EffectUiRuntime } from "./effect-ui-runtime.tsx"
+import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 import { makeConfigMount } from "./config-react-mount.tsx"
-import { injectStyleLayers, roleStyleCss } from "@effect-agent/effect-ui"
-import { consoleStyle } from "../console-browser-style.ts"
-import { consoleThemeCss } from "../console/theme.ts"
-import { consoleStylePlatform } from "../console-style-layer.ts"
+import { configComponents } from "./config-fields.tsx"
 import { createConfigApi } from "./config-api.ts"
-import { createConfigEdits } from "./config-edits.ts"
-import { describeConfigState } from "./config-state.ts"
-import { createConfigPanel } from "./config-panel.ts"
-import { createConsoleViews } from "./console-views.ts"
-import { installThemeRuntime } from "./theme-runtime.ts"
-import { bootConsole } from "./console-navigation.ts"
+import { createConsoleViews } from "./console-views.tsx"
+import { ConsoleShell } from "./console-shell.tsx"
+import { bootThemeMode } from "./theme-runtime.ts"
+import type { ConsoleSurfaces } from "./console-surfaces.ts"
 
-interface EffectUiApi { mount(container: HTMLElement, spec: unknown): void; mountConfig(container: HTMLElement, spec: unknown): ReturnType<ReturnType<typeof makeConfigMount>> }
+interface EffectUiApi {
+  /** Mounts a view and returns the only way to take it down again. */
+  mount(container: HTMLElement, runtime: EffectUiRuntimeSpec): () => void
+}
 declare global { interface Window { effectUi?: EffectUiApi } }
+
 const registry = makeEffectUiRegistry()
-const mountConfigSpec = makeConfigMount(registry)
-const render = (container: HTMLElement, spec: unknown) => createRoot(container).render(<JSONUIProvider registry={registry}><Renderer spec={spec as never} registry={registry} /></JSONUIProvider>)
-window.effectUi = { mount: (container, spec) => { container.replaceChildren(); render(container, spec) }, mountConfig: mountConfigSpec }
-const installStyleLayers = () => injectStyleLayers(document, [{ id: "theme", cssText: consoleThemeCss(), order: -100 }, { id: "ui-roles", cssText: roleStyleCss(), order: 0 }, { id: "console", cssText: consoleStyle, order: 10 }, { id: "console-platform", cssText: consoleStylePlatform, order: 20 }])
+window.effectUi = {
+  mount: (container, runtime) => {
+    container.replaceChildren()
+    const root = createRoot(container)
+    root.render(<EffectUiRuntime registry={registry} runtime={runtime} />)
+    return () => { root.unmount() }
+  },
+}
+
 const start = () => {
   let storage: Storage | undefined
   try { storage = window.localStorage } catch {}
-  installThemeRuntime(document.documentElement, document.querySelector<HTMLButtonElement>(".status-theme"), storage)
-  installStyleLayers()
-  const config = createConfigPanel(createConfigApi(window.fetch.bind(window)), mountConfigSpec, describeConfigState, createConfigEdits)
-  bootConsole(config, createConsoleViews())
+  bootThemeMode(storage)
+  const root = document.getElementById("console-root")
+  if (root === null) return
+  const surfaces: ConsoleSurfaces = {
+    view: createConsoleViews(),
+    config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(makeEffectUiRegistry(configComponents)) },
+  }
+  createRoot(root).render(<ConsoleShell surfaces={surfaces} />)
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start, { once: true }); else start()

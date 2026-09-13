@@ -32,7 +32,10 @@ export const cliInvocation = (
 ): { file: string; argv: ReadonlyArray<string> } => {
   const preset = presetMap[config.kind] ?? presetMap.custom
   const prefix: ReadonlyArray<string> = config.command !== undefined ? (config.args ?? []) : preset.argv(prompt)
-  return { file: config.command ?? preset.file, argv: [...prefix, prompt] }
+  // an empty prompt is not a turn: appending it would hand a command launch —
+  // `npm install -g …`, say — a stray empty argument it never asked for
+  const tail: ReadonlyArray<string> = prompt === "" ? [] : [prompt]
+  return { file: config.command ?? preset.file, argv: [...prefix, ...tail] }
 }
 
 export interface CliGatewayOptions {

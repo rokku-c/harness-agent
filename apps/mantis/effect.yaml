@@ -2,4 +2,3 @@ id: mantis
 title: Mantis (DingTalk agent)
 transport: inproc
 module: ./src/effect-app.ts
-requires: []

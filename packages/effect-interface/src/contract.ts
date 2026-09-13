@@ -34,6 +34,13 @@ export interface EffectApp {
   readonly resourceUri?: string
   /** host route where the app's LIVE UI is served (for the switcher). */
   readonly path?: string
+  /**
+   * How a host draws this app in its launcher: a short mark and one of the
+   * design system's colour names. The app declares them, so a host holds no
+   * table of app ids and adding an app never means editing the host.
+   */
+  readonly icon?: string
+  readonly color?: string
 }
 
 export interface EffectInterface {

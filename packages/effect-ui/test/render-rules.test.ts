@@ -11,17 +11,17 @@ import {
 const view: EffectUiView = {
   viewId: "d",
   nodes: [
-    { kind: "text", text: "A", bind: "/a" },
-    { kind: "text", text: "B", bind: "/a" },
-    { kind: "list", items: ["live work items", "resources & executors", "consent asks"] },
-    { kind: "button", label: "Board view", onPress: "board_view" },
+    { component: "Text", bind: "/a" },
+    { component: "Text", bind: "/a" },
+    { component: "Flex", repeat: { source: { state: "/work" } }, children: [{ component: "Text", item: "title" }] },
+    { component: "Button", props: { value: "Board view" }, onPress: "board_view" },
   ],
 }
 const actions = [{ name: "board_view", description: "kanban" }]
 
 test("tokenized projection symbolizes repeated values and marks collapse rules", () => {
   const contract = makeRenderContract(view, actions)
-  expect(contract.rules.collapsibleIds).toContain("2") // the List is collapsible
+  expect(contract.rules.collapsibleIds).toContain("2") // the repeating collection is collapsible
   expect(contract.refresh.default).toBe("partial")
 
   const tokens = contractToTokenized(contract, { a: "shared/very/long/ref" })

@@ -6,7 +6,6 @@ const expectEmpty = (host: ReturnType<typeof appHost>) => {
   expect(host.configs.list()).toEqual([])
   expect(host.registry.tools()).toEqual([])
   expect([...host.uiViews]).toEqual([])
-  expect([...host.uiHtml]).toEqual([])
   expect(host.host.list()).toEqual([])
 }
 
@@ -42,6 +41,13 @@ test("async plugin load failure rolls back every metadata registration and plugi
   expect(host.configs.get("board")).toBeDefined()
   load.reject(error)
   expect(await rejected).toBe(error)
+  expectEmpty(host)
+})
+
+test("descriptor UI rejects undeclared nodes and arbitrary embeds before registration", async () => {
+  const host = appHost()
+  const bad = { viewId: "bad", nodes: [{ kind: "embed", src: "data:text/html,<script></script>", title: "Bad" }] }
+  await expect(registerEffectApp(host, { ...descriptor(), ui: bad as never })).rejects.toThrow()
   expectEmpty(host)
 })
 

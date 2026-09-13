@@ -1,22 +1,46 @@
 import type { EffectPlugin, LoadedPlane } from "@effect-agent/effect-host"
-import { z } from "@effect-agent/effect-config"
-import { makeAgentdControl, type AgentdControl } from "@effect-agent/agentd"
-import type { EffectTool } from "@effect-agent/effect-interface"
+import {
+  makeAgentdControl, makeFactsRegistry, makeLaunchQueue, makeTunnel, type TunnelSend,
+} from "@effect-agent/agentd"
+import { effectConfig } from "./effect-config.ts"
+import { makeAgentdHandler } from "./handle.ts"
+import { makeAgentdTools } from "./ops/index.ts"
+import type { AppliedReport, NodeAppliedReport } from "./ops/surfaces.ts"
+import { seed } from "./seed.ts"
+import { makeStatus } from "./status.ts"
 
-const tool = (name: string, input: z.ZodType, handler: (args: unknown) => unknown): EffectTool => ({ name, input, handler })
-let runtimeControl: AgentdControl | undefined
-const tools = (control: AgentdControl): readonly EffectTool[] => [
-  tool("agentd_status", z.object({}).strict(), () => control.status()),
-  tool("agentd_register_machine", z.record(z.string(), z.unknown()), (args) => control.registerMachine(args as never)),
-  tool("agentd_register_agent", z.record(z.string(), z.unknown()), (args) => control.registerAgent(args as never)),
-  tool("agentd_register_mcp_server", z.record(z.string(), z.unknown()), (args) => control.registerServer(args as never)),
-  tool("agentd_upsert_mcpset", z.record(z.string(), z.unknown()), (args) => control.upsertSet(args as never)),
-  tool("agentd_bind", z.object({ agentId: z.string(), setIds: z.array(z.string()) }).strict(), (args) => { const value = args as { agentId: string; setIds: string[] }; return control.bindAgent(value.agentId, value.setIds) }),
-]
-export const createAgentdPlugin = (): EffectPlugin => ({
+export interface AgentdPluginOptions {
+  /**
+   * The platform's egress-bound send. It is the only way out of this app, so a
+   * tunnel without it refuses rather than reaching the network ungoverned.
+   */
+  readonly send?: TunnelSend
+}
+
+export const createAgentdPlugin = (getConfig: () => unknown = () => ({}), options: AgentdPluginOptions = {}): EffectPlugin => ({
   id: "agentd",
   load: async (): Promise<LoadedPlane> => {
-    const control = runtimeControl ??= makeAgentdControl()
-    return { tools: tools(control), handle: async (request) => Response.json({ app: "agentd", status: control.status() }) }
+    const parsed = effectConfig.schema.parse(getConfig())
+    // Node token and lease TTL (§8.5-1), when configured; absent is legal and reported.
+    const control = makeAgentdControl({
+      ...(parsed.nodeToken === undefined ? {} : { nodeToken: parsed.nodeToken }),
+      ...(parsed.leaseTtlMs === undefined ? {} : { leaseTtlMs: parsed.leaseTtlMs }),
+    })
+    const applied = new Map<string, AppliedReport>(), nodeApplied = new Map<string, NodeAppliedReport>()
+    const launches = makeLaunchQueue()
+    const facts = makeFactsRegistry()
+    // the tunnel belongs to the center too: which upstream an agent reaches is
+    // this machine's configuration, and how it leaves is the platform's egress
+    const tunnel = makeTunnel({
+      upstreams: parsed.tunnel,
+      ...(options.send === undefined ? {} : { send: options.send }),
+    })
+    seed(control, parsed)
+    // one surface object, so the tools and the routes are the same operations
+    const surfaces = { control, applied, nodeApplied, launches, tunnel, facts, status: makeStatus(control, applied, nodeApplied) }
+    return {
+      tools: makeAgentdTools(surfaces),
+      handle: makeAgentdHandler(surfaces),
+    }
   },
 })

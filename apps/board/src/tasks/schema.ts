@@ -1,12 +1,30 @@
 import { z } from "@effect-agent/effect-config"
 
 export const states = ["todo", "doing", "blocked", "done", "cancelled"] as const
+/** epoch milliseconds; a task with neither field is unscheduled and off-calendar */
+const moment = z.number().int().nonnegative()
+/**
+ * The patchable core, deliberately WITHOUT defaults: a default would make an
+ * omitted field parse as its default, so a patch that touches one field would
+ * silently erase every field it did not mention. Creation adds the defaults on
+ * top of this instead.
+ */
+const coreFields = {
+  title: z.string().trim().min(1).max(300), body: z.string(), state: z.enum(states),
+  dependsOn: z.array(z.string().min(1)), startAt: moment, dueAt: moment,
+}
 export const createTaskSchema = z.object({
-  title: z.string().trim().min(1).max(300), body: z.string().default(""),
-  state: z.enum(states).default("todo"), parentId: z.string().min(1).optional(),
+  ...coreFields,
+  body: z.string().default(""), state: z.enum(states).default("todo"),
   dependsOn: z.array(z.string().min(1)).default([]),
+  parentId: z.string().min(1).optional(), startAt: moment.optional(), dueAt: moment.optional(),
 }).strict()
-export const updateTaskSchema = createTaskSchema.partial().extend({ parentId: z.string().min(1).nullable().optional() }).strict()
+/** A patch accepts null to clear a field; an omitted field keeps its value. */
+export const updateTaskSchema = z.object({
+  ...coreFields,
+  parentId: z.string().min(1).nullable().optional(),
+  startAt: moment.nullable().optional(), dueAt: moment.nullable().optional(),
+}).partial().strict()
 export const taskSchema = createTaskSchema.extend({ id: z.string(), createdAt: z.number(), updatedAt: z.number() }).strict()
 export type Task = z.infer<typeof taskSchema>
 export type TaskInput = z.input<typeof createTaskSchema>

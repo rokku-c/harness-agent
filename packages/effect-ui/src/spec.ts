@@ -1,63 +1,95 @@
 /**
- * effect-ui spec — declarative UI contract types.
+ * Declarative UI contract.
  *
- * An effect app declares ONLY this contract (an EffectUiView of closed-union
- * UiNodeSpec nodes). It carries no renderer/component implementation details,
- * so renderers can be swapped behind the UiRenderer seam (see renderer.ts).
+ * A node names a @radix-ui/themes component and carries that component's own
+ * props. We do not define a component vocabulary — the design system does, and
+ * `component` is a path into its exports: `"Card"`, `"Badge"`, `"Table.Root"`.
+ * Adding a component to a view is naming it; there is no registry to extend.
+ *
+ * What this file adds is what a *live* view needs and a static one does not:
+ * where a value comes from, how a list repeats, when a node is shown, which
+ * declared action a press runs, and which screen that press enters. That is the
+ * whole of our layer — one conversion, no vocabulary of our own.
  */
 
-/** A single block of text. When `bind` is set, the projected value reads (and writes) render-time state instead of `text`. */
-export interface TextNode {
-  readonly kind: "text"
-  readonly id?: string
-  /** JSON pointer into render-time state; the projected `value` becomes `{ $bindState: bind }`. */
-  readonly bind?: string
-  readonly text: string
-}
+import type { UiActionSpec, UiSourceSpec } from "./data-spec.ts"
+import type { UiActionParam, UiRepeatSpec, UiVisibilitySpec } from "./value-spec.ts"
 
-/** A container that stacks children horizontally ("row") or vertically. */
-export interface StackNode {
-  readonly kind: "stack"
+export interface UiNode {
+  /** A `@radix-ui/themes` export, dotted for a subcomponent: `"Card"`, `"Table.Row"`. */
+  readonly component: string
+  /** That component's own props, passed through. */
+  readonly props?: Readonly<Record<string, unknown>>
+  readonly children?: readonly UiNode[]
   readonly id?: string
-  readonly children: readonly UiNodeSpec[]
-  readonly gap?: number
-  readonly direction?: "horizontal" | "vertical"
-}
-
-/** An interactive button with an optional press action name. */
-export interface ButtonNode {
-  readonly kind: "button"
-  readonly id?: string
-  /** JSON pointer into render-time state; when set the projected label two-way binds state. */
+  /** Live value read from view state, written to the prop named by `as`. */
   readonly bind?: string
-  readonly label: string
+  /** Live value read from the current repeat item, written to the prop named by `as`. */
+  readonly item?: string
+  /**
+   * Which prop a bound or item value lands in. Defaults to `value`, which the
+   * conversion layer renders where that component keeps its content — children
+   * for `Text` and `Button`, the control's own value for a field.
+   */
+  readonly as?: string
+  readonly repeat?: UiRepeatSpec
+  readonly visible?: UiVisibilitySpec
+  /** A declared action, run when the component's primary event fires. */
   readonly onPress?: string
+  readonly params?: Readonly<Record<string, UiActionParam>>
 }
 
-/** A labelled form input. */
-export interface FormFieldNode {
-  readonly kind: "formField"
-  readonly id?: string
-  readonly label: string
-  /** JSON pointer into render-time state; when set the projected `value` two-way binds state. */
-  readonly bind?: string
-  readonly value?: string
-  readonly placeholder?: string
+/** One node. Named for the union it used to be; a view is a list of these. */
+export type UiNodeSpec = UiNode
+
+/**
+ * One screen a view can be entered at: Android's Activity, iOS's view
+ * controller.
+ *
+ * A view is a tool surface, and a tool has functions — a fleet and the agent you
+ * picked out of it, a board and the task you opened. `nodes` is the screen the
+ * app starts on; these are the ones you enter from it, by a declared action that
+ * says `opens` (see data-spec.ts). A screen is the same node vocabulary as any
+ * other: nothing here is a second way to write a view.
+ */
+export interface UiScreen {
+  readonly id: string
+  readonly title: string
+  /**
+   * The screen a back control returns to. Absent means the one the app starts
+   * on, so a screen entered straight from there says nothing. It is declared for
+   * the chain — a log opened from an agent opened from a fleet — and its other
+   * use is a link that arrived cold: the host rebuilds the stack from it.
+   */
+  readonly parent?: string
+  readonly nodes: readonly UiNode[]
 }
 
-/** An ordered list of literal items. */
-export interface ListNode {
-  readonly kind: "list"
-  readonly id?: string
-  readonly items: readonly string[]
-}
+/**
+ * What the view is shaped like. A view is a tool surface and so is a screen by
+ * default: it fills the area the shell gives it, and says for itself which part
+ * of itself scrolls (see `region` in nodes.ts). `flow` is the opt-out, for the
+ * rare view that really is a document — one that should be exactly as tall as
+ * its content and carry the page's scrollbar. See `viewToJsonSpec` for the one
+ * place this is read.
+ */
+export type UiViewLayout = "screen" | "flow"
 
-/** Closed union of declarative node kinds an app view can contain. */
-export type UiNodeSpec = TextNode | StackNode | ButtonNode | FormFieldNode | ListNode
-
-/** A schema-exportable UI contract for one app view. */
+/** One schema-exportable app view with optional state, sources and actions. */
 export interface EffectUiView {
   readonly viewId: string
   readonly title?: string
-  readonly nodes: readonly UiNodeSpec[]
+  readonly layout?: UiViewLayout
+  readonly state?: Readonly<Record<string, unknown>>
+  readonly sources?: readonly UiSourceSpec[]
+  readonly actions?: readonly UiActionSpec[]
+  /** The screen the app starts on. */
+  readonly nodes: readonly UiNode[]
+  /**
+   * The other screens. A view that declares none is offered one screen per
+   * function where that can be read off `nodes` safely, and one screen where it
+   * cannot — see `screensOf`, which is the single answer to "how many screens
+   * does this view have".
+   */
+  readonly screens?: readonly UiScreen[]
 }

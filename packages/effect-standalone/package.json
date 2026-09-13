@@ -1,0 +1,19 @@
+{
+  "name": "@effect-agent/effect-standalone",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-interface": "workspace:*",
+    "@effect-agent/effect-mcp": "workspace:*",
+    "@effect-agent/effect-mcp-http": "workspace:*",
+    "@effect-agent/effect-network": "workspace:*",
+    "@effect-agent/mcp-registry": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  }
+}

@@ -6,3 +6,6 @@ config.toml
 .board-data/
 .effect-agent/
 .effect-bundles
+
+# app reload generations (see effect-server boot/reload.ts)
+.effect-reload

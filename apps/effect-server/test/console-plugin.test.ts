@@ -25,26 +25,38 @@ test("console catalogs registered apps and config apps", async () => {
 
   expect((await host.handle(req("/console"))).status).toBe(200)
 
-  const cat = await j<{ ui: Array<{ resourceUri: string; path?: string }>; config: Array<{ appId: string }>; systemUi: { elements: Record<string, { type: string }> } }>(await host.handle(req("/-/apps")))
+  const cat = await j<{ ui: Array<{ interfaceId?: string; resourceUri: string; path?: string }>; config: Array<{ appId: string }> }>(await host.handle(req("/-/apps")))
   expect(cat.ui[0].resourceUri).toBe("ui://apps/demo/console")
   expect(cat.ui[0].path).toBe("/demo")
   expect(cat.config.map((c) => c.appId)).toContain("board")
-  expect(cat.systemUi.elements["0"].type).toBe("Dock")
-  expect(cat.systemUi.elements["1"].type).toBe("Springboard")
+  expect(cat.ui.map((a) => a.interfaceId)).toEqual(["apps/demo", "activity", "settings"])
 })
 
 test("console serves a view DESCRIPTION (with json-render spec) for client rendering", async () => {
-  const view: EffectUiView = { viewId: "demo-view", title: "Demo view", nodes: [{ kind: "text", text: "hello view" }] }
+  const view: EffectUiView = { viewId: "demo-view", title: "Demo view", nodes: [{ component: "Text", props: { value: "hello view" } }] }
   const host = makePluginHost()
   await host.register(
     makeConsolePlugin({ registry: makeEffectRegistry(), configs: makeConfigRegistry(), uiViews: new Map([["demo-view", view]]) }),
   )
 
   const res = await host.handle(req("/console/api/view/demo-view"))
-  const data = await j<{ kind: string; view: { nodes: Array<{ text?: string }> }; jsonSpec: { root: string } }>(res)
+  const data = await j<{ kind: string; view: { nodes: Array<{ component: string }> }; screens: Array<{ id: string; spec: { root: string } }> }>(res)
   expect(data.kind).toBe("view")
-  expect(data.view.nodes[0].text).toBe("hello view")
-  expect(data.jsonSpec.root).toBe("root")
+  expect(data.view.nodes[0].component).toBe("Text")
+  expect(data.screens.map((screen) => [screen.id, screen.spec.root])).toEqual([["root", "root"]])
+})
+
+test("a route path never becomes an implicit UI", async () => {
+  const registry = makeEffectRegistry()
+  registry.registerInterface({
+    id: "path-only",
+    tools: [],
+    apps: [{ id: "console", title: "Path only", resourceUri: "ui://path-only/console", path: "/path-only" }],
+  })
+  const host = makePluginHost()
+  await host.register(makeConsolePlugin({ registry, configs: makeConfigRegistry() }))
+  const res = await host.handle(req("/console/api/view/path-only"))
+  expect(res.status).toBe(404)
 })
 
 test("console config API imports YAML once and Save updates the authoritative value", async () => {

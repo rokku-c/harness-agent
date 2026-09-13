@@ -1,4 +1,4 @@
-import { states, taskMap } from "./state.js";
+import { displayState, states, taskMap } from "./state.js";
 import { el, button } from "./dom.js";
 import { taskCard } from "./cards.js";
 export function boardView(tasks, allTasks, onEdit, onCreate) {
@@ -7,15 +7,15 @@ export function boardView(tasks, allTasks, onEdit, onCreate) {
     const column = el("section", "board-column");
     column.dataset.state = state.id;
     column.setAttribute("aria-label", state.label);
-    const items = tasks.filter(task => task.state === state.id);
+    const items = tasks.filter(task => displayState(task) === state.id);
     const heading = el("div", "column-heading"), title = el("div", "column-title");
     title.append(el("span", "column-dot"), el("h3", "", state.label), el("span", "column-count", items.length));
     const add = button("＋", "column-add", () => onCreate({ state: state.id }));
-    add.setAttribute("aria-label", `新建${state.label}任务`);
+    add.setAttribute("aria-label", `New ${state.label} task`);
     heading.append(title, add); column.append(heading);
     const list = el("div", "card-list");
     for (const task of items) list.append(taskCard(task, lookup, onEdit));
-    if (!items.length) list.append(el("div", "column-empty", "暂无任务"));
+    if (!items.length) list.append(el("div", "column-empty", "No tasks"));
     column.append(list); board.append(column);
   }
   return board;

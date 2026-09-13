@@ -1,3 +1,5 @@
+import type { Authz, Principal } from "@effect-agent/effect-authz"
+import { principalKey } from "@effect-agent/effect-authz"
 import type { EffectRegistry } from "@effect-agent/effect-interface"
 import type { NodeStore } from "./store.ts"
 
@@ -14,11 +16,14 @@ export interface PlanesNode {
 export interface Planes {
   registerNode(node: PlanesNode): () => void
   listNodes(): readonly PlanesNode[]
-  grant(fromNs: string, toNs: string, scopes: readonly PlaneScope[]): void
-  revoke(fromNs: string, toNs: string, scopes: readonly PlaneScope[]): void
-  can(callerNs: string, toNs: string, scope: PlaneScope): boolean
-  readInterface(callerNs: string, ns: string, appId: string): unknown
-  readUi(callerNs: string, ns: string, appId: string): unknown
-  readStore(callerNs: string, ns: string, appId: string, key: string): unknown
-  writeStore(callerNs: string, ns: string, appId: string, key: string, value: unknown): void
+  /** Grants `caller` the scopes over every node in `toNs`. */
+  grant(caller: Principal, toNs: string, scopes: readonly PlaneScope[]): void
+  revoke(caller: Principal, toNs: string, scopes: readonly PlaneScope[]): void
+  can(caller: Principal, toNs: string, scope: PlaneScope): boolean
+  /** The one decision engine every plane check runs through. */
+  readonly authz: Authz
+  readInterface(caller: Principal, ns: string, appId: string): unknown
+  readUi(caller: Principal, ns: string, appId: string): unknown
+  readStore(caller: Principal, ns: string, appId: string, key: string): unknown
+  writeStore(caller: Principal, ns: string, appId: string, key: string, value: unknown): void
 }

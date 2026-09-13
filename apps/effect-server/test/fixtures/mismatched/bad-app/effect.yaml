@@ -1,0 +1,4 @@
+id: bad-app
+title: Bad app
+transport: inproc
+module: ./plugin.ts

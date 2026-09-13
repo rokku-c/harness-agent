@@ -4,59 +4,45 @@ import { viewToJsonSchema, viewToJsonSpec, type EffectUiView } from "../src/inde
 
 const valueOf = (element: { props: Record<string, unknown> }, key: string): unknown => element.props[key]
 
-test("text node with bind projects value as { $bindState } instead of the static string", () => {
-  const view: EffectUiView = { viewId: "bind-text", nodes: [{ kind: "text", text: "static", bind: "/title" }] }
-  const spec = viewToJsonSpec(view)
-  const textEl = Object.values(spec.elements).find((element) => element.type === "Text")
-  expect(textEl).toBeDefined()
-  expect(valueOf(textEl!, "value")).toEqual({ $bindState: "/title" })
-})
-
-test("formField with bind renders Input value as { $bindState }", () => {
+test("a bound node writes the binding into the prop it named, not the literal it was given", () => {
   const view: EffectUiView = {
-    viewId: "bind-form",
-    nodes: [{ kind: "formField", label: "Name", value: "old", bind: "/form/name" }],
-  }
-  const spec = viewToJsonSpec(view)
-  const inputEl = Object.values(spec.elements).find((element) => element.type === "Input")
-  expect(inputEl).toBeDefined()
-  expect(valueOf(inputEl!, "label")).toBe("Name")
-  expect(valueOf(inputEl!, "value")).toEqual({ $bindState: "/form/name" })
-})
-
-test("nodes without bind keep static string props (regression)", () => {
-  const view: EffectUiView = {
-    viewId: "bind-static",
+    viewId: "bind-text",
     nodes: [
-      { kind: "text", text: "hi" },
-      { kind: "button", label: "Go", onPress: "go" },
-      { kind: "formField", label: "Name", value: "Ada" },
-      { kind: "formField", label: "Empty" },
+      { component: "Text", props: { value: "static" }, bind: "/title" },
+      { component: "TextField.Root", props: { placeholder: "Name", value: "old" }, bind: "/form/name" },
     ],
   }
   const spec = viewToJsonSpec(view)
-  const leaf = Object.values(spec.elements).filter((element) => element.type !== "Stack")
-  const text = leaf.find((element) => element.type === "Text")!
-  const button = leaf.find((element) => element.type === "Button")!
-  const inputs = leaf.filter((element) => element.type === "Input")
-  expect(valueOf(text, "value")).toBe("hi")
-  expect(valueOf(button, "label")).toBe("Go")
-  expect(valueOf(inputs[0], "value")).toBe("Ada")
-  expect("value" in inputs[1].props).toBe(false)
+  const text = Object.values(spec.elements).find((element) => element.type === "Text")
+  const field = Object.values(spec.elements).find((element) => element.type === "TextField.Root")
+  expect(text).toBeDefined()
+  expect(valueOf(text!, "value")).toEqual({ $bindState: "/title" })
+  expect(valueOf(field!, "placeholder")).toBe("Name")
+  expect(valueOf(field!, "value")).toEqual({ $bindState: "/form/name" })
 })
 
-test("viewToJsonSchema keeps bind optional on text/button/formField and excludes it from required", () => {
-  const schema = viewToJsonSchema() as unknown as {
-    $defs?: Record<string, { oneOf?: Array<{ properties: Record<string, unknown>; required?: string[] }> }>
+test("nodes without a live value keep every static prop untouched (regression)", () => {
+  const view: EffectUiView = {
+    viewId: "bind-static",
+    nodes: [
+      { component: "Text", props: { value: "hi" } },
+      { component: "Button", props: { value: "Go", variant: "soft" }, onPress: "go" },
+      { component: "TextField.Root", props: { value: "Ada" } },
+    ],
   }
-  const union = Object.values(schema.$defs ?? {}).find((def) => def.oneOf !== undefined)
-  const byKind = new Map<string, { properties: Record<string, unknown>; required?: string[] }>()
-  for (const member of union?.oneOf ?? []) {
-    byKind.set((member.properties.kind as { const: string }).const, member)
-  }
-  for (const kind of ["text", "button", "formField"]) {
-    const member = byKind.get(kind)
-    expect(member?.properties.bind).toEqual({ type: "string" })
-    expect(member?.required?.includes("bind")).toBe(false)
-  }
+  const spec = viewToJsonSpec(view)
+  const text = Object.values(spec.elements).find((element) => element.type === "Text")!
+  const button = Object.values(spec.elements).find((element) => element.type === "Button")!
+  const field = Object.values(spec.elements).find((element) => element.type === "TextField.Root")!
+  expect(valueOf(text, "value")).toBe("hi")
+  expect(button.props).toEqual({ value: "Go", variant: "soft" })
+  expect(valueOf(field, "value")).toBe("Ada")
+})
+
+test("the exported schema keeps every directive optional: a static document is still a document", () => {
+  const schema = viewToJsonSchema() as unknown as { properties: { nodes: { items?: Record<string, unknown> } } }
+  const exported = JSON.stringify(schema)
+  for (const directive of ["bind", "item", "repeat", "visible", "onPress"]) expect(exported).toContain(`"${directive}"`)
+  const staticView: EffectUiView = { viewId: "s", nodes: [{ component: "Text", props: { value: "hello" } }] }
+  expect(viewToJsonSpec(staticView).elements["0"].props).toEqual({ value: "hello" })
 })

@@ -52,6 +52,8 @@ test("unknown kinds, duplicate sessions, unknown sessions and malformed requests
   expect((await app.request("/api/session/missing/send", { text: "hi" })).status).toBe(404)
   expect((await app.request("/api/session/missing/retry", {})).status).toBe(404)
   const bad = await app.handle(new Request("http://deck/api/session", { method: "POST", body: "{" }))
-  expect(bad.status).toBe(500)
+  // the body reader refuses a body it cannot parse: a caller's mistake is a 400,
+  // and it reaches the router's own 500 only when the failure is this server's
+  expect(bad.status).toBe(400)
   expect(await bad.json()).toMatchObject({ ok: false })
 }))

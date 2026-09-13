@@ -17,7 +17,7 @@ test("dispose waits for unload, is idempotent, and cleans up in reverse registra
     const dispose = registerInterface(iface)
     return () => { events.push("interface"); dispose() }
   }
-  for (const [map, label] of [[host.uiViews, "view"], [host.uiHtml, "html"]] as const) {
+  for (const [map, label] of [[host.uiViews, "view"]] as const) {
     const remove = map.delete.bind(map)
     spyOn(map, "delete").mockImplementation((key) => { events.push(label); return remove(key) })
   }
@@ -35,7 +35,7 @@ test("dispose waits for unload, is idempotent, and cleans up in reverse registra
   wait.resolve()
   await first
   await dispose()
-  expect(events).toEqual(["stop:start", "stop:end", "interface", "html", "view", "config"])
+  expect(events).toEqual(["stop:start", "stop:end", "interface", "view", "config"])
   expect(stop).toHaveBeenCalledTimes(1)
   expect(host.host.list()).toEqual([])
   expect(host.uiViews.size).toBe(0)
@@ -58,5 +58,4 @@ test("disposal exceptions propagate, subsequent calls share failure, and cleanup
   expect(host.configs.list()).toEqual([])
   expect(host.registry.tools()).toEqual([])
   expect(host.uiViews.size).toBe(0)
-  expect(host.uiHtml.size).toBe(0)
 })

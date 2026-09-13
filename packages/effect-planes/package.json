@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@effect-agent/effect-authz": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*"
   }
 }

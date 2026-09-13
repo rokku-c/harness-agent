@@ -2,4 +2,3 @@ id: ai-gateway
 title: OpenAI-compatible model proxy
 transport: inproc
 module: ./src/effect-app.ts
-requires: []

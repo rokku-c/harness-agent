@@ -2,7 +2,6 @@ import type { BindingExpression, Json, UINode } from "@effect-agent/ui-protocol"
 import type { UIRuntime } from "@effect-agent/ui-runtime"
 import type { DefinitionStore } from "@effect-agent/ui-definition"
 export { uiBinding } from "./binding.ts"
-export { makeUIMcp } from "./mcp.ts"
 
 export interface UIAgentOps {
   createCanvas(canvasId: string, title: string): void

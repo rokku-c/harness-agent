@@ -1,11 +1,13 @@
 import type { HostRoute } from "./plugin.ts"
 import type { PluginLifecycle } from "./lifecycle.ts"
+import type { HostOperationTarget } from "./operations.ts"
 import { matchesHostRoute, matchesPlugin } from "./routes.ts"
 import { controlRequest } from "./control.ts"
 import { errorDetail, json } from "./response.ts"
 
 export const dispatchRequest = async (
-  request: Request, lifecycle: PluginLifecycle, routes: readonly HostRoute[], control: boolean,
+  request: Request, lifecycle: PluginLifecycle & HostOperationTarget,
+  routes: readonly HostRoute[], control: boolean,
 ): Promise<Response> => {
   const path = new URL(request.url).pathname
   if (control) {

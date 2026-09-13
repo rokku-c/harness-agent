@@ -38,8 +38,19 @@ const renderNode = (node: ResolvedNode, context: RendererContext): string => {
   const click = action === undefined ? "" : ` data-action="${escape(context.onAction?.(action) ?? action)}"`
   if (node.type === "Text") return `<span${attrs(node.resolvedProps)}${click}>${escape(node.resolvedProps.value)}</span>`
   if (node.type === "Button") return `<button${attrs(node.resolvedProps)}${click}>${escape(node.resolvedProps.label ?? node.resolvedProps.value)}</button>`
+  if (node.type === "Preview") return renderPreview(node.resolvedProps)
   if (node.type === "CanvasRef") return `<section data-canvas-ref="${escape(node.resolvedProps.targetCanvasId)}"${click}>${children}</section>`
   return `<div data-component="${escape(node.type)}"${attrs(node.resolvedProps)}${click}>${children}</div>`
+}
+
+const renderPreview = (props: Record<string, unknown>): string => {
+  const value = typeof props.value === "object" && props.value !== null ? props.value as Record<string, unknown> : {}
+  const height = props.height === undefined ? "" : ` style="height:${escape(props.height)}"`
+  if (typeof value.error === "string") return `<pre data-component="Preview"${height}>${escape(value.error)}</pre>`
+  if (typeof value.body !== "string") return `<div data-component="Preview"${height}>Select a ui:// resource to preview.</div>`
+  if (value.kind === "html") return `<iframe data-component="Preview" title="${escape(value.uri ?? "Resource preview")}" sandbox="allow-scripts" srcdoc="${escape(value.body)}"${height}></iframe>`
+  if (value.kind === "image") return `<img data-component="Preview" alt="${escape(value.uri ?? "Resource preview")}" src="data:${escape(value.mimeType ?? "image/png")};base64,${escape(value.body)}"${height} />`
+  return `<pre data-component="Preview"${height}>${escape(value.body)}</pre>`
 }
 
 export const webRenderer: Renderer = {

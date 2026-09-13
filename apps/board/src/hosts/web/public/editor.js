@@ -8,7 +8,7 @@ export function createEditor(getTasks, onChange) {
     busy = value;
     $("#editor-fields").disabled = value;
     for (const id of ["save-button", "delete-button", "editor-close", "editor-cancel"]) $("#" + id).disabled = value;
-    $("#save-button").textContent = value ? "正在保存…" : current ? "保存修改" : "创建任务";
+    $("#save-button").textContent = value ? "Saving…" : current ? "Save changes" : "Create task";
   }
   function close() { if (!busy) dialog.close(); }
   $("#editor-close").addEventListener("click", close);
@@ -22,17 +22,17 @@ export function createEditor(getTasks, onChange) {
       const body = readEditor(Boolean(current));
       setBusy(true);
       const task = current ? await updateTask(current.id, body) : await createTask(body);
-      dialog.close(); notify(current ? "任务已更新" : "任务已创建");
+      dialog.close(); notify(current ? "Task updated" : "Task created");
       onChange({ task });
     } catch (error) { showError($("#editor-error"), error); }
     finally { setBusy(false); }
   });
   $("#delete-button").addEventListener("click", async () => {
-    if (busy || !current || !window.confirm(`确定删除「${current.title}」？此操作无法撤销。`)) return;
+    if (busy || !current || !window.confirm(`Delete "${current.title}"? This cannot be undone.`)) return;
     showError($("#editor-error")); setBusy(true);
     try {
       await deleteTask(current.id);
-      dialog.close(); notify("任务已删除"); onChange({ deletedId: current.id });
+      dialog.close(); notify("Task deleted"); onChange({ deletedId: current.id });
     } catch (error) { showError($("#editor-error"), error); }
     finally { setBusy(false); }
   });
@@ -40,7 +40,7 @@ export function createEditor(getTasks, onChange) {
     open(task, defaults = {}) {
       current = task;
       fillEditor(task, getTasks(), defaults);
-      $("#editor-heading").textContent = task ? "编辑任务" : "新建任务";
+      $("#editor-heading").textContent = task ? "Edit task" : "New task";
       $("#editor-kicker").textContent = task ? "TASK DETAILS" : "NEW TASK";
       $("#delete-button").hidden = !task;
       showError($("#editor-error")); setBusy(false);

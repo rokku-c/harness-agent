@@ -1,8 +1,13 @@
 import type { EffectPlugin, LoadedPlane } from "@effect-agent/effect-host"
 import type { AppRuntimeContext } from "@effect-agent/effect-apps"
 import { serveMcpHttp } from "@effect-agent/effect-mcp-http"
+import { toEffectTools, toHttpHandler } from "@effect-agent/effect-interface"
 import { makeMcpGateway, buildMcpGatewayServer, makeMcpSetRegistry, makeRegistryHttpUpstream, makeRegistrySetResolver } from "@effect-agent/mcp-gateway"
 import { effectConfig } from "./effect-config.ts"
+import { makeAuditLog, type AccessConfig } from "./access-audit.ts"
+import { mcpGatewayOperations, type GatewaySurfaces } from "./ops.ts"
+
+const notFound = (): Response => Response.json({ ok: false, error: "Not found" }, { status: 404 })
 
 export const createMcpGatewayPlugin = (getConfig: () => unknown, context: AppRuntimeContext): EffectPlugin => ({
   id: "mcp-gateway", priority: 20,
@@ -12,18 +17,18 @@ export const createMcpGatewayPlugin = (getConfig: () => unknown, context: AppRun
     const config = effectConfig.schema.parse(getConfig()), sets = makeMcpSetRegistry({ resolver: makeRegistrySetResolver(registry) })
     for (const set of config.sets) sets.registerSet(set)
     for (const binding of config.bindings) sets.bindAgent(binding)
-    const upstream = makeRegistryHttpUpstream({ registry, fetch: context.fetch })
-    const gateway = makeMcpGateway({ setRegistry: sets, upstream, defaultAction: config.defaultAction, captureArgs: config.captureArgs })
+    const upstream = makeRegistryHttpUpstream({ registry, fetch: context.fetch }), audit = makeAuditLog()
+    const gateway = makeMcpGateway({ setRegistry: sets, upstream, defaultAction: config.defaultAction, captureArgs: config.captureArgs, recorder: audit })
     const mcp = serveMcpHttp(() => Promise.resolve(buildMcpGatewayServer(gateway)))
-    const topology = () => ({ servers: registry.list(), sets: config.sets, bindings: config.bindings })
+    // one list, two projections: what the console reads and what an agent calls
+    // are the same declarations, so a preview cannot mean two different things
+    const operations = mcpGatewayOperations({ config: config as AccessConfig, registry, audit } satisfies GatewaySurfaces)
+    const console = toHttpHandler(operations)
+    const serving = (request: Request): Response | Promise<Response> | undefined =>
+      new URL(request.url).pathname === "/mcp-gateway" && request.method === "POST" ? mcp(request) : undefined
     return {
-      tools: [{ name: "mcp_gateway_topology", input: effectConfig.schema.pick({}).strict(), handler: topology }],
-      handle: async (request) => {
-        const path = new URL(request.url).pathname
-        if (path === "/mcp-gateway" && request.method === "GET") return Response.json({ app: "mcp-gateway", ...topology() })
-        if (path === "/mcp-gateway" && request.method === "POST") return mcp(request)
-        return Response.json({ ok: false, error: "Not found" }, { status: 404 })
-      },
+      tools: toEffectTools(operations),
+      handle: async (request) => (await console(request)) ?? serving(request) ?? notFound(),
       stop: () => upstream.close(),
     }
   },

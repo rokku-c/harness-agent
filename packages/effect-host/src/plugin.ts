@@ -1,4 +1,5 @@
 import type { RoutePattern, RegisteredRoute } from "./routes.ts"
+import type { HostReloadResult } from "./operations.ts"
 /**
  * effect-host plugin contract — the ONLY thing the host knows about the world.
  *
@@ -48,6 +49,12 @@ export interface EffectPluginHost {
   enable(id: string): Promise<boolean>
   disable(id: string): Promise<boolean>
   isEnabled(id: string): boolean
+  /**
+   * Re-read one node's code from source (§6.4). Optional: a host owns the
+   * lifecycle of plugins, but only the composition root knows where their code
+   * lives. Without it `/-/planes/:id/reload` refuses instead of pretending.
+   */
+  reload?(id: string): Promise<HostReloadResult>
   /** register a request route (dispatched before plugins); returns disposer. */
   registerRoute(route: HostRoute): () => void
   /** route one incoming request through the enabled, loaded plugins. */

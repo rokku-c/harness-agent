@@ -1,0 +1,113 @@
+/**
+ * The console shell's own chrome: the dock, and the way back out of an app.
+ *
+ * A floating launcher is the one thing the design system has no component for,
+ * so it is written here — in the design system's own tokens, and without naming
+ * a single colour. An app's tile takes the palette the app declared for itself;
+ * the chrome takes the theme's surface, line and accent. Light and dark both
+ * follow from that, with no second definition to keep in step.
+ */
+:root { --dock-height: 112px; --dock-lift: 0.875rem }
+
+.shell-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: none }
+.shell-body::-webkit-scrollbar { display: none }
+/* The dock floats over the page, so the page keeps room for it. */
+.shell-body[data-shell-view="home"] { padding-bottom: calc(var(--dock-height) + var(--dock-lift) + var(--space-5)) }
+
+/**
+ * An app surface is a screen, not a document: it is exactly as tall as the area
+ * the chrome leaves, so a view can lay itself out against a known height and
+ * say which of its own parts scrolls (see `region` in @effect-agent/effect-ui).
+ * `.shell-body` keeps its scrollbar and stays the only scroller — a view that
+ * overflows this chain simply scrolls there, exactly as it did before.
+ *
+ * Scoped to an app route, because a document screen — settings, a config form —
+ * wants the opposite: as tall as its content, and the class is inert there. Each
+ * link is one of ours; the design system's own `Theme` is given this class
+ * rather than a layout prop, because it takes a className and not a height.
+ */
+.shell-body[data-shell-view="app"] .view-fill { height: 100%; min-height: 0; display: flex; flex-direction: column }
+
+/**
+ * The panes an app's screens are shown in: two at the design system's own `md`,
+ * one below it, which is a split view controller collapsing on a compact size
+ * class. The width decides, so there is no listener and nothing to keep in step
+ * with the layout — and the app's own `md:` layouts switch at the same width,
+ * because it is the same breakpoint.
+ *
+ * Every rule here is a height link. A spec is laid out against the height it is
+ * given (`frame()` in @effect-agent/effect-ui), so a pane that does not pass its
+ * height down is a view that can no longer say which of its own parts scrolls.
+ * The pane beneath is hidden rather than dropped, so entering a screen and
+ * leaving it again costs no refetch, and its spec is rendered by the same
+ * renderer as any other.
+ */
+.screen-panes { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: var(--space-5) }
+.screen-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0 }
+.screen-parent { display: none; flex-direction: column; min-width: 0; min-height: 0 }
+/* The pane's own scroller, so a document-shaped view scrolls where it is drawn rather than moving the shell. */
+.screen-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto }
+.screen-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3) }
+.screen-bar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.screen-menu { flex: none; display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3) }
+
+@media (min-width: 1024px) {
+  .screen-panes[data-split="on"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) }
+  .screen-panes[data-split="on"] > .screen-parent { display: flex }
+}
+
+.shell-dock {
+  position: fixed; z-index: 30; left: 50%; bottom: max(var(--dock-lift), env(safe-area-inset-bottom));
+  transform: translateX(-50%); display: flex; align-items: flex-start; gap: var(--space-2);
+  width: max-content; max-width: calc(100vw - 20px); height: var(--dock-height);
+  box-sizing: border-box; padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--gray-a5); border-radius: var(--radius-6);
+  background: var(--color-panel-translucent); box-shadow: var(--shadow-6);
+  backdrop-filter: blur(24px) saturate(1.35);
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+}
+.shell-dock::-webkit-scrollbar { display: none }
+
+.shell-dock-item {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+  flex: none; width: 86px; height: 88px; min-height: 88px; padding: 0;
+  border: 0; border-radius: var(--radius-4); background: transparent; color: var(--gray-12);
+  cursor: pointer; transition: transform .18s ease, background .18s ease;
+}
+.shell-dock-item:hover { background: var(--gray-a3); transform: translateY(-3px) }
+.shell-dock-item[aria-current="page"] { background: var(--accent-a3) }
+.shell-dock-item[aria-current="page"]::after {
+  content: ""; position: absolute; bottom: -5px; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--accent-9);
+}
+.shell-dock-icon {
+  display: grid; place-items: center; width: 68px; height: 68px; border-radius: var(--radius-5);
+  background-image: linear-gradient(180deg, var(--tile-9, var(--accent-9)), var(--tile-10, var(--accent-10)));
+  color: #fff; font-size: 27px; font-weight: 700; line-height: 1; box-shadow: var(--shadow-3);
+}
+.shell-dock-label {
+  max-width: 86px; font-size: var(--font-size-2); font-weight: 600; line-height: 1.15;
+  text-align: center; overflow-wrap: anywhere;
+}
+.shell-dock-divider { flex: none; align-self: center; width: 1px; height: 34px; margin: 0 var(--space-1); background: var(--gray-a5) }
+
+/* In an app the dock is gone and the surface belongs to the app; this is the way back. */
+.shell-menu {
+  position: fixed; z-index: 30; right: max(var(--space-5), env(safe-area-inset-right));
+  bottom: max(var(--space-5), env(safe-area-inset-bottom));
+  display: grid; place-items: center; width: 58px; height: 58px; padding: 0;
+  border: 1px solid var(--gray-a5); border-radius: 50%;
+  background: var(--color-panel-translucent); box-shadow: var(--shadow-5);
+  backdrop-filter: blur(22px) saturate(1.35);
+  color: var(--accent-9); font-size: 24px; line-height: 1; cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  :root { --dock-height: 100px }
+  .shell-dock { gap: var(--space-1); padding: var(--space-2) 6px }
+  .shell-dock-item { width: 72px; height: 80px; min-height: 80px; border-radius: var(--radius-3) }
+  .shell-dock-icon { width: 64px; height: 64px; border-radius: var(--radius-4); font-size: 24px }
+  .shell-dock-label { max-width: 72px; font-size: 10px; line-height: 1.1 }
+  .shell-menu { width: 54px; height: 54px }
+}
+@media (prefers-reduced-motion: reduce) { .shell-dock-item { transition: none } }

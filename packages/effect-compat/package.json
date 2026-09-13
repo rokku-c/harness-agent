@@ -1,0 +1,9 @@
+{
+  "name": "@effect-agent/effect-compat",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {}
+}

@@ -1,6 +1,6 @@
 export { makeBoard } from "./board.ts"
 export type { BoardApi } from "./board.ts"
-export { makeBoardTools } from "./tools.ts"
+export { makeBoardTools, boardOperations } from "./api.ts"
 export { makeBoardWeb } from "./hosts/web/server.ts"
 export { makeBoardMcp } from "./hosts/mcp/board-mcp.ts"
 export { BoardError, states } from "./tasks/schema.ts"

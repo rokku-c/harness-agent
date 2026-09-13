@@ -1,0 +1,7 @@
+id: herdr
+title: Herdr console (/herdr)
+transport: inproc
+module: ./src/effect-app.ts
+config:
+  socketPath: ~/.config/herdr/herdr.sock
+  timeoutMs: 10000

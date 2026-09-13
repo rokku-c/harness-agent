@@ -1,5 +1,7 @@
 /** MCP gateway contracts: routing, policy, proxying, and audit. */
-export type McpGatewayEventType = "call" | "rule" | "response" | "error"
+import type { Authz, Principal } from "@effect-agent/effect-authz"
+
+export type McpGatewayEventType = "call" | "authz" | "rule" | "response" | "error"
 export type RuleDecision = "allow" | "deny" | "log"
 
 export interface McpGatewayContext {
@@ -7,6 +9,8 @@ export interface McpGatewayContext {
   readonly agent?: string
   readonly session?: string
   readonly requestId?: string
+  /** The resolved caller. Required once `authz` is configured. */
+  readonly principal?: Principal
   readonly setId?: string
   readonly serverId?: string
   readonly tool?: string
@@ -18,6 +22,8 @@ export interface McpGatewayEvent {
   readonly type: McpGatewayEventType
   readonly at: number
   readonly agent?: string
+  /** Principal key, e.g. `user:alice` — the axis audit is grouped by. */
+  readonly principal?: string
   readonly setId?: string
   readonly serverId?: string
   readonly tool?: string
@@ -57,6 +63,11 @@ export interface McpGatewayOptions {
   readonly recorder?: McpGatewayRecorder
   readonly resolver?: McpServerResolver
   readonly setRegistry?: McpSetRegistry
+  /**
+   * Per-principal enforcement. Absent means the gateway runs unguarded, which
+   * is the pre-convergence posture; the external door must set it.
+   */
+  readonly authz?: Authz
   readonly upstream: McpUpstream
   readonly defaultAction?: RuleDecision
   readonly captureArgs?: boolean

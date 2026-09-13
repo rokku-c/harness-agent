@@ -4,4 +4,3 @@ transport: stdio
 command: bun
 args:
   - ../../time-server.ts
-requires: []

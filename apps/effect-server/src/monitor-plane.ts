@@ -6,7 +6,6 @@ import { parityOf, projectView } from "./monitor/projection.ts"
 
 export interface MonitorOptions extends AppsCatalogOptions {
   readonly catalog?: AppCatalog
-  readonly uiHtml?: ReadonlyMap<string, string>
   readonly observationFile?: string
 }
 export const makeMonitorPlane = (options: MonitorOptions): EffectPlugin => {
@@ -35,7 +34,7 @@ export const makeMonitorPlane = (options: MonitorOptions): EffectPlugin => {
             }
           }
           if (request.method !== "GET") return new Response(null, { status: 405 })
-          return projectView(app, url, app.authorize?.("ui") ? options.uiHtml?.get(id) : undefined)
+          return projectView(app, url)
         }
         if (url.pathname === "/-/observe/tick") {
           let recorded = 0

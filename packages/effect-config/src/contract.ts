@@ -9,6 +9,9 @@
  */
 
 import { z } from "zod"
+import type { ConfigFailureReason } from "./errors.ts"
+
+export type { ConfigFailureReason }
 
 export interface ConfigDeclaration<S extends z.ZodType = z.ZodType> {
   /** the app/interface this config belongs to, e.g. "board". */
@@ -42,6 +45,8 @@ export interface ConfigOutcome {
   /** Absent for pure merges or failures without a persisted result. */
   readonly revision?: number
   readonly error?: string
+  /** Set only when the operator can act on the failure; absent means nothing to do. */
+  readonly reason?: ConfigFailureReason
 }
 
 export const toJsonSchema = (schema: z.ZodType): unknown => z.toJSONSchema(schema)

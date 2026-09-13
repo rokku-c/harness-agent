@@ -14,12 +14,18 @@ export interface EffectAppDescriptor {
   readonly id: string
   readonly title?: string
   readonly description?: string
-  /** Live UI path served by the app (if any). */
+  /** Prefix route served by the app (if any). It does not imply a UI surface. */
   readonly path?: string
+  /**
+   * How the host draws this app in its launcher: a short mark, and one of the
+   * design system's own colour names. The app supplies both, so the host needs
+   * no table of app ids and adding an app never means editing the host.
+   */
+  readonly icon?: string
+  readonly color?: string
   readonly requires?: readonly string[]
   readonly config?: unknown
   readonly ui?: EffectUiView
-  readonly uiHtml?: string
   readonly tools?: readonly unknown[]
   readonly plugin?: EffectPlugin
   /** Preferred over plugin; the reader resolves live config on each call. */
@@ -33,7 +39,6 @@ export interface EffectAppHost {
   readonly registry?: EffectRegistry
   readonly configs?: ConfigRegistry
   readonly uiViews?: Map<string, EffectUiView>
-  readonly uiHtml?: Map<string, string>
   /** Called after the config schema is registered, before metadata/plugin load. */
   readonly initializeConfig?: (appId: string) => void
   readonly activeConfig?: (appId: string) => unknown
@@ -41,3 +46,12 @@ export interface EffectAppHost {
 
 export { registerEffectApp } from "./registration/register.ts"
 export type { AsyncAppDisposer } from "./registration/disposal.ts"
+export { assessSurfaceChange, makeAppSlot, readAppSurface } from "./registration/generations.ts"
+export type {
+  AppGeneration,
+  AppSlot,
+  AppSlotOptions,
+  AppToolSurface,
+  InstallOptions,
+  InstallResult,
+} from "./registration/generations.ts"

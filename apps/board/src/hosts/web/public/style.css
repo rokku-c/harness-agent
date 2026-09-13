@@ -20,7 +20,6 @@ nav button{display:flex;align-items:center;gap:11px;border:0;background:none;bor
 nav button:hover{background:#f6f7f9}
 nav button[aria-current]{background:#edf1fd;color:#365dcd;font-weight:650}
 .nav-icon{font-size:20px;width:22px;line-height:1}
-.nav-english{margin-left:auto;font-size:10px;opacity:.75}
 .sidebar-bottom{margin-top:auto;padding:12px 6px 0;color:var(--muted);font-size:10px;display:flex;align-items:center;gap:7px;white-space:nowrap}
 .status-dot{width:6px;height:6px;border-radius:50%;background:#85a191}
 .workspace{margin-left:210px;padding:40px 36px 24px;max-width:1900px}
@@ -46,6 +45,6 @@ textarea{resize:vertical;min-height:100px;line-height:1.7}
 .error{background:#fff0f0;color:#a53737;border:1px solid #f4d4d4}
 #load-error{margin:0 0 16px}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#26354c;color:white;padding:12px 22px;border-radius:9px;box-shadow:0 6px 30px #18263b26;font-size:13px;z-index:10;max-width:calc(100vw - 32px)}
-@media(max-width:1100px){.sidebar{width:170px;padding:28px 12px}.workspace{margin-left:170px;padding:30px 24px}.nav-english{display:none}.filters{gap:7px}.sidebar-bottom{font-size:9px}}
+@media(max-width:1100px){.sidebar{width:170px;padding:28px 12px}.workspace{margin-left:170px;padding:30px 24px}.filters{gap:7px}.sidebar-bottom{font-size:9px}}
 @media(max-width:760px){.sidebar{position:static;width:auto;padding:14px 18px;border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center;gap:16px}.brand{padding:0;font-size:18px;gap:8px}.brand-mark{width:30px;height:32px;font-size:22px}.brand small,.nav-label,.sidebar-bottom{display:none}nav{display:flex;gap:3px;margin-left:auto}nav button{padding:8px 10px;gap:5px}.nav-icon{display:none}.workspace{margin-left:0;padding:24px 18px}.page-header{align-items:flex-start;gap:14px;margin-bottom:20px}.header-actions{flex-wrap:wrap;justify-content:flex-end}h1{font-size:23px}.page-header p{max-width:220px}.eyebrow{font-size:9px}.button{padding:7px 10px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}

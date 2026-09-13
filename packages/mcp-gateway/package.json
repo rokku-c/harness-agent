@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@effect-agent/effect-authz": "workspace:*",
     "@effect-agent/mcp-registry": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@effect-agent/effect-network": "workspace:*",

@@ -13,7 +13,8 @@ test("activity and handler close SQLite once and reject use after close", async 
     const app = makeWebHandler({ databaseFile: ":memory:" })
     app.close(); app.close()
     expect((await app.handle(new Request("http://ui/api/activity"))).status).toBe(503)
-    expect(close).toHaveBeenCalledTimes(2)
+    // the standalone activity store plus the handler's activity and canvas stores
+    expect(close).toHaveBeenCalledTimes(3)
   } finally { close.mockRestore() }
 })
 
@@ -25,7 +26,8 @@ test("standalone binds its explicit port and releases SQLite together with the l
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ theme: "dusk" })
     await app.close(); await app.close()
-    expect(close).toHaveBeenCalledTimes(1)
+    // both durable stores (activity, canvas) close with the listener
+    expect(close).toHaveBeenCalledTimes(2)
     await expect(fetch(app.server.url)).rejects.toThrow()
   } finally { await app.close(); close.mockRestore() }
 })
@@ -35,6 +37,6 @@ test("standalone bind failure closes its allocated SQLite", () => {
   const serve = spyOn(Bun, "serve").mockImplementation(() => { throw new Error("bind failed") })
   try {
     expect(() => startWebHost({ databaseFile: ":memory:" })).toThrow("bind failed")
-    expect(close).toHaveBeenCalledTimes(1)
+    expect(close).toHaveBeenCalledTimes(2)
   } finally { serve.mockRestore(); close.mockRestore() }
 })

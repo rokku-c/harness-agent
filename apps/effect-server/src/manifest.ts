@@ -32,8 +32,6 @@ export interface EffectManifest {
   /** http: remote streamable-http endpoint. */
   readonly url?: string
   readonly headers?: Readonly<Record<string, string>>
-  /** other interface ids this plugin requires. */
-  readonly requires?: readonly string[]
   /** UI apps this plugin serves (registered alongside its interface). */
   readonly apps?: readonly EffectAppInfo[]
   /** declared config partial (schema default <- this yaml layer <- override). */

@@ -9,6 +9,13 @@ set `CODEX_COMPLETE=1` after implementation to close it. Use the
 same MCP surface for `agentd` identity/config state, Gateway policy calls, and
 observe/monitor data so implementation and verification share one runtime.
 
+Boot is honest about failure and never fatal for one app: a bundle that cannot load is reported by
+name, left disabled, and the home comes up without it — you need the console and the other apps most
+exactly when one of them will not start. An app whose stored data is from an older schema says what
+it found and, by default, moves that file aside (`.incompatible-<stamp>`) and starts fresh rather
+than migrating it; a stale config record refuses with the command that fixes it. Nothing is deleted
+and nothing is rewritten on the operator's behalf.
+
 > A unified agent programming model on Effect. The system does not treat the
 > LLM as a base concept: a model call, a full tool loop, or an external agent
 > like Claude Code - all of it is just an Agent.

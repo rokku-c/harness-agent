@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 
 import { htmlOf, languagesOf, specOf, type EffectUiView, type UiDocument } from "../src/index.ts"
 
-const view: EffectUiView = { viewId: "demo", title: "Demo", nodes: [{ kind: "text", text: "hello" }] }
+const view: EffectUiView = { viewId: "demo", title: "Demo", nodes: [{ component: "Text", props: { value: "hello" } }] }
 const html: UiDocument = { lang: "html", html: "<section>hello <b>html</b></section>" }
 
 test("descriptions are language-neutral: same document in effect-ui / json-render / html", () => {

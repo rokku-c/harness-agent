@@ -11,9 +11,9 @@ import {
 const view: EffectUiView = {
   viewId: "d",
   nodes: [
-    { kind: "text", text: "Board", bind: "/title" },
-    { kind: "button", label: "Open board", onPress: "board_view" },
-    { kind: "formField", label: "view", bind: "/currentView" },
+    { component: "Text", bind: "/title" },
+    { component: "Button", props: { value: "Open board" }, onPress: "board_view" },
+    { component: "TextField.Root", bind: "/currentView" },
   ],
 }
 

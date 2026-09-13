@@ -1,0 +1,12 @@
+{
+  "name": "@effect-agent/agentd-probe",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@effect-agent/agentd": "workspace:*",
+    "@effect-agent/agentdeck": "workspace:*"
+  }
+}

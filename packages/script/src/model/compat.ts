@@ -1,24 +1,9 @@
 /**
  * model/compat.ts - the COMPATIBILITY POLICY.
  *
- * Concept: four breaking-change levels (schema/deps/description/behavior),
- * each with its own mode. Behavior changes can never be auto-detected, so
- * they demand an explicit author declaration.
+ * Moved to @effect-agent/effect-compat so every upgradeable artifact (script
+ * tools, kernel, apps) adjudicates with the SAME model instead of one per kind.
+ * Re-exported here to keep the script package's surface unchanged.
  */
-export type CompatLevel = "schema" | "deps" | "description" | "behavior"
-
-export type CompatMode = "strict" | "warn" | "ignore"
-
-export interface CompatPolicy {
-  readonly schema: CompatMode
-  readonly deps: CompatMode
-  readonly description: CompatMode
-  readonly behavior: "require-declaration" | "ignore"
-}
-
-export const defaultCompat: CompatPolicy = {
-  schema: "strict",
-  deps: "strict",
-  description: "warn",
-  behavior: "require-declaration"
-}
+export type { CompatLevel, CompatMode, CompatPolicy } from "@effect-agent/effect-compat"
+export { defaultCompat } from "@effect-agent/effect-compat"

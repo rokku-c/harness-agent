@@ -1,0 +1,13 @@
+{
+  "bundleId": "io.effect-agent.app-portable@0.1.0",
+  "appId": "app-portable",
+  "abi": "effect-1",
+  "runtimes": ["os", "browser", "sandbox"],
+  "namespace": "ops",
+  "transport": "inproc",
+  "requires": ["clock", "storage", "crypto"],
+  "entry": "./src/index.ts",
+  "provides": {
+    "interfaces": [{ "name": "app-portable.stamp", "description": "record a stamped entry" }]
+  }
+}

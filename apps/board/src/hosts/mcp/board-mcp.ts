@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { invoke } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { BoardApi } from "../../board.ts"
-import { makeBoardTools } from "../../tools.ts"
+import { makeBoardTools } from "../../api.ts"
 
 export const makeBoardMcp = (board: BoardApi): McpServer => {
   const server = new McpServer({ name: "board", version: "1.0.0" })

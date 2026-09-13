@@ -32,7 +32,6 @@ export const appHost = () => {
     registry: makeEffectRegistry(),
     configs,
     uiViews: new Map<string, EffectUiView>(),
-    uiHtml: new Map<string, string>(),
   }
 }
 
@@ -40,7 +39,6 @@ export const descriptor = (): EffectAppDescriptor => ({
   id: "board",
   config: { appId: "board", schema: z.object({ label: z.string().default("default") }) },
   ui: { viewId: "board", nodes: [] },
-  uiHtml: "board",
   tools: [{ name: "echo", handler: (input: unknown) => input }],
 })
 

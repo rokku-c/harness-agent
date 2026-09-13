@@ -2,7 +2,6 @@ id: mcp-registry
 title: mcp-registry console (/mcp-registry)
 transport: inproc
 module: ./src/effect-app.ts
-requires: []
 apps:
   - id: console
     title: mcp-registry console

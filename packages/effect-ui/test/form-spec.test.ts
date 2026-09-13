@@ -6,7 +6,7 @@ test("json spec preserves scalar control semantics and exposes explicit strategi
   const spec = formToJsonSpec("board", scalarSchema, { webPort: 4100, captureBodies: true })
   expect(spec.root).toBe("root")
   const elements = Object.values(spec.elements)
-  const field = (label: string) => elements.find(element => element.type === "Input" && element.props.label === label)!.props
+  const field = (label: string) => elements.find(element => element.type === "TextField" && element.props.label === label)!.props
   expect(field("webPort").value).toBe("4100")
   expect(field("webPort").inputType).toBe("number")
   expect(field("captureBodies").checked).toBe(true)

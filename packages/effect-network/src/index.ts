@@ -1,4 +1,5 @@
 export { makeEgressRouter } from "./egress.ts"
 export { makeListenerManager } from "./listeners.ts"
+export type { ListenerInfo, ListenerManagerOptions, ListenerServer, ListenerSpec } from "./listeners.ts"
 export { EgressError } from "./types.ts"
 export type { EgressPolicy, EgressRouter, EgressOptions, HttpSend, MainNode } from "./types.ts"

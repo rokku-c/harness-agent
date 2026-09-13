@@ -82,7 +82,12 @@ effect-planes resource address or the registry server id.
    checks expiry and revocation, and resolves the principal.
 2. Trusted in-process or authenticated host requests may use `x-*` claim headers. The
    request must carry an explicit trusted boundary; bare headers are never trusted.
+   An already-parsed claim bag (`authInfo.extra`) is trusted by construction — the
+   caller hands over claims, not headers — so it needs no separate boundary flag.
 3. Both paths produce `resolvePrincipal(req) -> { principal, view }`.
+4. A request that presents a token which fails verification is denied outright. It must
+   not fall through to the weaker sources, or a caller could downgrade by sending a
+   token it knows is bad.
 
 ## 7. Authorization and View Projection
 
@@ -102,6 +107,24 @@ call tool  -> resolve again, enforce, audit allow or deny
 
 Compile successful views into effect-planes grants so internal app calls and external
 gateway calls use one authorization point.
+
+### 7.1 Advertised tool surface
+
+The gateway advertises the proxied catalog rather than one multiplexed call, so
+`tools/list` is a real per-principal view instead of a constant.
+
+- One flat tool per `(serverId, tool)`: `advertised = "<serverId>.<tool>"`, every
+  character outside `[A-Za-z0-9_-]` folded to `_`.
+- The advertised name is a **key into the catalog, never parsed back** into its parts —
+  a tool whose own name contains the separator cannot be mistaken for another server's.
+- Two entries that would advertise the same name is a configuration error and fails
+  loudly at load time. Dropping one silently would hide a tool behind a view nobody wrote.
+- The catalog is filled by listing each upstream (`McpToolLister`, one call per server).
+  Listing is best-effort per server: a failure is reported, not thrown, and the server
+  keeps the tools it last advertised. That is the safe direction — a stale entry can only
+  lead to a call that enforcement still checks and upstream still rejects.
+- A caller that resolves to no principal is advertised nothing. `tools/list` has no
+  channel for a refusal; the direct call still answers `no_principal` in full.
 
 ## 8. Landing Points
 

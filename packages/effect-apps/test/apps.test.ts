@@ -54,7 +54,7 @@ test("an MCP home browses and operates every app in the catalog", async () => {
   await client.connect(pair[1])
 
   const names = (await client.listTools()).tools.map((t) => t.name).sort()
-  expect(names).toEqual(["app_call", "app_read", "apps_list"])
+  expect(names).toEqual(["app_call", "app_read", "app_reload", "apps_list"])
 
   const listed = JSON.parse(text(await client.callTool({ name: "apps_list" })))
   expect(listed).toEqual([

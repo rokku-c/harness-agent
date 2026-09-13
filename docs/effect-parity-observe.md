@@ -30,12 +30,10 @@
 |---|---|---|
 | **webui** | 人(精美) | 正式界面(现有 board/console 组件保留) |
 | **lui** | agent | 语言化形态:UiDocument(含 json-render)+ state + actions(tools) |
-| **weblui** | 人(看 lui) | lui 渲染回给人:可点/可输入(动作=agent tool call,同授权);
-  必须展示给人的(图片/媒体/JS 动画)= html 语言文档直接渲染 |
+| **weblui** | 人(看 lui) | lui 渲染回给人:可点/可输入(动作=agent tool call,同授权);任意代码只能经显式资源预览容器 |
 
-- `packages/effect-parity` `interactivePage(view,{submitUrl,richHtml?})` = weblui 页:
+- `packages/effect-parity` `interactivePage(view,{submitUrl})` = weblui 页:
   view/state 文本读态 + 每个 action 一个表单(同一 tool schema),提交 POST 到 submitUrl;
-  richHtml 直接渲染。
 - effect-server: `GET /-/weblui/:appId`(weblui 页)、`POST /-/mirror/:appId/call`(执行同 agent)。
 
 ## RenderContract(渲染规则层,user-verified defaults)

@@ -6,13 +6,14 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@effect-agent/effect-interface": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.25.0",
+    "@effect-agent/effect-compat": "workspace:*",
     "@effect-agent/effect-config": "workspace:*",
-    "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-interface": "workspace:*",
     "@effect-agent/effect-network": "workspace:*",
-    "@effect-agent/mcp-registry": "workspace:*"
+    "@effect-agent/effect-ui": "workspace:*",
+    "@effect-agent/mcp-registry": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.25.0"
   }
 }

@@ -1,5 +1,6 @@
 {
   "comment": "Import-boundary allowances. Apps must reach other apps only through repo abstractions (effect-interface contracts, effect-host, or a package's own export \".\"), and feature apps must not call bun/node fs/network/process APIs directly. Legacy system/connector apps are grandfathered here (TODO: move their I/O into abstraction packages).",
+  "commentDeepImports": "The root of @effect-agent/effect-ui re-exports its server-side renderers (html, document, projector, web bridge), so a browser entry that takes a runtime value from that root carries them: the console client bundle goes from 2.46 MB to 5.0 MB. ./source-status is the one subpath the package declares for the small runtime core both sides share — the source verdicts and the notices they render — so it is reached by that subpath rather than through the root that would drag the renderers along.",
   "allowEscapeTo": [
     {
       "from": "apps/effect-server",
@@ -10,7 +11,7 @@
       ]
     }
   ],
-  "allowDeepWorkspaceImports": [],
+  "allowDeepWorkspaceImports": ["@effect-agent/effect-ui/source-status"],
   "allowCrossAppImports": [],
   "ioExemptApps": [
     "app-board",

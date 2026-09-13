@@ -1,4 +1,4 @@
-import { stateLabel } from "./state.js";
+import { displayState, stateLabel } from "./state.js";
 export const $ = selector => document.querySelector(selector);
 export function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -12,7 +12,8 @@ export function button(text, className, action) {
   node.addEventListener("click", action);
   return node;
 }
-export function badge(state) {
+export const badge = task => stateBadge(displayState(task));
+function stateBadge(state) {
   const node = el("span", "state-badge", stateLabel(state));
   node.dataset.state = state;
   return node;
@@ -20,7 +21,7 @@ export function badge(state) {
 export function emptyState(title, detail, action) {
   const node = el("div", "empty-state");
   node.append(el("span", "empty-symbol", "▥"), el("h3", "", title), el("p", "", detail));
-  if (action) node.append(button("新建任务", "button primary", action));
+  if (action) node.append(button("New task", "button primary", action));
   return node;
 }
 let noticeTimer;

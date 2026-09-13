@@ -28,6 +28,10 @@ export function readRecord(db: Database, appId: string): StoredConfig | undefine
   return { value, sources: sources as Record<string, ConfigSource>, revision: row.revision, initialized: true }
 }
 
+export function deleteRecord(db: Database, appId: string): void {
+  db.run("DELETE FROM app_config WHERE appId = ?", [appId])
+}
+
 export function writeRecord(db: Database, appId: string, record: StoredConfig): void {
   const value = JSON.stringify(record.value)
   if (value === undefined || !isDeepStrictEqual(JSON.parse(value), record.value))

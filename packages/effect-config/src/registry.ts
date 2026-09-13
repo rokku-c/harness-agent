@@ -1,4 +1,3 @@
-import { ConfigError } from "./errors.ts"
 /**
  * effect-config registry — where apps declare their configuration.
  *
@@ -11,7 +10,7 @@ import { z } from "zod"
 import { initializeConfig, readConfig, saveConfig } from "./persistence.ts"
 import { makeSqliteConfigStore } from "./sqlite.ts"
 import type { ConfigStore } from "./store.ts"
-import { failure } from "./validation.ts"
+import { storageFailure, failure } from "./validation.ts"
 import {
   mergeConfig,
   toJsonSchema,
@@ -50,7 +49,7 @@ export const makeConfigRegistry = (options: ConfigRegistryOptions = {}): ConfigR
       const activeStore = store ??= makeSqliteConfigStore()
       return activeStore.transaction(() => action(activeStore, decl))
     } catch (error) {
-      return failure(appId, error instanceof ConfigError ? error.message : "config storage operation failed")
+      return storageFailure(appId, error)
     }
   }
 

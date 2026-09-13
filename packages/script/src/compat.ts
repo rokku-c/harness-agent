@@ -1,63 +1,20 @@
 /**
- * Compatibility = graded adjudication. Four breaking-change levels (descending severity):
- * schema / deps / description / behavior. Diff along the version path version by version,
- * adjudicating with strict / warn / ignore:
- * strict violation → reject; warn violation → record and continue; ignore → skip.
- * Strong dependencies (hash references) bypass inference and are validated at runtime.
+ * Compatibility = graded adjudication (schema / deps / description / behavior
+ * × strict / warn / ignore).
+ *
+ * Moved to @effect-agent/effect-compat — the script sandbox is no longer the
+ * owner of the model, it is one user of it (apps and the kernel adjudicate with
+ * the same functions). Re-exported here to keep this package's surface stable.
+ *
+ * See docs/script-sandbox.md §4/§5 and docs/architecture-rework.md §5.
  */
-import type { CompatLevel, CompatMode, CompatPolicy, ToolDef, Version } from "./types.ts"
-
-export interface Violation {
-  readonly level: CompatLevel
-  readonly mode: CompatMode
-  readonly reason: string
-}
-
-export interface UpgradeReport {
-  readonly ok: boolean
-  readonly violations: ReadonlyArray<Violation>
-  readonly warnings: ReadonlyArray<Violation>
-}
-
-/** Structured diff (skeleton: canonical JSON equality; a real implementation should do JSON Schema subset checking). */
-export const schemaChanged = (a: unknown, b: unknown): boolean =>
-  JSON.stringify(a) !== JSON.stringify(b)
-
-const depsChanged = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean =>
-  JSON.stringify([...a].sort()) !== JSON.stringify([...b].sort())
-
-/** Single version vs single version: compatibility adjudication from → to. */
-export const assessChange = (from: ToolDef, to: ToolDef, policy: CompatPolicy): UpgradeReport => {
-  const violations: Violation[] = []
-  // schema/deps/description are auto-assessed levels; behavior is handled separately (requires declaration)
-  const mode = (level: "schema" | "deps" | "description"): CompatMode => {
-    const fromTool = to.compat?.[level]
-    return fromTool !== undefined ? fromTool : policy[level]
-  }
-
-  if (schemaChanged(from.input, to.input) || schemaChanged(from.output, to.output))
-    violations.push({ level: "schema", mode: mode("schema"), reason: "input/output schema changed" })
-
-  if (depsChanged(from.deps, to.deps))
-    violations.push({ level: "deps", mode: mode("deps"), reason: "dependency set changed (affects closure visibility)" })
-
-  if (from.description !== to.description)
-    violations.push({ level: "description", mode: mode("description"), reason: "description changed (affects model perception)" })
-
-  const toBehavior = to.behavior?.changed ?? false
-  const fromBehavior = from.behavior?.changed ?? false
-  if (toBehavior && !fromBehavior)
-    violations.push({
-      level: "behavior",
-      mode: policy.behavior === "require-declaration" ? "strict" : "ignore",
-      reason: "behavior change declared (" + (to.behavior?.note ?? "no note") + ")"
-    })
-
-  const strict = violations.filter((violation) => violation.mode === "strict")
-  const warnings = violations.filter((violation) => violation.mode === "warn")
-  return { ok: strict.length === 0, violations, warnings }
-}
-
-/** Cumulative adjudication along the version chain (from → to; skeleton: diffs the two end contents directly, a real implementation walks version by version). */
-export const assessUpgrade = (from: Version, to: Version, policy: CompatPolicy): UpgradeReport =>
-  assessChange(from.content, to.content, policy)
+export {
+  assessChange,
+  assessRollback,
+  assessUpgrade,
+  schemaChanged,
+  type AssessableTool,
+  type UpgradeReport,
+  type VersionLike,
+  type Violation,
+} from "@effect-agent/effect-compat"

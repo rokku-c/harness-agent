@@ -1,4 +1,7 @@
 /** MCP gateway pipeline: resolve, authorize, proxy, and audit. */
+import { principalKey } from "@effect-agent/effect-authz"
+
+import { authorizeCall } from "./authorize.ts"
 import type { McpGatewayContext, McpGatewayEvent, McpGatewayOptions, McpGatewayResult } from "./contract.ts"
 import { decideAction } from "./rules.ts"
 import { redactArgs } from "./redaction.ts"
@@ -10,7 +13,7 @@ export function makeMcpGateway(options: McpGatewayOptions): McpGateway {
   const rules = options.rules ?? [], fallback = options.defaultAction ?? "allow"
   const captureArgs = options.captureArgs === true
   const emit = async (type: McpGatewayEvent["type"], ctx: McpGatewayContext, extra: Partial<McpGatewayEvent> = {}) =>
-    options.recorder?.record({ callId: ctx.callId, type, at: Date.now(), agent: ctx.agent, ...(ctx.setId ? { setId: ctx.setId } : {}), serverId: ctx.serverId, tool: ctx.tool, ...extra })
+    options.recorder?.record({ callId: ctx.callId, type, at: Date.now(), agent: ctx.agent, ...(ctx.principal ? { principal: principalKey(ctx.principal) } : {}), ...(ctx.setId ? { setId: ctx.setId } : {}), serverId: ctx.serverId, tool: ctx.tool, ...extra })
   const target = async (context: McpGatewayContext): Promise<Target> => {
     const registry = options.setRegistry
     if (registry && (context.setId !== undefined || context.agent !== undefined)) {
@@ -33,6 +36,16 @@ export function makeMcpGateway(options: McpGatewayOptions): McpGateway {
     if (found.deniedBySet) {
       await emit("error", ctx, { decision: "deny", status: 403, detail: "denied_by_set", durationMs: Date.now() - started })
       return { ok: false, status: 403, serverId: found.serverId, ...resultSet, decision: "deny", detail: "denied_by_set", durationMs: Date.now() - started }
+    }
+    const gate = options.authz === undefined ? undefined : authorizeCall(options.authz, ctx)
+    if (gate !== undefined) {
+      await emit("authz", ctx, { decision: gate.allowed ? "allow" : "deny", detail: gate.decision?.reason ?? gate.refusal })
+      if (!gate.allowed) {
+        const detail = gate.refusal === "no_principal" ? "no_principal" : "denied_by_principal"
+        const durationMs = Date.now() - started
+        await emit("error", ctx, { decision: "deny", status: 403, detail, durationMs })
+        return { ok: false, status: 403, serverId: found.serverId, ...resultSet, decision: "deny", detail, durationMs }
+      }
     }
     const { rule, decision } = decideAction(rules, ctx, fallback)
     if (rule) await emit("rule", ctx, { ruleId: rule.ruleId, decision })

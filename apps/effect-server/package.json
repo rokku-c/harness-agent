@@ -10,13 +10,14 @@
     "start": "bun src/main.ts",
     "dev": "bun --watch src/main.ts",
     "up": "bun apps/effect-server/src/up.ts",
-    "build:client": "bun build src/client/effect-ui-client.tsx --outfile public/effect-ui-client.js --target browser",
+    "build:client": "bun build src/client/effect-ui-client.tsx --outdir public --target browser --format esm",
     "typecheck:client": "tsc -p tsconfig.client.json --noEmit"
   },
   "dependencies": {
     "@effect-agent/effect-apps": "workspace:*",
     "@effect-agent/effect-bundle": "workspace:*",
     "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-compat": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",
     "@effect-agent/effect-mcp-http": "workspace:*",
@@ -29,6 +30,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.5",
+    "@radix-ui/themes": "^3.3.0",
     "yaml": "^2.4.0",
     "zod": "^3.25.0"
   }

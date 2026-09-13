@@ -7,9 +7,8 @@ const view: EffectUiView = {
   viewId: "orders",
   title: "Orders",
   nodes: [
-    { kind: "text", text: "Order #", bind: "/orderId" },
-    { kind: "list", items: [] },
-    { kind: "button", label: "Ship", onPress: "order_ship" },
+    { component: "Text", bind: "/orderId" },
+    { component: "Button", props: { value: "Ship" }, onPress: "order_ship" },
   ],
 }
 

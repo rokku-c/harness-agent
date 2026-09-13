@@ -14,9 +14,9 @@ const lower = (elements: Record<string, ConfigElementSpec>, id: string, path: st
   if (nodeKind === "object") {
     const source = value as Record<string, unknown> | undefined
     const children = Object.entries(schema.properties ?? {}).map(([name, field]) => lower(elements, `${id}-${name}`, `${path}.${name}`, name, field, source?.[name], schema.required?.includes(name) ?? false))
-    elements[id] = { type: "Stack", props: { direction: "vertical", role: "array-row", fieldPath: path, arrayRow: true }, children }; return id
+    elements[id] = { type: "Flex", props: { direction: "column", gap: "3", role: "array-row", fieldPath: path, arrayRow: true }, children }; return id
   }
-  elements[id] = { type: "Input", props: { label: key, value: String(value ?? ""), rawValue: value, inputType: inputType(schema), fieldKind: nodeKind, fieldPath: path, arrayRow: true, options: schema.enum ?? (nodeKind === "boolean" ? [true, false] : undefined), required, unset: value === undefined, checked: value === true } }; return id
+  elements[id] = { type: "TextField", props: { label: key, value: String(value ?? ""), rawValue: value, inputType: inputType(schema), fieldKind: nodeKind, fieldPath: path, arrayRow: true, options: schema.enum ?? (nodeKind === "boolean" ? [true, false] : undefined), required, unset: value === undefined, checked: value === true } }; return id
 }
 export const rewriteArrayRowPaths = (elements: Record<string, ConfigElementSpec>, rowId: string, path: string): void => {
   const node = elements[rowId], old = String(node?.props?.fieldPath ?? "")

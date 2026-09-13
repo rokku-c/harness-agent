@@ -1,60 +1,65 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="__BASE__">
-  <title>Board · 任务工作区</title>
+  <title>Board · Task workspace</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="dialog.css">
+  <link rel="stylesheet" href="docs.css">
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="./" aria-label="Board 首页"><span class="brand-mark">b.</span><span>Board<small>任务工作区</small></span></a>
-    <div class="nav-label">工作视图</div>
-    <nav id="views" aria-label="任务视图">
-      <button type="button" data-view="board" aria-current="page"><span class="nav-icon" aria-hidden="true">▥</span>看板<span class="nav-english">Board</span></button>
-      <button type="button" data-view="tree"><span class="nav-icon" aria-hidden="true">⌘</span>层级<span class="nav-english">Tree</span></button>
-      <button type="button" data-view="table"><span class="nav-icon" aria-hidden="true">☷</span>列表<span class="nav-english">Table</span></button>
+    <a class="brand" href="./" aria-label="Board home"><span class="brand-mark">b.</span><span>Board<small>Task workspace</small></span></a>
+    <div class="nav-label">Views</div>
+    <nav id="views" aria-label="Task views">
+      <button type="button" data-view="board" aria-current="page"><span class="nav-icon" aria-hidden="true">▥</span>Board</button>
+      <button type="button" data-view="tree"><span class="nav-icon" aria-hidden="true">⌘</span>Tree</button>
+      <button type="button" data-view="table"><span class="nav-icon" aria-hidden="true">☷</span>Table</button>
+      <button type="button" data-view="calendar"><span class="nav-icon" aria-hidden="true">▤</span>Calendar</button>
+      <button type="button" data-view="documents"><span class="nav-icon" aria-hidden="true">☰</span>Documents</button>
     </nav>
-    <div class="sidebar-bottom"><span class="status-dot"></span>专注任务，有序推进</div>
+    <div class="sidebar-bottom"><span class="status-dot"></span>Focused work, in order</div>
   </aside>
   <main class="workspace">
     <header class="page-header">
-      <div><div class="eyebrow">WORKSPACE / TASKS</div><h1>任务看板</h1><p>从计划到完成，每一步都有迹可循。</p></div>
-      <div class="header-actions"><button id="events-button" class="button secondary" type="button">事件记录</button><button id="create-button" class="button primary" type="button"><span aria-hidden="true">＋</span>新建任务</button></div>
+      <div><div class="eyebrow">WORKSPACE / TASKS</div><h1>Task board</h1><p>From plan to done, every step is traceable.</p></div>
+      <div class="header-actions"><button id="events-button" class="button secondary" type="button">Activity</button><button id="create-button" class="button primary" type="button"><span aria-hidden="true">＋</span>New task</button></div>
     </header>
-    <section id="summary" class="summary" aria-label="任务概览"></section>
-    <section class="task-section" aria-label="任务工作区">
+    <section id="summary" class="summary" aria-label="Task summary"></section>
+    <section class="task-section" aria-label="Task workspace">
       <div class="toolbar">
-        <div class="view-heading"><h2 id="view-title">看板视图</h2><span id="result-count" class="muted"></span></div>
-        <div class="filters"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索标题、正文或 ID" aria-label="搜索任务"></label><select id="state-filter" aria-label="筛选状态"><option value="">全部状态</option></select><button id="refresh-button" class="button secondary" type="button">刷新</button></div>
+        <div class="view-heading"><h2 id="view-title">Board</h2><span id="result-count" class="muted"></span></div>
+        <div class="filters"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Search title, body, or ID" aria-label="Search tasks"></label><select id="state-filter" aria-label="Filter by state"><option value="">All states</option></select><button id="refresh-button" class="button secondary" type="button">Refresh</button></div>
       </div>
       <div id="load-error" class="banner error" role="alert" hidden></div>
-      <div id="content" aria-busy="true"><div class="empty-state"><span class="empty-symbol" aria-hidden="true">▥</span><h3>正在读取任务</h3><p>请稍候。</p></div></div>
-      <div class="workspace-footer"><span id="sync-status" role="status">正在连接…</span><span>清晰的目标，有序的协作。</span></div>
+      <div id="content" aria-busy="true"><div class="empty-state"><span class="empty-symbol" aria-hidden="true">▥</span><h3>Reading tasks</h3><p>One moment.</p></div></div>
+      <div class="workspace-footer"><span id="sync-status" role="status">Connecting…</span><span id="agents-status" class="agents-status" role="status">No agents connected</span><span>Clear goals, ordered work.</span></div>
     </section>
   </main>
   <dialog id="task-dialog" class="task-dialog" aria-labelledby="editor-heading">
     <form id="task-form">
-      <header class="dialog-header"><div><div class="eyebrow" id="editor-kicker">NEW TASK</div><h2 id="editor-heading">新建任务</h2></div><button class="icon-button" id="editor-close" type="button" aria-label="关闭编辑器">×</button></header>
+      <header class="dialog-header"><div><div class="eyebrow" id="editor-kicker">NEW TASK</div><h2 id="editor-heading">New task</h2></div><button class="icon-button" id="editor-close" type="button" aria-label="Close editor">×</button></header>
       <fieldset id="editor-fields" class="editor-fields">
-        <label>标题 <span class="required">*</span><input name="title" required autocomplete="off" placeholder="这项任务需要完成什么？"></label>
-        <label>正文<textarea name="body" rows="5" placeholder="补充背景、目标和验收标准…"></textarea></label>
-        <div class="field-row"><label>状态<select name="state"></select></label><label>父任务<select name="parentId"><option value="">无 · 顶层任务</option></select></label></div>
-        <div class="field-label" id="dependencies-label">依赖任务<span class="field-hint">选择此任务依赖的任务</span></div>
+        <label>Title <span class="required">*</span><input name="title" required autocomplete="off" placeholder="What needs to be done?"></label>
+        <label>Body<textarea name="body" rows="5" placeholder="Context, goal, and acceptance criteria…"></textarea></label>
+        <div class="field-row"><label>State<select name="state"></select></label><label>Parent<select name="parentId"><option value="">None · top level</option></select></label></div>
+        <div class="field-row"><label>Start<input name="startAt" type="datetime-local"></label><label>Due<input name="dueAt" type="datetime-local"></label></div>
+        <p class="field-hint">A task with a start or due time appears in the calendar and in the ICS subscription.</p>
+        <div class="field-label" id="dependencies-label">Dependencies<span class="field-hint">Tasks that must finish first</span></div>
         <div id="dependencies" class="dependency-options" role="group" aria-labelledby="dependencies-label"></div>
         <p id="editor-meta" class="editor-meta"></p>
       </fieldset>
       <div id="editor-error" class="banner error" role="alert" hidden></div>
-      <footer class="dialog-footer"><button id="delete-button" class="button danger" type="button" hidden>删除任务</button><div class="dialog-actions"><button id="editor-cancel" class="button secondary" type="button">取消</button><button id="save-button" class="button primary" type="submit">创建任务</button></div></footer>
+      <footer class="dialog-footer"><button id="delete-button" class="button danger" type="button" hidden>Delete task</button><div class="dialog-actions"><button id="editor-cancel" class="button secondary" type="button">Cancel</button><button id="save-button" class="button primary" type="submit">Create task</button></div></footer>
     </form>
   </dialog>
   <dialog id="events-dialog" class="events-dialog" aria-labelledby="events-heading">
-    <header class="dialog-header"><div><div class="eyebrow">ACTIVITY</div><h2 id="events-heading">事件记录</h2></div><button id="events-close" class="icon-button" type="button" aria-label="关闭事件记录">×</button></header>
-    <div class="events-toolbar"><span id="event-count" class="muted">任务的变更轨迹</span><button id="events-refresh" class="button secondary" type="button">刷新</button></div>
+    <header class="dialog-header"><div><div class="eyebrow">ACTIVITY</div><h2 id="events-heading">Activity</h2></div><button id="events-close" class="icon-button" type="button" aria-label="Close activity">×</button></header>
+    <div class="events-toolbar"><span id="event-count" class="muted">Task change history</span><button id="events-refresh" class="button secondary" type="button">Refresh</button></div>
     <div id="events-error" class="banner error" role="alert" hidden></div><div id="event-list" class="event-list"></div>
   </dialog>
   <div id="notice" class="toast" role="status" hidden></div>

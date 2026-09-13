@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { makeDefinitionStore } from "@effect-agent/ui-definition"
+import { makeDefinitionStore, registerBuiltins } from "@effect-agent/ui-definition"
 import { resolveCanvas } from "@effect-agent/ui-runtime"
 import { webRenderer, makeRendererRegistry, renderRuntime, makeThemeRegistry } from "../src/index.ts"
 import { makeUIRuntime } from "@effect-agent/ui-runtime"
@@ -21,6 +21,18 @@ test("renders the runtime's active theme", () => {
   runtime.setTheme("contrast")
   const html = renderRuntime(makeRendererRegistry([webRenderer]), runtime)
   expect(html).toContain('data-theme="contrast"')
+})
+
+test("renders API resource previews through a sandboxed document", () => {
+  const store = registerBuiltins(makeDefinitionStore())
+  store.apply({ kind: "create-canvas", canvasId: "root", title: "Root" })
+  store.apply({ kind: "insert-node", canvasId: "root", node: {
+    id: "preview", type: "Preview", props: { source: "/preview", value: { kind: "html", uri: "ui://preview", body: "<h1>Registry preview</h1>" } },
+  } })
+  const html = webRenderer.render(resolveCanvas(store, "root"))
+  expect(html).toContain('data-component="Preview"')
+  expect(html).toContain("sandbox=\"allow-scripts\"")
+  expect(html).not.toContain("<h1>Registry preview</h1>")
 })
 
 test("passes declarative theme tokens to the renderer", () => {

@@ -50,7 +50,6 @@ test("a real stop failure rejects descriptor disposal but all metadata is still 
   expect(host.configs.list()).toEqual([])
   expect(host.registry.tools()).toEqual([])
   expect(host.uiViews.size).toBe(0)
-  expect(host.uiHtml.size).toBe(0)
   await host.host.close()
 })
 

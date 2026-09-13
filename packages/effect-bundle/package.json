@@ -11,6 +11,7 @@
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/effect-network": "workspace:*",
-    "@effect-agent/mcp-registry": "workspace:*"
+    "@effect-agent/mcp-registry": "workspace:*",
+    "@effect-agent/effect-planes": "workspace:*"
   }
 }

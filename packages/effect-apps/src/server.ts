@@ -1,17 +1,20 @@
 /**
  * buildAppsMcpServer — one MCP entry to browse and operate every app in a catalog.
  * Tools: apps_list (summary rows), app_read ({ns,appId,part,key?} -> ui doc/state,
- * config, or store value), app_call ({ns,appId,tool,arguments} -> invoke a registry
- * tool). Plane reads/calls pass the entry's authorize(op) gate; a denial throws
- * (surfaced by the MCP SDK as an isError result).
+ * config, or store value), app_call ({ns,appId,tool,arguments} -> a registry tool),
+ * app_reload ({ns,appId} -> re-read that app's code from source in place). Plane
+ * reads and calls pass the entry's authorize(op) gate; a denial throws, which the
+ * MCP SDK surfaces as an isError result. A refusal to reload throws too: "unchanged
+ * and still serving" is a result on the control plane, where 200 is right, and an
+ * error here, where a caller asked for a reload and did not get one.
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
 import { invokeAppTool } from "./tools.ts"
 import { requireAppPlane } from "./access.ts"
-import type { AppCatalog, AppEntry } from "./catalog.ts"
-import { appKey, summarize } from "./catalog.ts"
+import { appKey, summarize, type AppCatalog, type AppEntry } from "./catalog.ts"
+import type { HostReloadResult } from "@effect-agent/effect-host"
 
 type AppPart = "ui" | "state" | "config" | "store"
 type TextResult = { content: Array<{ type: "text"; text: string }>; isError?: boolean }
@@ -21,6 +24,7 @@ const ok = (value: unknown): TextResult => ({ content: [{ type: "text", text: JS
 
 const readArgs = z.object({ ns: z.string(), appId: z.string(), part: z.enum(["ui", "state", "config", "store"]), key: z.string().optional() })
 const callArgs = z.object({ ns: z.string(), appId: z.string(), tool: z.string(), arguments: z.record(z.string(), z.unknown()).optional() })
+const reloadArgs = z.object({ ns: z.string(), appId: z.string() })
 
 const entry = (catalog: AppCatalog, ns: string, appId: string): AppEntry =>
   catalog.find(ns, appId) ?? fail(`effect-apps: no app ${appKey(ns, appId)}`)
@@ -45,13 +49,20 @@ const readPlane = async (app: AppEntry, part: AppPart, key?: string): Promise<un
   }
 }
 
-export const buildAppsMcpServer = (catalog: AppCatalog): McpServer => {
+export interface AppsMcpOptions {
+  /**
+   * Re-read one app's code from source (§6.4). Absent on a host that does not own
+   * app sources — and then app_reload says so rather than reporting a reload that
+   * never happened.
+   */
+  readonly reload?: (appId: string) => Promise<HostReloadResult>
+}
+
+export const buildAppsMcpServer = (catalog: AppCatalog, options: AppsMcpOptions = {}): McpServer => {
   const server = new McpServer({ name: "effect-apps", version: "0.1.0" })
-  const register = server.registerTool.bind(server) as unknown as (
-    name: string,
+  const register = server.registerTool.bind(server) as unknown as (name: string,
     config: { title?: string; description?: string; inputSchema?: unknown },
-    handler: (args: Record<string, unknown>) => Promise<TextResult>,
-  ) => void
+    handler: (args: Record<string, unknown>) => Promise<TextResult>) => void
 
   register("apps_list", { title: "Apps list", description: "List every registered effect app and the planes it exposes." },
     async () => ok(catalog.list().map(summarize)
@@ -70,6 +81,19 @@ export const buildAppsMcpServer = (catalog: AppCatalog): McpServer => {
       const { ns, appId, tool: name, arguments: raw } = args as z.infer<typeof callArgs>
       const app = entry(catalog, ns, appId)
       return ok(await invokeAppTool(app, name, raw ?? {}))
+    })
+
+  register("app_reload", { title: "App reload", description: "Re-read one app's code from source and serve it in place, without restarting the host.", inputSchema: reloadArgs.shape },
+    async (args) => {
+      const { ns, appId } = args as z.infer<typeof reloadArgs>
+      const app = entry(catalog, ns, appId)
+      const reload = options.reload ?? fail("effect-apps: this host does not own app sources")
+      const outcome = await reload(app.appId)
+      if (!outcome.ok) {
+        fail(`effect-apps: reload of ${app.appId} did not happen (${outcome.reason ?? "failed"})`
+          + `; the generation already serving is still serving`)
+      }
+      return ok(outcome)
     })
 
   return server

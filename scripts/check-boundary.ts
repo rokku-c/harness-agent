@@ -16,73 +16,28 @@
  *   bun scripts/check-boundary.ts [--strict]
  */
 
-import { readdirSync, readFileSync, statSync, existsSync } from "node:fs"
-import { join, dirname, relative, resolve, sep, posix } from "node:path"
+import { readFileSync, existsSync } from "node:fs"
+import { join, posix, resolve, sep } from "node:path"
+import {
+  collectPackages,
+  importSpecifiers,
+  isBuiltinSpecifier,
+  matches,
+  scanSystemIo,
+  sourceFiles,
+  type Pkg,
+} from "./lib/source-scan.ts"
 
 const ROOT = resolve(import.meta.dir, "..")
 const STRICT = process.argv.includes("--strict")
 
-interface Pkg {
-  readonly dir: string // repo-relative, posix, e.g. "packages/effect-host"
-  readonly name: string
-  readonly kind: "app" | "package"
-  readonly deps: ReadonlySet<string>
-}
-
-const collect = (base: string, kind: Pkg["kind"]): Pkg[] => {
-  const dirs = join(ROOT, base)
-  if (!existsSync(dirs)) return []
-  const out: Pkg[] = []
-  for (const entry of readdirSync(dirs)) {
-    const pkgJson = join(dirs, entry, "package.json")
-    if (!existsSync(pkgJson)) continue
-    const raw = JSON.parse(readFileSync(pkgJson, "utf8")) as {
-      name?: string
-      dependencies?: Record<string, string>
-      devDependencies?: Record<string, string>
-    }
-    const name = raw.name
-    if (name === undefined) continue
-    out.push({
-      dir: base + "/" + entry,
-      name,
-      kind,
-      deps: new Set([...Object.keys(raw.dependencies ?? {}), ...Object.keys(raw.devDependencies ?? {})]),
-    })
-  }
-  return out
-}
-
-const PKGS: Pkg[] = [...collect("apps", "app"), ...collect("packages", "package")]
+const PKGS: Pkg[] = [...collectPackages(ROOT, "apps", "app"), ...collectPackages(ROOT, "packages", "package")]
 const byName = new Map(PKGS.map((p) => [p.name, p]))
 
-const files = (srcDir: string): string[] => {
-  const root = join(ROOT, srcDir)
-  if (!existsSync(root)) return []
-  const out: string[] = []
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      if (entry === "node_modules" || entry.startsWith(".")) continue
-      const full = join(dir, entry)
-      const st = statSync(full)
-      if (st.isDirectory()) walk(full)
-      else if (/\.(ts|tsx)$/.test(entry) && !/\.(test|spec|d)\.ts$/.test(entry)) out.push(full)
-    }
-  }
-  walk(root)
-  return out
-}
+const files = (srcDir: string): string[] => sourceFiles(ROOT, srcDir)
 
 const posixOf = (p: string): string => p.split(sep).join("/")
 const rel = (p: string): string => posix.relative(ROOT, posixOf(p))
-
-const matches = (pattern: string, value: string): boolean => {
-  const escape = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-  const segment = (part: string): string =>
-    part.split("*").map(escape).join("[^/]*")
-  const rx = new RegExp("^" + pattern.split("**").map(segment).join(".*") + "$")
-  return rx.test(value)
-}
 
 const config = existsSync(join(ROOT, "effect.boundary.json"))
   ? (JSON.parse(readFileSync(join(ROOT, "effect.boundary.json"), "utf8")) as {
@@ -116,17 +71,6 @@ interface Finding {
 
 const findings: Finding[] = []
 
-const importSpecifiers = (source: string): string[] => {
-  const out: string[] = []
-  const fromRe = /(?:^|\s)(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/g
-  const dynRe = /import\s*\(\s*["']([^"']+)["']/g
-  for (const re of [fromRe, dynRe]) {
-    let m: RegExpExecArray | null
-    while ((m = re.exec(source)) !== null) out.push(m[1])
-  }
-  return out
-}
-
 for (const pkg of PKGS) {
   for (const file of files(pkg.dir + "/src")) {
     const src = readFileSync(file, "utf8")
@@ -148,7 +92,7 @@ for (const pkg of PKGS) {
         }
         continue
       }
-      if (spec.startsWith("node:") || spec.startsWith("bun:")) {
+      if (isBuiltinSpecifier(spec)) {
         // R4 apps must not use bun/node builtins — go through repo abstractions
         if (pkg.kind === "app" && !ioExempt(pkg) && !allowedFile(config.allowNodeBuiltinsFrom, fileRel)) {
           findings.push({
@@ -209,35 +153,20 @@ for (const pkg of PKGS) {
 }
 
 // R5 apps must not call bun/node system APIs directly (fs/network/process/env)
-const SYSTEM_IO: ReadonlyArray<{ re: RegExp; label: string }> = [
-  { re: /Bun\.(serve|spawn|spawnSync|file|write|read|writeSync)\s*\(/g, label: "Bun.serve/spawn/file" },
-  { re: /(?:^|[^\w.$])fetch\s*\(/g, label: "network fetch" },
-  { re: /(?:^|[^\w.$])(?:WebSocket|connect)\s*\(/g, label: "socket/connect" },
-  { re: /process\.(env|cwd|platform|arch|argv|exit)\b/g, label: "process/env" },
-]
 for (const pkg of PKGS) {
   if (pkg.kind !== "app" || ioExempt(pkg)) continue
   for (const file of files(pkg.dir + "/src")) {
-    const src = readFileSync(file, "utf8")
     const fileRel = rel(file)
     if (allowedFile(config.allowSystemIoFrom, fileRel)) continue
-    const codeOnly = src
-      .split("\n")
-      .filter((line) => !/^\s*(\/\/|\*|\/\*)/.test(line))
-      .join("\n")
-    for (const { re, label } of SYSTEM_IO) {
-      re.lastIndex = 0
-      const m = re.exec(codeOnly)
-      if (m !== null) {
-        findings.push({
-          severity: "error",
-          rule: "R5-system-io",
-          file: fileRel,
-          specifier: m[0].trim(),
-          message: `app uses ${label} directly; go through a repo abstraction package instead`,
-        })
-        break
-      }
+    const hit = scanSystemIo(readFileSync(file, "utf8"))
+    if (hit !== undefined) {
+      findings.push({
+        severity: "error",
+        rule: "R5-system-io",
+        file: fileRel,
+        specifier: hit.match,
+        message: `app uses ${hit.label} directly; go through a repo abstraction package instead`,
+      })
     }
   }
 }

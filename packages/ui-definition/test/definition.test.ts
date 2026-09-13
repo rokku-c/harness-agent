@@ -28,7 +28,8 @@ describe("ui definition store", () => {
   test("registers the built-in building blocks", () => {
     const store = registerBuiltins(makeDefinitionStore())
     expect(store.listComponents().map((item) => item.type)).toContain("CanvasRef")
-    expect(store.listComponents()).toHaveLength(6)
+    expect(store.listComponents().map((item) => item.type)).toContain("Preview")
+    expect(store.listComponents()).toHaveLength(7)
   })
 
   test("validates built-in node constraints", () => {

@@ -1,5 +1,10 @@
 # effect-agent unified server — declared config
 # auto-discovers plugin manifests under `roots` and boots the `enabled` ones.
+# `server.control` exposes /-/planes (list/enable/disable/reload/unregister) on the
+# listener below. It is unauthenticated, so it is only sane because that listener is
+# bound to loopback; do not turn it on for a listener that is reachable.
+server:
+  control: true
 network:
   role: main
   listeners:
@@ -11,6 +16,7 @@ roots:
 enabled:
   - ai-gateway
   - board
+  - deckconsole
   - ui-host
   - agentd
   - config
@@ -20,5 +26,6 @@ enabled:
   - mcp-gateway
   - mantis
   - monitor
+  - herdr
 bundles:
   - board

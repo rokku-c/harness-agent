@@ -1,0 +1,7 @@
+{
+  "bundleId": "io.effect-agent.effect-server@0.0.0",
+  "abi": "effect-1",
+  "bootstrapAbi": "bootstrap-1",
+  "runtimes": ["os"],
+  "entry": "index.ts"
+}

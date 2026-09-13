@@ -66,6 +66,44 @@
 .tree-row[data-context=true]{background:#fafbfc}
 .tree-toggle,.tree-leaf{flex:0 0 22px;width:22px;display:grid;place-items:center;color:#98a5b6;border:0;background:none;font-size:16px;padding:0}
 .tree-toggle:hover{color:var(--accent)}
+.tree-running{font-size:9px;color:#4469df;background:#eef2ff;border-radius:4px;padding:2px 6px;white-space:nowrap;font-weight:500}
+.tree-progress{font-size:9px;color:#6b7a8f;background:#f0f2f5;border-radius:4px;padding:2px 6px;white-space:nowrap}
+.tree-row[data-running=true]{background:#f7f9ff}
+.tree-interrupted{font-size:9px;color:#ad854a;background:#fcf3e5;border-radius:4px;padding:2px 6px;white-space:nowrap;font-weight:500}
+.agents-status{color:#7d8b9d}
 .tree-meta{display:flex;align-items:center;gap:16px;margin-left:auto;padding-left:12px;flex-shrink:0}
+.calendar{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px 14px}
+.calendar-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:13px}
+.calendar-heading h3{font-size:15px;font-weight:650}
+.calendar-nav{display:flex;align-items:center;gap:7px}
+.calendar-step{border:1px solid var(--line);background:#fff;border-radius:6px;width:30px;height:30px;padding:0;color:#6b7a8f;font-size:15px;line-height:1}
+.calendar-step:hover{border-color:#bdcbed;color:var(--accent)}
+.calendar-weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.calendar-weekdays span{padding:7px 4px;font-size:10px;color:#8b96a5;text-align:center;font-weight:550}
+.calendar-grid{border:1px solid #eef1f5;border-radius:8px;overflow:hidden}
+.calendar-day{min-height:104px;min-width:0;display:flex;flex-direction:column;gap:4px;padding:6px;border-right:1px solid #eef1f5;border-bottom:1px solid #eef1f5}
+.calendar-day:nth-child(7n){border-right:0}
+.calendar-day:nth-last-child(-n+7){border-bottom:0}
+.calendar-day[data-outside=true]{background:#fbfcfd}
+.calendar-day[data-outside=true] .calendar-day-number{color:#b6bec9}
+.calendar-day[data-today=true]{background:#f7f9ff}
+.calendar-day-head{display:flex;align-items:center;justify-content:space-between;gap:4px}
+.calendar-day-number{font-size:11px;font-weight:550;color:#7d8b9d}
+.calendar-day[data-today=true] .calendar-day-number{color:var(--accent);font-weight:700}
+.calendar-add{border:0;background:none;border-radius:4px;width:20px;height:20px;padding:0;color:#c3cad5;font-size:14px;line-height:1}
+.calendar-add:hover{background:#eef2f9;color:var(--accent)}
+.calendar-task{display:flex;align-items:center;gap:5px;width:100%;min-width:0;padding:3px 5px;border:1px solid #e9ecf1;border-radius:5px;background:#fff;text-align:left;font-size:10px;color:#4c5b70}
+.calendar-task:hover{border-color:#bdcbed;color:var(--accent)}
+.calendar-task-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calendar-task[data-state=done] .calendar-task-title{text-decoration:line-through;color:#9aa5b3}
+.calendar-task[data-state=cancelled]{opacity:.6}
+.calendar-time{flex-shrink:0;font-size:9px;color:#a0a9b6}
+.calendar-dot{width:6px;height:6px;border-radius:50%;background:#8e99aa;flex-shrink:0}
+.calendar-dot[data-state=doing]{background:#6b8ae7}
+.calendar-dot[data-state=blocked]{background:#cb9c58}
+.calendar-dot[data-state=done]{background:#75a68f}
+.calendar-dot[data-state=cancelled]{background:#ada5ab}
+.calendar-note{margin-top:11px;font-size:10px;line-height:1.7;color:#9ba5b2;overflow-wrap:anywhere}
+.calendar-note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f3f5f9;border-radius:4px;padding:1px 5px;color:#5b6b81}
 @media(max-width:1100px){.summary{gap:10px}.summary-item{padding:15px}.summary-detail{font-size:9px}.search{width:185px}}
-@media(max-width:760px){.summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:24px}.summary-item{padding:14px 16px}.summary-value{font-size:24px}.filters{width:100%;flex-wrap:wrap}.search{flex:1;min-width:150px}.toolbar{gap:14px}.board-grid{grid-template-columns:repeat(5,245px)}.workspace-footer>span:last-child{display:none}.tree-meta .task-id{display:none}.tree-meta{padding-left:0}.tree-row{gap:5px;padding-right:12px}.task-link{font-size:11px}}
+@media(max-width:760px){.summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:24px}.summary-item{padding:14px 16px}.summary-value{font-size:24px}.filters{width:100%;flex-wrap:wrap}.search{flex:1;min-width:150px}.toolbar{gap:14px}.board-grid{grid-template-columns:repeat(5,245px)}.workspace-footer>span:last-child{display:none}.tree-meta .task-id{display:none}.calendar-day{min-height:76px}.calendar-time{display:none}.tree-meta{padding-left:0}.tree-row{gap:5px;padding-right:12px}.task-link{font-size:11px}}

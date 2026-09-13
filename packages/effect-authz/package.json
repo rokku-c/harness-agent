@@ -1,0 +1,8 @@
+{
+  "name": "@effect-agent/effect-authz",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

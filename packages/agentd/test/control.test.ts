@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { AgentdError, makeAgentdControl } from "../src/index.ts"
 
-const machine = { machineId: "m1", name: "dev", status: "online" as const, capabilities: ["claude"], reportedAt: 1 }
+const machine = { machineId: "m1", name: "dev", status: "online" as const, capabilities: ["claude"], namespaces: ["ops"], reportedAt: 1 }
 const agent = { agentId: "a1", machineId: "m1", kind: "claude", version: "1", status: "online" as const }
 test("agentd binds agents to named MCP sets and rejects stale revisions", () => {
   const control = makeAgentdControl(); control.registerMachine(machine); control.registerAgent(agent)

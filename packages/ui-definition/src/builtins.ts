@@ -5,6 +5,7 @@ export const builtinComponents: ReadonlyArray<ComponentDefinition> = [
   { type: "Text", version: "1", category: "base", capabilities: { acceptsChildren: false } },
   { type: "Button", version: "1", category: "base", capabilities: { acceptsChildren: false } },
   { type: "Input", version: "1", category: "base", capabilities: { acceptsChildren: false } },
+  { type: "Preview", version: "1", category: "base", capabilities: { acceptsChildren: false, requiredProps: ["source"] } },
   { type: "Stack", version: "1", category: "base", capabilities: { acceptsChildren: true } },
   { type: "CanvasRef", version: "1", category: "canvas", capabilities: { requiredProps: ["targetCanvasId"] } },
   { type: "Slot", version: "1", category: "base", capabilities: { requiresParent: true } }

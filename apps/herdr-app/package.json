@@ -1,0 +1,14 @@
+{
+  "name": "@effect-agent/herdr-app",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/effect-app.ts" },
+  "dependencies": {
+    "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
+    "@effect-agent/effect-host": "workspace:*",
+    "@effect-agent/effect-interface": "workspace:*",
+    "@effect-agent/effect-ui": "workspace:*"
+  }
+}

@@ -1,0 +1,28 @@
+.doc-layout{display:grid;grid-template-columns:236px minmax(0,1fr);gap:16px;align-items:start}
+.doc-rail{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
+.doc-rail-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.doc-rail-title{font-size:11px;font-weight:650;letter-spacing:.6px;color:#718095;text-transform:uppercase}
+.doc-rail-row{display:flex;align-items:center;gap:4px;border-radius:7px}
+.doc-rail-row:hover{background:#f6f7f9}
+.doc-rail-open{flex:1;min-width:0;border:0;background:none;border-radius:7px;padding:9px 10px;text-align:left;font-size:12px;font-weight:500;color:#5a6678;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.doc-rail-open[aria-current]{background:#edf1fd;color:#365dcd;font-weight:650}
+.doc-rail-drop{border:0;background:none;border-radius:6px;width:24px;height:24px;flex-shrink:0;color:#b7bec9;font-size:16px;line-height:1}
+.doc-rail-drop:hover{background:#f1f3f7;color:#b74444}
+.doc-pane{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px 22px 16px;min-height:420px}
+.doc-pane-head{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.doc-title{font-size:17px;font-weight:650;letter-spacing:-.3px;border-color:transparent;background:none;padding:6px 8px}
+.doc-title:hover{border-color:#e4e8ee}
+.doc-version{flex-shrink:0;font-size:10px;color:#9ba5b2;background:#f3f5f9;border-radius:5px;padding:2px 7px}
+.outline{display:grid;gap:2px}
+.outline-row{display:flex;align-items:center;gap:8px;padding:3px 8px 3px calc(var(--depth) * 22px + 8px);border-radius:7px}
+.outline-row:hover{background:#f7f9fc}
+.outline-check{width:15px;height:15px;flex-shrink:0;accent-color:var(--accent);margin:0}
+.outline-text{flex:1;min-width:0;border-color:transparent;background:none;padding:5px 8px;font-size:13px}
+.outline-text:hover{border-color:#e4e8ee}
+.outline-row[data-done=true] .outline-text{color:#9aa5b3;text-decoration:line-through}
+.outline-actions{display:flex;gap:1px;flex-shrink:0;opacity:0}
+.outline-row:hover .outline-actions,.outline-row:focus-within .outline-actions{opacity:1}
+.outline-action{border:0;background:none;border-radius:5px;width:24px;height:24px;padding:0;color:#98a1af;font-size:13px;line-height:1}
+.outline-action:hover{background:#eef1f7;color:var(--accent)}
+.doc-empty{margin-top:6px;font-size:11px;color:#9ba5b2}
+@media(max-width:900px){.doc-layout{grid-template-columns:minmax(0,1fr)}}

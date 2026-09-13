@@ -1,0 +1,6 @@
+{
+  "bundleId": "io.effect-agent.other-app@1.0.0",
+  "appId": "other-app",
+  "abi": "effect-1",
+  "runtimes": ["os"]
+}

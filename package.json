@@ -23,7 +23,16 @@
     "mantis:pm2:logs": "pm2 logs mantis-robot mantis-dws",
     "lint:lines": "bun scripts/check-lines.ts",
     "check:boundary": "bun scripts/check-boundary.ts",
-    "up": "bun apps/effect-server/src/up.ts"
+    "check:pages": "bun scripts/check-html-pages.ts",
+    "check:ui": "bun scripts/check-ui.ts",
+    "inventory": "bun scripts/inventory-apps.ts",
+    "check:inventory": "bun scripts/inventory-apps.ts --check",
+    "up": "bun apps/effect-server/src/up.ts",
+    "up:dev": "EFFECT_DEV=1 bun apps/effect-server/src/up.ts",
+    "app:host": "bun scripts/host-app.ts",
+    "node:probe": "bun scripts/agentd-probe.ts",
+    "kernel:build": "bun scripts/build-kernel.ts",
+    "config:rebuild": "bun scripts/rebuild-config.ts"
   },
   "devDependencies": {
     "pm2": "^7.0.4"

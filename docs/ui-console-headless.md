@@ -100,21 +100,22 @@ Default mapping (curated, extend as needed):
 Custom composite roles we add (presentational, but registered like any role so apps and the
 system can declare them): `Springboard`/`AppIcon`, `Widget` (stat tile), `StatusBadge`/
 status dot, `Dock` (with overflow states), `BottomTab`, `SettingsGroup`, `SearchField`,
-`EmptyState`, `WebView` (embed an app's own live path in an iframe — the raw-HTML surface).
+`EmptyState`, `Preview` (the explicit sandboxed arbitrary-code surface).
 
 ### Why "other description forms convert automatically"
 
 The Spec tree is the hub; every authored form is a deterministic projection of it, and the
 projection functions are **generated from the role registry**, not written per role:
 
-- `EffectUiView` (5 leaves today) → Spec: a fixed, small kind→role table (`text→Text`,
-  `stack→Stack`, `button→Button`, `formField→TextField`, `list→List`). The mapping is data,
+- `EffectUiView` (6 leaves today) → Spec: a fixed, small kind→role table (`text→Text`,
+  `stack→Stack`, `button→Button`, `formField→Input`, `list→List`, `preview→Preview`). The mapping is data,
   kept with the registry. Growing view semantics = adding rows, not new renderers.
 - zod **config schema** → Spec: `formToJsonSpec` (exists). Input widgets derived from the
   Zod types already (string/number/boolean → TextField/NumberField/Switch), overridable by
   a per-role prop.
-- App-provided raw `html` and live `path` → `WebView` role (exists in console-views as
-  iframe/srcdoc; becomes a Spec node).
+- App-provided arbitrary code → the explicit `preview` role backed by a sandboxed iframe. The
+  preview source is a state path populated by an API resource such as `ui://`; a route `path` is
+  transport only and never becomes a UI surface by itself.
 - Back-end: roles are schema-exportable (JSON Schema via zod), so any host can validate a
   Spec without importing React or Radix.
 

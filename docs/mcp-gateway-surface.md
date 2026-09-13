@@ -1,7 +1,7 @@
 # MCP Gateway Surface and Agent Access Design
 
 > Status: design v0.1 (2026-09-10). Source constraints: `docs/platform-network.md`,
-> `docs/effect-unified-on-mcp.md`, and `docs/board-v2-mcp.md`.
+> `docs/effect-unified-on-mcp.md`, and `docs/board-tools.md`.
 >
 > Governing principle: every agent tool is exposed and governed by `mcp-gateway`.
 > Board integration form is still open; gateway tool-surface configuration is in scope.

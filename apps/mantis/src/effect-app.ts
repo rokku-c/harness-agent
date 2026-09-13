@@ -6,12 +6,16 @@
 
 import { effectConfig } from "./effect-config.ts"
 import { effectUiView } from "./effect-ui.ts"
-import type { EffectAppDescriptor } from "@effect-agent/effect-apps"
+import { createMantisPlugin } from "./effect-plugin.ts"
+import { defineApp } from "@effect-agent/effect-apps"
 
-export const effectApp: EffectAppDescriptor = {
+export const effectApp = defineApp({
   id: "mantis",
   title: "Mantis",
-  description: "DingTalk agent — declarative facade",
+  description: "Human-agent conversations, workspace records, memory, and approvals",
+  path: "/mantis",
+  icon: "◉", color: "crimson",
   config: effectConfig,
   ui: effectUiView,
-}
+  createPlugin: (getConfig) => createMantisPlugin(getConfig),
+})

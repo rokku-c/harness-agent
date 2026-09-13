@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { ConfigError, rebuildRequired } from "./errors.ts"
 import { initializeSchema } from "./sqlite-schema.ts"
-import { readRecord, writeRecord } from "./sqlite-record.ts"
+import { readRecord, deleteRecord, writeRecord } from "./sqlite-record.ts"
 import type { ConfigStore, SqliteConfigStoreOptions } from "./store.ts"
 
 export function makeSqliteConfigStore(options: SqliteConfigStoreOptions = {}): ConfigStore {
@@ -27,6 +27,7 @@ export function makeSqliteConfigStore(options: SqliteConfigStoreOptions = {}): C
   return {
     read(appId) { assertOpen(); return readRecord(db, appId) },
     write(appId, record) { assertOpen(); writeRecord(db, appId, record) },
+    remove(appId) { assertOpen(); deleteRecord(db, appId) },
     transaction<T>(action: () => T): T {
       assertOpen()
       return db.transaction(action).immediate()

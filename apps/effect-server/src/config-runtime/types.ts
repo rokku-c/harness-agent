@@ -5,6 +5,14 @@ export interface RuntimeConfigOutcome extends ConfigOutcome {
   readonly pendingRestart: boolean
   readonly revision?: number
 }
+export interface ConfigRuntimeOptions {
+  /**
+   * The file the registry persists to. Used for nothing but making a refusal
+   * actionable: "operator must rebuild the store" names no store and no command,
+   * and an operator who cannot follow the instruction will rewrite it by hand.
+   */
+  readonly storeFile?: string
+}
 export interface ConfigRuntime {
   initialize(appId: string, layers?: ConfigLayerInput): void
   active(appId: string): unknown

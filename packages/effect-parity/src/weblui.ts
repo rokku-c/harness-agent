@@ -3,9 +3,7 @@
  *
  * One page per app shows exactly what an agent sees: the view description, the
  * live state, and one form per action (same tools an agent would call). A
- * human's click/submit executes the SAME tool call an agent would make. Content
- * that must be shown directly to humans (images/media/JS animation) arrives as
- * an HTML-language document and is rendered as-is.
+ * human's click/submit executes the SAME tool call an agent would make.
  */
 
 import { interactiveSpec } from "./interactive.ts"
@@ -14,8 +12,6 @@ import type { ParityAppView } from "./types.ts"
 export interface WebluiOptions {
   /** where POST {tool,args} is handled (same authorize as the agent). */
   readonly submitUrl: string
-  /** HTML-language document to display directly (rich/media/animation). */
-  readonly richHtml?: string
 }
 
 export const interactivePage = (view: ParityAppView, options: WebluiOptions): string => `
@@ -39,9 +35,6 @@ ${view.actions.length > 0
   ? `<p style="color:#6e6b66">actions = agent's tools, same authorize · ${view.actions.length}</p>`
   : `<p style="color:#9a968e">no agent actions</p>`}
 <div class="row"><div>${interactiveSpec(view)}</div><div>
-${options.richHtml !== undefined
-  ? `<section><h3>direct view (media / animation)</h3>${options.richHtml}</section>`
-  : ""}
 <section><h3>agent actions</h3><div id="forms">(${view.actions.length} forms on the left, rendered from the same tool schemas the agent calls)</div></section>
 </div></div>
 <div id="out"></div>

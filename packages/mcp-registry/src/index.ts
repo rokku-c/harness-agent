@@ -2,5 +2,6 @@ export * from "./contract.ts"
 export * from "./auth.ts"
 export * from "./selection.ts"
 export * from "./store.ts"
+export * from "./http-validation.ts"
 
 export { makeRegistryHandler } from "./http.ts"

@@ -9,11 +9,11 @@ export const parityOf = async (entry: AppEntry) => {
   const view = fromCatalogEntry(entry)
   return { ...view, state: await view.state }
 }
-export const projectView = async (entry: AppEntry, url: URL, richHtml?: string): Promise<Response> => {
+export const projectView = async (entry: AppEntry, url: URL): Promise<Response> => {
   const view = await parityOf(entry)
   if (url.pathname.startsWith("/-/mirror/")) return Response.json(view)
   if (url.pathname.startsWith("/-/weblui/")) return new Response(interactivePage(view, {
-    submitUrl: `/-/mirror/${encodeURIComponent(entry.appId)}/call`, richHtml,
+    submitUrl: `/-/mirror/${encodeURIComponent(entry.appId)}/call`,
   }), { headers: { "content-type": "text/html; charset=utf-8" } })
   if (!view.view) return Response.json({ ok: false, detail: "No authorized view" }, { status: 404 })
   const contract = makeRenderContract(view.view as EffectUiView, view.actions)

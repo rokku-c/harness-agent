@@ -8,10 +8,10 @@ export const makeDeckDomain = (options: DeckOptions) => {
   const gateways = makeGateways(options, presets)
   const store = makeLauncherStore(options.configFile ?? ".effect-agent/deckconsole.sqlite", options.launchers ?? [])
   if (options.effectModel) {
-    store.seed("effect", "effect（进程内）")
-    store.seed("effect-ops", "effect-ops（审批执行循环）")
+    store.seed("effect", "effect (in-process)")
+    store.seed("effect-ops", "effect-ops (approval loop)")
   }
-  if (options.claudeSdk) store.seed("claude-cc", "claude-cc（SDK 进程内）")
+  if (options.claudeSdk) store.seed("claude-cc", "claude-cc (SDK, in-process)")
   const lastTurn = new Map<string, string>()
   const sessionGateway = (id: string) => {
     const kind = gateways.deck.sessions().find(s => s.sessionId === id)?.kind

@@ -8,66 +8,10 @@
  * projected from this same contract so interactions stay unambiguous.
  */
 
-import type { EffectUiView, UiNodeSpec } from "./spec.ts"
+import type { ContractElement, InteractionRule, RenderContract } from "./contract-types.ts"
+import type { EffectUiView, UiNode } from "./spec.ts"
 
-export type UiComponent = "Text" | "Stack" | "Button" | "Input" | "List"
-
-export interface InteractionRule {
-  readonly on: "click" | "input" | "submit"
-  readonly action: string
-  /** argName -> static value or "$state/<path>" binding. */
-  readonly args?: Readonly<Record<string, string>>
-  /** component ids (refs) to refresh LOCALLY after this action. */
-  readonly refresh?: readonly string[]
-}
-
-export interface ContractRefresh {
-  /** ui updates are PARTIAL by default (only the affected component refs). */
-  readonly default: "partial"
-  readonly modes: readonly ("partial" | "full")[]
-  readonly partialVia: "component-refs"
-  /** partial patches need the base frame; warn when it may be evicted. */
-  readonly warnWhenBaseFrameMissing: boolean
-}
-
-export interface ContractElement {
-  readonly id: string
-  readonly component: UiComponent
-  readonly data?: string
-  /** false = control/interactive surface; true (default) = data shown as-is. */
-  readonly display?: boolean
-  /** collapsible content (full/partial collapse, expand on click/enter). */
-  readonly collapsible?: boolean
-  readonly children?: readonly string[]
-  readonly interactive?: readonly InteractionRule[]
-}
-
-export interface ContractRules {
-  /** elements whose content may be collapsed (not all shown at once). */
-  readonly collapsibleIds: readonly string[]
-  /** expanding one collapses the others (accordion). */
-  readonly exclusive: boolean
-  readonly expandOn: "click" | "enter"
-}
-
-export interface RenderContract {
-  readonly lang: "contract"
-  readonly elements: readonly ContractElement[]
-  /** the agent-operable actions this app exposes (schemas). */
-  readonly actions: ReadonlyArray<{ name: string; description?: string; inputSchema?: unknown }>
-  /** how this renders when data is empty (0-data still renders). */
-  readonly emptyDataRule: string
-  readonly rules: ContractRules
-  readonly refresh: ContractRefresh
-}
-
-const kindComponent: Record<UiNodeSpec["kind"], UiComponent> = {
-  text: "Text",
-  stack: "Stack",
-  button: "Button",
-  formField: "Input",
-  list: "List",
-}
+export type { ContractElement, ContractRefresh, ContractRules, InteractionRule, RenderContract, UiComponent } from "./contract-types.ts"
 
 export const makeRenderContract = (
   view: EffectUiView,
@@ -76,25 +20,24 @@ export const makeRenderContract = (
   const actionNames = new Set(actions.map((a) => a.name))
   const elements: ContractElement[] = []
 
-  const walk = (nodes: readonly UiNodeSpec[], path: readonly number[]): string[] => {
+  const walk = (nodes: readonly UiNode[], path: readonly number[]): string[] => {
     const ids: string[] = []
     nodes.forEach((node, index) => {
       const id = node.id ?? path.concat(index).join(".")
-      const interactive: InteractionRule[] = []
-      if (node.kind === "button" && node.onPress !== undefined && actionNames.has(node.onPress)) {
-        interactive.push({ on: "click", action: node.onPress, args: {} })
-      }
-      const bound = "bind" in node ? (node as { bind?: string }).bind : undefined
-      const element: ContractElement = {
+      const children = walk(node.children ?? [], path.concat(index))
+      const interactive: InteractionRule[] = node.onPress !== undefined && actionNames.has(node.onPress)
+        ? [{ on: "click", action: node.onPress, args: {} }]
+        : []
+      elements.push({
         id,
-        component: kindComponent[node.kind],
-        display: node.kind === "text" || node.kind === "list",
-        ...(node.kind === "list" ? { collapsible: true } : {}),
-        ...(bound !== undefined ? { data: bound } : {}),
-        ...(node.kind === "stack" ? { children: walk(node.children, path.concat(index)) } : {}),
-        ...(interactive.length > 0 ? { interactive } : {}),
-      }
-      elements.push(element)
+        component: node.component,
+        display: node.onPress === undefined,
+        // A repeating node is the long list the token view collapses.
+        ...(node.repeat === undefined ? {} : { collapsible: true }),
+        ...(node.bind === undefined ? {} : { data: node.bind }),
+        ...(children.length === 0 ? {} : { children }),
+        ...(interactive.length === 0 ? {} : { interactive }),
+      })
       ids.push(id)
     })
     return ids

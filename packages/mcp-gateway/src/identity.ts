@@ -5,11 +5,20 @@ export interface McpAuthIdentity { readonly clientId: string; readonly extra?: R
 const first = (value: string | string[] | undefined): string | undefined => Array.isArray(value) ? value[0] : value
 const strings = (value: unknown): string | undefined => typeof value === "string" && value.length > 0 ? value : undefined
 
+/** Lower-cased header lookup — the one normalization every header reader shares. */
+export const headerValue = (headers: HeaderBag, name: string): string | undefined => {
+  const wanted = name.toLowerCase()
+  if (headers instanceof Headers) return headers.get(wanted) ?? undefined
+  for (const [key, value] of Object.entries(headers)) if (key.toLowerCase() === wanted) return first(value)
+  return undefined
+}
+
 export function identityFromHeaders(headers: HeaderBag): McpIdentity {
-  const values: Record<string, string | undefined> = {}
-  if (headers instanceof Headers) headers.forEach((value, key) => { values[key.toLowerCase()] = value })
-  else for (const [key, value] of Object.entries(headers)) values[key.toLowerCase()] = first(value)
-  return { agent: values["x-agent-id"], session: values["x-session-id"], requestId: values["x-request-id"] }
+  return {
+    agent: headerValue(headers, "x-agent-id"),
+    session: headerValue(headers, "x-session-id"),
+    requestId: headerValue(headers, "x-request-id"),
+  }
 }
 
 export function identityFromRequest(input: { readonly headers?: HeaderBag; readonly authInfo?: McpAuthIdentity }): McpIdentity {

@@ -58,7 +58,7 @@ entry: entry.js
 ```ts
 options: {
   // 就地加载
-  host?, registry?, configs?, uiViews?, uiHtml?,   // 本进程内的注册目标
+  host?, registry?, configs?, uiViews?,             // 本进程内的注册目标
   // 远程回注册
   remote?: { url, token, namespace },
 }

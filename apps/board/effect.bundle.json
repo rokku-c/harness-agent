@@ -2,6 +2,7 @@
   "bundleId": "io.effect-agent.board@1.0.0",
   "appId": "board",
   "abi": "effect-1",
+  "runtimes": ["os"],
   "namespace": "ops",
   "transport": "inproc",
   "requires": [],

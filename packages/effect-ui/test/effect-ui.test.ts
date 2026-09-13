@@ -10,38 +10,38 @@ const profileView: EffectUiView = {
   viewId: "profile",
   title: "Profile",
   nodes: [
-    { kind: "text", id: "greeting", text: "Hello <world>" },
+    { component: "Text", props: { value: "Hello <world>" } },
     {
-      kind: "stack",
+      component: "Flex",
       id: "actions",
-      direction: "horizontal",
-      gap: 8,
+      props: { direction: "row", gap: "2" },
       children: [
-        { kind: "button", label: "Save", onPress: "save_profile" },
-        { kind: "button", label: "Cancel" },
+        { component: "Button", props: { value: "Save" }, onPress: "save_profile" },
+        { component: "Button", props: { value: "Cancel" } },
       ],
     },
-    { kind: "formField", label: "Name", value: "Ada", placeholder: "Your name" },
-    { kind: "list", items: ["one", "two"] },
+    { component: "TextField.Root", props: { placeholder: "Your name" }, bind: "/name" },
+    { component: "Card", props: { value: "one" } },
+    { component: "Table.Root", props: { variant: "surface" }, children: [{ component: "Table.Row" }] },
   ],
 }
 
-test("view spec schema is recursive and exports as JSON Schema with all node kinds", () => {
-  const parsed = viewSpecSchema().parse(profileView)
+test("the view schema is recursive and open: a node names a component, and its props are that library's", () => {
+  const parse = viewSpecSchema()
+  const parsed = parse.parse(profileView)
   expect(parsed.viewId).toBe("profile")
-  expect(parsed.nodes).toHaveLength(4)
+  expect(parsed.nodes).toHaveLength(5)
+  expect(parse.safeParse({ viewId: "bad", nodes: [{ props: { value: "no component named" } }] }).success).toBe(false)
 
-  const schema = viewToJsonSchema() as unknown as {
-    type: string
-    properties: Record<string, unknown>
-    $defs?: Record<string, { oneOf?: Array<{ properties: { kind: { const: string } } }> }>
-  }
+  const schema = viewToJsonSchema() as unknown as { type: string; properties: Record<string, unknown> }
   expect(schema.type).toBe("object")
   expect(schema.properties.viewId).toBeDefined()
   expect(schema.properties.nodes).toBeDefined()
-  const union = Object.values(schema.$defs ?? {}).find((def) => def.oneOf !== undefined)
-  const kinds = (union?.oneOf ?? []).map((member) => member.properties.kind.const)
-  expect(kinds).toEqual(["text", "stack", "button", "formField", "list"])
+  // every directive a live view needs is part of the exported contract
+  const exported = JSON.stringify(schema)
+  for (const directive of ["component", "bind", "item", "as", "repeat", "visible", "onPress", "params"]) {
+    expect(exported).toContain(`"${directive}"`)
+  }
 })
 
 test("same view renders distinctly across the two renderers via the registry", () => {
@@ -57,19 +57,19 @@ test("same view renders distinctly across the two renderers via the registry", (
   expect(() => registry.render("missing", profileView)).toThrow(/not found/)
 })
 
-test("ui-* bridge renders a view through ui-renderer webRenderer with expected text", () => {
-  const html = effectUiWebRenderer.render(profileView)
-  expect(html).toContain("<h1>Profile</h1>")
-  expect(html).toContain("Hello &lt;world&gt;")
-  expect(html).toContain("Save")
-  expect(html).toContain("one")
-  expect(html).toContain('data-component="Stack"')
-})
-
-test("html renderer emits self-contained, escaped declarative HTML", () => {
+test("the html renderer names the design system's component and escapes what it was given", () => {
   const html = htmlRenderer.render(profileView)
   expect(html).toContain('data-effect-ui="profile"')
+  expect(html).toContain('data-component="Table.Root"')
   expect(html).toContain("Hello &lt;world&gt;")
-  expect(html).toContain("<ul")
-  expect(html).toContain("<button")
+  expect(html).toContain('data-action="save_profile"')
+  expect(html).toContain('data-bind="/name"')
+})
+
+test("the ui-* bridge renders a view through ui-renderer webRenderer with the same component names", () => {
+  const html = effectUiWebRenderer.render(profileView)
+  expect(html).toContain("<h1>Profile</h1>")
+  expect(html).toContain("Save")
+  expect(html).toContain("one")
+  expect(html).toContain('data-component="Flex"')
 })
