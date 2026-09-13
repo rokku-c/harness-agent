@@ -37,7 +37,6 @@ import Formal.Rollup
 import Formal.Rules
 import Formal.Screen
 import Formal.Sets
-import Formal.Slot
 import Formal.Surface
 import Formal.Swap
 import Formal.Token

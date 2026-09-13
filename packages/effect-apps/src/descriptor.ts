@@ -46,7 +46,13 @@ export interface EffectAppHost {
 
 export { registerEffectApp } from "./registration/register.ts"
 export type { AsyncAppDisposer } from "./registration/disposal.ts"
-export { makeAppSlot } from "./registration/generations.ts"
+/**
+ * App *hot replacement* is not here. It is a whole mechanism — generations on
+ * disk, adjudication, rollback — and it belongs to whoever runs the app: today
+ * that is `apps/effect-server/src/boot/reload.ts`, over
+ * `manifest-loader/generation.ts`. This package supplies what that needs
+ * (`registerEffectApp` above, and the two surface readings below) and no second
+ * copy of the swap.
+ */
 export { assessSurfaceChange, readAppSurface } from "./registration/surface.ts"
 export type { AppToolSurface } from "./registration/surface.ts"
-export type { AppGeneration, AppSlot, AppSlotOptions, InstallOptions, InstallResult } from "./registration/slot.ts"

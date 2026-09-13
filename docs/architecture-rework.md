@@ -383,18 +383,27 @@ by-product of the kernel swap — the two have different blast radii:
 
 **Landed (2026-09-10, P4)** — two halves, in two packages:
 
-- **Generation slot** `packages/effect-apps/src/registration/generations.ts`: `makeAppSlot(host, appId, {onChange})`
-  gives `install / rollback / unload / current / previous / generations`.
-  The flow is `install → read back the tool surface → adjudicate → health probe → commit (retire the old
-  generation)`, and any step's failure **restores the previous generation**. The adjudication uses
-  `assessSurfaceChange` (a tool with the same name in both generations goes through `assessChange`; a tool that
-  **disappears** counts as the `schema` level; a tool that is **added** is not breakage).
+- **Generation reload** `apps/effect-server/src/boot/reload.ts` (over `manifest-loader/generation.ts`): reload one
+  app in place. The flow is `materialize a new generation directory → import it → register it → read back the tool
+  surface → adjudicate against the surface that was serving → commit (retire the displaced generation)`, and every
+  refusal **restores the generation that was serving**. The adjudication uses `assessSurfaceChange` (a tool with the
+  same name in both generations goes through `assessChange`; a tool that **disappears** counts as the `schema`
+  level; a tool that is **added** is not breakage).
+  A generation is a *directory*, not an in-memory record — that is what makes the pointer survive a restart, and
+  what makes "a spent number is never handed out twice" a real constraint (`formal/Formal/Reload.lean`).
+  `formal/Formal/Generation.lean` carries the restore obligation, refusal by refusal.
+  **Correction (2026-09-13)**: `packages/effect-apps/src/registration/generations.ts`'s `makeAppSlot` was an
+  in-memory slot for the same job — `effect-apps` supplies `registerEffectApp` and the two surface readings and no
+  second copy of the swap. It had **no production caller**: `boot/reload.ts` was already doing the swap, with the
+  same adjudicator and the same restore, and with the persistence the slot lacked. Deleted, together with
+  `slot.ts` / `install.ts` and `formal/Formal/Slot.lean` (whose rollback-target invariant `Reload.lean`'s `commit`
+  already carries). The `AppSlot` name it exported also collided with `manifest-loader/types.ts`'s live `AppSlot`.
 - **Tool surface**: no reconciliation is needed. `registerTools` registers once from the registry it is given, and
   **every HTTP request builds a fresh MCP server** (both `effect-standalone`'s HTTP face and `apps/effect-server`
   work this way), so after a hot swap the agent gets the new server's list; there is no "connected agent holding a
   stale list", and therefore no `notifications/tools/list_changed` to send.
   **Correction (2026-09-13)**: there once was a `ToolSurface.refresh()` reconciliation plus a `NodeMcpServer` type,
-  with the seam written on `makeAppSlot`'s `onChange` — but that seam was never wired, and "fresh per request" is
+  with the seam written on the (now deleted) app slot's `onChange` — but that seam was never wired, and "fresh per request" is
   already the simpler solution to the same problem (`packages/effect-apps`'s `list()` is "a view, not a snapshot",
   the same technique). Deleted. After the deletion `registerTools` keeps one **loud failure**: when two tools
   sanitize to the same name it throws and names both keys, rather than letting the later writer silently overwrite
@@ -418,10 +427,16 @@ That is exactly the kind of window §6.3-① wants to avoid, so it **cannot be u
    level cannot do this, because an app's switch point is `register` itself (see the deviation note in §6.4).
 2. **Health check hook**: `LoadedPlane` gains an optional `health?()`; without it, this degrades to "load did not
    throw + a smoke request".
-   *Landed at the app level* as `InstallOptions.probe(generation)` (without depending on a `LoadedPlane` reshape).
+   *Not done, and the hook is not where it belongs*: the app-level version was `InstallOptions.probe(generation)`
+   on the deleted slot, and `boot/reload.ts` does not take one. What a reload checks is the **surface** it produced
+   against the one that was serving — a measurement of the artifact, not of the app's liveness — and a liveness
+   probe is the monitor plane's subject (`/-/planes`, `Formal/PluginRoute.lean`'s guards), not the swap's.
 3. **Artifact repo index + active/previous pointer**: `kernel-state.json`, recorded for both kernel and app.
    *The kernel half has landed* (`effect-bundle/src/repo.ts`, P5-1: active/previous/condemned + atomic write);
-   **the app side is not done** (`AppSlot.previous()` still lives only in memory).
+   **the app side is not done**. The pointer is `manifest-loader/generation.ts`'s `serving` map, in memory: the
+   generation *copies* survive a restart (and `sweep` clears them at shutdown), but which one serves does not — a
+   restarted process serves each app's own directory again. Deliberately left: the copies are swept at shutdown
+   precisely so that a restart has nothing to be pointed back at.
 4. **Boot-time crash rollback**: if the active artifact fails to load → start from previous + warn.
    *Landed and wired into the real process* (`supervisor.boot()`, P5-1; `main.ts` passes
    `.effect-bundles/kernel-state.json`, P5's second leg) — a bad revision goes into `condemned`, so the same
@@ -444,8 +459,11 @@ That is exactly the kind of window §6.3-① wants to avoid, so it **cannot be u
    **a declaration nobody made is not a declaration**, and it is exactly these apps that escape the collateral
    damage.)
 7. **Per-app active/previous pointer**: rollback granularity down to a single app (§6.4-3).
-   *The in-memory version has landed* (`AppSlot.previous()` + `rollback()`); **persistence across restarts is not
-   done** (see item 3).
+   *The in-memory version has landed* — `servingGeneration` / `commit` keep the serving copy and one rollback
+   target, and `reload.ts`'s `restore` re-imports that target when an attempt is refused. **Persistence across
+   restarts is not done** (see item 3), and there is no operator-facing *roll back to the previous version* verb:
+   a reload always materializes from the app's own directory, because copying a copy would fossilize the
+   generation after.
 8. **MCP `notifications/tools/list_changed`**: after an app (or kernel) changes version, notify connected agents
    that the tool surface changed.
    *Not needed*: the node server is rebuilt per request, so what the agent gets is the current list. The
@@ -1050,10 +1068,9 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   before. (After P4 added `packages/effect-compat` it is 49 packages · 0 error · 0 warning.)
 
 **P4 landed (2026-09-10)**:
-- `packages/effect-apps/src/registration/generations.ts` — `makeAppSlot` / `readAppSurface` /
-  `assessSurfaceChange`. The flow is `install → read back the tool surface → adjudicate → probe → commit (retire
-  the old generation)`, and any step's failure `restore`s the previous generation; `rollback()` is `install()` run
-  backwards (§5).
+- `packages/effect-apps/src/registration/surface.ts` — `readAppSurface` / `assessSurfaceChange`; the swap itself is
+  `apps/effect-server/src/boot/reload.ts` (P4's later half, and the only caller). It was first built as an
+  in-memory slot in `effect-apps` (see the correction note in §6.4); that copy was deleted on 2026-09-13.
 - `packages/effect-mcp/src/node-server/tools.ts` — `registerTools` registers once, consistent with the registry;
   when two tools sanitize to the same name it **throws and names them**, rather than silently overwriting.
   (The former `ToolSurface.refresh()` reconciliation mechanism has been deleted: the HTTP face rebuilds the server
