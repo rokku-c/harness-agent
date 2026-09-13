@@ -13,6 +13,7 @@ like a broken test.
 | `Formal/Chain.lean` | `effect-ui/src/screen.ts` | the navigation chain names only screens that exist and terminates |
 | `Formal/Compat.lean` | `effect-compat/src/assess.ts` | a level that did not change is never adjudicated; the violations are exactly the changed levels |
 | `Formal/Config.lean` | `effect-config/src/merge.ts` | the provenance names the layer the value came from; a new default cannot move an operator's override |
+| `Formal/Consent.lean` | `agentdeck/src/consent.ts` | the first answer to an ask is the answer; a write runs exactly when the operator approved it |
 | `Formal/Derive.lean` | `effect-ui/src/screen-derive.ts` | a derived screen id collides with no other, declared or derived |
 | `Formal/Lifecycle.lean` | `effect-interface/src/registry.ts` | register and dispose are symmetric, and a stale disposer cannot revoke its replacement |
 | `Formal/Readout.lean` | `effect-ui/src/readout.ts`, `source-status.ts` | a readout shows exactly when its path carries a value; a failed list never reads as an empty one |

@@ -5,4 +5,5 @@ import Formal.Lifecycle
 import Formal.Readout
 import Formal.Config
 import Formal.Compat
+import Formal.Consent
 import Formal.Swap
