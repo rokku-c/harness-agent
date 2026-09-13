@@ -115,7 +115,8 @@ mcp-gateway 的规则/审计/redaction;鉴权按 (bundle,token,ns)。
 - **P0 — Bundle 制品 + 就地回注册**:`packages/effect-bundle`(compile + load;
   用 board 先做第一个 bundle)。单测:compile→load→register→disposer。【已完成 2/2】
 - **P1 — Namespace + Mesh**:`packages/effect-mesh`——ns 隔离默认 + 显式 grant,
-  announce/discover/call over memory + JSON-RPC http 协议骨架。【已完成 4/4】
+  announce/discover/call over memory + JSON-RPC http 协议骨架。【已完成 4/4,后**已删除**:
+  自研 wire 由 MCP 取代,见 `effect-unified-on-mcp.md`;本文件保留为当时的计划记录】
 - **P1 — Namespace + Mesh(本地协议)**:给 registry/UI/config 键加 ns;mesh 层
   announce/discover/invoke over memory(先用 in-memory transport 打通)。
 - **P2 — 远程协议**:stdin/stdio 与 streamable-http 走通(现成 registrar 底座),

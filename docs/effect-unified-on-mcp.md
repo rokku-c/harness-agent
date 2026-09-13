@@ -2,7 +2,7 @@
 
 目标:除了**权限**(作为 MCP 之上的 facade 层),所有跨 app 的注册与通信都只走
 **Model Context Protocol** 最新版(2026-07-28 时代,modern era)——
-不再维护自研的 announce/call/…;effect-mesh 的“自研 JSON-RPC”退位为 MCP 的封装。
+不再维护自研的 announce/call/…;`packages/effect-mesh`(自研 JSON-RPC)已随之**删除**。
 
 ## 映射表(planes → MCP)
 
@@ -29,8 +29,7 @@
 
 - **In-memory 也是真 MCP**:进程内 app 用 `InMemoryTransport` 一对,home client 与
   app server 之间就是标准 MCP initialize/discover/tools。这样“进程内 vs 远程”零差异。
-- **不再有自研 wire**:effect-mesh 的 `dispatchMeshJson` 等只作为“把 MCP 结果映回
-  effect-interface”的胶水;新增能力一律走 MCP 方法。
+- **不再有自研 wire**:自研 mesh 已删除(2026-09-13);跨 app 通信一律走 MCP 方法。
 - **SDK 版本**:仓库当前 `@modelcontextprotocol/sdk ^1.30`;2026-07-28 的 modern
   方法(server/discover、subscriptions/listen、Mcp-* headers 等)需把 SDK 升到支持
   “modern era”的版本,升级前先用其兼容子集(initialize/tools/list/call/resources/read)。

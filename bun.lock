@@ -333,13 +333,6 @@
         "@modelcontextprotocol/sdk": "^1.30.0",
       },
     },
-    "packages/effect-mesh": {
-      "name": "@effect-agent/effect-mesh",
-      "version": "0.0.0",
-      "dependencies": {
-        "@effect-agent/effect-interface": "workspace:*",
-      },
-    },
     "packages/effect-network": {
       "name": "@effect-agent/effect-network",
       "version": "0.0.0",
@@ -599,8 +592,6 @@
     "@effect-agent/effect-mcp": ["@effect-agent/effect-mcp@workspace:packages/effect-mcp"],
 
     "@effect-agent/effect-mcp-http": ["@effect-agent/effect-mcp-http@workspace:packages/effect-mcp-http"],
-
-    "@effect-agent/effect-mesh": ["@effect-agent/effect-mesh@workspace:packages/effect-mesh"],
 
     "@effect-agent/effect-network": ["@effect-agent/effect-network@workspace:packages/effect-network"],
 

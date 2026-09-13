@@ -121,12 +121,11 @@ managed machine.
 
 | package | role |
 |---|---|
-| `effect-mcp` | builds a node MCP server that re-reconciles its tool list when the registry changes (app hot-swap, kernel reload) |
+| `effect-mcp` | builds a node MCP server over one registry: the app's tools plus, optionally, its UI and store planes |
 | `effect-mcp-http` | serves an MCP server over streamable HTTP (WebStandard transport, optional authenticate) |
 | `mcp-gateway` | the gateway pipeline: resolve -> authorize -> proxy -> audit; sets, bindings, rules, principal identity, tokens, redaction |
 | `mcp-registry` | in-memory MCP catalog with authenticated control-plane ops, leases/heartbeats and selection preference |
 | `effect-authz` | pure in-memory authorization engine: principals, actions, resources, policy templates, grants, decision, audit |
-| `effect-mesh` | a custom JSON-RPC node mesh (announce/discover/call) with namespace isolation. **Unwired**: nothing depends on it, and `docs/effect-unified-on-mcp.md` retires the self-made wire in favour of MCP |
 
 ### 6. Capabilities outside the layer stacks
 

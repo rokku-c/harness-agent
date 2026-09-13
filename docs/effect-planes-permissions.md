@@ -58,7 +58,7 @@ config    : config://ns/appId                    # 该 node 的配置(schema 驱
 
 ## 5) 复用与落点
 
-- 复用:effect-mesh 的 ns/grant、effect-interface(工具 schema)、effect-ui(UiDocument)、
+- 复用:effect-interface(工具 schema)、effect-ui(UiDocument)、
   effect-config(schema)、consent/audit、effect-bundle(manifest grants 声明)。
 - 新增:**packages/effect-planes** —— 统一授权表(can/grant/revoke,plane 维度)+
   node 的 store/ui 描述注册 + 统一的跨 node 读取入口;以及一个最小 `NodeStore`。
