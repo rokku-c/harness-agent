@@ -1,15 +1,6 @@
 import { invoke, type EffectRegistry, type EffectTool } from "@effect-agent/effect-interface"
 import { zodShape, type JsonSchema } from "./schema.js"
-
-/**
- * The name a caller sees: the tool's own name, reduced to what MCP allows.
- *
- * `sanitize` is not injective — `Formal/ToolKey.lean`
- * (`two_names_can_serve_as_one_name`) exhibits two tools with one served name —
- * so a surface that let the later registration win would drop a tool it still
- * advertises. `registerTools` refuses instead.
- */
-const sanitize = (name: string): string => name.replace(/[^A-Za-z0-9_-]+/g, "_")
+import { makeServedNames } from "./served-name.js"
 
 const call = (tool: EffectTool) => async (args: Record<string, unknown>): Promise<unknown> => {
   try {
@@ -32,21 +23,15 @@ const call = (tool: EffectTool) => async (args: Record<string, unknown>): Promis
  * than a reconcile pass over this one, and there is no stale list to announce.
  *
  * Throws (naming both tools) rather than silently overwriting when two tools
- * would share one served name.
+ * would share one served name — the reduction `served-name.ts` owns.
  */
 export const registerTools = (server: any, registry: EffectRegistry): void => {
   const register = server.registerTool.bind(server) as any
-  const served = new Map<string, string>()
+  const served = makeServedNames("tools")
 
   for (const { key, tool } of registry.tools()) {
-    const name = sanitize(tool.name)
-    const taken = served.get(name)
-    if (taken !== undefined) {
-      throw new Error(`tools "${taken}" and "${key}" both serve as "${name}"; rename one of them`)
-    }
-    served.set(name, key)
     register(
-      name,
+      served(key, tool.name),
       {
         title: tool.title ?? tool.name,
         description: tool.description ?? tool.name,
