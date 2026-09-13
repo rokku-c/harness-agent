@@ -29,3 +29,4 @@ import Formal.Screen
 import Formal.Slot
 import Formal.Swap
 import Formal.ToolKey
+import Formal.Watch

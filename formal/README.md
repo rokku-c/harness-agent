@@ -33,6 +33,7 @@ absent from the list would be counted here while never being compiled.
 | `Formal/Slot.lean` | `effect-apps/src/registration/generations.ts` | the rollback target is the generation the live one displaced, not the oldest the slot ever had; a commit that replaces the history instead of joining it leaves nothing to roll back to |
 | `Formal/Swap.lean` | `effect-bundle/src/supervisor-swap.ts` | at every moment of a kernel swap the dispatcher points at a kernel that is loaded; stopping the old one first does not |
 | `Formal/ToolKey.lean` | `effect-interface/src/tool-key.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two tool names can sanitize to one served name, and the surface refuses that instead of dropping a tool |
+| `Formal/Watch.lean` | `effect-server/src/boot/watch.ts` | an event is judged by the file's own time against the last reaction, so the reports a reaction itself causes — a path it only moved — are not edits and do not start the next reload; judging by the event instead makes every copy another reload. A burst for one app leaves one timer armed, carrying the last event, and touches no other app's timer |
 
 ## What this is not
 
