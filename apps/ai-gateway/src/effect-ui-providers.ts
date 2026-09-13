@@ -6,8 +6,8 @@
  * answer stays in this card, where the press was, and nothing renders there
  * until a press has produced one.
  */
-import { failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { cell, cellOf, chip, emptyList, section, table, text } from "./effect-ui-nodes.ts"
+import { emptyRows, failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { cell, cellOf, chip, MODEL_SOURCE, section, table, text } from "./effect-ui-nodes.ts"
 
 /**
  * The state a provider is in. `credential` is the server's own word for it, so
@@ -56,7 +56,7 @@ const probeResult: readonly UiNodeSpec[] = [
 
 export const providersSection: UiNodeSpec = section("Providers", [
   text("Every upstream the gateway can proxy to. Test asks one to answer on the same egress the proxy uses.", { size: "2", color: "gray" }),
-  emptyList("/models/providers", "No providers are configured."),
+  emptyRows(MODEL_SOURCE, "/models/providers", "No providers are configured."),
   table(["Provider", "API type", "Base URL", "Status", "Test"], providerCells, "/models/providers", "id"),
   ...probeResult,
 ])

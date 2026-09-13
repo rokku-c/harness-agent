@@ -2,19 +2,20 @@
  * The turns of the session an operator opened, as the section they read them in.
  *
  * The app calls this read "history"; the page names it what it shows. It is a
- * section like every other list on the page — a titled card that says what it is
- * waiting for and what it holds — rather than a bare heading with a loose line of
- * instruction floating under it.
+ * section like every other list on the page — a titled card that says what it
+ * holds — rather than a bare heading with a loose line of instruction floating
+ * under it.
  *
  * It renders what the row's press loaded into `/opened`, so the turns on screen
- * always belong to the session the detail beside them names. A read that fails
- * replaces that path with its error, which is why the refusal is shown by the
- * press that issued it (the Sessions card) and not a second time here.
+ * always belong to the session the room names above them. A read that fails
+ * replaces that path with its error, and the room states that above: this card
+ * is drawn only for a session that was read, so the sentence it has for an empty
+ * one can never stand beside a failure.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { line, section, stateBadge, text } from "./effect-ui-nodes.ts"
-import { emptyList } from "./effect-ui-states.ts"
+import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { emptyMessage, row } from "@effect-agent/effect-ui"
+import { line, section, stateBadge } from "./effect-ui-nodes.ts"
 
 /** One turn: who said it, then what was said. */
 const turn: UiNodeSpec = {
@@ -32,18 +33,8 @@ const turn: UiNodeSpec = {
 
 export const historyNodes: readonly UiNodeSpec[] = [
   section("Transcript", [
-    // Which of the two this card says is read from one path: the one that carries
-    // "a session is open". The turns are the content of that fact, so they are
-    // drawn only while it holds — a closed session's turns can never stand beside
-    // the sentence that says nothing is open.
-    { ...text("Open a session row to read its transcript.", { size: "2", color: "gray" }),
-      visible: { source: { state: "/opened/sessionId" }, not: true } },
     { component: "Flex", props: { direction: "column", gap: "2" },
-      visible: { source: { state: "/opened/sessionId" } },
-      children: [
-        { component: "Flex", props: { direction: "column", gap: "2" },
-          repeat: { source: { state: "/opened/turns" }, key: "at" }, children: [turn] },
-        emptyList("/opened/ok", "/opened/turns", "This session has no turns yet."),
-      ] },
+      repeat: { source: { state: "/opened/turns" }, key: "at" }, children: [turn] },
+    emptyMessage("/opened/turns", "This session has no turns yet."),
   ]),
 ]

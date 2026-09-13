@@ -32,9 +32,9 @@ complete when you arrive** — however you arrived.
 |---|---|---|
 | F1 | **One control per destination.** A destination has exactly one control that reaches it, on exactly one surface. Another surface may link to it, never re-offer it. | ⌂ and ☰ were both live on every app screen, both going Home. A person reads two controls as two destinations. |
 | F2 | **Up is one level, and it is always in the same place.** The leading control goes to the parent screen; at an app's first screen it goes Home. Never `history.back()` unconditionally. | `screen-bar` called `history.back()`, whose own comment conceded it can land on "the page the reader came from" — a pasted link has no history, so Back left the product. |
-| F3 | **A destination is complete on arrival.** The address names the screen *and* what it shows; arriving cold builds the same screen with the same content as arriving by press. A screen that needs data declares how to load it — and a load its address does not name is not attempted. | `#view/board/task?taskId=…` rendered *"No task is open. Pick one from the board."* — the parameter was written to the URL by the press and read by nothing. Measured live. The same rule a second time: `#view/board/task` with no id sent `GET /board/api/tasks/` and answered "Unknown Board route" beside the empty sentence — a request about a path the declaration never described. |
-| F4 | **An action's result appears where the press was.** A press names the reads its result changes, and a re-run read is a read and not a press — it makes its call and writes its own answer; it consumes no draft and enters no screen. What a press fills sits *after* it in reading order, where the eye already is. | deckconsole's `deck.send` wrote `/result/turn` and refreshed only the session list, while the transcript on the same page reads `/opened`, which only `deck.select` writes: send a turn and the answer never appeared. The product had two kinds of read — a source and a read-action — and only the first could be re-run. `refresh` now names either, and a press that made no call consumes nothing. Proven: `Formal/Refresh.lean`. The same rule a second time, in mantis: `mantis.send` fired the turn and answered "accepted", and the reply arrived on an event stream the console does not have, so the transcript under the button never showed it — the turn is now waited out, and the timeline is one of the reads the press re-runs. And the order: the conversation a row's `Read` fills used to be drawn *above* the rows that chose it, so a press changed what was behind the reader, past two empty cards that each said "press Read" — the doors now come before the room they open. |
-| F5 | **One surface writes a fact.** Other surfaces read it or link to the writer. | Configuration is written on Settings *and* reachable as `#config/<app>`, which mounts nothing and answers with an error callout. Two doors, one of them painted on. The same shape at the list: a card showed a table's header row under the notice saying the list was empty — the notice said the true thing and the bare header said there were columns of nothing, on four cards of one page. A list is now drawn only while it has a first row (`whenRows`), from the same predicate the notice reads. The same defect a third time, on the gateway's own console: its audit card built its table by hand beside `sourceStates`, so the notice said no decisions had been recorded and a bare header under it said there were columns of nothing — measured in the browser, on the page an operator opens to find out what the gateway refused. And the same shape as a fact written twice: mantis's composer addressed a `message.conversationId` of its own while the timeline showed the read's answer, so a message could be typed beside a timeline it was not addressed to. The conversation the page is about is now the read's own answer — one path, written by the read, shown by the timeline, named by the composer and carried by its button. And a surface that *promises* a fact must carry it: the gateway's tool picker said "Topology names what each server answered" while Topology drew three lists that did not include it, and the operation's own description claimed the same thing — so the load report is now a column of the server row it is about (`listed`, `failed` with the sentence the upstream returned, or `not asked` for a server that is down), because an offline server appears in neither of the report's two lists and a column reading the report alone would leave the likeliest case unsaid. Measured live: with the upstream's endpoint pointed at a 404 the row read `healthy · failed · Streamable HTTP error: …`, and pointing it back read `healthy · listed`. |
+| F3 | **A destination is complete on arrival.** The address names the screen *and* what it shows; arriving cold builds the same screen with the same content as arriving by press. A screen that needs data declares how to load it — and a load its address does not name is not attempted. | `#view/board/task?taskId=…` rendered *"No task is open. Pick one from the board."* — the parameter was written to the URL by the press and read by nothing. Measured live. The same rule a second time: `#view/board/task` with no id sent `GET /board/api/tasks/` and answered "Unknown Board route" beside the empty sentence — a request about a path the declaration never described. Measured a third time, and this is the rule's hard edge: three views whose screens the host had to read off their layout (`screen-derive.ts`) and two the reading refused (`ai-gateway`, `mantis`, `deckconsole`) were still one long page — and one of the five was worse than long. The MCP registry's derived screens left the credential both of its write acts need on the first screen while the acts themselves moved to screens of their own, so `#view/mcp-registry-app/register-a-server` arrived at a Register press with nothing to authorize it and no control anywhere on that surface that could supply one. The reading `screen-derive.ts` takes asks whether a control and its own answer travel together; it does not ask whether a destination can be *completed* where it lands. All nine product views now declare their own `screens`, and each act carries the credential it needs on the screen that makes it — the registry holds one token per server id, so a box on the list would authorize a press for a server it cannot name. |
+| F4 | **An action's result appears where the press was.** A press names the reads its result changes, and a re-run read is a read and not a press — it makes its call and writes its own answer; it consumes no draft and enters no screen. What a press fills sits *after* it in reading order, where the eye already is. | deckconsole's `deck.send` wrote `/result/turn` and refreshed only the session list, while the transcript on the same page reads `/opened`, which only `deck.select` writes: send a turn and the answer never appeared. The product had two kinds of read — a source and a read-action — and only the first could be re-run. `refresh` now names either, and a press that made no call consumes nothing. Proven: `Formal/Refresh.lean`. The same rule a second time, in mantis: `mantis.send` fired the turn and answered "accepted", and the reply arrived on an event stream the console does not have, so the transcript under the button never showed it — the turn is now waited out, and the timeline is one of the reads the press re-runs. And the order: the conversation a row's `Read` fills used to be drawn *above* the rows that chose it, so a press changed what was behind the reader, past two empty cards that each said "press Read" — the doors now come before the room they open, and the room is a screen rather than a card under the list: entering it is what fills it, so the read that answers the press is the one the door leads to. |
+| F5 | **One surface writes a fact.** Other surfaces read it or link to the writer. | Configuration is written on Settings *and* reachable as `#config/<app>`, which mounts nothing and answers with an error callout. Two doors, one of them painted on. The same shape at the list: a card showed a table's header row under the notice saying the list was empty — the notice said the true thing and the bare header said there were columns of nothing, on four cards of one page. A list is now drawn only while it has a first row (`whenRows`), from the same predicate the notice reads. The same defect a third time, on the gateway's own console: its audit card built its table by hand beside `sourceStates`, so the notice said no decisions had been recorded and a bare header under it said there were columns of nothing — measured in the browser, on the page an operator opens to find out what the gateway refused. And the same shape as a fact written twice: mantis's composer addressed a `message.conversationId` of its own while the timeline showed the read's answer, so a message could be typed beside a timeline it was not addressed to. The conversation the page is about is now the read's own answer — one path, written by the read, shown by the timeline, named by the composer and carried by its button. And a surface that *promises* a fact must carry it: the gateway's tool picker said "Topology names what each server answered" while Topology drew three lists that did not include it, and the operation's own description claimed the same thing — so the load report is now a column of the server row it is about (`listed`, `failed` with the sentence the upstream returned, or `not asked` for a server that is down), because an offline server appears in neither of the report's two lists and a column reading the report alone would leave the likeliest case unsaid. Measured live: with the upstream's endpoint pointed at a 404 the row read `healthy · failed · Streamable HTTP error: …`, and pointing it back read `healthy · listed`. And a screen is a surface: the states of a read belong to the screen that read feeds — stated once, above every list on it, and never once per list — while the emptiness of a list belongs to that list, because lists under one source read `ready` while any one of them has a row. agentd stated one failed read four times on one page before this. |
 | F6 | **One identity, checked at one door.** An agent is identified by a credential the door verifies; a header is a hint, not an identity. | `mcp-server.ts` accepted any `x-agent-id`; `authenticate` was never supplied, so `authInfo` was always undefined and any caller could assume another agent's sets. The door is now `door-auth.ts`, and it is handed the two stores rather than the whole resolving surface, so `trusted` and `claims` — the fields that let a *transport* vouch for what it passed through — cannot be set by an HTTP request; the headers of one are read as a single thing, the bearer token (`Formal/DoorAuth.lean`). Measured live on one running gateway, four callers at `POST /mcp-gateway`: a credential for `app:agent-1` was named and carried its call through; the same request carrying `x-agent-id: agent-1` and no credential was named nobody and refused `401 no credentials`; a forged bearer token, `401 invalid token`; a *valid* credential for an unbound `app:stranger`, named nobody and refused `404 no_server`. The header decides nothing in any of the four. |
 | F7 | **One store per fact, and the surface that writes it shows it.** | The set an agent reaches the gateway through was declared twice — in the center that issues the identity a binding is keyed by, and again in the gateway's own config — with nothing between the two, so an operator who bound an agent over `agentd_bind` found the gateway page still answering *"No agents bound to a set yet."* The gateway's `sets`/`bindings` config fields are gone, not deprecated; the center is the one home, and what crosses to the door is a **reader over the center's own state** rather than a copy of it (`context.mcpSets`, the same shared-surface shape as `context.mcpRegistry`), so the door holds no second copy and there is nothing to keep in step. The seam refuses a second author — `provide` throws if an app other than the one holding the slot takes it, and a reload is the same app re-providing, which is allowed — and the door rebuilds on the center's **revision**, never on a clock, so there is no period in which it decides with a binding its operator has already replaced (`Formal/SetSource.lean`). The rebuild is total by construction rather than by try/catch: the duplicates the registry throws on are refused by the one mcpset grammar, which the center's config loader and its `agentd_upsert_mcpset` op both parse with, so a stored declaration is one the door cannot fail to build. The gateway's config schema refuses `sets`, `bindings` and `defaultAction` outright, and the end-to-end test declares the set and the binding on the center and the door serves them. |
 | F8 | **What a door advertises is what it enforces.** | `tools/list` answered one multiplexed `mcp_gateway_call` while the page copy said "one governed MCP entry point for every agent" and the per-tool surface was unbuilt. The listing is now not a second rule that agrees with the call — it *is* the call, asked once per tool: `visibleEntries` offers every catalog entry to the gateway's own `decide` and keeps the ones it allowed, so a tool missing from `tools/list` is a tool `tools/call` refuses, and the call runs that same `decide` with the same arguments (`Formal/Authorize.lean`). Measured live on the four callers above: the caller who could carry a tool was shown four, and the one call that went through came back naming the server and the set that carried it; the three who could carry nothing were shown nothing, before any of them asked. |
@@ -86,7 +86,8 @@ declare ──▶ registered ──▶ view lowered per screen ──▶ press �
 ```
 
 An app declares views, screens and actions; the host guarantees F1–F4 on its
-behalf. An app never draws chrome, never decides where Home is, and never keeps
+behalf. All nine product views declare their screens, so the reading the host can
+fall back to (`screen-derive.ts`) is a safety net no product relies on. An app never draws chrome, never decides where Home is, and never keeps
 its own copy of navigation state.
 
 ## What each rule cost, in code
@@ -102,7 +103,9 @@ its own copy of navigation state.
   the press writes the values it was called with into the address and the screen
   reads them back from there, so a pasted address and a press are the same
   arrival (`Formal/Entry.lean`); and a url whose path names an id nothing
-  supplied is not requested at all.
+  supplied is not requested at all. Every view declares its own `screens` — no
+  product view leaves them to be read off its layout — and the id an entry names
+  reaches the screen the same way a press's does, out of the address.
 - F4: `UiActionSpec.refresh` — the reads to run again once a press succeeded,
   named by source id *or* by declared action. A refresh makes its call and writes
   its own answer, consumes no draft and enters no screen, which is what leaves
@@ -123,7 +126,11 @@ its own copy of navigation state.
   is offered exactly when it can act (`Formal/Door.lean`). And what the catalog
   round answered is a column of the server it is about, not a list beside it —
   three states, because a server that is down is in neither of the round's two
-  lists (`Formal/ServerListings.lean`).
+  lists (`Formal/ServerListings.lean`). And at the screen: `emptyRows` states a
+  list's own emptiness inside its section, while `loadingRows` and
+  `failureNotice` for the read are stated once per screen, above every list that
+  read feeds — a screen is a surface, so `listStates` per list was one failed
+  read said four times on one page.
 - F9: `access-preview.ts` — the preview asks the gateway's own set registry and
   reads its answer, so the verdict the page states and the call the gateway
   carries are one value read twice. The set list it draws stays, as display, and
@@ -243,3 +250,61 @@ its own copy of navigation state.
   in a console form has none however its raw object was spelled — no surface that *draws* a
   config can be drawing a secret — and the config a `TurnOrder` carries is the only thing
   that supplies one.
+
+## What was measured, in the browser
+
+Every screen shape above was driven in a real browser over CDP, against a second
+server on another port booted from the same source — not against the dev server,
+which was left serving. Nine product views × their declared screens, each entered
+by address (`#view/<app>/<screen>?<params>`), at 400px and at 1280px:
+
+- **A root is one screen.** One pane, no bar, the surface's own doors drawn on it,
+  no horizontal scroll, and the shell body does not scroll it. All nine, both
+  widths, and again at a 430px-tall window: the doors stayed on the surface and
+  nothing overflowed, so a short window does not push a destination off the
+  screen that offers it (F1).
+- **A screen is complete on arrival.** Every declared screen entered cold built
+  itself — the read its `onEnter` names ran from the address alone. A screen whose
+  address names no entity made no call and said so on itself: agentd's
+  `/agent?agentId=none` answered *agent not found* on the agent screen, board's
+  `/task?taskId=none` *Task not found*, deckconsole's `/session?sessionId=none`
+  *unknown session*, mantis' `/conversation` *No conversation is open. Pick one
+  from the list.* (F3). No address produced a request about a path its declaration
+  never described.
+- **Narrow is one pane and a way up; wide is two.** At 400px a screen is one pane
+  with `‹ Back` above it; at 1280px the screen it came from is drawn to its left
+  and the bar still reads the current screen's title. A window *resized* while a
+  screen is open — 400 → 1280 → 700 → 1024 → 400 — collapsed and expanded with the
+  bar intact and no reload: one pane, two, one, two, one (F2).
+- **A press's answer appears where the press was.** herdr's fleet row pressed
+  *Open* landed on `#view/herdr/agent?target=w3%3Ap1` carrying herdr's own answer
+  for that pane (*cannot read 200 lines while w3:p1 is working…*); ui-host's
+  *Set theme* changed *Theme in use* from `warm-paper` to `default` on the same
+  screen that holds the picker; mcp-registry's *Load preview* answered
+  *server not found* on the preview screen; mantis' *Add record* with no kind
+  answered *kind and text required* on the workspace screen; the gateway's row
+  read answered in the row's own card. Nothing was written to a surface the
+  operator was not looking at (F4), and no list stated a read's state beside a
+  screen that had already stated it (F5).
+- **Up one level, both ways.** `‹ Back` popped the screen, and so did the
+  browser's own Back — from agentd's Launches, board's opened task, and the
+  gateway's Identities — each returning to the screen it was entered from rather
+  than to the page before the console.
+
+The MCP journey's door was driven on that server too, with the four callers F6
+records: a bearer token that resolves carried the call, a request with **no**
+credential answered `401 · deny · no credentials`, a forged bearer answered
+`401 · deny · invalid token`, and `x-agent-id` presented alone named nobody — the
+preview beside it answering `bound: false` with its reason for an identity that
+reaches nothing. The console's own screens for the journey — Identities, Topology,
+Recent decisions and the registry's Servers, Register, Withdraw, Preview — are
+among the nine above.
+
+One thing the running server cannot show and a restart will: its `agentd` plane
+was loaded before the commit that gave `packages/effect-interface` its `json`
+field builder, and a plane reload copies only an app's own directory — Bun freezes
+a `packages/*` namespace for the life of the process, which is the same limit F10
+records for measuring in process. `agentd` is therefore still serving the screens
+the host read off its layout, on that one process, until it is restarted; every
+other view reloaded onto the declared shape. This is a property of a long-running
+process, not of the source: the same source booted fresh serves all nine declared.

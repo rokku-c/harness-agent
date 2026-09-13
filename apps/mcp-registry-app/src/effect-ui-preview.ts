@@ -9,6 +9,10 @@
  * sandboxed `Preview`, is left with the kinds a Radix component genuinely
  * cannot show: a page, an image. Those two are one node guarded by an `any` of
  * two equalities rather than two nodes.
+ *
+ * It replaces the list on screen rather than sitting under it because a preview
+ * is a body of someone else's document, and a document given a slice of a page
+ * under a registry of any length is a document read through a letterbox.
  */
 
 import { failureCallout, field, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
@@ -27,15 +31,17 @@ const sandboxed: UiNodeSpec =
       { source: { state: "/preview/result/kind" }, equals: "image" },
     ] } })
 
-export const previewSection: UiNodeSpec = section("Preview a ui:// resource", [
-  text("Reads a resource a server declares, over that server's own MCP endpoint.", { size: "2", color: "gray" }),
-  field("Server id", { component: "TextField.Root", bind: "/preview/serverId" }),
-  field("Resource URI", { component: "TextField.Root", props: { placeholder: "ui://server/console" }, bind: "/preview/uri" }),
-  row([{ component: "Button", props: { value: "Load preview" }, onPress: "registry.preview",
-    params: { serverId: { state: "/preview/serverId" }, uri: { state: "/preview/uri" } } }]),
-  failureCallout("/preview/result/error"),
-  { component: "Card", props: { variant: "surface" }, visible: { source: { state: "/preview/result" }, not: true },
-    children: [{ component: "Text", props: { value: "Load a resource to see it here.", size: "2", color: "gray" } }] },
-  textBody,
-  sandboxed,
-])
+export const previewNodes: readonly UiNodeSpec[] = [
+  section("Preview a ui:// resource", [
+    text("Reads a resource a server declares, over that server's own MCP endpoint.", { size: "2", color: "gray" }),
+    field("Server id", { component: "TextField.Root", bind: "/preview/serverId" }),
+    field("Resource URI", { component: "TextField.Root", props: { placeholder: "ui://server/console" }, bind: "/preview/uri" }),
+    row([{ component: "Button", props: { value: "Load preview" }, onPress: "registry.preview",
+      params: { serverId: { state: "/preview/serverId" }, uri: { state: "/preview/uri" } } }]),
+    failureCallout("/preview/result/error"),
+    { component: "Card", props: { variant: "surface" }, visible: { source: { state: "/preview/result" }, not: true },
+      children: [{ component: "Text", props: { value: "Load a resource to see it here.", size: "2", color: "gray" } }] },
+    textBody,
+    sandboxed,
+  ]),
+]

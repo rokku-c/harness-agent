@@ -56,3 +56,6 @@ export const commandCard: UiNodeSpec = section("Renderer and theme", [
   row([button("Set theme", "uiHost.setTheme", { kind: "set-theme", theme: { state: "/commands/theme" } })]),
   failureCallout("/commands/results/theme/error"),
 ])
+
+/** The control surface as a destination: the two settings the runtime draws with, entered from it. */
+export const rendererNodes: readonly UiNodeSpec[] = [commandCard]

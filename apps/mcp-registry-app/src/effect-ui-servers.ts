@@ -1,18 +1,20 @@
 /**
- * The server list: what is registered, the state each server is in, and the one
- * action an operator takes from a row.
+ * The server list: what is registered, and the state each server is in.
  *
  * A row declares ui:// resources or it declares none, so the resources are read
  * inside the row's identity instead of standing in a column that would be empty
- * on nearly every line. The withdraw takes effect at once and cannot be undone,
- * so it is offered only while the credential above is filled: a press that could
- * not have been authorized is a press the operator could not have meant. The
- * readout sits under the rows, where the press was, and names the server the
- * answer named rather than reporting that some press returned.
+ * on nearly every line.
+ *
+ * The list is a read surface and nothing else, which is why the one act an
+ * operator makes from a row is a door rather than a press: taking a server out
+ * is irreversible and only the server's own token authorizes it, so the act has
+ * a screen of its own where that token is entered and the record being removed
+ * is named (`effect-ui-withdraw.ts`). A dialog on this surface would have had to
+ * ask for the token without ever saying which server it was for.
  */
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { cell, cellOf, failureCallout, list, row, section, sourceStates, table, text } from "@effect-agent/effect-ui"
+import { cell, cellOf, list, row, section, sourceStates, table, text } from "@effect-agent/effect-ui"
 
 /**
  * The resources a row declares, under the id it declares them from. Guarded on
@@ -41,14 +43,15 @@ const identity: UiNodeSpec = cellOf({ component: "Flex", props: { direction: "co
 ] })
 
 /**
- * The primary action for a row, carrying the id it stands for: an operator who
- * wants a server gone should not have to retype the id it is listed under.
+ * The door out of a row, carrying the id it stands for: an operator who wants a
+ * server gone should not have to retype the id it is listed under. It is a soft
+ * red press because it leads to the destruction of this row, not because it
+ * performs it — the pressing is done on the screen it opens.
  */
 const withdraw: UiNodeSpec = cellOf({ component: "Button",
   props: { value: "Withdraw", size: "1", variant: "soft", color: "red" },
-  visible: { source: { state: "/token" } },
-  onPress: "registry.withdraw",
-  params: { serverId: { item: "serverId" }, token: { state: "/token" } } })
+  onPress: "registry.openWithdraw",
+  params: { serverId: { item: "serverId" } } })
 
 const cells: readonly UiNodeSpec[] = [
   identity,
@@ -61,20 +64,11 @@ const cells: readonly UiNodeSpec[] = [
   withdraw,
 ]
 
-/** The server the registry no longer holds, named by the id the withdraw answered with. */
-const withdrawn: UiNodeSpec = { component: "Flex", props: { gap: "2", align: "center", wrap: "wrap" },
-  visible: { source: { state: "/withdraw/result/serverId" } },
-  children: [
-    text("Withdrawn", { size: "2", color: "green" }),
-    { component: "Code", props: { variant: "soft", size: "1" }, bind: "/withdraw/result/serverId" },
-  ] }
-
-/** The list, its four states, and the press that writes from a row. */
+/** The list, and the states of the one read behind it. */
 export const serversSection: UiNodeSpec = section("Servers", [
-  text("One row per registered server; Withdraw removes one, acting with the token above.", { size: "2", color: "gray" }),
+  text("One row per registered server; a row's Withdraw opens the act that removes it.", { size: "2", color: "gray" }),
   ...sourceStates("registry", "No MCP servers are registered yet."),
   table(["Server", "Version", "Era", "Status", "Withdraw"], cells,
     { source: { state: "/registry/servers" }, key: "serverId" }),
-  withdrawn,
-  failureCallout("/withdraw/result/error"),
 ])
+

@@ -25,3 +25,6 @@ export const catalogSection: UiNodeSpec = section("Catalog", [
   inventory("Extensions", "extensions", "No extensions are registered yet.",
     ["Name", "Version"], [cell("name"), cell("version")], { source: { state: "/extensions" }, key: "name" }),
 ])
+
+/** The catalog as a destination: what the runtime can draw with, entered from what it is drawing. */
+export const catalogNodes: readonly UiNodeSpec[] = [catalogSection]

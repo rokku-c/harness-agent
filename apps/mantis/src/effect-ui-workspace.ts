@@ -5,8 +5,7 @@
  * below, since the ids it takes are read off the rows.
  */
 
-import { itemRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { sharedSourceStates } from "./effect-ui-list.ts"
+import { emptyRows, failureNotice, itemRows, loadingRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { cell, cellOf, codeCell, heading, table, text } from "./effect-ui-nodes.ts"
 import { addForm, recordForm } from "./effect-ui-workspace-forms.ts"
 
@@ -44,7 +43,10 @@ export const workspaceNodes: readonly UiNodeSpec[] = [
         heading("Workspace", { size: "3" }),
         text("Declared records written by the operator or an agent.", { size: "2", color: "gray" }),
         addForm,
-        ...sharedSourceStates("workspace", "/mantis/workspace/resources", "No resources are declared."),
+        // this screen's own read, stated once, above the list it feeds
+        loadingRows("workspace", 3),
+        failureNotice("workspace"),
+        emptyRows("workspace", "/mantis/workspace/resources", "No resources are declared."),
         { component: "Flex", props: { direction: "column", gap: "3" },
           repeat: { source: { state: "/mantis/workspace/resources" }, key: "kind" }, children: [resourceCard] },
         { component: "Separator", props: { size: "4" } },

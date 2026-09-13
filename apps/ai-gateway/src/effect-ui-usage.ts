@@ -10,8 +10,8 @@
  * has: who asked and how it ended are written under the request id, because a
  * column that is blank on almost every row is a column of nothing.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { cell, cellOf, chip, emptyList, row, section, table, text } from "./effect-ui-nodes.ts"
+import { emptyRows, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { cell, cellOf, chip, MODEL_SOURCE, row, section, table, text } from "./effect-ui-nodes.ts"
 
 /** One figure: a small grey name over the value the API reports. */
 const metric = (name: string, bind: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec => ({
@@ -47,6 +47,6 @@ const exchangeCells: readonly UiNodeSpec[] = [
 /** The exchanges behind the figures above, table-shaped like every other list. */
 export const activitySection: UiNodeSpec = section("Recent activity", [
   text("One row per exchange: the request, and the response it got. The twenty newest are listed.", { size: "2", color: "gray" }),
-  emptyList("/models/usage/recent", "No requests have been recorded yet."),
+  emptyRows(MODEL_SOURCE, "/models/usage/recent", "No requests have been recorded yet."),
   table(["Request", "Status", "Duration (ms)"], exchangeCells, "/models/usage/recent", "requestId"),
 ])

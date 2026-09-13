@@ -1,18 +1,28 @@
-import { region, type EffectUiView } from "@effect-agent/effect-ui"
-import { heading, text } from "./effect-ui-nodes.ts"
+/**
+ * Mantis's console, in five screens.
+ *
+ * The first screen is what needs an operator: what is blocked on a decision, and
+ * the conversations this console has held. A row's Read enters that
+ * conversation's room, and the header's doors open the form that names one the
+ * console has not held, the workspace, and the event log.
+ *
+ * The room is a screen and not a section under the list because working in a
+ * conversation is a job: its timeline and the composer that adds to it are one
+ * destination an operator enters and comes back from. The same goes for the two
+ * lists the console ends with — an operator reads them, and reading is going
+ * somewhere (Journey 3, `docs/flows.md`).
+ *
+ * The console state carries the first screen's two lists, so its read is stated
+ * once there and each list says its own emptiness.
+ */
+import { NAV_ROOT, failureNotice, loadingRows, region, type EffectUiView } from "@effect-agent/effect-ui"
+import { mantisHeader } from "./effect-ui-header.ts"
 import { chatNodes } from "./effect-ui-chat.ts"
-import { conversationNodes } from "./effect-ui-conversations.ts"
-import { approvalGate, approvalNodes } from "./effect-ui-approvals.ts"
+import { conversationCard, startNodes } from "./effect-ui-conversations.ts"
+import { approvalCard, approvalGate } from "./effect-ui-approvals.ts"
 import { eventNodes } from "./effect-ui-events.ts"
 import { workspaceNodes } from "./effect-ui-workspace.ts"
 
-/**
- * The console's one page, in the order an operator reads it: what the app is,
- * what needs attention, the doors into a conversation, the conversation itself,
- * and then the lists — each with its own source state and its own press
- * outcomes. Every write answers on a result path of its own, so a section
- * reports its presses and nobody else's.
- */
 export const effectUiView: EffectUiView = {
   viewId: "mantis-console",
   title: "Mantis",
@@ -40,18 +50,22 @@ export const effectUiView: EffectUiView = {
   ],
   actions: [
     // The turn is waited out rather than fired: the console has no event stream
-    // to catch the reply on, so the reply is read back by the timeline's own read
-    // — which this press runs again, once the turn has ended and there is one.
+    // to catch the reply on, so the reply is read back by the room's own read —
+    // which this press runs again, once the turn has ended and there is one.
     { name: "mantis.send", method: "POST", url: "/mantis/api/message", result: "/mantis/send",
       params: { wait: true }, clear: ["/message/text"], refresh: ["state", "events", "mantis.conversation"] },
-    // One read, two doors: a row names the conversation by the key it holds, and
-    // the field beside the Start press names one this console has not held. Both
-    // answer where the timeline reads. The id it re-reads is the one it last
-    // answered for, so the presses that change a transcript — sending a turn —
-    // run this again for the conversation on screen, and a read with no
-    // conversation to read makes no call at all.
+    // Nothing to read on the way in: a room is filled by its own read below, so
+    // a press that names a conversation only names it.
+    { name: "mantis.openConversation", opens: "conversation" },
+    { name: "mantis.newConversation", opens: "start" },
+    { name: "mantis.openWorkspace", opens: "workspace" },
+    { name: "mantis.openEvents", opens: "events" },
+    // The room's own read. The id comes from the address, which is where a press
+    // put it, so a row's Read and the Start form are one read with two doors
+    // (`Formal/Door.lean`) — and a read with no conversation named makes no call
+    // at all rather than asking about a conversation nobody chose.
     { name: "mantis.conversation", method: "GET", url: "/mantis/api/conversation?conversationId={conversationId}",
-      result: "/mantis/conversation", params: { conversationId: { state: "/mantis/conversation/conversationId" } },
+      result: "/mantis/conversation", params: { conversationId: { state: `${NAV_ROOT}/conversationId` } },
       clear: ["/message/text"] },
     { name: "mantis.allow", method: "POST", url: "/mantis/api/approval/resolve", result: "/mantis/approval", refresh: ["state", "events"] },
     { name: "mantis.deny", method: "POST", url: "/mantis/api/approval/resolve", result: "/mantis/approval", refresh: ["state", "events"] },
@@ -60,14 +74,25 @@ export const effectUiView: EffectUiView = {
     { name: "mantis.workspaceDelete", method: "DELETE", url: "/mantis/api/workspace?recordId={recordId}", result: "/mantis/workspaceDelete", refresh: ["workspace"] },
   ],
   nodes: [
-    heading("Mantis", { size: "6" }),
-    text("Human-agent conversations, approvals, and workspace records.", { size: "2", color: "gray" }),
+    mantisHeader,
+    // A page-wide fact rather than a row's state: approvals being off is the one
+    // thing here worth a signal, and it holds for the whole console.
     approvalGate,
-    // The doors come before the room they open: a press reports its failure where
-    // it was made, and the conversation it read shows under the rows that chose
-    // it rather than above them. The task stays where it is; the lists below are
-    // as long as the app's history is, and how long that is is not the page's
-    // business.
-    region([...conversationNodes, ...chatNodes, ...approvalNodes, ...workspaceNodes, ...eventNodes]),
+    // The lists below are as long as the app's history is, and how long that is
+    // is not the page's business: they scroll in their own box.
+    region([
+      // the console's own read, once, above the two lists it feeds
+      loadingRows("state", 3),
+      failureNotice("state"),
+      // A call does not run until it is decided, so the blocked work comes first.
+      approvalCard,
+      conversationCard,
+    ]),
+  ],
+  screens: [
+    { id: "conversation", title: "Conversation", onEnter: "mantis.conversation", nodes: chatNodes },
+    { id: "start", title: "New conversation", nodes: startNodes },
+    { id: "workspace", title: "Workspace", nodes: workspaceNodes },
+    { id: "events", title: "Recent events", nodes: eventNodes },
   ],
 }

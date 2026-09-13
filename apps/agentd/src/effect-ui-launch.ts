@@ -82,3 +82,10 @@ export const launchesSection: UiNodeSpec = section("Launches", [
     [agentCell, cellOf([chip("machineId")]), cellOf([stateBadge("state")]), resultCell],
     "/launches/launches", "intentId")),
 ])
+
+/**
+ * The queue as a destination rather than as a block: an intent is queued, and
+ * the operator who queued it comes back to read what became of it. It carries
+ * its own read's states, because that read feeds this one list and nothing else.
+ */
+export const launchesScreen: readonly UiNodeSpec[] = [launchesSection]

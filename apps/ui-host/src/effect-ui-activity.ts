@@ -29,3 +29,6 @@ export const activitySection: UiNodeSpec = section("Activity", [
   ...sourceStates("activity", "No activity has been recorded yet."),
   table(["Agent", "Status"], [cell("agent"), statusCell("status")], { source: { state: "/activity/events" }, key: "id" }),
 ])
+
+/** The log as a destination: what the agents using this canvas announced, entered from the canvases. */
+export const activityNodes: readonly UiNodeSpec[] = [activitySection]

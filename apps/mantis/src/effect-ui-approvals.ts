@@ -8,9 +8,8 @@
  */
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row, stateRows, whenRows } from "@effect-agent/effect-ui"
+import { emptyRows, row, stateRows, whenRows } from "@effect-agent/effect-ui"
 import { acceptedBadge, errorBadge, refusalBadge } from "./effect-ui-feedback.ts"
-import { sharedSourceStates } from "./effect-ui-list.ts"
 import { cell, cellOf, codeCell, section, table } from "./effect-ui-nodes.ts"
 
 /**
@@ -43,17 +42,15 @@ const pendingCells: readonly UiNodeSpec[] = [
   ])),
 ]
 
-export const approvalNodes: readonly UiNodeSpec[] = [
-  section("Pending approvals", [
-    ...sharedSourceStates("state", "/mantis/state/pending", "Nothing is waiting for an approval."),
-    whenRows(stateRows("/mantis/state/pending"),
-      table(["Tool", "Call id", "Session", "Decision"], pendingCells,
-        { source: { state: "/mantis/state/pending" }, key: "callId" })),
-    // a decision's outcome belongs to the section whose rows were pressed
-    row([
-      acceptedBadge("/mantis/approval/ok", "Approval resolved"),
-      refusalBadge("/mantis/approval"),
-      errorBadge("/mantis/approval"),
-    ]),
+export const approvalCard: UiNodeSpec = section("Pending approvals", [
+  emptyRows("state", "/mantis/state/pending", "Nothing is waiting for an approval."),
+  whenRows(stateRows("/mantis/state/pending"),
+    table(["Tool", "Call id", "Session", "Decision"], pendingCells,
+      { source: { state: "/mantis/state/pending" }, key: "callId" })),
+  // a decision's outcome belongs to the section whose rows were pressed
+  row([
+    acceptedBadge("/mantis/approval/ok", "Approval resolved"),
+    refusalBadge("/mantis/approval"),
+    errorBadge("/mantis/approval"),
   ]),
-]
+])
