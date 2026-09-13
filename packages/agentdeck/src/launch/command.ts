@@ -32,19 +32,40 @@ export const configFor = (request: LaunchRequest, presets: PresetMap = cliPreset
     ...(extra?.command === undefined ? {} : { command: extra.command }),
     ...(extra?.args === undefined ? {} : { args: [...extra.args] }),
     ...(extra?.env === undefined ? {} : { env: new Map(Object.entries(extra.env)) }),
+    ...(extra?.mcp === undefined ? {} : { mcp: extra.mcp }),
     ...(extra?.timeoutMs === undefined ? {} : { turnTimeoutMs: extra.timeoutMs }),
   }
 }
 
 export const launchCommand = (request: LaunchRequest, presets: PresetMap = cliPresets): LaunchCommand => {
-  const { file, argv } = cliInvocation(configFor(request, presets), request.prompt, presets)
-  return { file, argv, workdir: request.workdir }
+  const { file, argv, env } = cliInvocation(configFor(request, presets), request.prompt, presets)
+  return { file, argv, env, workdir: request.workdir }
 }
+
+/** A name a shell reads as a variable name, and nothing else. */
+const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*$/
 
 /**
  * The same command as one shell line. A remote host is reached through a shell,
  * so every word is quoted on its own: a prompt containing a space, a quote, or a
  * `;` is an argument and must not become syntax.
+ *
+ * The environment is folded into the line rather than passed beside it because a
+ * remote command *is* a line — the transport runs it through a shell and has no
+ * env channel to hand anything to. `NAME=value` before the words is a POSIX
+ * assignment and binds to this one command, which is exactly the scope asked
+ * for; the value is quoted on its own, since quoting the whole assignment would
+ * make `'NAME=value'` a command name instead.
+ *
+ * A name the shell would not read as a name is refused rather than dropped:
+ * silently launching without a variable the request named is an agent running
+ * without the credential it was armed with, and it would report that as a
+ * permission problem at the door.
  */
-export const launchLine = (command: LaunchCommand): string =>
-  [command.file, ...command.argv].map(quote).join(" ")
+export const launchLine = (command: LaunchCommand): string => {
+  const assignments = Object.entries(command.env).map(([name, value]) => {
+    if (!ASSIGNMENT.test(name)) throw new Error(`"${name}" is not a shell variable name, so this launch cannot carry it to a remote host`)
+    return `${name}=${quote(value)}`
+  })
+  return [...assignments, ...[command.file, ...command.argv].map(quote)].join(" ")
+}

@@ -10,9 +10,9 @@
  */
 import { AgentdError } from "./errors.ts"
 import { claimLapsed, settled } from "./launch-claim.ts"
-import type { LaunchIntent, LaunchRequest, LaunchState } from "./launch-types.ts"
+import type { LaunchIntent, LaunchState, QueuedWork } from "./launch-types.ts"
 
-export type { LaunchIntent, LaunchRequest, LaunchState } from "./launch-types.ts"
+export type { AgentTurn, CommandWork, LaunchIntent, LaunchState, QueuedTurn, QueuedWork } from "./launch-types.ts"
 
 export interface LaunchQueueOptions {
   readonly now?: () => number
@@ -32,12 +32,16 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
     /**
      * A relative workdir means different places on different machines, so the
      * request is refused rather than guessed at: the caller names one directory.
+     * What arrives here is already resolved — a turn names the machine and the
+     * dialect its identity resolved to — because the queue holds work, and
+     * resolving an identity is the center's read of its own fleet, not the
+     * queue's.
      */
-    enqueue: (request: LaunchRequest): LaunchIntent => {
-      if (!request.workdir.startsWith("/")) {
-        throw new AgentdError(400, `workdir must be an absolute path, got ${request.workdir}`)
+    enqueue: (work: QueuedWork): LaunchIntent => {
+      if (!work.workdir.startsWith("/")) {
+        throw new AgentdError(400, `workdir must be an absolute path, got ${work.workdir}`)
       }
-      const intent: LaunchIntent = { ...request, intentId: crypto.randomUUID(), state: "queued", createdAt: now() }
+      const intent: LaunchIntent = { ...work, intentId: crypto.randomUUID(), state: "queued", createdAt: now() }
       intents.set(intent.intentId, intent)
       return intent
     },
@@ -76,18 +80,20 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
     },
     get: (intentId: string): LaunchIntent | undefined => intents.get(intentId),
     /**
-     * What has been asked, optionally of one machine or for one task node. Both
-     * are lookups a caller arrives with, not searches: an agent picking up a task
-     * asks what was tried on it, and a caller asking about a machine asks for a
-     * machine it can name.
+     * What has been asked, optionally of one machine or filed under one task
+     * node. Both are lookups a caller arrives with, not searches: an agent
+     * picking up a task asks what was tried on it, and a caller asking about a
+     * machine asks for a machine it can name.
+     *
+     * Only a turn can answer the second: a command is filed under the machine it
+     * runs on and under nothing else, so asking by task node cannot return one —
+     * which is the honest answer, and not the one a field spelled the same on
+     * both arms would have given.
      */
     list: (query: { readonly machineId?: string; readonly nodeId?: string } = {}): LaunchIntent[] =>
       [...intents.values()].filter((intent) =>
         (query.machineId === undefined || intent.machineId === query.machineId)
-        && (query.nodeId === undefined || intent.nodeId === query.nodeId)),
-    /** An intent still waiting on a machine, so one node is never asked twice at once. */
-    openOn: (nodeId: string): LaunchIntent | undefined =>
-      [...intents.values()].find((intent) => intent.nodeId === nodeId && !settled(intent.state)),
+        && (query.nodeId === undefined || ("nodeId" in intent && intent.nodeId === query.nodeId))),
   }
 }
 export type LaunchQueue = ReturnType<typeof makeLaunchQueue>

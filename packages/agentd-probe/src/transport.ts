@@ -1,8 +1,9 @@
 import type {
-  DeclaredMachine, LaunchIntent, LaunchState, MachineReport, NodeAdapterPlan, NodePresence, SessionRecord, WireArtifact,
+  AdapterPlan, DeclaredMachine, GatewayAgentConfig, LaunchIntent, LaunchState, MachineReport, NodeAdapterPlan,
+  NodePresence, SessionRecord, WireArtifact,
 } from "@effect-agent/agentd"
-import { byStatus, makeCaller, type CallOptions } from "./call.ts"
-import { ProbeFault } from "./errors.ts"
+import { makeCaller, type CallOptions } from "./call.ts"
+import { artifactMissing, gatewayRefused, planRefused } from "./faults.ts"
 
 /**
  * The outbound half of §8.5-1, and nothing else. The probe asks; it never
@@ -30,6 +31,14 @@ export interface NodeControl {
    */
   readonly artifact: (bundleId: string) => Promise<WireArtifact>
   /**
+   * The config one of this machine's agents must run with (§F10), carrying the
+   * credential the door will verify. Fetched with the node credential, exactly as
+   * bytes are: a secret is fetched, never browsed. Fetched per intent rather than
+   * once per beat, so a credential revoked between the queue and the claim is a
+   * refusal here instead of a process already running with it.
+   */
+  readonly gatewayConfig: (agentId: string, reported?: unknown) => Promise<AdapterPlan<GatewayAgentConfig>>
+  /**
    * Work for this machine, claimed on the way out. The queue is pulled, not
    * pushed — a machine that cannot be called has to ask — and claiming is what
    * makes an intent this machine's own: after that the center offers it to
@@ -50,18 +59,6 @@ export interface NodeControl {
   readonly reportNote: (machineId: string, note: string) => Promise<MachineReport>
 }
 
-/** On the plan, a 400 is the plan builder refusing this deployment, not this caller. */
-const planRefused = (status: number, detail: string, where: string): ProbeFault =>
-  status === 400 ? new ProbeFault("plan", `${where}: ${detail}`, status) : byStatus(status, detail, where)
-
-/**
- * On an artifact, 404 is "this version has no bytes" — the server telling the
- * truth about the fleet, not saying the node is unknown. Reading it as a lapsed
- * lease would send the node off to announce itself again, which fixes nothing.
- */
-const artifactMissing = (status: number, detail: string, where: string): ProbeFault =>
-  status === 404 ? new ProbeFault("refused", `${where}: ${detail}`, status) : byStatus(status, detail, where)
-
 export const makeNodeControl = (options: CallOptions): NodeControl => {
   const { call } = makeCaller(options)
   const presenceOf = async (verb: "announce" | "heartbeat" | "withdraw", body: unknown): Promise<NodePresence> =>
@@ -75,6 +72,14 @@ export const makeNodeControl = (options: CallOptions): NodeControl => {
     report: async (nodeId, revision, state) => (await call("POST", "/agentd/node/report", { nodeId, revision, state })).report,
     artifact: async (bundleId) =>
       (await call("GET", `/agentd/artifact?id=${encodeURIComponent(bundleId)}`, undefined, artifactMissing)).artifact as WireArtifact,
+    gatewayConfig: async (agentId, reported) => {
+      // the document is text in a query string — there is no object syntax in a
+      // URL — and the server reads it back with the same `json` field shape the
+      // op declares, so one field serves both surfaces
+      const said = reported === undefined ? "" : `&reported=${encodeURIComponent(JSON.stringify(reported))}`
+      const path = `/agentd/gateway?agentId=${encodeURIComponent(agentId)}${said}`
+      return (await call("GET", path, undefined, gatewayRefused)).plan as AdapterPlan<GatewayAgentConfig>
+    },
     claim: async (machineId, limit) =>
       (await call("POST", "/agentd/launch/poll", { machineId, ...(limit === undefined ? {} : { limit }) })).launches as readonly LaunchIntent[],
     settle: async (intentId, machineId, state, detail) =>

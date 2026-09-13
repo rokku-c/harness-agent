@@ -46,7 +46,7 @@ export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {})
     }
   })
 
-  /** unified config -> { file, argv } for one turn (ask 3, lossless) */
+  /** unified config -> the process for one turn (ask 3, lossless) */
   const argvFor = (config: UnifiedAgentConfig, prompt: string) => cliInvocation(config, prompt, presets)
 
   const send = (sessionId: string, text: string): Promise<SendOutcome> =>

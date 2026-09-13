@@ -1,5 +1,6 @@
-import { makeLauncher, type Launcher } from "@effect-agent/agentdeck"
-import type { LaunchOrder, LaunchResult, LaunchRunner } from "./launch-cycle.ts"
+import { makeLauncher, type LaunchConfig, type LaunchRequest, type Launcher } from "@effect-agent/agentdeck"
+import type { GatewayAgentConfig } from "@effect-agent/agentd"
+import type { LaunchOrder, LaunchResult, LaunchRunner } from "./launch-order.ts"
 
 /**
  * The launch runner this machine runs by default: agentdeck's launcher, which
@@ -19,18 +20,39 @@ export interface MachineLauncherOptions {
   readonly launcher?: Launcher
 }
 
+/**
+ * The platform's config in agentdeck's words. The `Bearer ` prefix is dropped
+ * rather than parsed: there is nothing left to decide, because
+ * `validateGatewayConfig` already refused every other spelling at the door, and
+ * a header re-read here would be a second opinion about a fact already settled.
+ */
+const armedConfig = (gateway: GatewayAgentConfig): LaunchConfig => ({
+  mcp: Object.fromEntries(Object.entries(gateway.mcpServers).map(([name, server]) => [
+    name, { url: server.url, token: server.headers.authorization.slice("Bearer ".length) },
+  ])),
+})
+
+/**
+ * An order, as a request to a launcher. The two halves differ in more than their
+ * fields: a turn is named by its identity's kind and is armed with the door, and
+ * a command is named by its own words, carries no prompt, and is armed with
+ * nothing — there is no identity behind it to have been issued a credential.
+ */
+const requestFor = (order: LaunchOrder): LaunchRequest =>
+  "command" in order
+    ? {
+        kind: "custom",
+        workdir: order.workdir,
+        prompt: "",
+        config: { command: order.command, ...(order.args === undefined ? {} : { args: order.args }) },
+      }
+    : { kind: order.kind, workdir: order.workdir, prompt: order.prompt, config: armedConfig(order.gateway) }
+
 export const makeLaunchRunner = (options: MachineLauncherOptions = {}): LaunchRunner => {
   const launcher = options.launcher ?? makeLauncher()
   return {
     run: async (order: LaunchOrder): Promise<LaunchResult> => {
-      const outcome = await launcher.run({
-        kind: order.kind,
-        workdir: order.workdir,
-        prompt: order.prompt,
-        ...(order.command === undefined
-          ? {}
-          : { config: { command: order.command, ...(order.args === undefined ? {} : { args: order.args }) } }),
-      })
+      const outcome = await launcher.run(requestFor(order))
       return {
         ok: outcome.ok,
         output: outcome.output,

@@ -6,7 +6,8 @@
  * package name the center looked up. It goes through the launch queue, so the
  * install lands with a receipt like any other work instead of being a silent
  * side effect, and a machine that never reported is refused rather than guessed
- * at.
+ * at. The machine is named once and once only: an install is work with no
+ * identity behind it, so the machine it runs on is the whole of where it goes.
  */
 import { OperationFault, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
@@ -36,7 +37,7 @@ export const installOperations = ({ facts, launches }: AgentdSurfaces): readonly
     name: "agentd_install",
     description: "Install an agent on a machine, using the install plan that machine reported for it",
     input: z.object({
-      nodeId: z.string().min(1), machineId: z.string().min(1), kind: z.string().min(1),
+      machineId: z.string().min(1), kind: z.string().min(1),
       workdir: z.string().min(1), manager: z.string().min(1).optional(),
     }).strict(),
     handler: (input) => {
@@ -55,7 +56,7 @@ export const installOperations = ({ facts, launches }: AgentdSurfaces): readonly
       return {
         ok: true,
         launch: launches.enqueue({
-          nodeId: input.nodeId, machineId: input.machineId, kind: "custom", workdir: input.workdir, prompt: "",
+          machineId: input.machineId, workdir: input.workdir,
           command: argv[0] as string, args: argv.slice(1),
         }),
       }

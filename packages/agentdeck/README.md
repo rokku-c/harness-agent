@@ -18,6 +18,24 @@ agents (claude code / codex / gemini / pi / this framework's own effect runtime 
      timeout/consent policy/extra); unrecognized keys are preserved losslessly in extra. CLI presets
      (claude-code `-p`, codex exec, gemini, pi) can be overridden by command/args.
 
+### The door, and how a dialect is told about it
+
+A config may carry `mcp`: the MCP Gateway servers a launch must be able to reach, by the name the
+platform knows them by (src/adapters/cli-mcp.ts). `cliInvocation` renders that into words and an
+environment per dialect, because the dialects do not agree — `claude` takes one inline
+`--mcp-config` word (plus `--strict-mcp-config`, without which it also loads its own home
+directory's servers and the set the platform bound is no longer the set the agent can reach),
+while `codex` names the door by dotted path and reads the token from an environment variable so the
+secret never reaches its argv. Telling nobody is a different state from a dialect that cannot be
+told, and only the second is a refusal: `gemini`, `pi` and an explicit command have no route at
+all, and a config asking for servers under them is refused rather than started with the servers
+dropped — an agent whose every call is turned away reports a *permission* problem, which is not
+what it has.
+
+`normalizeConfig` never fills `mcp`, however its raw object was spelled, so a config read back from
+a saved launcher or drawn in a console form has none: a secret reaches a process by one route, and
+no surface that *draws* a config can be drawing one.
+
 ## Registration and aggregation
 
 AgentDeck (src/registry.ts): registers multiple gateways, shares one consent ledger, and

@@ -1,5 +1,6 @@
 import type { NodeControl } from "./transport.ts"
-import { runLaunches, type LaunchReport, type LaunchRunner } from "./launch-cycle.ts"
+import { runLaunches, type LaunchReport } from "./launch-cycle.ts"
+import type { LaunchRunner } from "./launch-order.ts"
 
 /**
  * The slice of the probe's own options a launch step reads. Named to match, so
@@ -21,7 +22,7 @@ export interface LaunchStepOptions {
  * whose report was forgotten is an intent stranded at `running` forever.
  */
 export const launchStep = (
-  control: Pick<NodeControl, "claim" | "settle">, options: LaunchStepOptions,
+  control: Pick<NodeControl, "claim" | "settle" | "gatewayConfig">, options: LaunchStepOptions,
 ): (() => Promise<readonly LaunchReport[]>) | undefined => {
   const { launcher } = options
   if (launcher === undefined) return undefined

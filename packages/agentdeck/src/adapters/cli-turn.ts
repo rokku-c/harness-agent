@@ -11,6 +11,7 @@ import { spawn, type ChildProcess } from "node:child_process"
 import type { AgentKind } from "../kinds.ts"
 import type { SendOutcome } from "../flow.ts"
 import type { UnifiedAgentConfig } from "../config-types.ts"
+import type { CliInvocation } from "./cli-preset.ts"
 import type { SessionBox } from "./session-table.ts"
 
 export interface CliBox extends SessionBox {
@@ -21,14 +22,15 @@ export interface CliBox extends SessionBox {
   closed?: boolean
 }
 
-export const runTurn = (
-  box: CliBox,
-  invocation: { readonly file: string; readonly argv: ReadonlyArray<string> }
-): Promise<SendOutcome> =>
+export const runTurn = (box: CliBox, invocation: CliInvocation): Promise<SendOutcome> =>
   new Promise((resolve) => {
     const { file, argv } = invocation
     const env = { ...process.env as Record<string, string> }
     for (const [k, v] of (box.config.env ?? new Map())) env[k] = v
+    // the dialect's own environment last, so it wins: what it holds is a
+    // credential the platform issued for this run, and a saved config left over
+    // from an earlier one must not be able to shadow it
+    for (const [k, v] of Object.entries(invocation.env)) env[k] = v
     const child = spawn(file, [...argv], { cwd: box.config.cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: true })
     box.active = child
     let out = ""

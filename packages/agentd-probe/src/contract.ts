@@ -1,7 +1,8 @@
 import type { DeclaredMachine, NodeAdapterPlan } from "@effect-agent/agentd"
 import type { CallOptions } from "./call.ts"
 import type { FactsReport, FactSource } from "./facts-cycle.ts"
-import type { LaunchReport, LaunchRunner } from "./launch-cycle.ts"
+import type { LaunchReport } from "./launch-cycle.ts"
+import type { LaunchRunner } from "./launch-order.ts"
 import type { CycleOutcome } from "./cycle.ts"
 import type { ProbeFault } from "./errors.ts"
 

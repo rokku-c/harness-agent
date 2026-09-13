@@ -64,13 +64,14 @@ Activity owns *observing*; none of them re-implements another's step.
 ## Journey 2 — the agent
 
 ```
-planned ──▶ fetched ──▶ connect ──▶ identified ──▶ discover (tools/list) ──▶ authorized ──▶ call ──▶ audited
+planned ──▶ launched ──▶ armed ──▶ connect ──▶ identified ──▶ discover (tools/list) ──▶ authorized ──▶ call ──▶ audited
 ```
 
 | step | owner | what must be true |
 |---|---|---|
 | be planned | the center (agentd, `setCredential`) | F10: named the door's way, and its credential declared with it |
-| be fetched | the machine that runs it (`GET /agentd/gateway`) | F10: the config, served only to the node credential and never drawn on a console |
+| be launched | the caller (`agentd_launch`) → the center → the machine that claims it (`POST /agentd/launch/poll`) | a caller names an *identity* and nothing derived from it: the machine and the dialect are read from the center's own record of that identity, and one the center holds no record of queues nothing at all. A launch is a turn or a command, and only a turn has an identity — so there is no shape in which a caller names both an identity and the process to start it as. One field is carried rather than derived and decides none of the rest: the task the work is filed under, optional, absent meaning asked for by hand. On the console the caller is the operator, and the press lives *inside* the agent's own answer so the identity it carries is the one that answer just named — the same rule one layer down, at the tier the operator works at. The intent it queues is the fleet's record and is read on the first screen with the rest of the fleet; the press's own answer — which machine the identity resolved to — stays in the card it was pressed in (F4) |
+| be armed | the machine that runs it (`GET /agentd/gateway`), before it starts | F10: the config, fetched for the intent's own identity and served only to the node credential. The fetch is not a step beside the start but what the start is conditional on: a refusal settles that one intent `failed` with the reason — naming nobody's credential, or a center that cannot say where its door is — and nothing is spawned. An agent started anyway and turned away at every call would report a *permission* problem, which is not what it has (`Formal/Arming.lean`) |
 | connect | the gateway's one door (`POST /mcp-gateway`) | one entry point; no second door with different rules |
 | be identified | the gateway (token → principal) | F6: verified, not asserted |
 | discover | the gateway's advertised surface | F8: the advertised set is the enforced set |
@@ -213,7 +214,32 @@ its own copy of navigation state.
   `gatewayUrl` on the control plane, checked before the agent is looked up so a
   refusal about the request never reports the fleet's state) rather than per
   agent: the door is one, and a second author for one address is the shape that
-  lets two agents on one machine disagree about where the platform is. What is
-  *not* built here is the other side of the wire — the probe fetching it and the
-  CLI dialects rendering it — so the console still states the word and no surface
-  in the platform echoes the value.
+  lets two agents on one machine disagree about where the platform is. What that
+  slice did not build is the other side of the wire — the probe fetching it and
+  the CLI dialects rendering it.
+- F10, third: the launch — `agentd/src/launch-types.ts`, `apps/agentd/src/ops/launch-ops.ts`,
+  `agentd-probe/src/launch-order.ts` + `launch-cycle.ts`, `agentdeck/src/adapters/cli-mcp.ts`
+  + `cli-preset.ts` (`Formal/Arming.lean`). A launch is a *turn* or a *command*, and the
+  difference is who the machine is when it runs: `agentd_launch` takes an identity and
+  nothing derived from it, and the center fills the machine and the dialect from its own
+  record of that agent — which is why the two are not fields a caller may set, and why an
+  identity the center holds no record of queues nothing rather than work onto a machine
+  nobody chose. The config is fetched **per intent, before the start**, and that order is
+  the rule: `runLaunches` settles the intent `failed` with the reason when the fetch is
+  refused, so nothing is spawned believing the platform's tools exist. The refusal is
+  `plan` and only `plan` — a sentence about one agent — so it is absorbed per intent and
+  the beat continues; a 401 is about this machine and halts, leaving the intent claimed to
+  lapse back rather than marking as failed work nobody ever judged. What the dialect does
+  with the config is the dialect's own: `claude` takes it as one inline `--mcp-config`
+  word (which is why the token is in an argv any process on that machine can read, the
+  price of the only inline route it has) plus `--strict-mcp-config`, without which the
+  agent also loads its own home directory's servers and the set the platform bound is no
+  longer the set the agent can reach; `codex` names the door by dotted path and reads the
+  token from the environment it is given, so the secret never reaches its argv; `gemini`
+  and `pi` have no per-run route at all and an explicit command has nowhere to put a
+  dialect's words, so all three are **refused** rather than started with their servers
+  dropped. The credential reaches the process by one route and one only:
+  `normalizeConfig` never fills `mcp`, so a config read back from a saved launcher or drawn
+  in a console form has none however its raw object was spelled — no surface that *draws* a
+  config can be drawing a secret — and the config a `TurnOrder` carries is the only thing
+  that supplies one.

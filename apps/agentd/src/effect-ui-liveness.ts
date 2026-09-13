@@ -9,6 +9,7 @@
  * observe before there is a node.
  */
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { stateRows } from "@effect-agent/effect-ui"
 import { cellOf, chip } from "./effect-ui-cells.ts"
 import { section, table, text } from "./effect-ui-nodes.ts"
 import { itemSignal } from "./effect-ui-signals.ts"
@@ -26,5 +27,10 @@ const liveness: UiNodeSpec = section("Liveness", [
   ], "/status/nodeLiveness/nodes", "nodeId"),
 ])
 
-/** Shown once there is a machine to be up or down. */
-export const livenessSection: UiNodeSpec = { ...liveness, visible: { source: { state: "/status/machines/0" } } }
+/**
+ * Shown once there is a lease to read, and guarded on the list it draws rather
+ * than on the machines above it: the two coincide today because a lease is
+ * derived from a registered machine, and stating the list's own condition is
+ * what keeps a card from outliving the rows it is about if that ever changes.
+ */
+export const livenessSection: UiNodeSpec = { ...liveness, visible: stateRows("/status/nodeLiveness/nodes") }

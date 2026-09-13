@@ -1,3 +1,5 @@
+import type { LaunchMcpServer } from "../config-types.ts"
+
 /**
  * Running one agent once, in a named working directory, and waiting for it.
  *
@@ -13,6 +15,13 @@ export interface LaunchConfig {
   readonly command?: string
   readonly args?: readonly string[]
   readonly env?: Readonly<Record<string, string>>
+  /**
+   * The servers the platform armed this launch with (§F10), travelling to the
+   * process with the request rather than being looked up again at the spawn: a
+   * second lookup would be a second decision, free to name a different door than
+   * the one the caller was promised.
+   */
+  readonly mcp?: Readonly<Record<string, LaunchMcpServer>>
   readonly timeoutMs?: number
 }
 
@@ -33,6 +42,8 @@ export interface LaunchRequest {
 export interface LaunchCommand {
   readonly file: string
   readonly argv: ReadonlyArray<string>
+  /** What the dialect needs read for it to work at all, secrets included. */
+  readonly env: Readonly<Record<string, string>>
   readonly workdir: string
 }
 

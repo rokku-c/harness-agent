@@ -40,6 +40,27 @@ are typed declarations an operator makes through a client, not traffic a machine
 machine sends its token in `authorization: Bearer …`; a token in a body or a query string is not a
 credential here and is dropped rather than honoured.
 
+## What a launch is
+
+Work queued for a machine is one of two things, and the difference is *who the machine is* when it
+runs. A **turn** runs as an identity: `agentd_launch` names the agent and the working directory, and
+the center reads the machine and the CLI dialect out of its own record of that identity — so a caller
+cannot send one agent's work to a machine of its choosing, and `agentd_install` (a **command**, which
+runs as itself and has no identity at all) is the shape for anything else. The machine claims work
+with `agentd_launch_poll` and answers with `agentd_launch_report`; a claim is a lease and lapses back
+if the machine holding it goes away.
+
+One field of a turn is carried rather than derived: the task node the work is filed under. It is
+optional, and absent means a turn asked for by hand — filed under no node — which is a different
+state from one whose node is unknown. A caller that has a node (an agent picking up board work)
+names it; the console's launch form does not, and the queue files the turn under exactly what was
+asked and invents no task for work that named none.
+
+A turn is armed *before* it starts: the machine fetches `GET /agentd/gateway` for the intent's own
+identity, and a refusal settles that one intent `failed` with the reason instead of spawning a
+process that would discover the refusal one tool call at a time. The refusal is one agent's and not
+the beat's, so a fleet where one identity has no credential still runs the work it can.
+
 ## Two answer shapes
 
 The machine protocol answers `{"ok":true, …}` and reports a failure as `{"ok":false,"error":…}` with

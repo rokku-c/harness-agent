@@ -253,7 +253,8 @@ sequenceDiagram
   participant L as agentdeck makeLauncher
   participant W as the agent process in its workdir
 
-  Op->>AG: agentd_launch with nodeId machineId kind workdir prompt
+  Op->>AG: agentd_launch with agentId workdir prompt and the task node, when the caller has one
+  AG->>AG: the machine and the dialect are read from that agent's own record
   AG->>Q: enqueue — intentId is a fresh uuid and the state is queued
   Q-->>Op: 201 with the intent
   Note over Q: it waits here until that machine asks
@@ -262,14 +263,17 @@ sequenceDiagram
     PR->>AG: POST /agentd/launch/poll with machineId and limit
     AG->>Q: poll(machineId, limit)
     Q-->>PR: intents — a claim is what makes one this machine's own
+    PR->>AG: GET /agentd/gateway with this intent's own agentId
+    AG-->>PR: the door and the credential the center holds for that identity
+    Note over PR,AG: a refusal is this one intent's: it is settled failed<br/>with the reason and nothing is spawned
     PR->>AG: POST /agentd/launch/report with state running
     Note over PR,AG: reported before the agent starts, so a launch<br/>that takes minutes is visible for those minutes
-    PR->>L: runner.run with kind workdir prompt and optional command and args
+    PR->>L: runner.run with the order — identity, kind, workdir, prompt and the config
     L->>L: assertRunnable then configFor with cwd set to workdir then cliInvocation
     alt no target — this host
-      L->>W: spawn(file, argv) in the workdir
+      L->>W: spawn(file, argv, env) in the workdir
     else a remote target
-      L->>W: ssh with cd workdir and the same argv, every word quoted
+      L->>W: ssh with cd workdir and the same argv, every word quoted,<br/>the dialect's environment as leading assignments
     end
     W-->>L: ok output durationMs
     PR->>AG: POST /agentd/launch/report with done or failed and the detail
@@ -281,8 +285,10 @@ sequenceDiagram
 A kind with no preset and no explicit command is refused rather than run: the dialect table
 falls back to `custom` for anything it does not know, which is right for a caller who asked
 for custom and a silent wrong answer for one who asked for an agent this machine has never
-heard of. `agentd_install` is this same path — the argv comes from the machine's own reported
-`installs`, so the center never looks up a package name.
+heard of. A launch is a *turn* or a *command*, and the difference is whether it has an identity: a turn
+is `agentd_launch` and is named by the agent it runs as, while a command is `agentd_install` —
+work that is not an agent turn, where the argv comes from the machine's own reported `installs`
+so the center never looks up a package name. Only a turn has a door to be brought to.
 
 ## 5. The agent against the graph
 

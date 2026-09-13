@@ -2,6 +2,25 @@
  * The launch surface. A machine asks for work rather than being told to do it,
  * so polling is a POST: it hands out intents and they stop being anyone else's,
  * and a GET that quietly claimed work would be a lie about what it does.
+ *
+ * `agentd_launch` queues a *turn*, and a turn is named by the identity it runs
+ * as. The machine it runs on and the dialect it runs under are read from that
+ * identity here, at the moment of queueing, rather than accepted from the
+ * caller: a request that could name its own dialect could start a CLI the center
+ * never planned a config for, and the plan and the process would then agree only
+ * by luck. Work that is not a turn names its own machine and its own argv, and
+ * has no identity to be armed with — which is why it is a different shape and
+ * not this one with a field left out.
+ *
+ * An identity this center cannot arm is refused where it is armed: the machine's
+ * fetch (§F10) is the thing that hands over a credential, and a second rule for
+ * that question here would be a copy of the adapter's, free to drift from it.
+ *
+ * A caller with a task node names it, and the intent is filed under it; a caller
+ * without one — an operator starting a turn from the console — leaves it out and
+ * the intent belongs to no node. It is the one field here the center does not
+ * derive, and it is optional because it is a label and not a routing decision:
+ * what the turn runs as and where it runs come from the identity either way.
  */
 import { count, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
@@ -9,18 +28,19 @@ import type { AgentdSurfaces } from "./surfaces.ts"
 
 const states = ["queued", "claimed", "running", "done", "failed", "cancelled"] as const
 
-export const launchOperations = ({ launches }: AgentdSurfaces): readonly Operation[] => [
+export const launchOperations = ({ control, launches }: AgentdSurfaces): readonly Operation[] => [
   operation({
-    name: "agentd_launch", description: "Queue work for one machine in one directory; it waits until that machine asks",
+    name: "agentd_launch",
+    description: "Run one agent's turn in one directory; the machine it runs on is read from the agent",
     input: z.object({
-      nodeId: z.string().min(1), machineId: z.string().min(1), kind: z.string().min(1),
-      workdir: z.string().min(1), prompt: z.string(),
-      // an explicit command is what makes work that is not an agent turn — an
-      // install, say — expressible without inventing a second execution path
-      command: z.string().min(1).optional(), args: z.array(z.string()).optional(),
+      agentId: z.string().min(1), workdir: z.string().min(1), prompt: z.string(),
+      nodeId: z.string().min(1).optional(),
     }).strict(),
     http: { method: "POST", path: "/agentd/launch", status: 201 },
-    handler: (input) => ({ ok: true, launch: launches.enqueue(input) }),
+    handler: (input) => {
+      const agent = control.desired(input.agentId).agent
+      return { ok: true, launch: launches.enqueue({ ...input, machineId: agent.machineId, kind: agent.kind }) }
+    },
   }),
   operation({
     name: "agentd_launches",

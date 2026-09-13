@@ -10,9 +10,11 @@
  * is a word someone chose and it keeps claiming `"online"` after the process
  * behind it dies, so the leases are a list of their own below.
  *
- * The press and its answer stay in this card, exactly as in the agents above.
+ * The press and its answer stay in this card, exactly as in the agents above —
+ * and it is the same gesture under the same word, because both cards open the
+ * thing the row stands on rather than answering a question about it.
  */
-import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { failureBadge, row, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { badgeCell, boundChip, cell, cellOf, chip, identity, reported, stringEntry } from "./effect-ui-cells.ts"
 import { field, listStates, section, table, text } from "./effect-ui-nodes.ts"
 import { answer, answered, request, rowRequest } from "./effect-ui-request.ts"
@@ -22,7 +24,7 @@ const cells: readonly UiNodeSpec[] = [
   badgeCell("status"),
   cell("desired/revision"),
   reported("applied/revision"),
-  cellOf([rowRequest("Inspect", "agentd.node", "nodeId", "machineId")]),
+  cellOf([rowRequest("Open", "agentd.node", "nodeId", "machineId")]),
 ]
 
 /** A node nothing was bound to has no kernel; the row says nothing rather than an empty chip. */
@@ -51,7 +53,7 @@ const planAnswer: UiNodeSpec = answer("/inspect/nodePlan/ok", [
 export const machinesSection: UiNodeSpec = section("Machines", [
   text("Each machine, the state it reports, and the revision it is bound to beside the one it reported.", { size: "2", color: "gray" }),
   ...listStates("/status/machines", "No machines are registered."),
-  table(["Machine", "State", "Desired revision", "Applied revision", "Inspect"], cells, "/status/machines", "machineId"),
+  whenRows(stateRows("/status/machines"), table(["Machine", "State", "Desired revision", "Applied revision", "Open"], cells, "/status/machines", "machineId")),
   nodeAnswer,
   planAnswer,
   row([failureBadge("/inspect/node/error"), failureBadge("/inspect/nodePlan/error")]),

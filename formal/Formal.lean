@@ -10,6 +10,7 @@
 -/
 
 import Formal.AppLayer
+import Formal.Arming
 import Formal.Authorize
 import Formal.Authz
 import Formal.Canonical
