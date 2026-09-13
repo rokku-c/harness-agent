@@ -53135,7 +53135,7 @@ var makeEffectUiRegistry = (overrides = {}) => new Proxy(overrides, {
 });
 
 // src/client/effect-ui-runtime.tsx
-var React64 = __toESM(require_react(), 1);
+var React66 = __toESM(require_react(), 1);
 // ../../packages/effect-ui/src/screen.ts
 var ROOT_SCREEN = "root";
 var NAV_ROOT = "/_nav";
@@ -53387,7 +53387,8 @@ var declared = (params, store) => Object.fromEntries(Object.entries(params ?? {}
 var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin) => Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
   const method = action2.method ?? "POST", params = { ...declared(action2.params, store), ...runtimeParams };
   const url2 = action2.url;
-  if (url2 !== undefined) {
+  const unaddressed = url2 !== undefined && pathKeys(url2).some((key) => params[key] === undefined || params[key] === "");
+  if (url2 !== undefined && !unaddressed) {
     try {
       const response = await fetcher(requestUrl(url2, method, params, baseUrl), {
         method,
@@ -53502,6 +53503,141 @@ var ConsoleTheme = ({ children, fill = false }) => {
 // src/client/console-nav.ts
 var React61 = __toESM(require_react(), 1);
 
+// src/client/console-stack.ts
+var entries = [];
+var current = () => entries[entries.length - 1];
+var backTarget = () => entries.length < 2 ? undefined : entries[entries.length - 2];
+var canGoBack = () => entries.length >= 2;
+var pushed = (hash2) => {
+  entries = [...entries, hash2];
+};
+var reconcile = (hash2) => {
+  if (hash2 === current())
+    return;
+  entries = hash2 === backTarget() ? entries.slice(0, -1) : [hash2];
+};
+if (typeof window !== "undefined") {
+  window.addEventListener("hashchange", () => {
+    reconcile(window.location.hash);
+  });
+  reconcile(window.location.hash);
+}
+
+// src/client/console-nav.ts
+var tailOf = (route) => {
+  const screen2 = route.screen === undefined ? "" : `/${encodeURIComponent(route.screen)}`;
+  const query = new URLSearchParams(Object.entries(route.params ?? {})).toString();
+  return query === "" ? screen2 : `${screen2}?${query}`;
+};
+var hashOf = (route) => {
+  const id = route.id === undefined ? "" : encodeURIComponent(route.id);
+  switch (route.kind) {
+    case "home":
+      return "#";
+    case "settings":
+      return "#settings";
+    case "settings-config":
+      return `#settings/config/${id}`;
+    default:
+      return `#${route.kind}/${id}${tailOf(route)}`;
+  }
+};
+var here = () => window.location.hash === "" ? "#" : window.location.hash;
+var navigate = (route) => {
+  const hash2 = hashOf(route);
+  if (hash2 === here())
+    return;
+  pushed(hash2);
+  window.location.hash = hash2;
+};
+var openScreen = (id, destination) => navigate({ kind: "view", id, ...destination });
+var useAddressTruth = (route, ready) => {
+  React61.useEffect(() => {
+    if (!ready)
+      return;
+    const truth = hashOf(route);
+    if (here() !== truth)
+      window.history.replaceState(null, "", truth);
+  }, [ready, route]);
+};
+
+// src/client/effect-ui-screen-menu.tsx
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+var ScreenMenu = ({ appId, screens }) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
+  className: "screen-menu",
+  children: screens.filter((screen2) => screen2.id !== ROOT_SCREEN).map((screen2) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(o15, {
+    variant: "soft",
+    size: "2",
+    onClick: () => openScreen(appId, { screen: screen2.id }),
+    children: screen2.title
+  }, screen2.id, false, undefined, this))
+}, undefined, false, undefined, this);
+
+// src/client/effect-ui-screen-panes.tsx
+var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
+var ScreenBar = ({ depth, title, onBack }) => depth < 2 ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+  className: "screen-bar",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(o15, {
+      variant: "soft",
+      size: "2",
+      onClick: onBack,
+      children: "‹ Back"
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(p, {
+      size: "2",
+      weight: "medium",
+      className: "screen-bar-title",
+      children: title
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+  className: "screen-body",
+  children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Renderer, {
+    spec: screen2.spec,
+    registry: registry2
+  }, undefined, false, undefined, this)
+}, undefined, false, undefined, this);
+var ScreenPanes = ({ chain, registry: registry2, menu, onBack }) => {
+  const current2 = chain[chain.length - 1];
+  const parent = chain.length < 2 ? undefined : chain[chain.length - 2];
+  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+    className: "screen-panes",
+    "data-split": parent === undefined ? "off" : "on",
+    children: [
+      parent === undefined ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+        className: "screen-parent",
+        children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Pane, {
+          screen: parent,
+          registry: registry2
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+        className: "screen-pane",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ScreenBar, {
+            depth: chain.length,
+            title: current2.title,
+            onBack
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Pane, {
+            screen: current2,
+            registry: registry2
+          }, undefined, false, undefined, this),
+          menu
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/effect-ui-screen-nav.ts
+var React63 = __toESM(require_react(), 1);
+
+// src/client/console-route-hooks.ts
+var React62 = __toESM(require_react(), 1);
+
 // src/client/console-plan.ts
 var PALETTE = ["jade", "iris", "grass", "sky", "cyan", "amber", "crimson", "violet", "orange", "teal"];
 var defaultColor = (id) => {
@@ -53594,186 +53730,71 @@ var parseConsoleHash = (hash2, plan) => {
 };
 var appRoute = (id) => id === "settings" ? { kind: "settings" } : { kind: "view", id };
 
-// src/client/console-stack.ts
-var entries = [];
-var current = () => entries[entries.length - 1];
-var backTarget = () => entries.length < 2 ? undefined : entries[entries.length - 2];
-var canGoBack = () => entries.length >= 2;
-var pushed = (hash2) => {
-  entries = [...entries, hash2];
-};
-var reconcile = (hash2) => {
-  if (hash2 === current())
-    return;
-  entries = hash2 === backTarget() ? entries.slice(0, -1) : [hash2];
-};
-if (typeof window !== "undefined") {
-  window.addEventListener("hashchange", () => {
-    reconcile(window.location.hash);
-  });
-  reconcile(window.location.hash);
-}
-
-// src/client/console-nav.ts
-var tailOf = (route) => {
-  const screen2 = route.screen === undefined ? "" : `/${encodeURIComponent(route.screen)}`;
-  const query = new URLSearchParams(Object.entries(route.params ?? {})).toString();
-  return query === "" ? screen2 : `${screen2}?${query}`;
-};
-var hashOf = (route) => {
-  const id = route.id === undefined ? "" : encodeURIComponent(route.id);
-  switch (route.kind) {
-    case "home":
-      return "#";
-    case "settings":
-      return "#settings";
-    case "settings-config":
-      return `#settings/config/${id}`;
-    default:
-      return `#${route.kind}/${id}${tailOf(route)}`;
-  }
-};
-var navigate = (route) => {
-  const hash2 = hashOf(route);
-  pushed(hash2);
-  window.location.hash = hash2;
-};
-var openScreen = (id, destination) => navigate({ kind: "view", id, ...destination });
-var useAddressTruth = (route, ready) => {
-  React61.useEffect(() => {
-    if (!ready)
-      return;
-    const truth = hashOf(route);
-    const here = window.location.hash === "" ? "#" : window.location.hash;
-    if (here !== truth)
-      window.history.replaceState(null, "", truth);
-  }, [ready, route]);
+// src/client/console-route-hooks.ts
+var useHash = () => {
+  const [hash2, setHash] = React62.useState(() => window.location.hash);
+  React62.useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return hash2;
 };
 var useDestination = () => {
-  const [hash2, setHash] = React61.useState(() => window.location.hash);
-  React61.useEffect(() => {
-    const onHash = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-  return React61.useMemo(() => parseDestination(hash2), [hash2]);
+  const hash2 = useHash();
+  return React62.useMemo(() => parseDestination(hash2), [hash2]);
 };
 var useRoute = (plan) => {
-  const [hash2, setHash] = React61.useState(() => window.location.hash);
-  React61.useEffect(() => {
-    const onHash = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-  return React61.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
-};
-
-// src/client/effect-ui-screen-menu.tsx
-var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenMenu = ({ appId, screens }) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
-  className: "screen-menu",
-  children: screens.filter((screen2) => screen2.id !== ROOT_SCREEN).map((screen2) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(o15, {
-    variant: "soft",
-    size: "2",
-    onClick: () => openScreen(appId, { screen: screen2.id }),
-    children: screen2.title
-  }, screen2.id, false, undefined, this))
-}, undefined, false, undefined, this);
-
-// src/client/effect-ui-screen-panes.tsx
-var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenBar = ({ depth, title, onBack }) => depth < 2 ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-  className: "screen-bar",
-  children: [
-    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(o15, {
-      variant: "soft",
-      size: "2",
-      onClick: onBack,
-      children: "‹ Back"
-    }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(p, {
-      size: "2",
-      weight: "medium",
-      className: "screen-bar-title",
-      children: title
-    }, undefined, false, undefined, this)
-  ]
-}, undefined, true, undefined, this);
-var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-  className: "screen-body",
-  children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Renderer, {
-    spec: screen2.spec,
-    registry: registry2
-  }, undefined, false, undefined, this)
-}, undefined, false, undefined, this);
-var ScreenPanes = ({ chain, registry: registry2, menu, onBack }) => {
-  const current2 = chain[chain.length - 1];
-  const parent = chain.length < 2 ? undefined : chain[chain.length - 2];
-  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-    className: "screen-panes",
-    "data-split": parent === undefined ? "off" : "on",
-    children: [
-      parent === undefined ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-        className: "screen-parent",
-        children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Pane, {
-          screen: parent,
-          registry: registry2
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-        className: "screen-pane",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ScreenBar, {
-            depth: chain.length,
-            title: current2.title,
-            onBack
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Pane, {
-            screen: current2,
-            registry: registry2
-          }, undefined, false, undefined, this),
-          menu
-        ]
-      }, undefined, true, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
+  const hash2 = useHash();
+  return React62.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
 };
 
 // src/client/effect-ui-screen-nav.ts
-var React62 = __toESM(require_react(), 1);
 var chainFor = (screens, screen2) => {
   const walked = chainOf(screens, screen2 ?? ROOT_SCREEN);
   return walked.length === 0 ? chainOf(screens, ROOT_SCREEN) : walked;
 };
 var useScreenView = (screens) => {
   const destination = useDestination();
-  return React62.useMemo(() => {
+  return React63.useMemo(() => {
     const chain = chainFor(screens, destination.screen);
     return { chain, current: chain[chain.length - 1], params: destination.params ?? {} };
   }, [screens, destination]);
 };
 var useNavState = (store, id, params) => {
   const key = `${id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
-  React62.useLayoutEffect(() => {
+  React63.useLayoutEffect(() => {
     store.set(NAV_ROOT, { ...params });
   }, [store, key, params]);
 };
 
+// src/client/effect-ui-screen-entry.ts
+var React64 = __toESM(require_react(), 1);
+var useScreenEnter = (handlers, screen2, params) => {
+  const key = `${screen2?.id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
+  const name = screen2?.onEnter;
+  React64.useEffect(() => {
+    if (name === undefined)
+      return;
+    handlers[name]?.();
+  }, [handlers, name, key]);
+};
+
 // src/client/effect-ui-view-state.tsx
-var React63 = __toESM(require_react(), 1);
+var React65 = __toESM(require_react(), 1);
 var seeded = (state, sources) => ({
   ...state,
   [NAV_ROOT]: {},
   _sources: Object.fromEntries(sources.map((source2) => [source2.id, initialStatus()]))
 });
 var useViewStore = (state, sources) => {
-  const ref = React63.useRef(null);
+  const ref = React65.useRef(null);
   if (ref.current === null)
     ref.current = createStateStore(seeded(state, sources));
   return ref.current;
 };
 var SourceLoader = ({ sources, store, fetcher }) => {
-  React63.useEffect(() => {
+  React65.useEffect(() => {
     const timers = [];
     for (const source2 of sources) {
       const load = () => void loadSource(source2, store, fetcher);
@@ -53792,18 +53813,20 @@ var asParams = (values) => Object.fromEntries(Object.entries(values).map(([key, 
 var EffectUiRuntime = ({ registry: registry2, runtime }) => {
   const screens = runtime?.screens ?? [], sources = runtime?.sources ?? [], appId = runtime?.appId ?? "";
   const store = useViewStore(screens[0]?.spec.state, sources);
-  const fetcher = React64.useMemo(() => window.fetch.bind(window), []);
+  const fetcher = React66.useMemo(() => window.fetch.bind(window), []);
   const { chain, current: current2, params } = useScreenView(screens);
   useNavState(store, current2?.id, params);
-  const open2 = React64.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
-  const back = React64.useCallback(() => {
+  const open2 = React66.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
+  const back = React66.useCallback(() => {
     if (canGoBack()) {
       window.history.back();
       return;
     }
-    navigate({ kind: "view", id: appId, screen: chain[chain.length - 2]?.id });
+    const parent = chain[chain.length - 2]?.id;
+    navigate({ kind: "view", id: appId, screen: parent === ROOT_SCREEN ? undefined : parent });
   }, [appId, chain]);
-  const handlers = React64.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
+  const handlers = React66.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
+  useScreenEnter(handlers, current2, params);
   if (current2 === undefined)
     return null;
   const menu = runtime?.menu === true && current2.id === ROOT_SCREEN ? /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(ScreenMenu, {
@@ -54147,10 +54170,10 @@ function createConfigApi(fetcher) {
 var import_client2 = __toESM(require_client(), 1);
 
 // src/client/inspector-panel.tsx
-var React66 = __toESM(require_react(), 1);
+var React68 = __toESM(require_react(), 1);
 
 // src/client/inspector-detail.tsx
-var React65 = __toESM(require_react(), 1);
+var React67 = __toESM(require_react(), 1);
 
 // src/client/inspector-field.tsx
 var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
@@ -54351,10 +54374,10 @@ var initialValues = (fields) => Object.fromEntries(fields.filter((field) => fiel
 var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
 var message = (error61) => error61 instanceof Error ? error61.message : String(error61);
 var InspectorDetail = ({ id, tool }) => {
-  const fields = React65.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
-  const [values, setValues] = React65.useState(() => initialValues(fields));
-  const [result, setResult] = React65.useState(undefined);
-  const [running, setRunning] = React65.useState(false);
+  const fields = React67.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
+  const [values, setValues] = React67.useState(() => initialValues(fields));
+  const [result, setResult] = React67.useState(undefined);
+  const [running, setRunning] = React67.useState(false);
   const run = () => {
     let args;
     try {
@@ -54427,7 +54450,7 @@ var InspectorDetail = ({ id, tool }) => {
 // src/client/inspector-panel.tsx
 var jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
 var Inspector = ({ id, title, tools }) => {
-  const [selected, setSelected] = React66.useState(tools[0]?.name ?? "");
+  const [selected, setSelected] = React68.useState(tools[0]?.name ?? "");
   const tool = tools.find((candidate) => candidate.name === selected);
   return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
     direction: "column",
@@ -54530,10 +54553,10 @@ function createConsoleViews() {
 }
 
 // src/client/console-shell.tsx
-var React71 = __toESM(require_react(), 1);
+var React73 = __toESM(require_react(), 1);
 
 // src/client/console-status-bar.tsx
-var React67 = __toESM(require_react(), 1);
+var React69 = __toESM(require_react(), 1);
 var jsx_dev_runtime14 = __toESM(require_jsx_dev_runtime(), 1);
 var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
 var AppearanceButton = () => {
@@ -54552,8 +54575,8 @@ var AppearanceButton = () => {
   }, undefined, false, undefined, this);
 };
 var ConsoleStatusBar = ({ status, title, home }) => {
-  const [clock, setClock] = React67.useState(clockText);
-  React67.useEffect(() => {
+  const [clock, setClock] = React69.useState(clockText);
+  React69.useEffect(() => {
     const timer = setInterval(() => setClock(clockText()), 30000);
     return () => clearInterval(timer);
   }, []);
@@ -54626,14 +54649,14 @@ var Item5 = ({ entry, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime1
 var SETTINGS = { id: "settings", title: "Settings", hasView: false, hasConfig: true, icon: "⚙", color: "gray" };
 var ConsoleDock = ({ plan, route }) => {
   const apps = plan.filter((entry) => entry.hasView && entry.id !== "settings");
-  const here = (kind2, id) => route.kind === kind2 && (id === undefined || route.id === id);
+  const here2 = (kind2, id) => route.kind === kind2 && (id === undefined || route.id === id);
   return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV("nav", {
     className: "shell-dock",
     "aria-label": "Apps",
     children: [
       apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Item5, {
         entry,
-        active: here("view", entry.id),
+        active: here2("view", entry.id),
         open: () => navigate(appRoute(entry.id))
       }, entry.id, false, undefined, this)),
       /* @__PURE__ */ jsx_dev_runtime15.jsxDEV("span", {
@@ -54643,7 +54666,7 @@ var ConsoleDock = ({ plan, route }) => {
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Item5, {
         entry: SETTINGS,
-        active: here("settings") || here("settings-config"),
+        active: here2("settings") || here2("settings-config"),
         open: () => navigate({ kind: "settings" })
       }, undefined, false, undefined, this)
     ]
@@ -54722,7 +54745,7 @@ var ConsoleHome = ({ plan }) => {
 };
 
 // src/client/config-surface.tsx
-var React68 = __toESM(require_react(), 1);
+var React70 = __toESM(require_react(), 1);
 
 // src/client/config-state.ts
 function describeConfigState(state) {
@@ -54829,11 +54852,11 @@ var TONE = { active: "green", pending: "amber", error: "red" };
 var EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart.";
 var STRATEGIES = ["apply", "restart"];
 var ConfigSurface = ({ id, api: api2, mountConfig }) => {
-  const [state, setState] = React68.useState(undefined);
-  const [note, setNote] = React68.useState({ message: "Loading configuration…", error: false });
-  const form2 = React68.useRef(null);
-  const session = React68.useRef(undefined);
-  React68.useEffect(() => {
+  const [state, setState] = React70.useState(undefined);
+  const [note, setNote] = React70.useState({ message: "Loading configuration…", error: false });
+  const form2 = React70.useRef(null);
+  const session = React70.useRef(undefined);
+  React70.useEffect(() => {
     const node2 = form2.current;
     if (node2 === null)
       return;
@@ -55002,7 +55025,7 @@ var ConsoleSettings = ({ plan, selected, config: config2 }) => {
 };
 
 // src/client/console-activity-view.tsx
-var React69 = __toESM(require_react(), 1);
+var React71 = __toESM(require_react(), 1);
 
 // src/client/console-activity.ts
 var asArray = (value) => Array.isArray(value) ? value : [];
@@ -55143,8 +55166,8 @@ var Snapshot = ({ snapshot }) => {
   }, undefined, true, undefined, this);
 };
 var ConsoleActivity = () => {
-  const [state, setState] = React69.useState({ status: "loading" });
-  React69.useEffect(() => {
+  const [state, setState] = React71.useState({ status: "loading" });
+  React71.useEffect(() => {
     let live = true;
     loadActivity(fetchActivity).then((snapshot) => {
       if (live)
@@ -55193,12 +55216,12 @@ var ConsoleActivity = () => {
 };
 
 // src/client/console-mounted.tsx
-var React70 = __toESM(require_react(), 1);
+var React72 = __toESM(require_react(), 1);
 var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
 var MountedSurface = ({ id, open: open2 }) => {
-  const ref = React70.useRef(null);
-  const [error61, setError] = React70.useState(undefined);
-  React70.useEffect(() => {
+  const ref = React72.useRef(null);
+  const [error61, setError] = React72.useState(undefined);
+  React72.useEffect(() => {
     const node2 = ref.current;
     if (node2 === null)
       return;
@@ -55287,10 +55310,10 @@ var Content6 = ({ route, plan, surfaces }) => {
   }, undefined, false, undefined, this);
 };
 var ConsoleShell = ({ surfaces }) => {
-  const [catalogue, setCatalogue] = React71.useState(undefined);
-  const [status, setStatus] = React71.useState("Loading system status…");
-  const [failure, setFailure] = React71.useState(undefined);
-  React71.useEffect(() => {
+  const [catalogue, setCatalogue] = React73.useState(undefined);
+  const [status, setStatus] = React73.useState("Loading system status…");
+  const [failure, setFailure] = React73.useState(undefined);
+  React73.useEffect(() => {
     let live = true;
     loadCatalogue().then((value) => {
       if (live)
@@ -55307,7 +55330,7 @@ var ConsoleShell = ({ surfaces }) => {
       live = false;
     };
   }, []);
-  const plan = React71.useMemo(() => planConsole(catalogue ?? {}), [catalogue]);
+  const plan = React73.useMemo(() => planConsole(catalogue ?? {}), [catalogue]);
   const route = useRoute(plan);
   useAddressTruth(route, catalogue !== undefined);
   const desktop = isDesktop(route);

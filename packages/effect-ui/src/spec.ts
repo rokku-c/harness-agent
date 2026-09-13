@@ -14,6 +14,7 @@
 
 import type { UiActionSpec, UiSourceSpec } from "./data-spec.ts"
 import type { UiActionParam, UiRepeatSpec, UiVisibilitySpec } from "./value-spec.ts"
+import type { UiScreen } from "./screen-spec.ts"
 
 export interface UiNode {
   /** A `@radix-ui/themes` export, dotted for a subcomponent: `"Card"`, `"Table.Row"`. */
@@ -41,29 +42,6 @@ export interface UiNode {
 
 /** One node. Named for the union it used to be; a view is a list of these. */
 export type UiNodeSpec = UiNode
-
-/**
- * One screen a view can be entered at: Android's Activity, iOS's view
- * controller.
- *
- * A view is a tool surface, and a tool has functions — a fleet and the agent you
- * picked out of it, a board and the task you opened. `nodes` is the screen the
- * app starts on; these are the ones you enter from it, by a declared action that
- * says `opens` (see data-spec.ts). A screen is the same node vocabulary as any
- * other: nothing here is a second way to write a view.
- */
-export interface UiScreen {
-  readonly id: string
-  readonly title: string
-  /**
-   * The screen a back control returns to. Absent means the one the app starts
-   * on, so a screen entered straight from there says nothing. It is declared for
-   * the chain — a log opened from an agent opened from a fleet — and its other
-   * use is a link that arrived cold: the host rebuilds the stack from it.
-   */
-  readonly parent?: string
-  readonly nodes: readonly UiNode[]
-}
 
 /**
  * What the view is shaped like. A view is a tool surface and so is a screen by

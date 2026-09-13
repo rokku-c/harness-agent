@@ -82,7 +82,7 @@ export const effectUiView: EffectUiView = {
    * does reports below the fold.
    */
   screens: [
-    { id: "agent", title: "Agent", nodes: openedNodes },
+    { id: "agent", title: "Agent", onEnter: "herdr.agentOutput", nodes: openedNodes },
     { id: "start", title: "Start an agent", nodes: startNodes },
     { id: "workspaces", title: "Workspaces", nodes: workspaceNodes },
   ],

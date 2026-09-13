@@ -8,6 +8,7 @@
  */
 
 export * from "./spec.ts"
+export * from "./screen-spec.ts"
 export * from "./screen.ts"
 export * from "./screen-derive.ts"
 export * from "./screen-reads.ts"

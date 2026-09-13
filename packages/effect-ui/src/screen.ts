@@ -15,7 +15,8 @@
  * to say where a value comes from.
  */
 
-import type { EffectUiView, UiNode, UiScreen } from "./spec.ts"
+import type { EffectUiView, UiNode } from "./spec.ts"
+import type { UiScreen } from "./screen-spec.ts"
 import { deriveScreens } from "./screen-derive.ts"
 
 /** The first screen's id. Reserved: `nodes` is that screen, and no view names it. */

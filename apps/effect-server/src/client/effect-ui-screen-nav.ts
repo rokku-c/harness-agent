@@ -12,7 +12,7 @@
 import * as React from "react"
 import type { StateStore } from "@json-render/core"
 import { NAV_ROOT, ROOT_SCREEN, chainOf } from "@effect-agent/effect-ui"
-import { useDestination } from "./console-nav.ts"
+import { useDestination } from "./console-route-hooks.ts"
 import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
 
 export interface ScreenView {

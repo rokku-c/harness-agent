@@ -21,6 +21,7 @@ import { ConsoleTheme } from "./console-theme.tsx"
 import { ScreenMenu } from "./effect-ui-screen-menu.tsx"
 import { ScreenPanes } from "./effect-ui-screen-panes.tsx"
 import { useNavState, useScreenView } from "./effect-ui-screen-nav.ts"
+import { useScreenEnter } from "./effect-ui-screen-entry.ts"
 import { SourceLoader, useViewStore } from "./effect-ui-view-state.tsx"
 import { openScreen, navigate } from "./console-nav.ts"
 import { canGoBack } from "./console-stack.ts"
@@ -53,6 +54,7 @@ export const EffectUiRuntime = ({ registry, runtime }: Props) => {
     navigate({ kind: "view", id: appId, screen: parent === ROOT_SCREEN ? undefined : parent })
   }, [appId, chain])
   const handlers = React.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open, fetcher), [runtime?.actions, sources, store, open, fetcher])
+  useScreenEnter(handlers, current, params)
   if (current === undefined) return null
   const menu = runtime?.menu === true && current.id === ROOT_SCREEN ? <ScreenMenu appId={appId} screens={screens} /> : null
   return <ConsoleTheme fill>

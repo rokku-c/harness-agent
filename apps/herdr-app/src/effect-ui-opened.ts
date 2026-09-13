@@ -15,7 +15,7 @@
  */
 import type { UiActionParam, UiNodeSpec } from "@effect-agent/effect-ui"
 import { field, heading, row } from "@effect-agent/effect-ui"
-import { failure, keySeq, message, openedAgent, outcome, outcomeRow, press, readPart, terminal } from "./effect-ui-nodes.ts"
+import { failure, keySeq, message, navTarget, outcome, outcomeRow, press, readPart, terminal } from "./effect-ui-nodes.ts"
 
 /** The controls of the opened panel: the same acts as a card's, pointed at the agent in hand. */
 const panelControls = (target: UiActionParam): UiNodeSpec => row([
@@ -26,29 +26,36 @@ const panelControls = (target: UiActionParam): UiNodeSpec => row([
 ])
 
 /**
- * Guarded on the whole answer rather than on its success: a read that failed
- * left one here too, and hiding the panel under its own failure would be the one
- * outcome the operator most needs to see.
+ * Guarded on the agent the address names, not on the read: this screen is
+ * entered with an agent in hand, and its controls belong to that agent whether
+ * or not the output has arrived yet. Guarded on the answer instead, a read that
+ * failed took the message box, the keys and the focus button down with it —
+ * exactly when an operator needs them — and a link pasted in cold showed a
+ * screen with no panel on it at all.
  */
 const opened: UiNodeSpec = {
   component: "Card",
-  visible: { source: { state: outcome("agentOutput") } },
+  visible: { source: { state: navTarget } },
   children: [{ component: "Flex", props: { direction: "column", gap: "3" }, children: [
     row([
       heading("Opened agent", { size: "3" }),
-      { component: "Code", props: { size: "2" }, bind: openedAgent, visible: { source: { state: openedAgent } } },
+      { component: "Code", props: { size: "2" }, bind: navTarget, visible: { source: { state: navTarget } } },
       { component: "Badge", props: { variant: "soft", value: "truncated" },
         visible: { source: { state: readPart("truncated") }, equals: true } },
       failure("agentOutput"),
     ]),
     { component: "Code", props: terminal("28rem"), bind: readPart("text"), visible: { source: { state: readPart("text") } } },
     field("Message", { component: "TextArea", props: { placeholder: "what to say to it" }, bind: message }),
-    panelControls({ state: openedAgent }),
+    panelControls({ state: navTarget }),
     outcomeRow("agentPrompt", "sent"),
   ] }],
 }
 
 export const openedNodes: readonly UiNodeSpec[] = [
   opened,
+  // the same sentence the board's opened screen carries: this screen with an
+  // agent named is the panel above, and with none named it is this line
+  { component: "Text", props: { value: "No agent is open. Pick one from the fleet.", size: "2", color: "gray" },
+    visible: { source: { state: navTarget }, not: true } },
   outcomeRow("agentFocus", "focused"), outcomeRow("agentKeys", "keys sent"),
 ]

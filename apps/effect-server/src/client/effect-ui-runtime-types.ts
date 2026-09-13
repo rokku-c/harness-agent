@@ -12,6 +12,8 @@ export interface ScreenPayload {
   readonly title: string
   /** The screen the way back leads to; absent means the first one. */
   readonly parent?: string
+  /** The action that fills this screen, run once when it comes up. */
+  readonly onEnter?: string
   readonly spec: Spec & { readonly state?: Record<string, unknown> }
 }
 

@@ -17,11 +17,9 @@
 import { emptyRows, failureNotice, loadingRows, region } from "@effect-agent/effect-ui"
 import type { EffectUiView, UiNodeSpec } from "@effect-agent/effect-ui"
 import { boardColumns } from "./effect-ui-board.ts"
+import { boardHeader } from "./effect-ui-header.ts"
 import { stateFilter, worktable, worktableUrl } from "./effect-ui-table.ts"
 import { createFields, selectedFields } from "./effect-ui-forms.ts"
-
-const heading = (value: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
-  ({ component: "Heading", props: { value, ...props } })
 
 /** One shape of the tasks, on screen only while it is the chosen one. */
 const shape = (name: string, children: readonly UiNodeSpec[]): UiNodeSpec => ({
@@ -30,23 +28,6 @@ const shape = (name: string, children: readonly UiNodeSpec[]): UiNodeSpec => ({
   visible: { source: { state: "/view" }, equals: name },
   children: [...children],
 })
-
-const item = (value: string, label: string): UiNodeSpec =>
-  ({ component: "SegmentedControl.Item", props: { value }, children: [{ component: "Text", props: { value: label } }] })
-
-const viewSwitch: UiNodeSpec = {
-  component: "SegmentedControl.Root",
-  props: { size: "2" },
-  bind: "/view",
-  children: [item("table", "Worktable"), item("board", "Columns")],
-}
-
-/** The two doors out of the board, and the reason they are here rather than in the list below. */
-const controls: UiNodeSpec = {
-  component: "Flex",
-  props: { align: "center", gap: "3", wrap: "wrap" },
-  children: [viewSwitch, { component: "Button", props: { value: "New task", variant: "solid" }, onPress: "board.new" }],
-}
 
 export const effectUiView: EffectUiView = {
   viewId: "board-console",
@@ -64,22 +45,22 @@ export const effectUiView: EffectUiView = {
   actions: [
     // nothing to read first: the screen is a form, and the form is already there
     { name: "board.new", opens: "new" },
+    // A press names the task and goes there. What fills the screen is the
+    // screen's own business (`onEnter` below), so a row and a pasted link are
+    // the same act and there is one read, not one per door.
+    { name: "board.open", opens: "task" },
     { name: "board.create", method: "POST", url: "/board/api/tasks", result: "/createResult",
       clear: ["/create/title", "/create/body"], refresh: ["table"] },
-    // one press, two effects: the record lands in `/selected`, and the screen
-    // that renders it comes up. That is what opening a row is.
-    { name: "board.open", method: "GET", url: "/board/api/tasks/{taskId}", result: "/selected", opens: "task" },
+    // Entering the task screen is what reads the task. The id comes from the
+    // address, which is where a press put it — so the press and the link differ
+    // in nothing, and a read that fails says so on the screen that asked.
+    { name: "board.load", method: "GET", url: "/board/api/tasks/{taskId}", result: "/selected",
+      params: { taskId: { state: "/_nav/taskId" } } },
     { name: "board.save", method: "PATCH", url: "/board/api/tasks/{taskId}", result: "/selectedResult", refresh: ["table"] },
     { name: "board.delete", method: "DELETE", url: "/board/api/tasks/{taskId}", result: "/selectedResult", refresh: ["table"] },
   ],
   nodes: [
-    { component: "Flex", props: { justify: "between", align: "baseline", gap: "4", wrap: "wrap" }, children: [
-      { component: "Flex", props: { direction: "column", gap: "1" }, children: [
-        heading("Board", { size: "6" }),
-        { component: "Text", props: { value: "Hierarchical work items, who holds each one, and what is blocking them.", color: "gray" } },
-      ] },
-      controls,
-    ] },
+    boardHeader,
     // Everything below the header is as long as the board is, and the board has
     // no limit: the table and the columns scroll in their own box, and the
     // header — which holds both doors — stays where it was. The notices belong
@@ -93,7 +74,7 @@ export const effectUiView: EffectUiView = {
     ]),
   ],
   screens: [
-    { id: "task", title: "Opened task", nodes: selectedFields },
+    { id: "task", title: "Opened task", onEnter: "board.load", nodes: selectedFields },
     { id: "new", title: "New task", nodes: createFields },
   ],
 }

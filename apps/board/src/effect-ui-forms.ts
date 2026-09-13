@@ -14,7 +14,7 @@
  * wipe the record on a failed delete — the one case where the operator needs it
  * still there to retry.
  */
-import { failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { NAV_ROOT, failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { entry, memo, picker, withOutcome } from "./effect-ui-fields.ts"
 
 export const createFields: readonly UiNodeSpec[] = [
@@ -28,11 +28,21 @@ export const createFields: readonly UiNodeSpec[] = [
   ], "/createResult", [["/createResult/id", "Created"]]),
 ]
 
-/** Saving sends every field on screen: a partial merge that holds one back is the form disagreeing with the record. */
+/**
+ * Saving sends every field on screen: a partial merge that holds one back is the
+ * form disagreeing with the record.
+ *
+ * The sentence for an empty screen is guarded on the *address* naming no task,
+ * not on the record being absent. The record is absent for as long as the read
+ * takes, and for good when it failed — and "No task is open. Pick one from the
+ * board." is the wrong thing to say to a reader who did pick one and is looking
+ * at the reason it is not here. With a task named, the screen says either the
+ * fields or the failure, and never both that and this.
+ */
 export const selectedFields: readonly UiNodeSpec[] = [
   failureCallout("/selected/error"),
   { component: "Text", props: { value: "No task is open. Pick one from the board.", size: "2", color: "gray" },
-    visible: { source: { state: "/selected/id" }, not: true } },
+    visible: { source: { state: `${NAV_ROOT}/taskId` }, not: true } },
   { component: "Flex", props: { direction: "column", gap: "3" },
     visible: { source: { state: "/selected/id" } },
     children: [

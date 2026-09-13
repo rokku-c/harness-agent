@@ -26,7 +26,8 @@
  */
 
 import type { UiActionSpec } from "./data-spec.ts"
-import type { EffectUiView, UiNode, UiScreen } from "./spec.ts"
+import type { EffectUiView, UiNode } from "./spec.ts"
+import type { UiScreen } from "./screen-spec.ts"
 import { cardsOf, reachesPath, readsOf } from "./screen-reads.ts"
 
 /** The functions read off a view: what stays on the first screen, and the screens. */

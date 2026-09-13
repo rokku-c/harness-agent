@@ -57,16 +57,21 @@ const declared = (params: Params | undefined, store: StateStore): Params =>
  * One press, one or two effects: read the thing, then show it.
  *
  * An action that says `url` reads; one that says `opens` enters a screen; one
- * that says both does the first and then the second, which is what opening a
- * record is — `result` fills, and the screen that renders it comes up. A read
- * that failed opens nothing: the screen would come up against a `result` that
- * says the fetch failed, which is the bug the two halves are ordered to avoid.
+ * that says both does the first and then the second. A read that cannot be
+ * addressed is not attempted: a `{name}` in the url is the resource's own id,
+ * and a press that supplies none would send the request to a path the
+ * declaration does not describe — `/tasks/` rather than the task — whose answer
+ * is about something else, or about nothing. So the call is skipped and the
+ * screen goes on saying what it knows: nothing is open. The screen it opens, if
+ * it opens one, still opens: the press named a destination, and that part of it
+ * is still true.
  */
 export const makeActionHandlers = (actions: readonly UiActionSpec[] = [], sources: readonly UiSourceSpec[] = [], store: StateStore, open: OpenScreen = () => {}, fetcher: typeof fetch = window.fetch.bind(window), baseUrl = window.location.origin) =>
   Object.fromEntries(actions.map((action) => [action.name, async (runtimeParams: Params = {}) => {
     const method = action.method ?? "POST", params = { ...declared(action.params, store), ...runtimeParams }
     const url = action.url
-    if (url !== undefined) {
+    const unaddressed = url !== undefined && pathKeys(url).some((key) => params[key] === undefined || params[key] === "")
+    if (url !== undefined && !unaddressed) {
       try {
         const response = await fetcher(requestUrl(url, method, params, baseUrl), {
           method, headers: headers(method), ...(method === "GET" ? {} : { body: JSON.stringify(payloadOf(params, url)) }),

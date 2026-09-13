@@ -7,7 +7,7 @@
  */
 
 import * as React from "react"
-import { parseConsoleHash, parseDestination, type ConsoleDestination, type ConsoleEntry, type ConsoleRoute } from "./console-plan.ts"
+import type { ConsoleDestination, ConsoleRoute } from "./console-plan.ts"
 import { pushed } from "./console-stack.ts"
 
 /** The screen and its parameters, as the tail of an app's hash. */
@@ -27,8 +27,19 @@ export const hashOf = (route: ConsoleRoute): string => {
   }
 }
 
+/** The address as the browser reads it back: Home is the empty hash, not `#`. */
+const here = (): string => window.location.hash === "" ? "#" : window.location.hash
+
+/**
+ * Goes to a destination. Pressing something that goes where the reader already
+ * is does nothing — not a second history entry behind the same address, which
+ * would leave Back returning them to the screen they never left. A press that
+ * enters the screen it is on is how a screen completes itself on arrival
+ * (`UiScreen.onEnter`), so this is a case the flows take constantly.
+ */
 export const navigate = (route: ConsoleRoute): void => {
   const hash = hashOf(route)
+  if (hash === here()) return
   pushed(hash)
   window.location.hash = hash
 }
@@ -63,29 +74,6 @@ export const useAddressTruth = (route: ConsoleRoute, ready: boolean): void => {
   React.useEffect(() => {
     if (!ready) return
     const truth = hashOf(route)
-    const here = window.location.hash === "" ? "#" : window.location.hash
-    if (here !== truth) window.history.replaceState(null, "", truth)
+    if (here() !== truth) window.history.replaceState(null, "", truth)
   }, [ready, route])
-}
-
-/** The screen the address bar names. Read on its own: the view in the panel is what asks, not the shell. */
-export const useDestination = (): ConsoleDestination => {
-  const [hash, setHash] = React.useState(() => window.location.hash)
-  React.useEffect(() => {
-    const onHash = () => setHash(window.location.hash)
-    window.addEventListener("hashchange", onHash)
-    return () => window.removeEventListener("hashchange", onHash)
-  }, [])
-  return React.useMemo(() => parseDestination(hash), [hash])
-}
-
-/** Re-parsed whenever the plan changes, so a deep link resolves once the catalogue lands. */
-export const useRoute = (plan: readonly ConsoleEntry[]): ConsoleRoute => {
-  const [hash, setHash] = React.useState(() => window.location.hash)
-  React.useEffect(() => {
-    const onHash = () => setHash(window.location.hash)
-    window.addEventListener("hashchange", onHash)
-    return () => window.removeEventListener("hashchange", onHash)
-  }, [])
-  return React.useMemo(() => parseConsoleHash(hash, plan as ConsoleEntry[]), [hash, plan])
 }

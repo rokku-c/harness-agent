@@ -12,6 +12,7 @@ const payload = (view: EffectUiView, screen: UiScreen) => ({
   id: screen.id,
   title: screen.title,
   ...(screen.parent === undefined ? {} : { parent: screen.parent }),
+  ...(screen.onEnter === undefined ? {} : { onEnter: screen.onEnter }),
   spec: viewToJsonSpec({ ...view, nodes: screen.nodes }),
 })
 

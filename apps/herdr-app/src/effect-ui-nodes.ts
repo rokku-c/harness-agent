@@ -7,7 +7,7 @@
  * is here is what only this console needs: where its two reads keep their
  * answers, how a press's outcome is shown, and the key sequences a press sends.
  */
-import { failureBadge, row, type UiActionParam, type UiNodeSpec, type UiVisibilitySpec } from "@effect-agent/effect-ui"
+import { NAV_ROOT, failureBadge, row, type UiActionParam, type UiNodeSpec, type UiVisibilitySpec } from "@effect-agent/effect-ui"
 
 /**
  * The two reads. A source's body lands at `/herdr/<id>` and the list inside it
@@ -34,8 +34,17 @@ export const message = draft("message")
 /** Where one press's answer lands. */
 export const outcome = (name: string): string => `/herdr/result/${name}`
 
-/** The agent whose output was last read: a read names the pane it came from. */
-export const openedAgent = `${outcome("agentOutput")}/read/pane_id`
+/**
+ * The agent this screen is about: the pane the address names.
+ *
+ * Not the pane the last read came from. The address is what a press and a
+ * pasted link both carry, so it is the one thing the screen's controls can be
+ * pointed at before any read has answered — and pointed at after one failed.
+ * Reading the identity off the answer instead left every control on the screen
+ * addressing nothing until the read succeeded, and addressing the previous
+ * agent's pane whenever it did not.
+ */
+export const navTarget = `${NAV_ROOT}/target`
 /** One field of that read, for the panel that shows it whole. */
 export const readPart = (field: string): string => `${outcome("agentOutput")}/read/${field}`
 

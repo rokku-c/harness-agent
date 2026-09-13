@@ -31,10 +31,9 @@ const card: UiNodeSpec = {
     ] },
     row([chip("pane_id"), { component: "Text", props: { size: "1", color: "gray", truncate: true }, item: "foreground_cwd" }]),
     { component: "Code", props: terminal("8rem"), item: "tail/text", visible: hasTail },
-    // The read and the screen it opens are one press: what the screen shows is
-    // the answer this press just fetched, so a cold URL and a tap differ in
-    // nothing.
-    press("Open", "herdr.agentOutput", { target: { item: "pane_id" } }, { variant: "solid" }),
+    // The press names the agent and goes there; reading its output is what the
+    // screen does on arrival, so a tap and a pasted URL are one act.
+    press("Open", "herdr.openAgent", { target: { item: "pane_id" } }, { variant: "solid" }),
   ] }],
 }
 

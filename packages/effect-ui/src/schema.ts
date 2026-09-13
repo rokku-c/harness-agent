@@ -52,7 +52,8 @@ export const viewSpecSchema = (): z.ZodType<EffectUiView> => {
     params: z.record(z.string(), actionParam).optional(),
   }))
   const screenSchema = z.object({
-    id: z.string().min(1), title: z.string().min(1), parent: z.string().min(1).optional(), nodes: z.array(nodeSchema),
+    id: z.string().min(1), title: z.string().min(1), parent: z.string().min(1).optional(),
+    onEnter: z.string().min(1).optional(), nodes: z.array(nodeSchema),
   })
   // `root` is the screen `nodes` already is; a second one by that name would make
   // a link to it mean either of two screens.
