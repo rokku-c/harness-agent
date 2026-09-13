@@ -23,12 +23,19 @@
   description comparison) is left out. Those are comparisons; what this models
   is what the adjudication does with their answers.
 
-  Modelling note, and a finding rather than a choice: `assessChange` reads a
-  per-artifact override of the policy for schema, deps and description, and
-  then adjudicates `behavior` from `policy.behavior` alone — so
-  `to.compat.behavior`, which the override's type accepts, is never read. This
-  module models what the other three do, since that is the adjudication of a
-  level from that level's mode; the asymmetry is reported rather than proved.
+  One divergence is left, and it is a widening rather than a gap: `behavior` is
+  typed `require-declaration | ignore` — it can never be `warn` — while this
+  model gives every level the same three modes. The model therefore says
+  something about more policies than the product can express, which is the safe
+  direction for a statement of the form "nothing stricter than this refuses
+  anything it should not".
+
+  `assessChange` reads the override for all four levels, including behavior.
+  That was not true when this module was written: it adjudicated behavior from
+  `policy.behavior` alone while the override's type accepted a behavior entry,
+  so a per-artifact override was silently ignored — a refusal that looked like a
+  policy decision. `an_override_decides_the_level_it_names` is the rule the code
+  now keeps.
 -/
 
 namespace EffectCompat
@@ -106,6 +113,14 @@ theorem reported_is_exactly_what_changed (c : Changed) (l : Level) :
 theorem refuses_iff (c : Changed) (o : Override) (p : Policy) (l : Level) :
     refuses c o p l = true ↔ c l = true ∧ modeFrom o p l = Mode.strict := by
   cases hc : c l <;> cases hm : modeFrom o p l <;> simp [refuses, isStrict, hc, hm]
+
+/-- An artifact's override decides the level it names, whatever the policy says.
+This is the whole of what the `compat` field is for, and it is why a per-level
+override is worth having over one global policy: the artifact knows about a
+level the operator does not. -/
+theorem an_override_decides_the_level_it_names (o : Override) (p : Policy) (l : Level)
+    (m : Mode) (h : o l = some m) : modeFrom o p l = m := by
+  simp [modeFrom, h]
 
 /-- The verdict, stated about the levels rather than about the list the file
 builds: refused exactly when some level that changed is adjudicated strict. The

@@ -72,7 +72,11 @@ export const assessChange = (from: AssessableTool, to: AssessableTool, policy: C
   if (toBehavior && !fromBehavior)
     violations.push({
       level: "behavior",
-      mode: policy.behavior === "require-declaration" ? "strict" : "ignore",
+      // The override is consulted here as it is for the other three levels:
+      // `compat` is documented as the artifact's override of the policy levels,
+      // and a behavior that a policy demands be declared is exactly the level an
+      // artifact has a reason to override.
+      mode: (to.compat?.behavior ?? policy.behavior) === "require-declaration" ? "strict" : "ignore",
       reason: "behavior change declared (" + (to.behavior?.note ?? "no note") + ")",
     })
 
