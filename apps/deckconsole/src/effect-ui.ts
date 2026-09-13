@@ -1,39 +1,9 @@
-import { failureBadge, region, row, type EffectUiView, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { failureBadge, region, row, type EffectUiView } from "@effect-agent/effect-ui"
 import { field, heading, press, section, text } from "./effect-ui-nodes.ts"
+import { kindPicker } from "./effect-ui-kinds.ts"
 import { sessionNodes } from "./effect-ui-session.ts"
 import { consentNodes } from "./effect-ui-consent.ts"
 import { catalogNodes } from "./effect-ui-catalog.ts"
-
-/**
- * One served agent kind, as a selectable item: the kind itself is the item's
- * value — `Select.Item`'s own `value` is part of its contract, so it cannot be
- * the content the `item` binding would otherwise become — and the same string
- * again as the label the operator reads.
- */
-const kindOption = (field: string): UiNodeSpec => ({
-  component: "Select.Item",
-  item: field,
-  as: "value",
-  children: [{ component: "Text", item: field }],
-})
-
-/**
- * The kinds on offer are whatever the deck serves — the gateways it registered,
- * then the CLI presets it can invoke — so a kind added at boot shows up here and
- * a literal list of four could only ever be wrong. Two repeats because the deck
- * serves those two halves separately; the dropdown is one list of both.
- */
-const kindPicker: UiNodeSpec = {
-  component: "Select.Root",
-  bind: "/create/kind",
-  children: [
-    { component: "Select.Trigger", props: { placeholder: "Select an agent kind" } },
-    { component: "Select.Content", children: [
-      { component: "Select.Group", repeat: { source: { state: "/deck/kinds" } }, children: [kindOption("")] },
-      { component: "Select.Group", repeat: { source: { state: "/presets/presets" } }, children: [kindOption("kind")] },
-    ] },
-  ],
-}
 
 /**
  * The page opens on the thing it exists for: picking a kind and opening a
@@ -63,13 +33,24 @@ export const effectUiView: EffectUiView = {
   ],
   actions: [
     { name: "deck.open", method: "POST", url: "/deck/api/session", result: "/result/open", clear: ["/create/sessionId", "/create/prompt"], refresh: ["deck"] },
-    { name: "deck.close", method: "POST", url: "/deck/api/session/{sessionId}/close", result: "/result/session", refresh: ["deck"] },
-    { name: "deck.closeAll", method: "POST", url: "/deck/api/sessions/close-all", result: "/result/session", refresh: ["deck"] },
-    // opening a row is the read that fills the detail beside it; the turn draft
-    // and the last turn's readout belong to the session that was open, not this one
-    { name: "deck.select", method: "GET", url: "/deck/api/session/{sessionId}/history", result: "/opened", clear: ["/message/text", "/result/turn"] },
-    { name: "deck.send", method: "POST", url: "/deck/api/session/{sessionId}/send", result: "/result/turn", clear: ["/message/text"], refresh: ["deck"] },
-    { name: "deck.retry", method: "POST", url: "/deck/api/session/{sessionId}/retry", result: "/result/turn", refresh: ["deck"] },
+    // Closing a session changes what the transcript says, so the transcript is
+    // read again: the read of a session that is gone refuses, and its refusal
+    // lands under the row whose Close press asked for it. Clearing the detail
+    // here instead would blank it whichever session was closed, including the
+    // one the operator is still reading.
+    { name: "deck.close", method: "POST", url: "/deck/api/session/{sessionId}/close", result: "/result/session", refresh: ["deck", "deck.select"] },
+    { name: "deck.closeAll", method: "POST", url: "/deck/api/sessions/close-all", result: "/result/session", refresh: ["deck", "deck.select"] },
+    // Opening a row is the read that fills the detail beside it. It declares where
+    // its id comes from, so the same read can be run again by the presses that
+    // change a session's transcript — a press supplies the row's id at runtime
+    // and wins, a re-run has none and reads the session that is open.
+    { name: "deck.select", method: "GET", url: "/deck/api/session/{sessionId}/history", result: "/opened",
+      params: { sessionId: { state: "/opened/sessionId" } }, clear: ["/message/text", "/result/turn"] },
+    // A turn changes the session's transcript, so the transcript is one of the
+    // reads this press runs again — otherwise the reply the deck just wrote to
+    // `/result/turn` is the only sign the turn happened.
+    { name: "deck.send", method: "POST", url: "/deck/api/session/{sessionId}/send", result: "/result/turn", clear: ["/message/text"], refresh: ["deck", "deck.select"] },
+    { name: "deck.retry", method: "POST", url: "/deck/api/session/{sessionId}/retry", result: "/result/turn", refresh: ["deck", "deck.select"] },
     { name: "deck.allow", method: "POST", url: "/deck/api/consent/{callId}", result: "/result/consent", refresh: ["deck"] },
     { name: "deck.deny", method: "POST", url: "/deck/api/consent/{callId}", result: "/result/consent", refresh: ["deck"] },
     { name: "deck.removeLauncher", method: "DELETE", url: "/deck/api/launchers/{label}?kind={kind}", result: "/result/launcher", refresh: ["launchers"] },

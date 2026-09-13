@@ -1,93 +1,64 @@
 import type { StateStore } from "@json-render/core"
 import type { UiActionSpec, UiSourceSpec } from "@effect-agent/effect-ui"
 import { loadSource } from "./effect-ui-source-runtime.ts"
-
-type Params = Record<string, unknown>
+import { addressed, bodyOf, declared, init, refusal, requestUrl, type Params } from "./effect-ui-action-call.ts"
 
 /** Enters the screen an action names, carrying the values the press was made with. */
 export type OpenScreen = (screen: string, params: Params) => void
 
-const headers = (method: string): HeadersInit => method === "GET" ? { accept: "application/json" } : { accept: "application/json", "content-type": "application/json" }
-
-/** A `{name}` in the url is a path segment the server reads from the path. */
-const template = (): RegExp => /\{([^}]+)\}/g
-const pathKeys = (url: string): readonly string[] => [...url.matchAll(template())].map((match) => match[1]!)
-
 /**
- * Only the params the url does not already carry travel on: a path parameter
- * sent again in the body is a second, unknown field to a strict schema — the
- * server rejects the whole request over a value it already has.
- */
-const payloadOf = (params: Params, url: string): Params => {
-  const consumed = pathKeys(url)
-  return Object.fromEntries(Object.entries(params).filter(([key]) => !consumed.includes(key)))
-}
-
-const requestUrl = (url: string, method: string, params: Params, baseUrl: string): string => {
-  const templated = url.replace(template(), (_, key: string) => encodeURIComponent(String(params[key] ?? "")))
-  const query = payloadOf(params, url)
-  if (method !== "GET" || Object.keys(query).length === 0) return templated
-  const target = new URL(templated, baseUrl)
-  for (const [key, value] of Object.entries(query)) target.searchParams.set(key, String(value ?? ""))
-  return target.pathname + target.search
-}
-
-const bodyOf = (body: unknown, status: number): unknown => typeof body === "object" && body !== null ? body : { ok: status >= 200 && status < 300, value: body }
-
-const isStateRef = (value: unknown): value is { readonly state: string } =>
-  typeof value === "object" && value !== null && "state" in value && typeof (value as { state: unknown }).state === "string"
-
-/**
- * A declared param may read view state — its type is `UiDynamicValue`, and apps
- * declare `{state: "/draft/title"}` on actions exactly as they do on presses.
- * Nothing else resolves that one: json-render resolves the params of a *press*,
- * but a spec's own params never pass through it, so a declaration carrying a
- * state path arrives here as the path's own JSON. A strict schema then refuses
- * the whole request over a field it was never meant to receive.
+ * One press, and what it leaves behind.
  *
- * Undefined drops out in the body, which is the point: a form control nobody
- * touched sends nothing rather than sending an empty answer to a question the
- * server did not ask.
- */
-const declared = (params: Params | undefined, store: StateStore): Params =>
-  Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) =>
-    [key, isStateRef(value) ? store.get(value.state) : value]))
-
-/**
- * One press, one or two effects: read the thing, then show it.
+ * A press reads the thing (`url`), enters a screen (`opens`), or does both. The
+ * read is one call, and its answer is written where the press was (`result`), so
+ * a refusal is read under the control that caused it rather than somewhere else.
  *
- * An action that says `url` reads; one that says `opens` enters a screen; one
- * that says both does the first and then the second. A read that cannot be
- * addressed is not attempted: a `{name}` in the url is the resource's own id,
- * and a press that supplies none would send the request to a path the
- * declaration does not describe — `/tasks/` rather than the task — whose answer
- * is about something else, or about nothing. So the call is skipped and the
- * screen goes on saying what it knows: nothing is open. The screen it opens, if
- * it opens one, still opens: the press named a destination, and that part of it
- * is still true.
+ * A read that cannot be addressed is not attempted: a `{name}` in the url is the
+ * resource's own id, and a press that supplies none would send the request to a
+ * path the declaration does not describe — `/tasks/` rather than the task —
+ * whose answer is about something else, or about nothing. The press is not then
+ * a dead one: the screen it names still opens, because the destination is the
+ * part of the press that has no failure mode.
+ *
+ * What a successful read is followed by is the two things that make its result
+ * add up: `clear` empties the drafts the press consumed, and `refresh` re-runs
+ * the reads whose answer the write just changed. A refresh is a read and not a
+ * press — it makes its call and writes its own answer, and does not consume a
+ * draft or enter a screen — which is what leaves the answer the press just wrote
+ * where the operator can read it (`Formal/Refresh.lean`).
  */
-export const makeActionHandlers = (actions: readonly UiActionSpec[] = [], sources: readonly UiSourceSpec[] = [], store: StateStore, open: OpenScreen = () => {}, fetcher: typeof fetch = window.fetch.bind(window), baseUrl = window.location.origin) =>
-  Object.fromEntries(actions.map((action) => [action.name, async (runtimeParams: Params = {}) => {
-    const method = action.method ?? "POST", params = { ...declared(action.params, store), ...runtimeParams }
+export const makeActionHandlers = (actions: readonly UiActionSpec[] = [], sources: readonly UiSourceSpec[] = [], store: StateStore, open: OpenScreen = () => {}, fetcher: typeof fetch = window.fetch.bind(window), baseUrl = window.location.origin) => {
+  const declaredOf = (action: UiActionSpec, runtimeParams: Params): Params =>
+    ({ ...declared(action.params, store), ...runtimeParams })
+
+  /** The read half: the call and its answer, and nothing else. Answers whether it succeeded. */
+  const call = async (action: UiActionSpec, params: Params): Promise<boolean> => {
     const url = action.url
-    const unaddressed = url !== undefined && pathKeys(url).some((key) => params[key] === undefined || params[key] === "")
-    if (url !== undefined && !unaddressed) {
-      try {
-        const response = await fetcher(requestUrl(url, method, params, baseUrl), {
-          method, headers: headers(method), ...(method === "GET" ? {} : { body: JSON.stringify(payloadOf(params, url)) }),
-        })
-        const parsed = bodyOf(await response.json().catch(() => undefined), response.status)
-        if (action.result !== undefined) store.set(action.result, response.ok ? parsed : { ok: false, error: (parsed as { detail?: string; error?: string }).detail ?? (parsed as { error?: string }).error ?? `HTTP ${response.status}` })
-        if (!response.ok) return
-        for (const path of action.clear ?? []) store.set(path, "")
-        await Promise.all((action.refresh ?? []).map((id) => {
-          const source = sources.find((candidate) => candidate.id === id)
-          return source === undefined ? Promise.resolve() : loadSource(source, store, fetcher)
-        }))
-      } catch (error) {
-        if (action.result !== undefined) store.set(action.result, { ok: false, error: error instanceof Error ? error.message : String(error) })
-        return
-      }
+    if (url === undefined || !addressed(url, params)) return false
+    const method = action.method ?? "POST"
+    try {
+      const response = await fetcher(requestUrl(url, method, params, baseUrl), init(url, method, params))
+      const parsed = bodyOf(await response.json().catch(() => undefined), response.status)
+      if (action.result !== undefined) store.set(action.result, response.ok ? parsed : refusal(parsed, response.status))
+      return response.ok
+    } catch (error) {
+      if (action.result !== undefined) store.set(action.result, { ok: false, error: error instanceof Error ? error.message : String(error) })
+      return false
+    }
+  }
+
+  return Object.fromEntries(actions.map((action) => [action.name, async (runtimeParams: Params = {}) => {
+    const params = declaredOf(action, runtimeParams)
+    // A press that made no call has nothing that succeeded, so it neither consumes a draft nor re-runs a read.
+    if (action.url !== undefined && await call(action, params)) {
+      for (const path of action.clear ?? []) store.set(path, "")
+      await Promise.all((action.refresh ?? []).map(async (id) => {
+        const source = sources.find((candidate) => candidate.id === id)
+        if (source !== undefined) return loadSource(source, store, fetcher)
+        const read = actions.find((candidate) => candidate.name === id)
+        if (read !== undefined) await call(read, declaredOf(read, {}))
+      }))
     }
     if (action.opens !== undefined) open(action.opens, params)
   }]))
+}

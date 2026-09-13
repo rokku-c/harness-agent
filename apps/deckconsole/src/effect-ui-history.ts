@@ -32,12 +32,18 @@ const turn: UiNodeSpec = {
 
 export const historyNodes: readonly UiNodeSpec[] = [
   section("Transcript", [
-    // nothing opened: the section says what would fill it, so an operator never
-    // reads an empty card as a broken one
+    // Which of the two this card says is read from one path: the one that carries
+    // "a session is open". The turns are the content of that fact, so they are
+    // drawn only while it holds — a closed session's turns can never stand beside
+    // the sentence that says nothing is open.
     { ...text("Open a session row to read its transcript.", { size: "2", color: "gray" }),
       visible: { source: { state: "/opened/sessionId" }, not: true } },
     { component: "Flex", props: { direction: "column", gap: "2" },
-      repeat: { source: { state: "/opened/turns" }, key: "at" }, children: [turn] },
-    emptyList("/opened/ok", "/opened/turns", "This session has no turns yet."),
+      visible: { source: { state: "/opened/sessionId" } },
+      children: [
+        { component: "Flex", props: { direction: "column", gap: "2" },
+          repeat: { source: { state: "/opened/turns" }, key: "at" }, children: [turn] },
+        emptyList("/opened/ok", "/opened/turns", "This session has no turns yet."),
+      ] },
   ]),
 ]

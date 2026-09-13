@@ -44,15 +44,20 @@ export const turnOperations = (domain: DeckDomain): readonly Operation[] => [
   }),
   operation({
     name: "deckconsole_session_history",
-    description: "The transcript of one session and the consent decisions recorded for it, newest decision first",
+    description: "The transcript of one session and the consent decisions recorded for it, newest decision first; a session this deck is not running has no transcript and is refused as unknown",
     access: "read",
     input: z.object({ id: z.string().min(1) }).strict(),
     http: { method: "GET", path: "/api/session/:id/history" },
     handler: async (input) => {
       const { deck, sessionGateway } = domain
+      // A session that is gone has no transcript. Answering with an empty one
+      // would say "this session has no turns yet" about a session that does not
+      // exist — and would keep saying it after the operator closed it.
+      const gateway = sessionGateway(input.id)
+      if (!gateway) refuse(404, "unknown session")
       return {
         ok: true, sessionId: input.id,
-        turns: await sessionGateway(input.id)?.history?.(input.id) ?? [],
+        turns: await gateway?.history?.(input.id) ?? [],
         consent: (deck.consent.mapping().get(input.id) ?? []).slice().reverse(),
       }
     },

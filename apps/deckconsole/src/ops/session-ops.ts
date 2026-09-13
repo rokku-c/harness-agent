@@ -31,10 +31,16 @@ export const sessionOperations = ({ deck, presets, gatewayFor, sessionPolicy, cl
         refuse(404, "unknown agent kind: " + kind + " (register a preset via POST /api/presets or use custom)")
       }
       const config = normalizeConfig(kind as never, input.config ?? {})
-      if (input.sessionId !== undefined && deck.sessions().some(s => s.sessionId === input.sessionId)) {
-        refuse(409, "session already open: " + input.sessionId)
+      // The field is labelled optional, and an operator who leaves it blank has
+      // supplied no id — the deck names the session instead. Taking the empty
+      // string as an identity would name every such session alike: the row would
+      // carry a key no press can address, so Open and Close would do nothing and
+      // say nothing about why.
+      const sessionId = input.sessionId === "" ? undefined : input.sessionId
+      if (sessionId !== undefined && deck.sessions().some(s => s.sessionId === sessionId)) {
+        refuse(409, "session already open: " + sessionId)
       }
-      const opened = await gatewayFor(kind).open({ sessionId: input.sessionId, prompt: input.prompt, config })
+      const opened = await gatewayFor(kind).open({ sessionId, prompt: input.prompt, config })
       // a policy the config asked for lives exactly as long as its own session
       const auto = config.consent?.autoApproveTools
       const mode = config.consent?.defaultDecision as "ask" | "allow" | "deny" | undefined

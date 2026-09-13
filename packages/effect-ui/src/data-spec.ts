@@ -41,12 +41,19 @@ export interface UiActionSpec {
   /** JSON pointer where the response body or error is stored. */
   readonly result?: string
   /**
-   * State paths to blank once the call succeeded — the draft the press
-   * consumed. A form that keeps what it just submitted invites the same press
-   * twice. A path the *answer* owns belongs to `result` instead: this one is
-   * only ever emptied, never written.
+   * State paths to blank once the call succeeded — the state the press
+   * consumed: the draft it submitted, or the record it just removed, which
+   * cannot stay on screen as though it were still there. A form that keeps what
+   * it just submitted invites the same press twice. A path the *answer* owns
+   * belongs to `result` instead: this one is only ever emptied, never written.
    */
   readonly clear?: readonly string[]
-  /** Source ids to reload after a successful action. */
+  /**
+   * The reads to run again once this action succeeded — a source id, or the
+   * name of a declared action. A refresh is a read and not a press: it makes
+   * its call and writes its own answer, and it consumes no draft and enters no
+   * screen. That is what lets the answer this action just wrote stay where the
+   * operator can read it, while the list beside it catches up.
+   */
   readonly refresh?: readonly string[]
 }

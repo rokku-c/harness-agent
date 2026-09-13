@@ -9,7 +9,7 @@
 
 import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { cellOf, code, field, press, section, stateBadge, table, text } from "./effect-ui-nodes.ts"
-import { sharedStates } from "./effect-ui-states.ts"
+import { whenRows, sharedStates } from "./effect-ui-states.ts"
 import { historyNodes } from "./effect-ui-history.ts"
 
 /**
@@ -28,20 +28,13 @@ const sessionCells: readonly UiNodeSpec[] = [
   ])),
 ]
 
-/**
- * A press that acts on a list is offered only while the list has a first row:
- * "close all sessions" under the notice that no session is open is an offer to
- * close nothing.
- */
-const closeAll: UiNodeSpec = {
-  ...row([press("Close all sessions", "deck.closeAll", undefined, { size: "1", variant: "soft", color: "red" })]),
-  visible: { source: { state: "/deck/sessions/0" } },
-}
+const closeAll: UiNodeSpec = whenRows("/deck/sessions",
+  row([press("Close all sessions", "deck.closeAll", undefined, { size: "1", variant: "soft", color: "red" })]))
 
 /** Each refusal sits under the press that issued it: the open read, then the closes. */
 const sessionsCard: UiNodeSpec = section("Sessions", [
   ...sharedStates("deck", "/deck/sessions", "No agent sessions are open yet."),
-  table(["Agent", "Session", "Status", "Actions"], sessionCells, { source: { state: "/deck/sessions" }, key: "sessionId" }),
+  whenRows("/deck/sessions", table(["Agent", "Session", "Status", "Actions"], sessionCells, { source: { state: "/deck/sessions" }, key: "sessionId" })),
   row([failureBadge("/opened/error")]),
   closeAll,
   row([failureBadge("/result/session/error")]),

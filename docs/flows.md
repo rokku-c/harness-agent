@@ -33,8 +33,8 @@ complete when you arrive** — however you arrived.
 | F1 | **One control per destination.** A destination has exactly one control that reaches it, on exactly one surface. Another surface may link to it, never re-offer it. | ⌂ and ☰ were both live on every app screen, both going Home. A person reads two controls as two destinations. |
 | F2 | **Up is one level, and it is always in the same place.** The leading control goes to the parent screen; at an app's first screen it goes Home. Never `history.back()` unconditionally. | `screen-bar` called `history.back()`, whose own comment conceded it can land on "the page the reader came from" — a pasted link has no history, so Back left the product. |
 | F3 | **A destination is complete on arrival.** The address names the screen *and* what it shows; arriving cold builds the same screen with the same content as arriving by press. A screen that needs data declares how to load it — and a load its address does not name is not attempted. | `#view/board/task?taskId=…` rendered *"No task is open. Pick one from the board."* — the parameter was written to the URL by the press and read by nothing. Measured live. The same rule a second time: `#view/board/task` with no id sent `GET /board/api/tasks/` and answered "Unknown Board route" beside the empty sentence — a request about a path the declaration never described. |
-| F4 | **An action's result appears where the press was.** | deckconsole's `deck.send` writes `/result/turn` and refreshes the session list, while the transcript on the same page reads `/opened`, which only `deck.select` writes. Send a turn and the answer never appears. |
-| F5 | **One surface writes a fact.** Other surfaces read it or link to the writer. | Configuration is written on Settings *and* reachable as `#config/<app>`, which mounts nothing and answers with an error callout. Two doors, one of them painted on. |
+| F4 | **An action's result appears where the press was.** A press names the reads its result changes, and a re-run read is a read and not a press — it makes its call and writes its own answer; it consumes no draft and enters no screen. | deckconsole's `deck.send` wrote `/result/turn` and refreshed only the session list, while the transcript on the same page reads `/opened`, which only `deck.select` writes: send a turn and the answer never appeared. The product had two kinds of read — a source and a read-action — and only the first could be re-run. `refresh` now names either, and a press that made no call consumes nothing. Proven: `Formal/Refresh.lean`. |
+| F5 | **One surface writes a fact.** Other surfaces read it or link to the writer. | Configuration is written on Settings *and* reachable as `#config/<app>`, which mounts nothing and answers with an error callout. Two doors, one of them painted on. The same shape at the list: a card showed a table's header row under the notice saying the list was empty — the notice said the true thing and the bare header said there were columns of nothing, on four cards of one page. A list is now drawn only while it has a first row (`whenRows`), from the same predicate the notice reads. |
 | F6 | **One identity, checked at one door.** An agent is identified by a credential the door verifies; a header is a hint, not an identity. | `mcp-server.ts` accepts any `x-agent-id`; `authenticate` is never supplied, so `authInfo` is always undefined and any caller can assume another agent's sets. |
 | F7 | **One store per fact, and the surface that writes it shows it.** | Sets/bindings live in agentd's control state *and* in the gateway's config, with nothing synchronising them: bind an agent in agentd and the gateway page still reads "No agents bound to a set yet." |
 | F8 | **What a door advertises is what it enforces.** | `tools/list` answers one multiplexed `mcp_gateway_call` while the page copy says "one governed MCP entry point for every agent" and the per-tool surface is unbuilt. |
@@ -99,5 +99,12 @@ its own copy of navigation state.
   reads them back from there, so a pasted address and a press are the same
   arrival (`Formal/Entry.lean`); and a url whose path names an id nothing
   supplied is not requested at all.
-- F4/F5: the app views and Settings, one slice per app.
+- F4: `UiActionSpec.refresh` — the reads to run again once a press succeeded,
+  named by source id *or* by declared action. A refresh makes its call and writes
+  its own answer, consumes no draft and enters no screen, which is what leaves
+  the answer the press just wrote where the operator can read it
+  (`Formal/Refresh.lean`).
+- F5: `whenRows` — the list and the press that empties it, drawn from the same
+  first-row predicate the "nothing here" notice reads, so one surface states the
+  fact. Then the app views and Settings, one slice per app.
 - F6–F9: the gateway and agentd, one slice per rule.

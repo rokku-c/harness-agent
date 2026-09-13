@@ -39,6 +39,7 @@ import Formal.Query
 import Formal.Queue
 import Formal.Readout
 import Formal.Redact
+import Formal.Refresh
 import Formal.Reload
 import Formal.Replay
 import Formal.Resolve

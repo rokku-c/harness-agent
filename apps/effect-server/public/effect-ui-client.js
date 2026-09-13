@@ -53363,14 +53363,16 @@ var loadSource = async (source2, store, fetcher) => {
   }
 };
 
-// src/client/effect-ui-action-runtime.ts
+// src/client/effect-ui-action-call.ts
 var headers = (method) => method === "GET" ? { accept: "application/json" } : { accept: "application/json", "content-type": "application/json" };
 var template = () => /\{([^}]+)\}/g;
 var pathKeys = (url2) => [...url2.matchAll(template())].map((match) => match[1]);
+var addressed = (url2, params) => pathKeys(url2).every((key) => params[key] !== undefined && params[key] !== null && params[key] !== "");
 var payloadOf = (params, url2) => {
   const consumed = pathKeys(url2);
   return Object.fromEntries(Object.entries(params).filter(([key]) => !consumed.includes(key)));
 };
+var init = (url2, method, params) => ({ method, headers: headers(method), ...method === "GET" ? {} : { body: JSON.stringify(payloadOf(params, url2)) } });
 var requestUrl = (url2, method, params, baseUrl) => {
   const templated = url2.replace(template(), (_, key) => encodeURIComponent(String(params[key] ?? "")));
   const query = payloadOf(params, url2);
@@ -53382,41 +53384,53 @@ var requestUrl = (url2, method, params, baseUrl) => {
   return target.pathname + target.search;
 };
 var bodyOf = (body, status) => typeof body === "object" && body !== null ? body : { ok: status >= 200 && status < 300, value: body };
+var refusal = (parsed, status) => {
+  const body = parsed;
+  return { ok: false, error: body?.detail ?? body?.error ?? `HTTP ${status}` };
+};
 var isStateRef = (value) => typeof value === "object" && value !== null && ("state" in value) && typeof value.state === "string";
 var declared = (params, store) => Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, isStateRef(value) ? store.get(value.state) : value]));
-var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin) => Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
-  const method = action2.method ?? "POST", params = { ...declared(action2.params, store), ...runtimeParams };
-  const url2 = action2.url;
-  const unaddressed = url2 !== undefined && pathKeys(url2).some((key) => params[key] === undefined || params[key] === "");
-  if (url2 !== undefined && !unaddressed) {
+
+// src/client/effect-ui-action-runtime.ts
+var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin) => {
+  const declaredOf = (action2, runtimeParams) => ({ ...declared(action2.params, store), ...runtimeParams });
+  const call = async (action2, params) => {
+    const url2 = action2.url;
+    if (url2 === undefined || !addressed(url2, params))
+      return false;
+    const method = action2.method ?? "POST";
     try {
-      const response = await fetcher(requestUrl(url2, method, params, baseUrl), {
-        method,
-        headers: headers(method),
-        ...method === "GET" ? {} : { body: JSON.stringify(payloadOf(params, url2)) }
-      });
+      const response = await fetcher(requestUrl(url2, method, params, baseUrl), init(url2, method, params));
       const parsed = bodyOf(await response.json().catch(() => {
         return;
       }), response.status);
       if (action2.result !== undefined)
-        store.set(action2.result, response.ok ? parsed : { ok: false, error: parsed.detail ?? parsed.error ?? `HTTP ${response.status}` });
-      if (!response.ok)
-        return;
-      for (const path of action2.clear ?? [])
-        store.set(path, "");
-      await Promise.all((action2.refresh ?? []).map((id) => {
-        const source2 = sources.find((candidate) => candidate.id === id);
-        return source2 === undefined ? Promise.resolve() : loadSource(source2, store, fetcher);
-      }));
+        store.set(action2.result, response.ok ? parsed : refusal(parsed, response.status));
+      return response.ok;
     } catch (error61) {
       if (action2.result !== undefined)
         store.set(action2.result, { ok: false, error: error61 instanceof Error ? error61.message : String(error61) });
-      return;
+      return false;
     }
-  }
-  if (action2.opens !== undefined)
-    open2(action2.opens, params);
-}]));
+  };
+  return Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
+    const params = declaredOf(action2, runtimeParams);
+    if (action2.url !== undefined && await call(action2, params)) {
+      for (const path of action2.clear ?? [])
+        store.set(path, "");
+      await Promise.all((action2.refresh ?? []).map(async (id) => {
+        const source2 = sources.find((candidate) => candidate.id === id);
+        if (source2 !== undefined)
+          return loadSource(source2, store, fetcher);
+        const read2 = actions.find((candidate) => candidate.name === id);
+        if (read2 !== undefined)
+          await call(read2, declaredOf(read2, {}));
+      }));
+    }
+    if (action2.opens !== undefined)
+      open2(action2.opens, params);
+  }]));
+};
 
 // src/client/theme-appearance.ts
 var React59 = __toESM(require_react(), 1);
@@ -54124,8 +54138,8 @@ var configComponents = { Flex: ConfigFlex, Text: ConfigText, TextField: ConfigFi
 // src/client/config-api.ts
 function createConfigApi(fetcher) {
   const record2 = (value) => !!value && typeof value === "object" && !Array.isArray(value);
-  const request = async (url2, init) => {
-    const response = await fetcher(url2, { cache: "no-store", ...init });
+  const request = async (url2, init2) => {
+    const response = await fetcher(url2, { cache: "no-store", ...init2 });
     const text = await response.text();
     let data;
     try {
