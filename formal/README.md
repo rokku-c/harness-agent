@@ -17,6 +17,7 @@ like a broken test.
 | `Formal/Lifecycle.lean` | `effect-interface/src/registry.ts` | register and dispose are symmetric, and a stale disposer cannot revoke its replacement |
 | `Formal/Readout.lean` | `effect-ui/src/readout.ts`, `source-status.ts` | a readout shows exactly when its path carries a value; a failed list never reads as an empty one |
 | `Formal/Screen.lean` | `effect-ui/src/screen.ts` | entered screens form a chain back to the root, without repeats |
+| `Formal/Swap.lean` | `effect-bundle/src/supervisor.ts` | at every moment of a kernel swap the dispatcher points at a kernel that is loaded; stopping the old one first does not |
 
 ## What this is not
 
