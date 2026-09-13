@@ -3,8 +3,13 @@
  *
  * The node token is one secret compared by every node-facing verb: a second copy
  * of this comparison is a second place to get it wrong, and the failure would be
- * silent in exactly one of them. Constant-time, so a wrong token cannot be
- * narrowed by how long the comparison took.
+ * silent in exactly one of them.
+ *
+ * Constant-time in the comparison itself: a wrong token of the right length cannot
+ * be narrowed byte by byte. The length check in front of it short-circuits, so the
+ * token's length is not hidden — which a fixed-length shared secret has usually
+ * given away already. Keeping the claim about the comparison rather than about
+ * this function is the point.
  */
 
 import { timingSafeEqual } from "node:crypto"
