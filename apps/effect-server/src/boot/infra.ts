@@ -1,13 +1,10 @@
 import { makeNodeOperationTable, nodeOperationSummary, type AppCatalog } from "@effect-agent/effect-apps"
-import type { EffectPluginHost } from "@effect-agent/effect-host"
+import { json, type EffectPluginHost } from "@effect-agent/effect-host"
 import type { EffectRegistry } from "@effect-agent/effect-interface"
 import type { ConfigRegistry } from "@effect-agent/effect-config"
 import type { EffectUiView } from "@effect-agent/effect-ui"
 import { makeLiveAppCatalog } from "../apps-catalog.ts"
 import type { EffectServer } from "./options.ts"
-
-const jsonResponse = (body: unknown): Response =>
-  new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } })
 
 export interface AppCatalogServices {
   readonly host: EffectPluginHost
@@ -44,11 +41,11 @@ export const registerInfra = (app: EffectServer, catalog: AppCatalog): void => {
   app.host.registerRoute({
     path: "/-/status",
     method: "GET",
-    handle: async () => jsonResponse(app.host.list()),
+    handle: async () => json(app.host.list()),
   })
   app.host.registerRoute({
     path: "/-/operations",
     method: "GET",
-    handle: async () => jsonResponse(makeNodeOperationTable(app.host, catalog.list()).list().map(nodeOperationSummary)),
+    handle: async () => json(makeNodeOperationTable(app.host, catalog.list()).list().map(nodeOperationSummary)),
   })
 }

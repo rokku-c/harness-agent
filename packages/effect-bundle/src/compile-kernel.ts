@@ -19,8 +19,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { resolve, join } from "node:path"
-import { spawnSync } from "node:child_process"
-import { BUNDLE_EXTERNALS } from "./externals.ts"
+import { buildEntry } from "./build-entry.ts"
 import { KERNEL_ENTRY, KERNEL_MANIFEST, readKernelManifest, type KernelBundleManifest } from "./kernel-manifest.ts"
 
 export interface KernelCompileOptions {
@@ -40,19 +39,7 @@ export const compileKernelRevision = async (options: KernelCompileOptions): Prom
   mkdirSync(outRoot, { recursive: true })
 
   const outEntry = join(outRoot, KERNEL_ENTRY)
-  const run = spawnSync(
-    process.execPath,
-    [
-      "build", resolve(options.kernelDir, manifest.entry), "--outfile", outEntry,
-      "--target", "bun",
-      ...BUNDLE_EXTERNALS.flatMap((name) => ["--external", name]),
-      "--minify",
-    ],
-    { encoding: "utf8" },
-  )
-  if (run.status !== 0) {
-    throw new Error("kernel build failed: " + (run.stderr || run.stdout))
-  }
+  buildEntry({ entry: resolve(options.kernelDir, manifest.entry), outfile: outEntry, target: "bun", what: "kernel" })
 
   // The artifact's manifest names the *compiled* entry, so the directory is read
   // by the same rule whether you are looking at the source or at the build.

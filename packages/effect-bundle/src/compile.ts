@@ -16,9 +16,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, cpSync } from "node:fs"
 import { dirname, resolve, join } from "node:path"
-import { spawnSync } from "node:child_process"
+import { buildEntry } from "./build-entry.ts"
 import { bundleRuntimes, type EffectRuntimeKind } from "./compat.ts"
-import { BUNDLE_EXTERNALS } from "./externals.ts"
 import type { EffectBundleManifest } from "./manifest.ts"
 
 export interface CompileOptions {
@@ -60,19 +59,7 @@ export const compileEffectBundle = async (options: CompileOptions): Promise<Effe
   const entries: Partial<Record<EffectRuntimeKind, string>> = {}
   for (const runtime of targets) {
     const outEntry = join(outRoot, entryFor(runtime))
-    const run = spawnSync(
-      process.execPath,
-      [
-        "build", entrySrc, "--outfile", outEntry,
-        "--target", BUILD_TARGET[runtime],
-        ...BUNDLE_EXTERNALS.flatMap((name) => ["--external", name]),
-        "--minify",
-      ],
-      { encoding: "utf8" },
-    )
-    if (run.status !== 0) {
-      throw new Error(`bundle build failed for runtime "${runtime}": ` + (run.stderr || run.stdout))
-    }
+    buildEntry({ entry: entrySrc, outfile: outEntry, target: BUILD_TARGET[runtime], what: `bundle for runtime "${runtime}"` })
     entries[runtime] = entryFor(runtime)
   }
 

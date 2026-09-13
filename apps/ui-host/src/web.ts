@@ -2,6 +2,7 @@ import { makeDefinitionStore, registerBuiltins } from "@effect-agent/ui-definiti
 import { makeUIRuntime } from "@effect-agent/ui-runtime"
 import { jsonReactRenderer, webRenderer, makeRendererRegistry, renderRuntime } from "@effect-agent/ui-renderer"
 import { toHttpHandler } from "@effect-agent/effect-interface"
+import { json } from "@effect-agent/effect-host"
 import type { UICommand } from "@effect-agent/ui-protocol"
 import { makeExtensionRegistry } from "@effect-agent/ui-extension"
 import { makeActivityStore } from "./activity.ts"
@@ -9,7 +10,6 @@ import { makeCanvasStore } from "./canvas-store.ts"
 import { makeUiTools, uiOperations, type UiSurfaces } from "./ops/index.ts"
 import { shell } from "./shell.ts"
 
-const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } })
 export interface WebHandlerOptions {
   readonly theme?: string
   readonly renderer?: string
