@@ -1,13 +1,17 @@
 /**
- * model/policy.go - the AGENT POLICY document.
+ * model/policy.ts - the AGENT POLICY document.
  *
  * Concept: what one agent is allowed to see and override - the api scope
  * (allowlist/denylist), the default versions and visibility per tool, the
  * compat policy, the sandbox limits, and the fine-grained whitelist of
  * config paths the agent may override. A complete policy is the whole
  * document; defaults are exported for a fresh agent.
+ *
+ * The compat policy and its default are @effect-agent/effect-compat's: writing
+ * the four levels out again here would be a second set of defaults to keep in
+ * step with the model that adjudicates them.
  */
-import type { CompatPolicy } from "./compat.ts"
+import { defaultCompat, type CompatPolicy } from "@effect-agent/effect-compat"
 import type { Ref, VersionVisibility } from "./version-refs.ts"
 
 export interface Policy {
@@ -33,7 +37,7 @@ export interface Policy {
 export const defaultPolicy: Policy = {
   api: { mode: "allowlist", scope: [] },
   version: { defaults: {}, visibility: {} },
-  compat: { schema: "strict", deps: "strict", description: "warn", behavior: "require-declaration" },
+  compat: defaultCompat,
   sandbox: { runtime: "isolated-vm", timeoutMs: 5000, memoryMb: 64 },
   allowAgentConfig: []
 }

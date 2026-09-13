@@ -9,8 +9,6 @@
  */
 import {
   VersionStore,
-  assessChange,
-  defaultCompat,
   defaultPolicy,
   mergePolicy,
   restrictPolicy,
@@ -18,6 +16,7 @@ import {
   type Policy,
   type ToolDef
 } from "@effect-agent/script"
+import { assessChange, defaultCompat } from "@effect-agent/effect-compat"
 import { notes, registry, Runtime, weather } from "./lib/script-sandbox-setup.ts"
 import { composedSource, toolFromResult } from "./lib/script-bootstrap.ts"
 

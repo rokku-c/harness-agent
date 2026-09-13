@@ -31,7 +31,7 @@ export interface BehaviorDeclaration {
   readonly note?: string
 }
 
-import type { CompatPolicy } from "./compat.ts"
+import type { CompatPolicy } from "@effect-agent/effect-compat"
 
 export interface ToolDef {
   readonly name: string

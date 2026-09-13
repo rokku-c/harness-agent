@@ -1,11 +1,9 @@
 import { describe, expect, it } from "bun:test"
+import { assessChange, assessUpgrade, defaultCompat } from "@effect-agent/effect-compat"
 import {
   IsolatedVmRuntime,
   NodeVmRuntime,
   VersionStore,
-  assessChange,
-  assessUpgrade,
-  defaultCompat,
   defaultPolicy,
   hashVersion,
   mergePolicy,
