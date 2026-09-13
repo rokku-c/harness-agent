@@ -12,6 +12,7 @@ import {
   policy,
   restrictPolicy,
   visibleTools,
+  violatesClosure,
   type Policy,
   type ToolDef
 } from "@effect-agent/script"
@@ -87,7 +88,7 @@ describe("visibility = dependency closure", () => {
 
   it("violatesClosure reports missing deps for a given visible set", () => {
     const tool = dailyReport(["weather.lookup", "missing.tool"])
-    const violations = tool.deps.filter((dep) => !new Set(["daily_report", "weather.lookup"]).has(dep))
+    const violations = violatesClosure(tool, new Set(["daily_report", "weather.lookup"]))
     expect(violations).toEqual(["missing.tool"])
   })
 })
