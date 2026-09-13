@@ -9,7 +9,9 @@
  */
 export type LogLevel = "debug" | "info" | "warn" | "error"
 
-const LEVEL_ORDER: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 }
+/** The level order, stated once: a sink's threshold and an entry's level are
+compared against the same table, so they cannot rank differently. */
+export const LEVEL_ORDER: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 }
 
 export interface LogEntry {
   readonly ts: string

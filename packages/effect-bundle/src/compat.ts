@@ -169,7 +169,9 @@ const label = (d: BundleDeclaration): string => d.bundleId ?? "(anonymous bundle
 export const bundleRuntimes = (d: Pick<BundleDeclaration, "runtimes">): readonly EffectRuntimeKind[] =>
   d.runtimes === undefined || d.runtimes.length === 0 ? [DEFAULT_RUNTIME] : d.runtimes
 
-const reject = (reason: Incompatibility): CompatVerdict => ({ ok: false, reason })
+/** The refusal verdict, written once: `assessBundleCompat` and the kernel's own
+assessment both return it, so a refusal reads the same however it was reached. */
+export const reject = (reason: Incompatibility): CompatVerdict => ({ ok: false, reason })
 
 /**
  * Decide whether a host may load a bundle. Pure — no I/O — so the same verdict

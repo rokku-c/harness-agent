@@ -10,29 +10,12 @@
  */
 
 import type { ContractElement, RenderContract } from "./contract.ts"
+import { show, valueAt } from "./pointer.ts"
 
 const COLLAPSE_MIN = 3
 
-const at = (root: unknown, path?: string): unknown => {
-  if (path === undefined) return undefined
-  let cur: unknown = root
-  for (const seg of path.replace(/^\//, "").split("/")) {
-    if (cur === null || typeof cur !== "object" || !(seg in (cur as Record<string, unknown>))) return undefined
-    cur = (cur as Record<string, unknown>)[seg]
-  }
-  return cur
-}
-
-const show = (v: unknown): string => {
-  try {
-    return JSON.stringify(v)
-  } catch {
-    return String(v)
-  }
-}
-
 const renderElement = (e: ContractElement, data: unknown): string => {
-  const value = at(data, e.data)
+  const value = valueAt(data, e.data)
   const kind = e.display === false ? "control" : "display"
   const interactive = (e.interactive ?? []).map((i) => `[${i.on}:${i.action}]`).join(" ")
   const base = `${e.component} "${e.id}" (${kind})` + (e.data !== undefined ? ` data=${e.data}` : "")

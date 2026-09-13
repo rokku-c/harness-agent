@@ -33,6 +33,7 @@ import {
   type KernelRevision,
 } from "@effect-agent/effect-bundle"
 import { AgentdError } from "./errors.ts"
+import { fail, nonEmpty, record, sameKeys } from "./guards.ts"
 import { same } from "./stable.ts"
 import type { AdapterPlan, AgentAdapter, AgentInstance, BundleRef, DesiredAgentConfig, Machine } from "./types.ts"
 
@@ -145,13 +146,6 @@ export interface BundleAgentConfig {
   /** The receipt this config is measured against — same field name as the gateway adapter. */
   readonly metadata: { readonly agentId: string; readonly revision: number }
 }
-
-const record = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value)
-const fail: (message: string) => never = (message) => { throw new AgentdError(400, message) }
-const sameKeys = (value: Record<string, unknown>, keys: readonly string[]): boolean =>
-  Object.keys(value).sort().join("\0") === [...keys].sort().join("\0")
-const nonEmpty = (value: unknown): value is string => typeof value === "string" && value.length > 0
 
 const ARTIFACT_KEYS = ["bundleId", "version", "kind", "abi", "runtimes"]
 

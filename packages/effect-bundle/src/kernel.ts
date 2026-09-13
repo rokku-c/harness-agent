@@ -29,6 +29,7 @@ import {
   type EffectRuntimeKind,
   type HostCapability,
   type Incompatibility,
+  reject,
 } from "./compat.ts"
 
 /** What a kernel artifact declares about itself. */
@@ -61,8 +62,6 @@ export class KernelIncompatibleError extends Error {
 }
 
 const label = (declaration: KernelDeclaration): string => declaration.kernelId ?? "(anonymous kernel)"
-
-const reject = (reason: Incompatibility): CompatVerdict => ({ ok: false, reason })
 
 /**
  * Decide whether a host may run a kernel artifact. Pure, so the verdict can be

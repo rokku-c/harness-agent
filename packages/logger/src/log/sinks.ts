@@ -8,9 +8,7 @@
  */
 import { appendFileSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
-import type { LogLevel, LogSink } from "./core.ts"
-
-const LEVEL_ORDER: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 }
+import { LEVEL_ORDER, type LogLevel, type LogSink } from "./core.ts"
 
 export interface SinkOptions {
   readonly level?: LogLevel
