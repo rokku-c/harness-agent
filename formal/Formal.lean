@@ -12,6 +12,7 @@
 import Formal.AppLayer
 import Formal.Authorize
 import Formal.Authz
+import Formal.Canonical
 import Formal.CardVerdict
 import Formal.CatalogLoad
 import Formal.Chain

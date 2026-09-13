@@ -1,6 +1,6 @@
 import type { EffectPlugin } from "@effect-agent/effect-host"
 import { invokeAppTool, type AppCatalog } from "@effect-agent/effect-apps"
-import { createObservationStore } from "@effect-agent/effect-observe"
+import { createObservationStore, jsonHash } from "@effect-agent/effect-observe"
 import { makeLiveAppCatalog, type AppsCatalogOptions } from "./apps-catalog.ts"
 import { parityOf, projectView } from "./monitor/projection.ts"
 
@@ -40,7 +40,7 @@ export const makeMonitorPlane = (options: MonitorOptions): EffectPlugin => {
           let recorded = 0
           for (const app of catalog.list()) {
             if (!app.authorize?.("ui") && !app.authorize?.("interface")) continue
-            const data = await parityOf(app), hash = JSON.stringify(data)
+            const data = await parityOf(app), hash = jsonHash(data)
             if (last.get(app.appId) === hash) continue
             store.record({ at: Date.now(), perspective: "agent", target: app.appId, data })
             last.set(app.appId, hash); recorded++
