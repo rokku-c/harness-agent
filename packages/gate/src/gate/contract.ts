@@ -29,5 +29,18 @@ export interface GateService {
 
 export class Gate extends Context.Tag("effect-agent/Gate")<Gate, GateService>() {}
 
-/** dedupe key for one identical request, shared by ledger + gate */
-export const keyOf = (input: GateInput): string => input.tool + ":" + JSON.stringify(input.input)
+/**
+ * The identity of one request, for remembering a verdict under it.
+ *
+ * Every field `GateInput` carries is part of the identity, because a recorded
+ * verdict is returned before `askWhen` is consulted: whatever this key leaves
+ * out is a way for one call to be answered by another's approval. `session` is
+ * what makes an approval belong to the conversation that asked for it - the
+ * host shares one `ManualGate` and stamps the conversation here - and `access`
+ * is what keeps an approved read from answering a write.
+ *
+ * Built by `JSON.stringify` of a tuple rather than by joining with a separator:
+ * a field may contain the separator, and then two requests fold onto one key.
+ */
+export const keyOf = (input: GateInput): string =>
+  JSON.stringify([input.tool, input.access, input.session ?? null, input.input])

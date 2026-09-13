@@ -7,16 +7,12 @@
     ".": "./src/agent.ts"
   },
   "dependencies": {
-    "@a2ui/react": "^0.11.0",
-    "@a2ui/web_core": "^0.10.7",
     "@effect-agent/builtin": "workspace:*",
     "@effect-agent/core": "workspace:*",
     "@effect-agent/gate": "workspace:*",
     "@effect-agent/logger": "workspace:*",
     "@effect-agent/model": "workspace:*",
     "@mantine/core": "^9.6.0",
-    "@mantine/hooks": "^9.6.0",
-    "@mantine/notifications": "^9.5.2",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@tabler/icons-react": "^3.46.0",
     "dingtalk-stream": "2.1.6-beta.1",

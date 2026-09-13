@@ -9,9 +9,11 @@ no mantis code copied. One package, three sides:
 2. **the dingtalk host** (`src/hosts/dingtalk/`): the REAL entry - mantis
    talking to DingTalk over two channels (robot / dws), configured from the
    ORIGINAL mantis config.toml.
-3. **the web console** (`src/hosts/webui/`): observability + access over
-   HTTP/SSE - chat with mantis from the browser, resolve approvals, watch
-   live events, and host agent-rendered (A2UI-style) UI surfaces.
+3. **the web console** (`src/hosts/webui/`): observability + access over HTTP -
+   chat with mantis from the browser, resolve approvals, read the workspace and
+   watch live events. The same panel is what the platform serves when mantis
+   runs embedded, and `src/effect-ui.ts` declares the same three surfaces in the
+   platform console's own vocabulary.
 
 | mantis mechanism | expression here |
 |---|---|
@@ -71,41 +73,34 @@ default is silent so libraries never print by accident.
 
 ## Web console: observability + access (webui host)
 
-A compact panel (no framework, plain HTML/CSS/JS + JSON/SSE APIs) that
-observes and drives the whole mantis system:
+A React + Mantine single page (sources under `src/hosts/webui/panel/`, bundled
+into `public/app-shell.{js,css}`) that observes and drives the whole mantis
+system. Three views over one store:
 
 - **Chat** - send messages to mantis from the browser; every conversation is a
   real mantis session (same MantisHost + conversation memory as dingtalk);
 - **Approvals** - the page IS the operator: protected calls render as pending
   cards and resolve with one click (same ManualGate as every other host);
-- **Agent UI** - sessions render UI by emitting the **official A2UI v0.9
-  protocol** (a2ui.org) through the `ui_render` tool: createSurface +
-  updateComponents messages with Basic Catalog components (Text/Row/Column/
-  List/Button/TextField/... children reference component ids). Rendering in
-  the panel uses the official renderers - `MessageProcessor` (@a2ui/web_core)
-  + `A2uiSurface`/@a2ui/react - there is no custom component schema. Every
-  accepted message batch is **versioned**: a numbered git-tracked JSON file
-  under `apps/mantis/.ui/` (`MANTIS_UI_DIR`); rollback from the page
-  (restore = a new version authored by owner-restore). UI is real A2UI data
-  under git - diffable and reversible;
-- **Events** - session activity, replies, approvals, tool steps and log
-  lines stream over SSE (recent 200 kept).
+- **Workspace** - the durable records, with their provenance;
+- **Events** - session activity, replies, approvals, tool steps and log lines,
+  read as a stateless `?after=` window (recent 200 kept).
 
-The panel never talks to the backend directly: every /api call is translated
+The panel never talks to the backend directly: every `/api` call is translated
 by a thin Bun.serve shell onto the in-process mantis **MCP server**
-(InMemoryTransport), and the SSE stream polls `mantis_events` - the web
-console is just another MCP client, exactly like Claude Code.
+(InMemoryTransport) - the web console is just another MCP client, exactly like
+Claude Code.
 
-The console chrome is a React + Mantine single page (sources under
-`src/hosts/webui/panel/`). It is STATE-FIRST: the console records every
-conversation turn (message.in -> tool steps -> reply) into per-conversation
-timelines and serves them as snapshots (`mantis_conversation` / the
-`/api/conversation` HTTP route), so the panel simply polls state every ~700ms
-and renders it. There is no event-stream subscription anywhere: nothing to
-reconnect, replay or dedupe. Views: a conversation timeline that folds the
-agent's tool steps (call/ok/fail + payload summaries) between messages,
-pending approval cards, an event ring read via stateless `?after`
-polls.
+It is STATE-FIRST: the console records every conversation turn (message.in ->
+tool steps -> reply) into per-conversation timelines and serves them as
+snapshots (`mantis_conversation` / the `/api/conversation` route), so the panel
+simply polls state every ~700ms and renders it, and the event ring advances on
+its own timer. **There is no event-stream subscription anywhere** - nothing to
+reconnect, replay or dedupe. The conversation timeline folds the agent's tool
+steps (call/ok/fail + payload summaries) between messages.
+
+The embedded app serves this same panel: `src/effect-plugin.ts` hands
+`publicDir` and `basePath: "/mantis"` to the same handler, so `/mantis` in the
+platform console is the panel above, over the same routes.
 
 ```bash
 bun run build:web        # bundle the React+Mantine panel into public/app-shell.{js,css} (after npm installs)

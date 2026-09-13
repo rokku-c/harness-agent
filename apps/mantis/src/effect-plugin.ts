@@ -1,15 +1,13 @@
-import { fileURLToPath } from "node:url"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { noopLogger } from "@effect-agent/logger"
 import { effectConfig } from "./effect-config.ts"
 import { workspaceFile } from "./paths.ts"
 import { WebConsole } from "./hosts/webui/console.ts"
-import { makeConsoleHandler } from "./hosts/webui/server/handler.ts"
+import { makeApiHandler } from "./hosts/webui/server/api.ts"
 import { makeMantisMcp } from "./hosts/mcp/mcp.ts"
 import { embeddedModel } from "./hosts/webui/embedded-model.ts"
 
-const publicDir = fileURLToPath(new URL("./hosts/webui/public", import.meta.url))
 type Config = ReturnType<typeof effectConfig.schema.parse>
 
 export const createMantisPlugin = (getConfig: () => unknown) => ({
@@ -31,7 +29,7 @@ export const createMantisPlugin = (getConfig: () => unknown) => ({
     const pair = InMemoryTransport.createLinkedPair()
     await mcp.connect(pair[0])
     await client.connect(pair[1])
-    const handle = makeConsoleHandler({ client, publicDir, basePath: "/mantis" })
+    const handle = makeApiHandler({ client, basePath: "/mantis" })
     return {
       handle,
       stop: async () => { await client.close(); await mcp.close() },

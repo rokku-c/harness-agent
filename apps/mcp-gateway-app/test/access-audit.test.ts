@@ -14,18 +14,33 @@ const config = {
   defaultAction: "deny" as const, captureArgs: false,
 }
 
-test("previewAccess explains every effective denial reason", () => {
+test("previewAccess reports the set the gateway decides on, and its reason", () => {
   const registry = makeRegistry()
   registry.register(server)
   const allowed = previewAccess(config, registry, "agent-1", "read")
   expect(allowed.allowed).toBe(true)
   expect(allowed.sets.map((set) => set.setId)).toEqual(["safe", "danger"])
 
+  // "safe" is the first bound set with a reachable server, so the gateway
+  // answers from it alone and never consults "danger" — whose deny is not the
+  // reason for anything. Reading every bound set reports a reason the gateway's
+  // own rule never reaches, and a grant in a later set erases an earlier deny.
   const denied = previewAccess(config, registry, "agent-1", "write")
   expect(denied.allowed).toBe(false)
-  expect(denied.reasons).toContain("safe allowlist does not include write")
-  expect(denied.reasons).toContain("danger explicitly denies write")
-  expect(denied.reasons).toContain("danger has no reachable server")
+  expect(denied.reasons).toEqual(["safe allowlist does not include write"])
+
+  // the denying set first: it decides, and its own deny is the reason
+  const bound = { bindings: [{ agentId: "agent-1", setIds: ["safe"] }] }
+  const refusing = { ...config, ...bound, sets: [{ setId: "safe", servers: ["files"], denyTools: ["write"] }] }
+  const refused = previewAccess(refusing, registry, "agent-1", "write")
+  expect(refused.allowed).toBe(false)
+  expect(refused.reasons).toEqual(["safe explicitly denies write"])
+
+  // no bound set reaches a server at all: the gateway has nothing to decide on
+  const dark = { ...config, ...bound, sets: [{ setId: "safe", servers: ["missing"] }] }
+  const unreachable = previewAccess(dark, registry, "agent-1", "read")
+  expect(unreachable.allowed).toBe(false)
+  expect(unreachable.reasons).toEqual(["no bound set has a reachable server"])
 
   const unbound = previewAccess(config, registry, "nobody", "read")
   expect(unbound.bound).toBe(false)

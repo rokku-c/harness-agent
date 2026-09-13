@@ -2,12 +2,13 @@
  * Configuration = one Policy type (the homoiconic core).
  * - mergePolicy(system, agentOverride): an agent may only override the dot paths listed in
  *   allowAgentConfig (system switches are granular down to each fine-grained item).
- * - restrictPolicy(parent, childScope): derivation = narrowing + inheritance (api intersection,
- *   allowAgentConfig intersection); a root agent controls scope this way when deriving child agents.
+ * - restrictPolicy(parent, childScope): derivation = narrowing + inheritance. The child sees no
+ *   tool the parent did not, in EITHER mode - which is one rule and two operations, because a
+ *   scope means the visible names under allowlist and the excluded names under denylist.
  * - Shares the same "scope + policy" pattern as visibleTools (tool layer) and resolve (version layer).
  */
 import type { Policy } from "./types.ts"
-import { defaultCompat, defaultPolicy } from "./types.ts"
+import { defaultPolicy } from "./types.ts"
 
 const copy = (policy: Policy): Policy => JSON.parse(JSON.stringify(policy)) as Policy
 
@@ -47,16 +48,34 @@ export const mergePolicy = (system: Policy, agent: Partial<Policy>): Policy => {
   return out
 }
 
-/** Derivation: scope narrows layer by layer (api intersection + allowAgentConfig intersection); the rest is inherited. */
+/** the derived scope: the names the child adds to what the parent decides. */
+const narrowed = (parent: Policy, named: ReadonlyArray<string>): ReadonlyArray<string> => {
+  const names = new Set(named)
+  return parent.api.mode === "denylist"
+    // The scope is what is EXCLUDED here, so narrowing means excluding MORE:
+    // a child may not reach a tool the parent was denied. Intersect it as the
+    // allowlist branch does and the child's exclusions are emptied of every
+    // name it did not itself utter - a derived child reaching the parent's
+    // blocked tool, and the policy reading as valid while it happens.
+    ? [...new Set([...parent.api.scope, ...named])]
+    // The scope is what is VISIBLE here, so narrowing means keeping less.
+    : parent.api.scope.filter((name) => names.has(name))
+}
+
+/**
+ * Derivation: the child sees no tool the parent did not, and inherits the rest.
+ *
+ * `named` is read against the parent's own mode, which is the only mode the
+ * child can have - `mode` is inherited, never re-chosen.
+ */
 export const restrictPolicy = (
   parent: Policy,
   childScope: { readonly api?: ReadonlyArray<string>; readonly allowAgentConfig?: ReadonlyArray<string> }
 ): Policy => {
   const out = copy(parent)
   if (childScope.api !== undefined) {
-    const allowed = new Set(childScope.api)
     // readonly structure: narrow it through a mutable view
-    ;(out.api as unknown as { scope: string[] }).scope = parent.api.scope.filter((name) => allowed.has(name))
+    ;(out.api as unknown as { scope: string[] }).scope = [...narrowed(parent, childScope.api)]
   }
   if (childScope.allowAgentConfig !== undefined) {
     const allowed = new Set(childScope.allowAgentConfig)
@@ -65,11 +84,13 @@ export const restrictPolicy = (
   return out
 }
 
-/** Convenience: build a base policy (defaults + overrides). */
-export const policy = (overrides: Partial<Policy>): Policy => ({
-  ...defaultPolicy,
-  compat: { ...defaultCompat, ...overrides.compat },
-  ...overrides
-})
-
-export { defaultCompat, defaultPolicy }
+/**
+ * Convenience: a base policy from the defaults, with whole keys replaced.
+ *
+ * Every key is replaced the same way, so there is one rule to learn. Merging
+ * `compat` field-wise instead is what the spread used to look like it did and
+ * did not - the trailing spread put the caller's partial object back over the
+ * merge - and a second, field-wise override already exists for the case that
+ * wants one: `mergePolicy`, whose whitelist says which paths may move.
+ */
+export const policy = (overrides: Partial<Policy>): Policy => ({ ...defaultPolicy, ...overrides })

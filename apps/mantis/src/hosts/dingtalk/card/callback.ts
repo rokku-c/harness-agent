@@ -1,72 +1,40 @@
 /**
- * card/callback.ts - PARSING the TOPIC_CARD callback.
+ * card/callback.ts - PARSING the TOPIC_CARD callback into a verdict.
  *
- * Concept: the DingTalk card callback is a nested, schema-unstable payload
- * (button params may sit at several depths, values may be JSON strings).
- * parseCardAction walks the whole tree with defensive helpers - findString
- * for outTrackId, findAction/collect scanning every string token for the
- * static approve/deny tokens - and returns the verdict or undefined when no
- * actionable button click is present.
+ * Concept: a card click comes back over dingtalk-stream as a nested,
+ * schema-unstable payload, and this reads the one thing the host needs from it -
+ * which call, and what the operator said. The tree walking belongs to walk.ts.
+ *
+ * The verdict is read from a field NAMED `action`, never from a token met
+ * anywhere else: the card carries the tool's own arguments out to the operator
+ * (`approvalCardParamMap` puts `input` in the card data), so a call whose
+ * argument happens to contain the word "approve" would otherwise resolve its own
+ * approval. A payload naming both verdicts resolves to nothing rather than to
+ * the permissive one, because only the operator's click may decide.
  */
+import { actionsOf, findString, unwrapJson } from "./walk.ts"
 import { callIdFromOutTrackId, type CardAction } from "./types.ts"
 
-const safeParse = (text: string): unknown => {
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    return undefined
-  }
+/** the button tokens, in the template's own vocabulary */
+const VERDICTS: Readonly<Record<string, "approve" | "deny">> = {
+  approve: "approve",
+  "同意": "approve",
+  deny: "deny",
+  "拒绝": "deny"
 }
 
-/** first string value under the key anywhere in the tree */
-const findString = (node: unknown, key: string): string | undefined => {
-  if (typeof node === "string") return node === key ? node : undefined
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      const found = findString(item, key)
-      if (found !== undefined) return found
-    }
-    return undefined
-  }
-  if (typeof node !== "object" || node === null) return undefined
-  const record = node as Record<string, unknown>
-  for (const [k, value] of Object.entries(record)) {
-    if (k === key) {
-      if (typeof value === "string") return value
-      const nested = typeof value === "object" && value !== null
-        ? findString(value, key)
-        : undefined
-      if (nested !== undefined) return nested
-    } else {
-      const found = findString(value, key)
-      if (found !== undefined) return found
-    }
-  }
-  return undefined
-}
-
-/** scan every string value for an approve/deny token (buttons, params, ...) */
+/** the verdict the clicked button names; ambiguous or absent resolves to nothing */
 const findAction = (node: unknown): CardAction["action"] | undefined => {
-  const tokens = collect(node)
-  if (tokens.includes("approve") || tokens.includes("同意")) return "approve"
-  if (tokens.includes("deny") || tokens.includes("拒绝")) return "deny"
-  return undefined
-}
-
-/** every distinct string token in the tree (JSON strings and values) */
-const collect = (node: unknown): string[] => {
-  if (typeof node === "string") {
-    const parsed = safeParse(node)
-    return parsed === undefined ? [node.trim().toLowerCase()] : collect(parsed)
-  }
-  if (Array.isArray(node)) return node.flatMap(collect)
-  if (typeof node !== "object" || node === null) return []
-  return Object.values(node as Record<string, unknown>).flatMap(collect)
+  const verdicts = actionsOf(unwrapJson(node))
+    .map((raw) => VERDICTS[raw.trim().toLowerCase()])
+    .filter((verdict): verdict is "approve" | "deny" => verdict !== undefined)
+  const distinct = [...new Set(verdicts)]
+  return distinct.length === 1 ? distinct[0] : undefined
 }
 
 /** parse a TOPIC_CARD callback payload into an approval verdict */
 export const parseCardAction = (data: unknown): CardAction | undefined => {
-  const root = typeof data === "string" ? safeParse(data) : data
+  const root = typeof data === "string" ? unwrapJson(data) : data
   if (typeof root !== "object" || root === null) return undefined
   const record = root as Record<string, unknown>
   const action = findAction(record)

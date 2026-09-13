@@ -35,7 +35,17 @@ export interface AccessConfig {
   readonly bindings: ReadonlyArray<{ readonly agentId: string; readonly setIds: readonly string[] }>
 }
 
-/** The same set/allow/deny semantics the gateway enforces, projected for one agent. */
+/**
+ * The same set/allow/deny semantics the gateway enforces, projected for one agent.
+ *
+ * "The same" is the whole of it: the gateway answers from the FIRST bound set
+ * that has a resolvable server and never consults the ones behind it
+ * (`mcp-gateway/src/sets.ts`), so the preview stops there too. Reading every
+ * bound set instead — any set that reaches a server and allows the tool — lets
+ * a deny in the set the gateway would have used be erased by a grant in a
+ * later one, and the page reports Allowed for a call the gateway refuses. A
+ * preview that disagrees with the thing it previews is worse than no preview.
+ */
 export const previewAccess = (config: AccessConfig, registry: Registry, agentId: string, tool?: string): AccessPreview => {
   const bound = config.bindings.find((binding) => binding.agentId === agentId)?.setIds ?? []
   const reasons: string[] = []
@@ -59,16 +69,22 @@ export const previewAccess = (config: AccessConfig, registry: Registry, agentId:
       allowTools: set.allowTools ?? null, denyTools: set.denyTools ?? [],
     }]
   })
-  let allowed = tool !== undefined && sets.some((set) => set.servers.some((server) => server.reachable) && (set.allowTools === null || set.allowTools.includes(tool)) && !set.denyTools.includes(tool))
-  if (tool === undefined) allowed = sets.length > 0
-  if (tool !== undefined) {
-    if (!sets.length) reasons.push("agent is not bound to any live set")
-    for (const set of sets) {
-      if (set.denyTools.includes(tool)) reasons.push(`${set.setId} explicitly denies ${tool}`)
-      else if (set.allowTools !== null && !set.allowTools.includes(tool)) reasons.push(`${set.setId} allowlist does not include ${tool}`)
-      if (!set.servers.some((server) => server.reachable)) reasons.push(`${set.setId} has no reachable server`)
-    }
-    if (allowed) reasons.length = 0
+  // the reading makeRegistrySetResolver uses: a record that exists and is not offline
+  const decided = sets.find((set) => set.servers.some((server) => server.reachable))
+  if (tool === undefined) {
+    // "can this agent reach anything at all" — the sets page asks it as a list
+    return { agentId, bound: bound.length > 0, sets, allowed: decided !== undefined, reasons }
+  }
+  if (decided === undefined) {
+    reasons.push(bound.length === 0 ? "agent is not bound to any set" : "no bound set has a reachable server")
+    return { agentId, bound: bound.length > 0, sets, allowed: false, reasons }
+  }
+  const allowed = (decided.allowTools === null || decided.allowTools.includes(tool))
+    && !decided.denyTools.includes(tool)
+  if (!allowed) {
+    reasons.push(decided.denyTools.includes(tool)
+      ? `${decided.setId} explicitly denies ${tool}`
+      : `${decided.setId} allowlist does not include ${tool}`)
   }
   return { agentId, bound: bound.length > 0, sets, allowed, reasons }
 }

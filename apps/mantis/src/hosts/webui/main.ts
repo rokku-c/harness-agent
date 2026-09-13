@@ -1,16 +1,20 @@
 /**
- * mantis web console live entry: observability + access over HTTP/SSE.
+ * mantis web console live entry: observability + access over HTTP.
  *
  * The console reuses the exact live config (config.toml + env) of the other
  * hosts: same [agent] model, same MANTIS_PROTECTED approval policy - except
  * that here the operator IS the web page: pending approvals render as cards
- * and are resolved with a click, and every mantis session event streams to
- * the page.
+ * and are resolved with a click, and the page reads session events from its
+ * own polls.
  *
  *
  * The browser cannot speak MCP stdio, so this process maps every /api call
  * onto the in-process mantis MCP server (InMemoryTransport) - the web panel
  * IS an MCP client, like Claude Code; there is no other path into the host.
+ *
+ * This is the standalone host, and it is the only one that serves the built
+ * panel (server/assets.ts). The embedded app serves the same API through the
+ * platform console, which renders mantis from its declarative view instead.
  *
  * Env: MANTIS_WEB_HOST (default 127.0.0.1), MANTIS_WEB_PORT (default 3737),
  * plus the standard MANTIS_* env (config/model/protected).
@@ -59,7 +63,7 @@ const web = new WebConsole({
   maxReflections: config.model.maxReflections,
   protectedTools: config.approvals.protectedTools,
   approveTimeoutMs: config.approvals.timeoutMs,
-  // durable shared workspace: one SQLite database next to the agent UI files
+  // durable shared workspace: one SQLite database in the data root (paths.ts)
   workspaceFile: workspaceFile(),
   memoryDir,
   logger
