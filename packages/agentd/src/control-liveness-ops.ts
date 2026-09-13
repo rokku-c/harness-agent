@@ -13,7 +13,7 @@ import type { ControlState } from "./control-state.ts"
 import type { AgentdControl, NodeLiveness } from "./contract.ts"
 import { AgentdError } from "./errors.ts"
 import type { NodePresence } from "./presence.ts"
-import { same } from "./stable.ts"
+import { same } from "@effect-agent/canonical-json"
 
 /** A declared machine that has never announced is offline, not missing. */
 const presenceOf = (control: ControlState, nodeId: string): NodePresence =>

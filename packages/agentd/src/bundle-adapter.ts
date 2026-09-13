@@ -12,7 +12,7 @@ import { artifactOf, validateBundleConfig, type BundleAgentConfig } from "./bund
 import { assessBundleForMachine, bundleRefId } from "./bundles.ts"
 import { fail } from "./guards.ts"
 import { machineCapability } from "./machine-capability.ts"
-import { same } from "./stable.ts"
+import { same } from "@effect-agent/canonical-json"
 import type { AdapterPlan, AgentAdapter, AgentInstance, DesiredAgentConfig } from "./types.ts"
 
 const changesOf = (next: BundleAgentConfig, previous?: BundleAgentConfig): readonly string[] => {

@@ -10,11 +10,20 @@
  * arguments swapped, which is the point (docs/script-sandbox.md §5.2); the chain
  * they walk is assess-chain.ts, and the shapes are assess-types.ts.
  */
+import { same } from "@effect-agent/canonical-json"
 import type { AssessableTool, UpgradeReport, Violation } from "./assess-types.ts"
 import type { CompatMode, CompatPolicy } from "./policy.ts"
 
-/** Structured diff (skeleton: canonical JSON equality; a real implementation should do JSON Schema subset checking). */
-export const schemaChanged = (a: unknown, b: unknown): boolean => JSON.stringify(a) !== JSON.stringify(b)
+/**
+ * Structured diff (skeleton: canonical JSON equality; a real implementation
+ * should do JSON Schema subset checking).
+ *
+ * Canonical, because a schema is the same schema whatever order its keys are in:
+ * `JSON.stringify` compares two spellings of one schema as different, and the
+ * adjudication reports a breaking schema change for an author who reordered two
+ * fields.
+ */
+export const schemaChanged = (a: unknown, b: unknown): boolean => !same(a, b)
 
 const depsChanged = (a: readonly string[], b: readonly string[]): boolean =>
   JSON.stringify([...a].sort()) !== JSON.stringify([...b].sort())

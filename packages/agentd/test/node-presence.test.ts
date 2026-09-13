@@ -10,9 +10,10 @@
  */
 
 import { expect, test } from "bun:test"
+import { same } from "@effect-agent/canonical-json"
 import { BOOTSTRAP_ABI, KERNEL_ABI } from "@effect-agent/effect-bundle"
 import {
-  AgentdError, makeAgentdControl, same, type BundleRef, type DeclaredMachine, type Machine, type NodeAppPlacement,
+  AgentdError, makeAgentdControl, type BundleRef, type DeclaredMachine, type Machine, type NodeAppPlacement,
 } from "../src/index.ts"
 
 const TTL = 30_000

@@ -5,5 +5,7 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@effect-agent/canonical-json": "workspace:*"
+  }
 }

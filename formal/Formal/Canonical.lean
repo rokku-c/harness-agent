@@ -1,17 +1,18 @@
 /-
-  WHAT A CANONICAL ENCODING MAY LOSE — `packages/effect-observe/src/types.ts` and
-  `packages/agentd/src/stable.ts`, which are one rule written out twice.
+  WHAT A CANONICAL ENCODING MAY LOSE — `packages/canonical-json/src/index.ts`.
 
-  Both turn a value into a form whose `JSON.stringify` is the same for two values
-  a reader would call equal, and neither was checked. Reordering is what the
-  mechanism is for: sorting keys is the whole of it, and two records differing
-  only in key order must encode alike, or a diff reports a phantom update on
-  every re-push. What it may not do is *drop* a value. A change-detection hash
-  reads "unchanged" and the observer records nothing; a `same` comparing equal is
-  a plan diff nobody reads again. Ruled either way it is silent, and silent is
-  the one thing both callers cannot notice.
+  One rule, and its callers are where it bites: `effect-observe`'s change-detection
+  hash, `effect-compat`'s schema comparison, and `agentd`'s plan diffs. Each of the
+  three had written the encoding out for itself, and none of the copies was
+  checked. Reordering is what the mechanism is for: sorting keys is the whole of
+  it, and two records differing only in key order must encode alike, or a diff
+  reports a phantom update on every re-push. What it may not do is *drop* a value.
+  A change-detection hash reads "unchanged" and the observer records nothing; a
+  schema comparison reading "changed" refuses an upgrade the author only
+  reordered. Ruled either way it is silent, and silent is the one thing the
+  callers cannot notice.
 
-  The distinction both files dropped is the value with no own keys to sort: a
+  The distinction every copy dropped is the value with no own keys to sort: a
   `Date` carries a `toJSON`, `Object.keys` on it is empty, so it encoded as `{}` —
   the encoding an empty object gets and the encoding every other date gets. Two
   frames differing only in a timestamp were one observation, and the second was
@@ -20,7 +21,7 @@
   Modelling note: a record is an association list already in canonical key order,
   which is the state the sort leaves it in, so this file is not about ordering.
   That leaves one question — which constructors survive the encoding — and it is
-  the question the fix answers. `ignoredToJSON` is the encoding both files had;
+  the question the fix answers. `ignoredToJSON` is the encoding the callers had;
   `encode` is the one they have.
 -/
 
@@ -43,7 +44,7 @@ inductive Json where
   | obj : List (String × Json) → Json
 
 mutual
-  /-- The encoding both files had: every object is read as the keys it has, and an
+  /-- The encoding the callers had: every object is read as the keys it has, and an
       instant has none, so it encodes as the empty record. -/
   def ignoredToJSON : Val → Json
     | .scalar n => .scalar n
@@ -61,7 +62,7 @@ mutual
 end
 
 mutual
-  /-- The encoding both files have: a value carrying its own `toJSON` is visited
+  /-- The encoding the callers have: a value carrying its own `toJSON` is visited
       through it, as `JSON.stringify` visits it, and everything else the way it was
       visited before. -/
   def encode : Val → Json

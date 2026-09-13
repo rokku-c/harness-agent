@@ -44,6 +44,3 @@ export { fromWire, toWire } from "./artifact-wire.ts"
 export type { DecodedArtifact, WireArtifact, WireFile } from "./artifact-wire.ts"
 export { makeBundleRegistry } from "./bundle-registry.ts"
 export type { BundleRegistry } from "./bundle-registry.ts"
-
-/** Key-order-independent equality — what a plan diff and a "did this change" both need. */
-export { same, stableString } from "./stable.ts"

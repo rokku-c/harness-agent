@@ -187,6 +187,7 @@
       "name": "@effect-agent/agentd",
       "version": "0.0.0",
       "dependencies": {
+        "@effect-agent/canonical-json": "workspace:*",
         "@effect-agent/effect-bundle": "workspace:*",
       },
     },
@@ -240,6 +241,10 @@
         "zod": "^4.3.6",
       },
     },
+    "packages/canonical-json": {
+      "name": "@effect-agent/canonical-json",
+      "version": "0.0.0",
+    },
     "packages/channel": {
       "name": "@effect-agent/channel",
       "version": "0.0.0",
@@ -288,6 +293,9 @@
     "packages/effect-compat": {
       "name": "@effect-agent/effect-compat",
       "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/canonical-json": "workspace:*",
+      },
     },
     "packages/effect-config": {
       "name": "@effect-agent/effect-config",
@@ -334,6 +342,9 @@
     "packages/effect-observe": {
       "name": "@effect-agent/effect-observe",
       "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/canonical-json": "workspace:*",
+      },
     },
     "packages/effect-parity": {
       "name": "@effect-agent/effect-parity",
@@ -551,6 +562,8 @@
     "@effect-agent/assembly": ["@effect-agent/assembly@workspace:packages/assembly"],
 
     "@effect-agent/builtin": ["@effect-agent/builtin@workspace:packages/builtin"],
+
+    "@effect-agent/canonical-json": ["@effect-agent/canonical-json@workspace:packages/canonical-json"],
 
     "@effect-agent/channel": ["@effect-agent/channel@workspace:packages/channel"],
 

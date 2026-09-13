@@ -12,7 +12,7 @@ import type { BundleArtifact } from "./bundle-artifact.ts"
 import { bundleRefId } from "./bundles.ts"
 import { nodeAppId } from "./node-placement.ts"
 import type { NodeDeployment } from "./nodes.ts"
-import { same } from "./stable.ts"
+import { same } from "@effect-agent/canonical-json"
 
 export const changesOf = (next: NodeDeployment, previous?: NodeDeployment): readonly string[] => {
   const line = (artifact: BundleArtifact | undefined, prefix: string): readonly string[] =>
