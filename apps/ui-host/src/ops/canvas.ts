@@ -7,9 +7,12 @@
  * route. An agent reaches these as tools; the browser reaches the same
  * `runtime.apply` calls through the envelope.
  *
- * A patch and a binding are stated against the version the canvas is at when
- * the call arrives, so a move computed from a stale read is refused rather than
- * applied to a canvas that has since changed.
+ * A patch and a binding carry the version the caller read, and are refused if the
+ * canvas has moved since. Reading the version here and stating it as what the
+ * call expects would compare the canvas with itself — the call arrives, reads
+ * the version the canvas is at, and names that — so the refusal could never fire
+ * and a move computed from a stale read would land on a canvas that has since
+ * changed, which is the one thing the check is for.
  */
 import { operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
@@ -41,20 +44,20 @@ export const canvasOperations = ({ runtime }: UiSurfaces): readonly Operation[] 
   operation({
     name: "ui_patch_node",
     description: "Replace a node's value, refused if the canvas moved since it was read",
-    input: z.object({ canvasId, nodeId, value: z.unknown() }).strict(),
+    input: z.object({ canvasId, nodeId, value: z.unknown(), expectedVersion: z.number().int() }).strict(),
     handler: (input) => {
       runtime.apply({ kind: "patch-node", canvasId: input.canvasId, nodeId: input.nodeId,
-        props: { value: input.value as never }, expectedVersion: runtime.version(input.canvasId) })
+        props: { value: input.value as never }, expectedVersion: input.expectedVersion })
       return { ok: true, nodeId: input.nodeId }
     },
   }),
   operation({
     name: "ui_bind_data",
     description: "Bind a node property to a state path, so the node renders whatever that path holds",
-    input: z.object({ canvasId, nodeId, key: z.string().min(1), path: z.string() }).strict(),
+    input: z.object({ canvasId, nodeId, key: z.string().min(1), path: z.string(), expectedVersion: z.number().int() }).strict(),
     handler: (input) => {
       runtime.apply({ kind: "bind-node", canvasId: input.canvasId, nodeId: input.nodeId, key: input.key,
-        binding: { kind: "path", value: input.path }, expectedVersion: runtime.version(input.canvasId) })
+        binding: { kind: "path", value: input.path }, expectedVersion: input.expectedVersion })
       return { ok: true, nodeId: input.nodeId, key: input.key }
     },
   }),
@@ -63,9 +66,10 @@ export const canvasOperations = ({ runtime }: UiSurfaces): readonly Operation[] 
     description: "Remove a leaf node from a canvas",
     input: z.object({ canvasId, nodeId }).strict(),
     handler: (input) => {
-      const version = runtime.version(input.canvasId)
       runtime.apply({ kind: "remove-node", canvasId: input.canvasId, nodeId: input.nodeId })
-      return { ok: true, nodeId: input.nodeId, version }
+      // the version after the removal: the one before it is a version this canvas
+      // no longer has, and a caller that patched with it would be refused
+      return { ok: true, nodeId: input.nodeId, version: runtime.version(input.canvasId) }
     },
   }),
   operation({

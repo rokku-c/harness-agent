@@ -9,7 +9,7 @@ test("agent ops compose and bind UI", () => {
   const ops = makeUIAgentOps(runtime)
   ops.createCanvas("root", "Root")
   ops.insertNode("root", { id: "name", type: "Text" })
-  ops.bindNode("root", "name", "value", { kind: "path", value: "$.user.name" })
+  ops.bindNode("root", "name", "value", { kind: "path", value: "$.user.name" }, 2)
   ops.setTheme("dark")
   ops.setRenderer("canvas")
   expect(runtime.view({ user: { name: "Ada" } }).children[0]!.resolvedProps.value).toBe("Ada")
