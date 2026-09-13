@@ -28,6 +28,16 @@ export const registryOperations = ({ control }: AgentdSurfaces): readonly Operat
     input: mcpSetSchema, handler: (input) => control.upsertSet(input) }),
   operation({ name: "agentd_bind", description: "Give an agent these MCP sets",
     input: sets, handler: (input) => control.bindAgent(input.agentId, input.setIds) }),
+  // The credential is declared against the agent's id, which is the principal
+  // key the door resolves it to: issuing is done where identities live, and the
+  // agent that presents it is named here so the two spell the key the same way.
+  operation({
+    name: "agentd_credential",
+    description: "The credential one agent presents at the MCP Gateway's door — issue it for the identity the agent is named by",
+    input: z.object({ agentId: z.string().min(1), token: z.string().min(1) }).strict(),
+    http: { method: "POST", path: "/agentd/credential" },
+    handler: (input) => ({ ok: true, ...control.setCredential(input.agentId, input.token) }),
+  }),
   operation({ name: "agentd_publish_bundle", description: "Publish a version of an app or kernel",
     input: declared, handler: (input) => control.publishBundle(input as never) }),
   operation({ name: "agentd_bind_bundles", description: "Give an agent these apps",

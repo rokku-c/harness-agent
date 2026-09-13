@@ -19,6 +19,7 @@ import Formal.Chain
 import Formal.Compat
 import Formal.Config
 import Formal.Consent
+import Formal.Credential
 import Formal.Derive
 import Formal.Door
 import Formal.DoorAuth

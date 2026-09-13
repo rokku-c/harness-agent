@@ -15,6 +15,9 @@ export const seed = (control: AgentdControl, config: ReturnType<typeof effectCon
   for (const server of config.servers) control.registerServer(server)
   for (const set of config.sets) control.upsertSet(set)
   for (const agent of config.agents) control.registerAgent(agent)
+  // after the agents: a credential is a predicate about one, and the center
+  // refuses to hold one for an identity it has not been told about
+  for (const { agentId, token } of config.credentials) control.setCredential(agentId, token)
   for (const binding of config.bindings) control.bindAgent(binding.agentId, binding.setIds)
   for (const bundle of config.bundles) {
     const { source, ...artifact } = bundle

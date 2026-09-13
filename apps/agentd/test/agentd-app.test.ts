@@ -19,10 +19,10 @@ test("agentd seeds machines, agents, servers, sets, and bindings from active con
   const host = makePluginHost()
   const config = effectConfig.schema.parse({
     machines: [{ machineId: "m1", name: "Local" }],
-    agents: [{ agentId: "a1", machineId: "m1", kind: "effect", version: "1" }],
+    agents: [{ agentId: "app:a1", machineId: "m1", kind: "effect", version: "1" }],
     servers: [{ serverId: "s1", endpoint: "http://server.test/mcp", transport: "streamable-http" }],
     sets: [{ setId: "safe", name: "Safe", servers: ["s1"] }],
-    bindings: [{ agentId: "a1", setIds: ["safe"] }],
+    bindings: [{ agentId: "app:a1", setIds: ["safe"] }],
   })
   await host.register({ ...createAgentdPlugin(() => config), routes: effectApp.routes })
   const status = await (await host.handle(new Request("http://host/agentd"))).json() as { machines: unknown[]; bindings: unknown[] }

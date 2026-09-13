@@ -25,13 +25,16 @@ export const desired = (control: ControlState, agentId: string): DesiredAgentCon
   const agent = control.agents.get(agentId); if (!agent) throw new AgentdError(404, "agent not found")
   const machine = control.machines.get(agent.machineId)
   const binding = control.bindings.get(agentId)
-  if (!binding) return { agent, revision: control.revision(), sets: [], servers: [], bundles: [], ...(machine === undefined ? {} : { machine }) }
+  const credential = control.credentials.get(agentId)
+  const held = credential === undefined ? {} : { credential }
+  if (!binding) return { agent, revision: control.revision(), sets: [], servers: [], bundles: [], ...held, ...(machine === undefined ? {} : { machine }) }
   const selected = binding.setIds.map((id) => control.sets.get(id)!).filter(Boolean)
   const serverIds = [...new Set(selected.flatMap((set) => set.servers))]
   return {
     agent, machine: machine!, revision: binding.revision, sets: selected,
     servers: serverIds.map((id) => control.servers.get(id)!).filter(Boolean),
     bundles: binding.bundleIds.map((id) => control.registry.get(id)!).filter(Boolean),
+    ...held,
   }
 }
 

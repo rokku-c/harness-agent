@@ -1,4 +1,5 @@
 import type { AgentdControl } from "@effect-agent/agentd"
+import { shownToReader } from "./desired-view.ts"
 import type { AppliedReport, NodeAppliedReport } from "./ops/surfaces.ts"
 
 /**
@@ -28,7 +29,7 @@ export const makeStatus = (
   return {
     ...base,
     agents: (base.agents ?? []).map((agent) => ({
-      ...agent, desired: held(() => control.desired(agent.agentId)), applied: applied.get(agent.agentId) ?? null,
+      ...agent, desired: held(() => shownToReader(control.desired(agent.agentId))), applied: applied.get(agent.agentId) ?? null,
     })),
     machines: (base.machines ?? []).map((machine) => ({
       ...machine, desired: held(() => control.desiredNode(machine.machineId)), applied: nodeApplied.get(machine.machineId) ?? null,

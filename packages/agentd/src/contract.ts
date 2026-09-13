@@ -25,6 +25,15 @@ export interface AgentdControl {
   upsertSet(set: McpSet): McpSet
   bindAgent(agentId: string, setIds: readonly string[]): AgentBinding
   /**
+   * The credential one agent presents at the gateway's door (§F10). Separate
+   * from the agent record because a record is listed and a secret is not, and
+   * separate from the binding because an identity is a fact before it reaches
+   * anything: an agent bound to no set still knocks, and is refused for the
+   * reason that is true of it — no set bound to this agent — rather than for
+   * having no credential at all.
+   */
+  setCredential(agentId: string, token: string): { readonly agentId: string; readonly revision: number }
+  /**
    * The mcpset facts as they stand: the one place a set and a binding live, read
    * as a value rather than written out to a second store. `revision` is the
    * counter every write here bumps and every receipt is measured against, so a

@@ -26,7 +26,7 @@ Everything below is that decision applied, plus the two rules that make a
 hierarchy usable: **one control per destination**, and **a destination is
 complete when you arrive** — however you arrived.
 
-## The nine rules
+## The ten rules
 
 | # | Rule | Why it is a rule, not a preference |
 |---|---|---|
@@ -39,6 +39,7 @@ complete when you arrive** — however you arrived.
 | F7 | **One store per fact, and the surface that writes it shows it.** | The set an agent reaches the gateway through was declared twice — in the center that issues the identity a binding is keyed by, and again in the gateway's own config — with nothing between the two, so an operator who bound an agent over `agentd_bind` found the gateway page still answering *"No agents bound to a set yet."* The gateway's `sets`/`bindings` config fields are gone, not deprecated; the center is the one home, and what crosses to the door is a **reader over the center's own state** rather than a copy of it (`context.mcpSets`, the same shared-surface shape as `context.mcpRegistry`), so the door holds no second copy and there is nothing to keep in step. The seam refuses a second author — `provide` throws if an app other than the one holding the slot takes it, and a reload is the same app re-providing, which is allowed — and the door rebuilds on the center's **revision**, never on a clock, so there is no period in which it decides with a binding its operator has already replaced (`Formal/SetSource.lean`). The rebuild is total by construction rather than by try/catch: the duplicates the registry throws on are refused by the one mcpset grammar, which the center's config loader and its `agentd_upsert_mcpset` op both parse with, so a stored declaration is one the door cannot fail to build. The gateway's config schema refuses `sets`, `bindings` and `defaultAction` outright, and the end-to-end test declares the set and the binding on the center and the door serves them. |
 | F8 | **What a door advertises is what it enforces.** | `tools/list` answered one multiplexed `mcp_gateway_call` while the page copy said "one governed MCP entry point for every agent" and the per-tool surface was unbuilt. The listing is now not a second rule that agrees with the call — it *is* the call, asked once per tool: `visibleEntries` offers every catalog entry to the gateway's own `decide` and keeps the ones it allowed, so a tool missing from `tools/list` is a tool `tools/call` refuses, and the call runs that same `decide` with the same arguments (`Formal/Authorize.lean`). Measured live on the four callers above: the caller who could carry a tool was shown four, and the one call that went through came back naming the server and the set that carried it; the three who could carry nothing were shown nothing, before any of them asked. |
 | F9 | **One decision engine per verdict.** A preview must be the decision, not a copy of it. | `access-audit.ts` re-implemented `sets.ts` — the file's own comment said the copy existed "precisely because it can drift", and it is what the operator reads before granting. It now asks the gateway's own registry (`reach`, `resolve`, `bound`) and reads the answer, so the page's Allowed and the call's outcome are one value read twice rather than two computations that happen to match. The same rule a second time, at the config: the registry refused a binding to a set nobody declares by *throwing* — an app that never comes up and names nothing — while the form accepted it, and the page was left holding a refusal it could not explain. One predicate (`unknownName`) now answers at both doors. And the question itself is the door's own: an identity is chosen from the principals the door can name and a tool from the names `tools/list` answers with, so the page cannot be asked about an identity or a tool that does not exist — a typed box answered *Denied* for `agent-1` when the key is `app:agent-1`, a true answer to a question nobody meant. A name the door does not advertise is refused as such rather than answered by the walk the engine can still make without a tool, which admits for any agent bound to a live set (`Formal/Preview.lean`). Measured in the browser on the running gateway: the picker offered exactly `app:agent-1 / app:stranger` and the four advertised names, `app:agent-1 · effect-apps.app_read` answered Allowed, `app:stranger` answered Denied "no set bound to this agent", and `GET /mcp-gateway/access?tool=nope.x` answered Denied "no server offers nope.x" |
+| F10 | **An agent's identity is spelled the door's way, and its credential is declared with it.** The center names an agent by the key the door resolves a credential to, and the config it plans carries a credential and nothing else. | F6 removed the claim at the door, and one layer down `apps/agentd/src/adapter.ts` was still *writing* one: the config planned for every agent carried `headers: { "x-agent-id": <the agent> }` — a caller telling the door who it is, in the one place a caller can never be verified. It now carries the credential and no claim (`Formal/Credential.lean`). The identity is a fact before it reaches anything: the center refuses an agent whose id is not `kind:id` — `parsePrincipalKey`, the door's own grammar rather than a copy of it — because the door binds by the key a credential resolves to, so an agent named any other way is a set of bindings nothing can ever reach, the same shape F9 recorded once already as a typed box answering *Denied* for `agent-1` when the key is `app:agent-1`. The credential is **declared** against that id (`agentd_credential`, `credentials:` in the center's config) and the plan is made from what the center holds, never from a reading: the gateway mints a fresh plaintext per `issue()` and stores only its hash, so a center that asked each time would report a credential change on every plan, never settle the apply, and leave one more live credential for one identity per reading. Holding it is not a second copy of the gateway's record — that record is a hash and a revocation, and a plaintext exists wherever it is used, which for an agent is a config file, exactly as `nodeToken` does at the center. It sits beside the agent record and not on it, so listing the fleet is not a way to read a secret — and the read surfaces *state* it rather than showing it: `agentd_status` and `agentd_desired` are `access: "read"`, which an agent may hold a grant on, so `shownToReader` answers `credentialHeld` and never the value, the way `nodeLiveness().tokenRequired` answers for the fleet's shared secret. The console draws that word in the agents table and in the row's own Inspect answer, so an operator sees which agents the door will refuse; the value is read back where it is written, in the configuration form that declares it. Measured in process on the real modules — the config schema, its seed, the control plane, the status view, the `agentd_desired` handler and the adapter: a declared credential reached the plan as `{"authorization":"Bearer …"}` and nothing else, both read surfaces answered `credentialHeld` with no value anywhere in them, the agents view validated and kept both words through lowering, an id that is not `kind:id` was refused *"agent-9" is not a principal key*, an agent holding no credential was refused a plan at all, and a plan offered its own receipt reported `[]`. In process rather than over HTTP because a plane reload cannot pick up a change inside `packages/*` — Bun freezes a module's namespace for the life of the process — and this change reaches into `packages/agentd`. |
 
 ## Journey 1 — the operator
 
@@ -63,11 +64,12 @@ Activity owns *observing*; none of them re-implements another's step.
 ## Journey 2 — the agent
 
 ```
-connect ──▶ identified ──▶ discover (tools/list) ──▶ authorized ──▶ call ──▶ audited
+planned ──▶ connect ──▶ identified ──▶ discover (tools/list) ──▶ authorized ──▶ call ──▶ audited
 ```
 
 | step | owner | what must be true |
 |---|---|---|
+| be planned | the center (agentd, `setCredential`) | F10: named the door's way, and its credential declared with it |
 | connect | the gateway's one door (`POST /mcp-gateway`) | one entry point; no second door with different rules |
 | be identified | the gateway (token → principal) | F6: verified, not asserted |
 | discover | the gateway's advertised surface | F8: the advertised set is the enforced set |
@@ -165,5 +167,29 @@ its own copy of navigation state.
   center happened to load second. The duplicates the registry throws on moved into
   the one grammar (`set-schema.ts`'s `repeatedName`), which is what makes the rebuild
   total: what the center stores is what the door can build, in both directions.
-  `x-agent-id` in `apps/agentd/src/adapter.ts` is the same shape one layer down and
-  is not this slice: agentd still hands out a config the door refuses.
+- F10: `agentd/src/adapter.ts` — `x-agent-id` is gone from the planned config and
+  the header it carries is the credential and nothing else, so what an agent
+  presents decides its name and what its config says about itself decides
+  nothing (`Formal/Credential.lean`). The two halves of one identity are held
+  apart on purpose. The *spelling* is `effect-authz`'s `parsePrincipalKey`, the
+  door's own grammar imported rather than copied — the F7 lesson, that a rule
+  with two homes drifts — enforced where an identity is declared, so the center
+  cannot name an agent the door can never resolve. The *secret* is
+  `control.credentials`, a map beside `agents` rather than a field on it, for the
+  same reason `bindings` is: a record that carried its own secret would put it in
+  every listing of the fleet. And it is declared, not minted per plan:
+  `a_credential_read_per_plan_never_settles` is the property that chose the
+  design — the gateway's `issue()` returns a fresh plaintext every call, so a
+  center that asked each time would report a credential change on every plan,
+  never settle the apply, and leave one more live credential for one identity per
+  reading. Holding it is not the second copy F7 removed: the gateway's record is
+  a hash and a revocation, and a plaintext is plaintext wherever it is used —
+  which for an agent is a config file, exactly as `nodeToken` is at the center.
+  What a *read* surface hands back is `apps/agentd/src/desired-view.ts`
+  (`shownToReader`): the desired state with `credentialHeld` where the value
+  would be. The center is the holder, so the value is not hidden from the
+  operator — it is read back on the surface that writes it, and the listing an
+  agent can hold a grant on states the fact instead. The console draws both
+  states as words (`stated` in `effect-ui-cells.ts`), in the agents table and in
+  the row's Inspect answer, because "which agents will the door refuse" is the
+  operator's question and it is answered by a word, not by a secret.

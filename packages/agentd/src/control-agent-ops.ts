@@ -7,22 +7,54 @@
  * them, and the reads they lean on live in `control-projections.ts`.
  */
 
+import { parsePrincipalKey } from "@effect-agent/effect-authz"
 import type { ControlState } from "./control-state.ts"
 import type { AgentdControl } from "./contract.ts"
 import { AgentdError } from "./errors.ts"
 import { bindingFor, desired as agentConfig } from "./control-projections.ts"
 
+/**
+ * An agent's id is the key the door names it by: it resolves a credential to a
+ * principal key and looks the binding up by *that*, so an agent named anything
+ * else is a set of bindings nothing can ever reach. The grammar is `effect-authz`'s
+ * rather than a copy here — the same reason the mcpset grammar is one file.
+ */
+const principalId = (id: string): string => {
+  if (parsePrincipalKey(id) === undefined) {
+    throw new AgentdError(400, `"${id}" is not a principal key; an agent is named kind:id, e.g. app:${id}`)
+  }
+  return id
+}
+
 export const agentOps = (control: ControlState): Pick<AgentdControl,
-  "registerMachine" | "registerAgent" | "registerServer" | "upsertSet" | "bindAgent"
+  "registerMachine" | "registerAgent" | "registerServer" | "upsertSet" | "bindAgent" | "setCredential"
   | "mcpsets" | "publishBundle" | "artifact" | "bindBundles" | "desired" | "reportApplied"> => ({
   registerMachine(machine) { control.checkId(machine.machineId); control.machines.set(machine.machineId, machine); control.bump(); return machine },
-  registerAgent(agent) { control.checkId(agent.agentId); if (!control.machines.has(agent.machineId)) throw new AgentdError(404, "machine not found"); control.agents.set(agent.agentId, agent); control.bump(); return agent },
+  registerAgent(agent) {
+    control.checkId(agent.agentId)
+    const agentId = principalId(agent.agentId)
+    if (!control.machines.has(agent.machineId)) throw new AgentdError(404, "machine not found")
+    control.agents.set(agentId, agent); control.bump(); return agent
+  },
   registerServer(server) { control.checkId(server.serverId); if (control.servers.has(server.serverId)) throw new AgentdError(409, "server already exists"); control.servers.set(server.serverId, server); control.bump(); return server },
   // Every way a set arrives is checked against the mcpset grammar first — the
   // config loader and the `agentd_upsert_mcpset` op — so the one rule about
   // sets (allow and deny cannot overlap) is stated there, not restated here.
   upsertSet(set) { control.checkId(set.setId); if (set.servers.some((id) => !control.servers.has(id))) throw new AgentdError(404, "server not found"); control.sets.set(set.setId, set); control.bump(); return set },
   bindAgent(agentId, setIds) { if (!control.agents.has(agentId)) throw new AgentdError(404, "agent not found"); if (setIds.some((id) => !control.sets.has(id))) throw new AgentdError(404, "set not found"); const binding = { ...bindingFor(control, agentId), setIds, revision: control.bump() }; control.bindings.set(agentId, binding); return binding },
+  /**
+   * The credential this agent presents at the door. It is a write like any
+   * other — the config an agent should be running carries it, so it moves the
+   * revision the receipt is measured against. Whose credential it is cannot be
+   * checked here: only the door can verify a token, and what it verifies is a
+   * principal key. The center's half is that the key it binds by and the key the
+   * agent is named by are one string (`principalId`).
+   */
+  setCredential(agentId, token) {
+    if (!control.agents.has(agentId)) throw new AgentdError(404, "agent not found")
+    if (typeof token !== "string" || token.length === 0) throw new AgentdError(400, "an empty credential names nobody")
+    control.credentials.set(agentId, token); control.bump(); return { agentId, revision: control.revision() }
+  },
   /**
    * Not a write, so not a revision: this is what the state already says. A
    * caller reads it to *decide* with, which is why it hands back the bindings

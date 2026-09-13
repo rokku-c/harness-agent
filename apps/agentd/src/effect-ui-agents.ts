@@ -10,7 +10,7 @@
  * pressed in, so a row can never load another row's config.
  */
 import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { badgeCell, badgeOf, boundChip, cell, cellOf, chip, reported, stringEntry } from "./effect-ui-cells.ts"
+import { badgeCell, badgeOf, boundChip, cell, cellOf, chip, reported, stated, stringEntry } from "./effect-ui-cells.ts"
 import { field, listStates, section, table, text } from "./effect-ui-nodes.ts"
 import { answer, answered, request, rowRequest } from "./effect-ui-request.ts"
 
@@ -24,6 +24,9 @@ const cells: readonly UiNodeSpec[] = [
   badgeCell("status"),
   cell("desired/revision"),
   reported("applied/revision"),
+  // The door refuses an agent that presents nothing, so which agents are in
+  // that state is a column of the fleet rather than a footnote to one row.
+  cellOf([stated({ item: "desired/credentialHeld" }, "held", "none")]),
   inspect,
 ]
 
@@ -36,6 +39,10 @@ const desiredAnswer: UiNodeSpec = answer("/inspect/desired/ok", [
   field("Agent", row([boundChip("/inspect/desired/desired/agent/agentId")])),
   answered("Sets", "/inspect/desired/desired/sets", [badgeOf("name")]),
   answered("Artifacts", "/inspect/desired/desired/bundles", [chip("bundleId"), chip("version")]),
+  // What it presents at the door, stated and not shown (§F10): the credential
+  // itself is declared on Settings, which is the surface that writes it.
+  field("MCP Gateway credential", stated({ state: "/inspect/desired/desired/credentialHeld" },
+    "held — the door names this agent by it", "none — the door refuses it; declare one in agentd's configuration")),
   row([request("Plan the push", "agentd.plan", "agentId", "/inspect/desired/desired/agent/agentId")]),
 ])
 
@@ -46,7 +53,7 @@ const planAnswer: UiNodeSpec = answer("/inspect/plan/ok", [
 export const agentsSection: UiNodeSpec = section("Agents", [
   text("Each agent, the machine it runs on, and the revision it is bound to beside the one it reported.", { size: "2", color: "gray" }),
   ...listStates("/status/agents", "No agents are registered."),
-  table(["Agent", "Machine", "Kind", "State", "Desired revision", "Applied revision", "Inspect"], cells, "/status/agents", "agentId"),
+  table(["Agent", "Machine", "Kind", "State", "Desired revision", "Applied revision", "Credential", "Inspect"], cells, "/status/agents", "agentId"),
   desiredAnswer,
   planAnswer,
   row([failureBadge("/inspect/desired/error"), failureBadge("/inspect/plan/error")]),

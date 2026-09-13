@@ -48,6 +48,13 @@ export interface ControlState {
   readonly servers: Map<string, McpServerRef>
   readonly sets: Map<string, McpSet>
   readonly bindings: Map<string, AgentBinding>
+  /**
+   * What each agent presents at the gateway's door, by agent id. Apart from the
+   * agent record for the same reason the binding is: a credential is a second
+   * predicate about one subject, and a record that carried its own secret would
+   * put it in every listing of the fleet.
+   */
+  readonly credentials: Map<string, string>
   /** Published versions and their bytes (§7.6); version identity is owned over there. */
   readonly registry: BundleRegistry
   /**
@@ -68,6 +75,7 @@ export interface ControlState {
 export const makeControlState = (options: AgentdControlOptions = {}): ControlState => {
   const machines = new Map<string, Machine>(), agents = new Map<string, AgentInstance>()
   const servers = new Map<string, McpServerRef>(), sets = new Map<string, McpSet>(), bindings = new Map<string, AgentBinding>()
+  const credentials = new Map<string, string>()
   const registry = makeBundleRegistry()
   const nodes = new Map<string, HeldNode>()
   let revision = 0
@@ -76,7 +84,7 @@ export const makeControlState = (options: AgentdControlOptions = {}): ControlSta
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   })
   return {
-    machines, agents, servers, sets, bindings, registry, nodes, presence,
+    machines, agents, servers, sets, bindings, credentials, registry, nodes, presence,
     guard: makeNodeGuard(options.nodeToken),
     revision: () => revision,
     bump: () => ++revision,

@@ -84,6 +84,8 @@ export interface DesiredAgentConfig {
   revision: number
   sets: readonly McpSet[]
   servers: readonly McpServerRef[]
+  /** What this agent presents at the MCP Gateway's door (§F10). Absent = none is held. */
+  credential?: string
   /**
    * The machine the agent runs on. An artifact adapter needs it: "can this
    * machine run this bundle" is a question about the machine, not the agent.

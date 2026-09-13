@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@effect-agent/canonical-json": "workspace:*",
+    "@effect-agent/effect-authz": "workspace:*",
     "@effect-agent/effect-bundle": "workspace:*"
   }
 }

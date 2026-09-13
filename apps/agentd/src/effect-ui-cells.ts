@@ -6,7 +6,7 @@
  * something an operator types into an inspection or correlates against a log —
  * not something anyone reads a column of.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { row, type UiCondition, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 /** An item's own field, rendered as it arrives. */
 export const cell = (field: string): UiNodeSpec => ({ component: "Table.Cell", item: field })
@@ -55,6 +55,17 @@ export const reported = (field: string): UiNodeSpec => cellOf([
   { component: "Text", item: field },
   { component: "Text", props: { value: "not reported", size: "2", color: "gray" },
     visible: { source: { item: field }, not: true } },
+])
+
+/**
+ * A word for a fact that is there or is not. `reported` is this for a revision
+ * the agent may not have sent; the credential is this for a secret whose *value*
+ * this page never shows (§F10) — what an operator reads here is which agents the
+ * door will refuse, and that is a word, not a string of characters.
+ */
+export const stated = (where: UiCondition["source"], present: string, absent: string): UiNodeSpec => row([
+  { component: "Text", props: { value: present, size: "2" }, visible: { source: where } },
+  { component: "Text", props: { value: absent, size: "2", color: "gray" }, visible: { source: where, not: true } },
 ])
 
 /**

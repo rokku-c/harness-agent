@@ -81,22 +81,22 @@ test("a heartbeat does not invalidate a receipt; a changed declaration does", ()
   const c = clockAt()
   const control = makeAgentdControl({ leaseTtlMs: TTL, clock: c.clock })
   control.registerMachine(configured(["abi:effect-1", "bootstrap:bootstrap-1", "runtime:os"]))
-  control.registerAgent({ agentId: "agent-1", machineId: "node-1", kind: "worker", version: "1.0.0", status: "online" })
+  control.registerAgent({ agentId: "app:agent-1", machineId: "node-1", kind: "worker", version: "1.0.0", status: "online" })
   control.announceNode(osNode())
   // An agent with no binding is measured against the control plane's own
   // revision, so anything that bumps it goes stale against this receipt.
-  const inFlight = control.desired("agent-1").revision
+  const inFlight = control.desired("app:agent-1").revision
 
   c.advance(1_000)
   control.heartbeatNode("node-1")
   control.announceNode(osNode())   // a node restarting inside its lease
 
-  expect(control.reportApplied("agent-1", inFlight, { ok: true }).revision).toBe(inFlight)
+  expect(control.reportApplied("app:agent-1", inFlight, { ok: true }).revision).toBe(inFlight)
 
   // A node that comes back able to run *different* things is not the same
   // statement, and it is a desired-state change like any other.
   control.announceNode(declared(["abi:effect-1", "bootstrap:bootstrap-1", "runtime:browser"]))
-  expect(() => control.reportApplied("agent-1", inFlight, { ok: true })).toThrow(/stale agent revision/)
+  expect(() => control.reportApplied("app:agent-1", inFlight, { ok: true })).toThrow(/stale agent revision/)
 })
 
 test("a node restarting inside its lease keeps one identity, not two", () => {

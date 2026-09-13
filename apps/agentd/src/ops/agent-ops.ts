@@ -5,6 +5,7 @@
  */
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
+import { shownToReader } from "../desired-view.ts"
 import { bundlePlan } from "./plan.ts"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
@@ -21,7 +22,7 @@ export const agentOperations = ({ control, applied, status }: AgentdSurfaces): r
   operation({
     name: "agentd_desired", description: "The desired state of one agent", access: "read",
     input: z.object({ agentId: z.string().min(1) }).strict(), http: { method: "GET", path: "/agentd/desired" },
-    handler: (input) => ({ ok: true, desired: control.desired(input.agentId) }),
+    handler: (input) => ({ ok: true, desired: shownToReader(control.desired(input.agentId)) }),
   }),
   operation({
     name: "agentd_plan_bundles", description: "The artifact plan for one agent, and the place a push is refused",

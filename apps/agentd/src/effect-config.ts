@@ -58,9 +58,17 @@ const nodeBinding = z.object({
   kernelId: z.string().min(1).optional(),
   apps: z.array(nodeApp).default([]),
 }).strict()
+/**
+ * What one agent presents at the MCP Gateway's door (§F10), declared against the
+ * agent's id — the key the door resolves it to and binds by. Plaintext lives
+ * here for the same reason `nodeToken` does: the center is what writes agent
+ * configs, and a credential is plaintext wherever it is used.
+ */
+const credential = z.object({ agentId: z.string().min(1), token: z.string().min(1) }).strict()
 const schema = z.object({
   machines: z.array(machine).default([]),
   agents: z.array(agent).default([]),
+  credentials: z.array(credential).default([]),
   servers: z.array(server).default([]),
   sets: z.array(set).default([]),
   bindings: z.array(binding).default([]),
