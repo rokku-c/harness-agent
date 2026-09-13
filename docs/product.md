@@ -72,7 +72,7 @@ supply + session ops + catalog descriptions; tests prove no drift
 - R5 (done): layered acceptance matrix (docs/acceptance.md) with per-row
   evidence; release smoke: real model catalog -> enable -> A2UI form render ->
   button click -> [ui.action] -> task_write lands in the shared workspace.
-- R31 (done): A2UI removed (user: 过时) - ui_render op, ui-store versioning,
+- R31 (done): A2UI removed (user: obsolete) - ui_render op, ui-store versioning,
   /api/ui* + [ui.action] routes, MCP mantis_ui_* tools, panel A2uiHost,
   @a2ui deps usage, bus ui.updated, docs claims; MCP surface = 11 mantis_* tools.
 - R30 (done): whole console re-skinned to simple-line minimal light
@@ -98,15 +98,16 @@ supply + session ops + catalog descriptions; tests prove no drift
   protocol level (14 mantis_* tools). Live-model runs paused: gateway now
   requires BAIZHI_API_KEY (401) - needs the user's key.
 - R24 (done): approval loop e2e on an isolated gated console - protected write
-  parks a card (tool+session), 同意 resumes + archives record, 拒绝 holds the
-  write; same-conversation double-send now rejected by an in-flight guard.
+  parks a card (tool+session), Approve resumes + archives the record, Deny holds
+  the write; same-conversation double-send now rejected by an in-flight guard.
 - R23 (done): parallel work lines proven live - concurrency attribution race
   fixed (AsyncLocalStorage per-run in the web console); two conversations ran
   simultaneously into the shared workspace (43% wall saving, interleaved
   durable writes, zero timeline cross-talk).
 - R22 (done, canvas v1 + user correction): product pivot to "digital worker"
   framing (delegate work; faster, parallel); clay skin removed; restrained
-  professional dark UI; IA收敛 3+1 (会话/工作区/审批 + status); copy zh.
+  professional dark UI; IA converged on 3+1 (conversations/workspace/approvals
+  + status); copy is Chinese.
 - R21 (superseded, user brief): Claymorphism visual language over the same logic -
   macaron palette, huge radii, double shadow + inner bevel, pressed-squash
   buttons, carved inputs, pills; A2UI surfaces remapped; light scheme forced.

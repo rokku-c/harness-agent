@@ -57,7 +57,9 @@ plus the live smoke steps in SELFUSE.md round notes.
   supported (single writer); run one web host per instance dir, or one process
   serving all channels.
 
-### 工作区写入长度（R23）
-单条记录上限 50_000 字符（src/tools.ts MAX_RECORD_TEXT，唯一权威）。
-超出时 REST/MCP 返回可读错误 {ok:false, detail:"record text exceeds 50000 characters (got N)"}，
-不做静默截断；观测流中的长载荷截断会带 "… (+truncated N chars)" 标记。
+### Workspace write length (R23)
+One record holds at most 50_000 characters (`src/tools.ts` `MAX_RECORD_TEXT`, the
+single authority). Past that, REST and MCP return a readable error
+`{ok:false, detail:"record text exceeds 50000 characters (got N)"}` — never a
+silent truncation; a long payload truncated in the observation stream carries
+the marker `"… (+truncated N chars)"`.
