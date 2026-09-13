@@ -10,6 +10,7 @@
 -/
 
 import Formal.AppLayer
+import Formal.Authorize
 import Formal.Authz
 import Formal.CatalogLoad
 import Formal.Chain
