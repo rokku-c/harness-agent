@@ -52,24 +52,23 @@ const boundSets = ({ config, registry }: AccessSurfaces, agentId: string): reado
 
 /**
  * What the gateway would do with one agent's call to one tool, read off the
- * gateway's own registry: `resolve` for the verdict, `reach` for the question
- * asked without a tool, `bound` for the reason a refusal can name. Nothing here
- * walks a set, reads an allow-list, or decides anything — the file that did
- * that decided differently from the gateway it was previewing, which is worse
- * than having no preview at all: the page is read as the answer, and the call it
- * describes then fails somewhere else.
+ * gateway's own registry: `resolve` for the verdict — asked with a tool or
+ * without one, which is the same walk — and `bound` for the reason a refusal
+ * can name. Nothing here walks a set, reads an allow-list, or decides anything
+ * — the file that did that decided differently from the gateway it was
+ * previewing, which is worse than having no preview at all: the page is read as
+ * the answer, and the call it describes then fails somewhere else.
  */
 export const previewAccess = (surfaces: AccessSurfaces, agentId: string, tool?: string): AccessPreview => {
   const { sets } = surfaces
   const isBound = sets.bound(agentId)
-  const resolution = tool === undefined ? undefined : sets.resolve(agentId, undefined, tool)
-  const routed = tool === undefined ? sets.reach(agentId) !== undefined : resolution !== undefined
-  const allowed = tool === undefined ? routed : resolution?.allowed === true
+  const resolution = sets.resolve({ agent: agentId, ...(tool === undefined ? {} : { tool }) })
+  const allowed = resolution?.allowed === true
   const reasons: string[] = []
   if (!allowed) {
     if (!isBound) reasons.push("no set bound to this agent")
-    else if (!routed) reasons.push("no bound set has a reachable server")
-    else if (tool !== undefined && resolution !== undefined) {
+    else if (resolution === undefined) reasons.push("no bound set has a reachable server")
+    else if (resolution.refusedBy !== undefined) {
       reasons.push(resolution.refusedBy === "deny"
         ? `${resolution.setId} explicitly denies ${tool}`
         : `${resolution.setId} allowlist does not include ${tool}`)

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { identityFromHeaders, redactArgs } from "../src/index.ts"
+import { identityFromRequest, redactArgs } from "../src/index.ts"
 import { make } from "./fixtures.ts"
 
 test("audit scrubs secrets and does not store raw args", async () => {
@@ -10,5 +10,10 @@ test("audit scrubs secrets and does not store raw args", async () => {
 })
 test("redaction and identity normalize case without leaking values", () => {
   expect(redactArgs({ Authorization: "Bearer x", api_key: "k", ok: [1, 2] })).toEqual({ Authorization: "[REDACTED]", api_key: "[REDACTED]", ok: [1, 2] })
-  expect(identityFromHeaders({ "x-agent-id": "a", "X-Session-Id": "s", "x-request-id": ["r", "old"] })).toEqual({ agent: "a", session: "s", requestId: "r" })
+  // case-insensitive on the header bag, and `x-agent-id` is not read at all: a
+  // caller writes its own headers, so nothing here may name the caller.
+  const headers = { "x-agent-id": "a", "X-Session-Id": "s", "x-request-id": ["r", "old"] }
+  expect(identityFromRequest({ headers })).toEqual({ session: "s", requestId: "r" })
+  expect(identityFromRequest({ headers, authInfo: { clientId: "cli", extra: { sessionId: "verified" } } }))
+    .toEqual({ session: "verified", requestId: "r" })
 })

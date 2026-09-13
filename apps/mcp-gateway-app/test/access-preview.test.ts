@@ -12,8 +12,8 @@ const config = {
     { setId: "safe", name: "Safe", servers: ["files"], allowTools: ["read"] },
     { setId: "danger", name: "Danger", servers: ["missing"], denyTools: ["write"] },
   ],
-  bindings: [{ agentId: "agent-1", setIds: ["safe", "danger"] }],
-  defaultAction: "deny" as const, captureArgs: false,
+  bindings: [{ agentId: "app:agent-1", setIds: ["safe", "danger"] }],
+  databaseFile: ":memory:", captureArgs: false,
 }
 
 /** The engine the plugin builds, built the same way — the preview asks this one. */
@@ -27,7 +27,7 @@ const surfacesOf = (value: AccessConfig) => {
 }
 
 test("previewAccess reads its verdict off the gateway's own set registry", () => {
-  const allowed = previewAccess(surfacesOf(config), "agent-1", "read")
+  const allowed = previewAccess(surfacesOf(config), "app:agent-1", "read")
   expect(allowed.allowed).toBe(true)
   expect(allowed.sets.map((set) => set.setId)).toEqual(["safe", "danger"])
 
@@ -35,19 +35,19 @@ test("previewAccess reads its verdict off the gateway's own set registry", () =>
   // answers from it alone and never consults "danger" — whose deny is not the
   // reason for anything. Reading every bound set reports a reason the gateway's
   // own rule never reaches, and a grant in a later set erases an earlier deny.
-  const denied = previewAccess(surfacesOf(config), "agent-1", "write")
+  const denied = previewAccess(surfacesOf(config), "app:agent-1", "write")
   expect(denied.allowed).toBe(false)
   expect(denied.reasons).toEqual(["safe allowlist does not include write"])
 
   // the denying set first: it decides, and its own deny is the reason
-  const refusing = { ...config, bindings: [{ agentId: "agent-1", setIds: ["safe"] }], sets: [{ setId: "safe", name: "Safe", servers: ["files"], denyTools: ["write"] }] }
-  const refused = previewAccess(surfacesOf(refusing), "agent-1", "write")
+  const refusing = { ...config, bindings: [{ agentId: "app:agent-1", setIds: ["safe"] }], sets: [{ setId: "safe", name: "Safe", servers: ["files"], denyTools: ["write"] }] }
+  const refused = previewAccess(surfacesOf(refusing), "app:agent-1", "write")
   expect(refused.allowed).toBe(false)
   expect(refused.reasons).toEqual(["safe explicitly denies write"])
 
   // no bound set reaches a server at all: the gateway has nothing to decide on
-  const dark = { ...config, bindings: [{ agentId: "agent-1", setIds: ["safe"] }], sets: [{ setId: "safe", name: "Safe", servers: ["missing"] }] }
-  const unreachable = previewAccess(surfacesOf(dark), "agent-1", "read")
+  const dark = { ...config, bindings: [{ agentId: "app:agent-1", setIds: ["safe"] }], sets: [{ setId: "safe", name: "Safe", servers: ["missing"] }] }
+  const unreachable = previewAccess(surfacesOf(dark), "app:agent-1", "read")
   expect(unreachable.allowed).toBe(false)
   expect(unreachable.reasons).toEqual(["no bound set has a reachable server"])
 
@@ -65,7 +65,7 @@ test("gateway serves access previews and exposes an audit surface", async () => 
   registry.register(server)
   await host.register({ ...createMcpGatewayPlugin(() => config, { mcpRegistry: registry, fetch }), routes: [{ path: "/mcp-gateway", match: "prefix" }] })
   try {
-    const preview = await host.handle(new Request("http://host/mcp-gateway/access?agent=agent-1&tool=write"))
+    const preview = await host.handle(new Request("http://host/mcp-gateway/access?agent=app:agent-1&tool=write"))
     expect(preview.status).toBe(200)
     expect(await preview.json()).toMatchObject({ ok: true, access: { allowed: false } })
     const missing = await host.handle(new Request("http://host/mcp-gateway/access"))

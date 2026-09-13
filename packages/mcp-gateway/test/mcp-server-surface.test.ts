@@ -14,7 +14,7 @@ const surfaceWith = (authz = makeAuthz()): McpToolSurface => {
   const catalog = makeToolCatalog()
   catalog.replace("board", [{ name: "board_view" }, { name: "board_create_item" }])
   catalog.replace("files", [{ name: "read" }])
-  return { authz, catalog }
+  return { gateway: make(undefined, undefined, { authz }).gateway, catalog }
 }
 
 const grantBoard = (authz = makeAuthz()) => {
@@ -23,8 +23,7 @@ const grantBoard = (authz = makeAuthz()) => {
 }
 
 const asClient = async <T>(surface: McpToolSurface, headers: Record<string, string>, run: (client: Client) => Promise<T>): Promise<T> => {
-  const { gateway } = make(undefined, undefined, { authz: surface.authz })
-  const bun = Bun.serve({ port: 0, fetch: serveMcpHttp(() => Promise.resolve(buildMcpGatewayServer(gateway, surface))) })
+  const bun = Bun.serve({ port: 0, fetch: serveMcpHttp(() => Promise.resolve(buildMcpGatewayServer(surface))) })
   const client = new Client({ name: "surface-client", version: "0.0.0" })
   try {
     await client.connect(new StreamableHTTPClientTransport(new URL("/mcp", bun.url), { requestInit: { headers } }))

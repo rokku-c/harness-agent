@@ -49,11 +49,12 @@ test("a token stops verifying once its lifetime has passed", () => {
 
 test("revocation happens once and outlives further verification", () => {
   const { store } = withClock()
-  const { token } = store.issue({ principalKey: "user:alice" })
-  expect(store.revoke(token)).toBe(true)
-  expect(store.revoke(token)).toBe(false)
+  const { token, record } = store.issue({ principalKey: "user:alice" })
+  // by the hash a listing reports: the plaintext belongs to whoever holds it
+  expect(store.revoke(record.tokenHash)).toBe(true)
+  expect(store.revoke(record.tokenHash)).toBe(false)
   expect(store.verify(token)).toBeUndefined()
-  expect(store.revoke("t_never-issued")).toBe(false)
+  expect(store.revoke("never-issued")).toBe(false)
 })
 
 test("verification records when the token was last used", () => {

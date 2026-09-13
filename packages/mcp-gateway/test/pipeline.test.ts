@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { make } from "./fixtures.ts"
 
 test("allows, resolves, and audits an unguarded call", async () => {
-  const { events, gateway } = make(), result = await gateway.handle({ callId: "rf-1", agent: "builder-2", serverId: "effect-board", tool: "board_start" })
+  const { events, gateway } = make(), result = await gateway.handle({ callId: "rf-1", principal: { kind: "app", id: "builder-2" }, serverId: "effect-board", tool: "board_start" })
   expect(result).toMatchObject({ ok: true, status: 200, decision: "allow" })
   expect(events.map((event) => event.type)).toEqual(["call", "response"])
 })

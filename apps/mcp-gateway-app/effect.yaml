@@ -10,5 +10,4 @@ apps:
 config:
   sets: []
   bindings: []
-  defaultAction: deny
   captureArgs: false

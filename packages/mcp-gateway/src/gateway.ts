@@ -1,62 +1,53 @@
-/** MCP gateway pipeline: resolve, authorize, proxy, and audit. */
+/**
+ * MCP gateway pipeline: decide, record, proxy.
+ *
+ * `handle` is `decide` plus the two things a caller that acts must do: write
+ * the audit trail the decision produced, and make the call. Nothing about
+ * *whether* the call may happen lives here — that was already answered, and it
+ * is the same answer the advertised surface was built from, so a tool the door
+ * offered is a tool this door carries.
+ */
 import { principalKey } from "@effect-agent/effect-authz"
 
-import { authorizeCall } from "./authorize.ts"
-import type { McpGatewayContext, McpGatewayEvent, McpGatewayOptions, McpGatewayResult } from "./contract.ts"
-import { decideAction } from "./rules.ts"
+import type { McpGatewayEvent } from "./contract-audit.ts"
+import type { McpGateway, McpGatewayContext, McpGatewayOptions, McpGatewayResult } from "./contract.ts"
+import { makeDecide } from "./gateway-decide.ts"
 import { redactArgs } from "./redaction.ts"
 
-export interface McpGateway { handle(context: McpGatewayContext): Promise<McpGatewayResult> }
-type Target = { readonly serverId?: string; readonly setId?: string; readonly deniedBySet: boolean }
+export type { McpGateway } from "./contract.ts"
 
 export function makeMcpGateway(options: McpGatewayOptions): McpGateway {
-  const rules = options.rules ?? [], fallback = options.defaultAction ?? "allow"
+  const decide = makeDecide(options)
   const captureArgs = options.captureArgs === true
-  const emit = async (type: McpGatewayEvent["type"], ctx: McpGatewayContext, extra: Partial<McpGatewayEvent> = {}) =>
-    options.recorder?.record({ callId: ctx.callId, type, at: Date.now(), agent: ctx.agent, ...(ctx.principal ? { principal: principalKey(ctx.principal) } : {}), ...(ctx.setId ? { setId: ctx.setId } : {}), serverId: ctx.serverId, tool: ctx.tool, ...extra })
-  const target = async (context: McpGatewayContext): Promise<Target> => {
-    const registry = options.setRegistry
-    if (registry && (context.setId !== undefined || context.agent !== undefined)) {
-      const resolved = registry.resolve(context.agent, context.setId, context.tool ?? "")
-      return { serverId: resolved?.serverId, setId: resolved?.setId, deniedBySet: resolved?.allowed === false }
-    }
-    if (context.serverId) return { serverId: context.serverId, deniedBySet: false }
-    const resolved = await options.resolver?.resolve(context)
-    return { serverId: resolved?.serverId, deniedBySet: false }
+  const record = async (events: readonly McpGatewayEvent[]): Promise<void> => {
+    for (const event of events) await options.recorder?.record(event)
   }
-  return { handle: async (context) => {
-    const started = Date.now(), found = await target(context)
-    if (!found.serverId) {
-      await emit("error", context, { status: 404, detail: `no server resolved for call ${context.callId}` })
-      return { ok: false, status: 404, decision: "deny", detail: "no_server" }
-    }
-    const ctx = { ...context, serverId: found.serverId, ...(found.setId ? { setId: found.setId } : {}) }
-    const resultSet = found.setId ? { setId: found.setId } : {}
-    await emit("call", ctx)
-    if (found.deniedBySet) {
-      await emit("error", ctx, { decision: "deny", status: 403, detail: "denied_by_set", durationMs: Date.now() - started })
-      return { ok: false, status: 403, serverId: found.serverId, ...resultSet, decision: "deny", detail: "denied_by_set", durationMs: Date.now() - started }
-    }
-    const gate = options.authz === undefined ? undefined : authorizeCall(options.authz, ctx)
-    if (gate !== undefined) {
-      await emit("authz", ctx, { decision: gate.allowed ? "allow" : "deny", detail: gate.decision?.reason ?? gate.refusal })
-      if (!gate.allowed) {
-        const detail = gate.refusal === "no_principal" ? "no_principal" : "denied_by_principal"
-        const durationMs = Date.now() - started
-        await emit("error", ctx, { decision: "deny", status: 403, detail, durationMs })
-        return { ok: false, status: 403, serverId: found.serverId, ...resultSet, decision: "deny", detail, durationMs }
+  const routedOf = (verdict: { serverId?: string; setId?: string }) => ({
+    ...(verdict.serverId === undefined ? {} : { serverId: verdict.serverId }),
+    ...(verdict.setId === undefined ? {} : { setId: verdict.setId }),
+  })
+
+  return {
+    decide,
+    handle: async (context: McpGatewayContext): Promise<McpGatewayResult> => {
+      const verdict = await decide(context)
+      await record(verdict.trace)
+      const routed = routedOf(verdict)
+      if (!verdict.allowed) {
+        return { ok: false, status: verdict.status, decision: verdict.decision, detail: verdict.detail, ...routed,
+          ...(verdict.ruleId === undefined ? {} : { ruleId: verdict.ruleId }) }
       }
-    }
-    const { rule, decision } = decideAction(rules, ctx, fallback)
-    if (rule) await emit("rule", ctx, { ruleId: rule.ruleId, decision })
-    if (decision === "deny") {
-      await emit("error", ctx, { ruleId: rule?.ruleId, decision, status: 403, detail: "denied_by_rule" })
-      return { ok: false, status: 403, serverId: found.serverId, ...(found.setId ? { setId: found.setId } : {}), decision, ruleId: rule?.ruleId, detail: "denied_by_rule", durationMs: Date.now() - started }
-    }
-    const upstream = await options.upstream.call({ serverId: found.serverId, tool: ctx.tool ?? "", args: ctx.args })
-    const ok = upstream.ok || (upstream.status >= 200 && upstream.status < 300)
-    const extra = { ruleId: rule?.ruleId, decision, status: upstream.status, durationMs: upstream.durationMs, detail: upstream.detail, ...(captureArgs ? { argsRedacted: redactArgs(ctx.args) } : {}) }
-    await emit(ok ? "response" : "error", ctx, extra)
-    return { ok, status: upstream.status, serverId: found.serverId, ...resultSet, decision, ruleId: rule?.ruleId, detail: upstream.detail, durationMs: upstream.durationMs }
-  } }
+      const upstream = await options.upstream.call({ serverId: verdict.serverId, tool: context.tool ?? "", args: context.args })
+      const ok = upstream.ok || (upstream.status >= 200 && upstream.status < 300)
+      await record([{
+        callId: context.callId, type: ok ? "response" : "error", at: Date.now(),
+        ...(context.principal === undefined ? {} : { principal: principalKey(context.principal) }),
+        ...routed, tool: context.tool, ruleId: verdict.ruleId, decision: verdict.decision,
+        status: upstream.status, durationMs: upstream.durationMs, detail: upstream.detail,
+        ...(captureArgs ? { argsRedacted: redactArgs(context.args) } : {}),
+      }])
+      return { ok, status: upstream.status, decision: verdict.decision, detail: upstream.detail,
+        durationMs: upstream.durationMs, ...routed, ...(verdict.ruleId === undefined ? {} : { ruleId: verdict.ruleId }) }
+    },
+  }
 }

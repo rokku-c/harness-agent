@@ -1,50 +1,44 @@
+/**
+ * The gateway's MCP door.
+ *
+ * It advertises the proxied catalog — one flat tool per (server, tool), each
+ * name a key into that catalog — and answers every caller with its own
+ * projection of it. There is no other shape: the multiplexed single-call entry
+ * that predated the catalog said one thing to `tools/list` and another to the
+ * page, and a door whose list is not its enforcement is a door that lies.
+ *
+ * The caller is whoever the transport verified. A request that resolves to no
+ * principal is refused here, before the engine, so the engine never has to
+ * answer about a caller nobody named.
+ */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
-import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, type CallToolResult, type ListToolsResult } from "@modelcontextprotocol/sdk/types.js"
-import { AjvJsonSchemaValidator } from "@modelcontextprotocol/sdk/validation/ajv"
-import type { McpGateway } from "./gateway.ts"
+import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js"
+
 import { identityFromRequest } from "./identity.ts"
 import { type McpToolSurface, resolveSurfacePrincipal, surfaceTarget, surfaceTools } from "./mcp-surface.ts"
 
-const callSchema = { type: "object", properties: {
-  setId: { type: "string", minLength: 1 }, serverId: { type: "string", minLength: 1 },
-  tool: { type: "string", minLength: 1 }, args: { type: "object" },
-}, required: ["tool"], additionalProperties: false } as const
-const validator = new AjvJsonSchemaValidator().getValidator<CallInput>(callSchema)
-type CallInput = { readonly setId?: string; readonly serverId?: string; readonly tool: string; readonly args?: Record<string, unknown> }
-const tool = { name: "mcp_gateway_call", description: "Call an authorized MCP gateway tool.", inputSchema: callSchema }
-const textResult = (value: unknown, isError: boolean): CallToolResult => ({ content: [{ type: "text", text: JSON.stringify(value) }], isError })
+const textResult = (value: unknown, isError: boolean) => ({ content: [{ type: "text" as const, text: JSON.stringify(value) }], isError })
 
-/**
- * Builds the gateway's MCP surface.
- *
- * With a `surface`, the gateway advertises the proxied tool catalog and answers
- * each caller with its own projection; the caller supplies the same `authz` to
- * `makeMcpGateway`, which is what actually enforces the calls. Without one it
- * advertises the single multiplexed `mcp_gateway_call` — the pre-convergence
- * shape, kept only until the app switches over.
- */
-export const buildMcpGatewayServer = (gateway: McpGateway, surface?: McpToolSurface): Server => {
+export const buildMcpGatewayServer = (surface: McpToolSurface): Server => {
   const server = new Server({ name: "effect-agent-mcp-gateway", version: "0.0.0" }, { capabilities: { tools: {} } })
   server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => {
-    if (surface === undefined) return { tools: [tool] }
     const call = { headers: extra.requestInfo?.headers, authInfo: extra.authInfo }
-    return { tools: surfaceTools(surface, resolveSurfacePrincipal(surface, call)) as ListToolsResult["tools"] }
+    await surface.refresh?.()
+    return { tools: [...await surfaceTools(surface, resolveSurfacePrincipal(surface, call))] }
   })
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const identity = identityFromRequest({ authInfo: extra.authInfo, headers: extra.requestInfo?.headers })
     const callId = identity.requestId ?? String(extra.requestId ?? crypto.randomUUID())
-    if (surface !== undefined) {
-      const entry = surfaceTarget(surface, request.params.name)
-      if (entry === undefined) throw new McpError(ErrorCode.InvalidParams, "Unknown gateway tool")
-      const principal = resolveSurfacePrincipal(surface, { headers: extra.requestInfo?.headers, authInfo: extra.authInfo }).principal
-      const result = await gateway.handle({ ...identity, ...(principal === undefined ? {} : { principal }), callId, serverId: entry.serverId, tool: entry.tool, args: request.params.arguments })
-      return textResult(result, !result.ok)
+    const resolved = resolveSurfacePrincipal(surface, { headers: extra.requestInfo?.headers, authInfo: extra.authInfo })
+    if (resolved.principal === undefined) {
+      return textResult({ ok: false, status: 401, decision: "deny", detail: resolved.detail ?? "no_principal" }, true)
     }
-    if (request.params.name !== tool.name) throw new McpError(ErrorCode.InvalidParams, "Unknown gateway tool")
-    const parsed = validator(request.params.arguments ?? {})
-    if (!parsed.valid) throw new McpError(ErrorCode.InvalidParams, parsed.errorMessage)
-    if (!identity.agent) return textResult({ ok: false, status: 401, decision: "deny", detail: "missing_identity" }, true)
-    const result = await gateway.handle({ ...identity, callId, ...parsed.data })
+    const entry = surfaceTarget(surface, request.params.name)
+    if (entry === undefined) throw new McpError(ErrorCode.InvalidParams, "Unknown gateway tool")
+    const result = await surface.gateway.handle({
+      ...identity, callId, principal: resolved.principal, serverId: entry.serverId, tool: entry.tool,
+      args: request.params.arguments,
+    })
     return textResult(result, !result.ok)
   })
   return server

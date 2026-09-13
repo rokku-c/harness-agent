@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@effect-agent/effect-apps": "workspace:*",
+    "@effect-agent/effect-authz": "workspace:*",
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",

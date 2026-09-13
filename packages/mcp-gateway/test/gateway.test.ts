@@ -11,7 +11,7 @@ function make(rules: McpGatewayRule[] = [], extra: object = {}, source = upstrea
 
 test("allows an unguarded call and audits call/response", async () => {
   const { events, gateway } = make()
-  const result = await gateway.handle({ callId: "rf-1", agent: "builder-2", serverId: "effect-board", tool: "board_start" })
+  const result = await gateway.handle({ callId: "rf-1", principal: { kind: "app", id: "builder-2" }, serverId: "effect-board", tool: "board_start" })
   expect(result).toMatchObject({ ok: true, status: 200, serverId: "effect-board", decision: "allow" })
   expect(events.map((event) => event.type)).toEqual(["call", "response"])
 })
@@ -20,7 +20,7 @@ test("denies a matching rule without calling upstream", async () => {
   let called = false
   const source: McpUpstream = { call: async () => { called = true; return { status: 200, ok: true, durationMs: 0 } } }
   const { events, gateway } = make([{ ruleId: "cost-guard", match: { serverId: "ext-files", tool: "fs_write" }, action: "deny" }], {}, source)
-  const result = await gateway.handle({ callId: "rf-2", agent: "triage-1", serverId: "ext-files", tool: "fs_write" })
+  const result = await gateway.handle({ callId: "rf-2", principal: { kind: "app", id: "triage-1" }, serverId: "ext-files", tool: "fs_write" })
   expect(result).toMatchObject({ ok: false, status: 403, decision: "deny", ruleId: "cost-guard" })
   expect(called).toBe(false)
   expect(events.map((event) => event.type)).toEqual(["call", "rule", "error"])

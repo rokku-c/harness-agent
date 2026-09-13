@@ -5,6 +5,8 @@
  * above the group: per list it would be nine skeletons for one slow read and
  * three identical callouts for one failed one. Each list still says its own
  * emptiness, which is a fact about the list rather than about the read.
+ *
+ * No heading: this is a screen, and the bar above it already carries its name.
  */
 
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
@@ -55,6 +57,6 @@ const bindings: UiNodeSpec = listCard({
 })
 
 /** The read's own state, stated once above the three lists it feeds, then the lists. */
-export const topologySections: readonly UiNodeSpec[] = [
+export const topologyNodes: readonly UiNodeSpec[] = [
   loadingRows("topology", 3), failureNotice("topology"), servers, sets, bindings,
 ]

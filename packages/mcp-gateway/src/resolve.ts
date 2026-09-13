@@ -1,16 +1,18 @@
 /**
  * mcp-gateway — turning a request into a principal.
  *
- * Three sources, in strict order. A bearer token is verified against the token
- * store; that is the only path an external caller can take. An already-parsed
- * claim bag (`authInfo.extra` from the transport's own auth layer) is trusted by
- * construction — the caller hands us claims, not headers. Raw `x-*` headers are
- * read only when the transport declares itself trusted, because anyone who can
- * reach the port can forge them.
+ * Three sources, in strict order. An already-parsed claim bag (`authInfo.extra`)
+ * is first because it is the strongest: the caller hands over claims, not
+ * headers, so they were produced by a layer that already verified something.
+ * A bearer token is verified against the token store — the only path an external
+ * caller can take. Raw `x-*` headers are read only when the transport declares
+ * itself trusted, because anyone who can reach the port can forge them.
  *
  * A request that presents a token but fails verification is denied outright
  * rather than falling through to the weaker sources — a fallback would let a
- * caller downgrade by sending a token it knows is bad.
+ * caller downgrade by sending a token it knows is bad. Claims cannot be
+ * presented alongside a bad token: the door produces them from a verified one,
+ * so a bad token produces none.
  */
 
 import { isPrincipalKind, parsePrincipalKey, principalKey, type Principal, type PrincipalKind } from "@effect-agent/effect-authz"
@@ -40,7 +42,14 @@ const BEARER = "bearer "
 const KIND_CLAIM = "x-principal-kind"
 const ID_CLAIM = "x-principal-id"
 
-const bearerToken = (headers: HeaderBag): string | undefined => {
+/** The claim bag a verified principal travels as: what a door hands its handlers. */
+export const principalClaims = (principal: Principal): Readonly<Record<string, string>> => ({
+  [KIND_CLAIM]: principal.kind,
+  [ID_CLAIM]: principal.id,
+})
+
+/** The credential a request presents, or `undefined` when it presents none. */
+export const bearerToken = (headers: HeaderBag): string | undefined => {
   const raw = headerValue(headers, "authorization")
   if (raw === undefined || raw.length <= BEARER.length) return undefined
   return raw.slice(0, BEARER.length).toLowerCase() === BEARER ? raw.slice(BEARER.length) : undefined
@@ -65,6 +74,12 @@ export const resolvePrincipal = (input: ResolvePrincipalInput): PrincipalResolut
     return { principal: { kind, id }, via }
   }
 
+  const claims = input.claims
+  if (claims !== undefined) {
+    const given = claim((name) => (typeof claims[name] === "string" ? (claims[name] as string) : undefined))
+    if (given !== undefined) return settle(given.kind, given.id, "claim")
+  }
+
   const token = bearerToken(input.headers ?? {})
   if (token !== undefined) {
     const record = input.tokens?.verify(token)
@@ -72,12 +87,6 @@ export const resolvePrincipal = (input: ResolvePrincipalInput): PrincipalResolut
     const principal = parsePrincipalKey(record.principalKey)
     if (principal === undefined) return { detail: "token carries no usable principal" }
     return settle(principal.kind, principal.id, "token")
-  }
-
-  const claims = input.claims
-  if (claims !== undefined) {
-    const given = claim((name) => (typeof claims[name] === "string" ? (claims[name] as string) : undefined))
-    if (given !== undefined) return settle(given.kind, given.id, "claim")
   }
 
   if (input.trusted !== true) return { detail: "no credentials" }

@@ -31,8 +31,8 @@ test("a bad token is denied, never downgraded to claims", () => {
 
 test("a revoked token stops resolving even though its principal lives", () => {
   const tokens = makeTokenStore()
-  const { token } = tokens.issue({ principalKey: "user:alice" })
-  tokens.revoke(token)
+  const { token, record } = tokens.issue({ principalKey: "user:alice" })
+  tokens.revoke(record.tokenHash)
   expect(resolvePrincipal({ headers: bearer(token), tokens }).principal).toBeUndefined()
 })
 

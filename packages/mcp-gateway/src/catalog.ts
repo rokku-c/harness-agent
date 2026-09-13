@@ -14,7 +14,7 @@
  * view the operator never wrote.
  */
 
-import type { McpGatewayServer } from "./contract.ts"
+import type { McpGatewayServer } from "./contract-sets.ts"
 
 export interface CatalogTool {
   readonly name: string
@@ -30,7 +30,7 @@ export interface CatalogEntry {
   readonly inputSchema?: unknown
 }
 
-/** How the gateway learns a server's tools. The app supplies the transport. */
+/** How the gateway learns a server's tools. An upstream is one; a test is another. */
 export interface McpToolLister {
   list(server: McpGatewayServer): Promise<readonly CatalogTool[]>
 }

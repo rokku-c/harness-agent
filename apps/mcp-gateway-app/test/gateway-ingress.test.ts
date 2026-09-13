@@ -4,7 +4,7 @@ import { makeRegistry } from "@effect-agent/mcp-registry"
 import { createMcpGatewayPlugin } from "../src/effect-plugin.ts"
 
 const server = { serverId: "files", name: "files", version: "1", era: "modern" as const, transport: { kind: "streamable-http" as const, endpoint: "http://files.invalid/mcp" } }
-const config = { sets: [{ setId: "safe", name: "Safe", servers: ["files"] }], bindings: [{ agentId: "agent-1", setIds: ["safe"] }], defaultAction: "deny" as const, captureArgs: false }
+const config = { sets: [{ setId: "safe", name: "Safe", servers: ["files"] }], bindings: [{ agentId: "app:agent-1", setIds: ["safe"] }], databaseFile: ":memory:", captureArgs: false }
 
 test("gateway resolves a server from the shared registry and exposes topology", async () => {
   const registry = makeRegistry(), host = makePluginHost()
@@ -17,7 +17,7 @@ test("gateway resolves a server from the shared registry and exposes topology", 
 })
 
 test("gateway app plane does not own a listener", async () => {
-  const registry = makeRegistry(), plugin = createMcpGatewayPlugin(() => ({ sets: [], bindings: [], defaultAction: "deny", captureArgs: false }), { mcpRegistry: registry, fetch })
+  const registry = makeRegistry(), plugin = createMcpGatewayPlugin(() => ({ sets: [], bindings: [], databaseFile: ":memory:", captureArgs: false }), { mcpRegistry: registry, fetch })
   const plane = await plugin.load()
   expect("listen" in plane).toBe(false)
   await plane.stop?.()

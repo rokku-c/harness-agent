@@ -7,9 +7,17 @@
  * message). Two transports wrote that mapping out separately and the copies had
  * already drifted, in the string nobody reads until a call fails. What is left
  * here is the shared half; a transport supplies only how one server is wired.
+ *
+ * The same client answers both questions a server can be asked — what it
+ * advertises, and one call — because they are the same conversation. Two
+ * clients per server would be two processes for a stdio server and two views of
+ * one tool list, which is exactly how a door comes to advertise something it
+ * cannot carry.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
-import type { McpGatewayServer, McpUpstream } from "./contract.ts"
+import type { CatalogTool, McpToolLister } from "./catalog.ts"
+import type { McpUpstream } from "./contract.ts"
+import type { McpGatewayServer } from "./contract-sets.ts"
 
 /** The readable text of a tool result: its text blocks, one per line. */
 const text = (result: { content?: readonly unknown[] }): string =>
@@ -24,10 +32,10 @@ export interface UpstreamOptions<S extends McpGatewayServer> {
   readonly connect: (server: S, client: Client) => Promise<void>
 }
 
-/** A lazy client per server: nothing is started until a call names it. */
-export const makeUpstream = <S extends McpGatewayServer>(
-  options: UpstreamOptions<S>
-): McpUpstream & { close(): Promise<void> } => {
+export type McpUpstreamServer = McpUpstream & McpToolLister & { close(): Promise<void> }
+
+/** A lazy client per server: nothing is started until a call or a listing names it. */
+export const makeUpstream = <S extends McpGatewayServer>(options: UpstreamOptions<S>): McpUpstreamServer => {
   const byId = new Map(options.servers.map((server) => [server.serverId, server]))
   const clients = new Map<string, Client>()
   const clientFor = async (server: S): Promise<Client> => {
@@ -39,6 +47,15 @@ export const makeUpstream = <S extends McpGatewayServer>(
     return client
   }
   return {
+    async list(server) {
+      const known = byId.get(server.serverId) ?? (server as S)
+      const result = await (await clientFor(known)).listTools()
+      return (result.tools ?? []).map((tool): CatalogTool => ({
+        name: tool.name,
+        ...(tool.description === undefined ? {} : { description: tool.description }),
+        ...(tool.inputSchema === undefined ? {} : { inputSchema: tool.inputSchema }),
+      }))
+    },
     async call(call) {
       const started = Date.now(), server = byId.get(call.serverId)
       if (server === undefined) return { status: 404, ok: false, detail: "MCP server not found", durationMs: Date.now() - started }

@@ -21,6 +21,7 @@ import Formal.Config
 import Formal.Consent
 import Formal.Derive
 import Formal.Door
+import Formal.DoorAuth
 import Formal.Egress
 import Formal.Entry
 import Formal.GateKey

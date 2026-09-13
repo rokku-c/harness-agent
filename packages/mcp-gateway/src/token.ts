@@ -35,8 +35,12 @@ export interface TokenStore {
   issue(input: IssueTokenInput): IssuedToken
   /** undefined when unknown, expired or revoked. */
   verify(token: string): TokenRecord | undefined
-  /** false when unknown or already revoked. */
-  revoke(token: string): boolean
+  /**
+   * Revokes by record, taken as the hash a listing reports. The plaintext is
+   * held by whoever the token was issued to and by nobody else, so it cannot be
+   * the name of the record the operator is looking at.
+   */
+  revoke(tokenHash: string): boolean
   list(): readonly TokenRecord[]
 }
 
@@ -71,11 +75,10 @@ export const makeTokenStore = (options: { readonly now?: () => number } = {}): T
     return touched
   }
 
-  const revoke = (token: string): boolean => {
-    const hash = hashToken(token)
-    const record = records.get(hash)
+  const revoke = (tokenHash: string): boolean => {
+    const record = records.get(tokenHash)
     if (record === undefined || record.revokedAt !== undefined) return false
-    records.set(hash, { ...record, revokedAt: now() })
+    records.set(tokenHash, { ...record, revokedAt: now() })
     return true
   }
 

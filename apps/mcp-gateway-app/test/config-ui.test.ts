@@ -3,7 +3,7 @@ import { toJsonSchema } from "@effect-agent/effect-config"
 import { effectConfig } from "../src/effect-config.ts"
 import { effectUiView } from "../src/effect-ui.ts"
 
-const SCHEMA_FIELDS = ["sets", "bindings", "defaultAction", "captureArgs"]
+const SCHEMA_FIELDS = ["sets", "bindings", "databaseFile", "captureArgs"]
 
 test("mcp-gateway config exposes only sets, bindings, and policy fields", () => {
   const schema = toJsonSchema(effectConfig.schema) as { type: string; properties: Record<string, unknown> }
@@ -12,8 +12,11 @@ test("mcp-gateway config exposes only sets, bindings, and policy fields", () => 
 })
 
 test("mcp-gateway rejects the removed servers config field", () => {
-  expect(effectConfig.schema.parse({})).toMatchObject({ defaultAction: "deny", sets: [], bindings: [] })
+  expect(effectConfig.schema.parse({})).toMatchObject({ sets: [], bindings: [] })
   expect(() => effectConfig.schema.parse({ servers: [] })).toThrow()
+  // the sets decide what an agent may reach, so a second verdict is refused here
+  // rather than stored: an accepted `defaultAction` would be one nobody reads
+  expect(() => effectConfig.schema.parse({ defaultAction: "deny" })).toThrow()
 })
 
 test("mcp-gateway console view declares a non-empty node list", () => {

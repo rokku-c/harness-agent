@@ -10,7 +10,9 @@ export const registryFixture = async () => {
     { id: "mcp-registry", module: "mcp-registry-app", config: { registrationTokens: { echo: token } } },
     { id: "mcp-gateway", module: "mcp-gateway-app", config: {
       sets: [{ setId: "coding", name: "Coding", servers: ["echo"], allowTools: ["echo"] }],
-      bindings: [{ agentId: "agent-1", setIds: ["coding"] }], defaultAction: "allow",
+      // keyed by the principal the door verified: `app:agent-1`, not `agent-1`
+      bindings: [{ agentId: "app:agent-1", setIds: ["coding"] }],
+      databaseFile: join(dir, "gateway.sqlite"),
     } },
   ]
   for (const item of declarations) {

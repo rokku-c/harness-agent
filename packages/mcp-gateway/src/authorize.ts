@@ -5,9 +5,6 @@
  * and principals. This file is the entire translation: one tool is the resource
  * `mcp://<serverId>/<tool>`, and calling it is the `call` action.
  *
- * Listing and calling run through the same engine, so a tool the projection
- * hides is a tool the direct call refuses — the two cannot drift apart.
- *
  * A call that names no tool addresses the server itself (`mcp://<serverId>`),
  * which is a shallower resource than any of its tools: a grant of
  * `mcp://board/*` authorizes each board tool but not the tool-less call.
@@ -22,16 +19,6 @@ export interface ToolRef {
 }
 
 export const toolRefResource = (ref: ToolRef): Resource => serverToolResource(ref.serverId, ref.tool)
-
-/** The subset of a catalog a principal may see, in catalog order. */
-export const visibleToolRefs = (
-  authz: Authz,
-  principal: Principal,
-  refs: readonly ToolRef[],
-): readonly ToolRef[] => {
-  const granted = new Set(authz.visible(principal, "call", refs.map(toolRefResource)).map((resource) => resource.raw))
-  return refs.filter((ref) => granted.has(toolRefResource(ref).raw))
-}
 
 export type CallRefusal = "no_principal" | "denied"
 

@@ -1,20 +1,22 @@
 /**
  * mcp-gateway — the advertised tool surface.
  *
- * One caller, one list. The surface is what `tools/list` answers with, derived
- * by the same engine that decides `tools/call`, so a tool that is missing here
- * is a tool the call refuses.
+ * One caller, one list, and the list is not computed here: every tool in it was
+ * offered to the engine, and the engine answered. The projection is therefore
+ * the enforcement — `tools/call` runs the same `decide` with the same arguments
+ * and reaches the same verdict, so a tool that is missing here is a tool the
+ * call refuses and a tool that is here is a tool the call carries. There is no
+ * second visibility rule to drift from the first.
  *
- * A request that resolves to no principal gets an empty surface rather than an
- * error: `tools/list` has no channel for a refusal, and the direct call still
- * answers `no_principal` in full.
+ * A request that resolves to no principal is advertised nothing rather than
+ * refused: `tools/list` has no channel for a refusal, and the direct call still
+ * answers in full.
  */
+import type { Principal } from "@effect-agent/effect-authz"
 
-import type { Authz, Principal } from "@effect-agent/effect-authz"
-
-import { toolRefResource, visibleToolRefs } from "./authorize.ts"
 import type { CatalogEntry, ToolCatalog } from "./catalog.ts"
-import type { McpAuthIdentity, HeaderBag } from "./identity.ts"
+import type { McpGateway } from "./contract.ts"
+import type { HeaderBag, McpAuthIdentity } from "./identity.ts"
 import type { PrincipalRegistry } from "./principals.ts"
 import { type PrincipalResolution, resolvePrincipal } from "./resolve.ts"
 import type { TokenStore } from "./token.ts"
@@ -25,11 +27,14 @@ export interface SurfaceRequest {
 }
 
 export interface McpToolSurface {
-  readonly authz: Authz
+  /** The one decision. The surface asks it; the door runs it. */
+  readonly gateway: McpGateway
   readonly catalog: ToolCatalog
+  /** Brings `catalog` up to date before it is read. Absent means it already is. */
+  readonly refresh?: () => Promise<void>
   readonly tokens?: TokenStore
   readonly principals?: PrincipalRegistry
-  /** Declares the transport trustworthy, which is what lets bare headers count. */
+  /** Declares the transport trustworthy, which is what lets bare claim headers count. */
   readonly trusted?: boolean
 }
 
@@ -57,15 +62,22 @@ const asTool = (entry: CatalogEntry): SurfaceTool => ({
   inputSchema: entry.inputSchema ?? { type: "object", additionalProperties: true },
 })
 
-const project = (surface: McpToolSurface, principal: Principal): readonly CatalogEntry[] => {
+/** The entries this principal may call, in catalog order — asked of the engine, one by one. */
+export const visibleEntries = async (
+  surface: McpToolSurface,
+  principal: Principal,
+): Promise<readonly CatalogEntry[]> => {
   const entries = surface.catalog.list()
-  const refs = entries.map((entry) => ({ serverId: entry.serverId, tool: entry.tool }))
-  const visible = new Set(visibleToolRefs(surface.authz, principal, refs).map((ref) => toolRefResource(ref).raw))
-  return entries.filter((entry) => visible.has(toolRefResource(entry).raw))
+  const verdicts = await Promise.all(entries.map((entry) =>
+    surface.gateway.decide({ callId: `list:${entry.advertised}`, principal, serverId: entry.serverId, tool: entry.tool })))
+  return entries.filter((_, index) => verdicts[index]?.allowed === true)
 }
 
-export const surfaceTools = (surface: McpToolSurface, resolution: PrincipalResolution): readonly SurfaceTool[] =>
-  resolution.principal === undefined ? [] : project(surface, resolution.principal).map(asTool)
+export const surfaceTools = async (
+  surface: McpToolSurface,
+  resolution: PrincipalResolution,
+): Promise<readonly SurfaceTool[]> =>
+  resolution.principal === undefined ? [] : (await visibleEntries(surface, resolution.principal)).map(asTool)
 
 /** Resolves an advertised name back to the upstream tool it stands for. */
 export const surfaceTarget = (surface: McpToolSurface, advertised: string): CatalogEntry | undefined =>

@@ -2,8 +2,12 @@
  * The access preview — the one question this console exists to answer: may this
  * agent reach this tool, and if not, why. The answer is read in the card the
  * operator pressed in, so a preview that failed says so here rather than
- * nowhere: the topology below this card is only ever the configuration that
+ * nowhere: the topology screen beside it is only ever the configuration that
  * went in, never the verdict that came out.
+ *
+ * It is on the first screen, under the doors, because it is the one act that
+ * costs nothing and asks about a state rather than changing it — the screens
+ * behind the doors are where states are read and changed.
  */
 
 import { failureCallout, row, type UiNodeSpec } from "@effect-agent/effect-ui"
@@ -61,7 +65,7 @@ const answer: UiNodeSpec = { component: "Flex", props: { direction: "column", ga
 export const accessSection: UiNodeSpec = section("Effective access", [
   field("Agent id", { component: "TextField.Root", bind: "/access/agent" }),
   field("Tool (optional)", { component: "TextField.Root", bind: "/access/tool" }),
-  row([{ component: "Button", props: { value: "Preview" }, onPress: "gateway.access",
+  row([{ component: "Button", props: { value: "Preview" }, onPress: "gateway.previewAccess",
     params: { agent: { state: "/access/agent" }, tool: { state: "/access/tool" } } }]),
   failure,
   answer,

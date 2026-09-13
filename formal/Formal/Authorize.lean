@@ -5,16 +5,14 @@
   The gateway speaks in `(serverId, tool)` pairs and the authorization engine
   speaks in resource strings. `mcp://<serverId>/<tool>` is the whole translation,
   and the claim both files make is that the two can never drift apart: a tool
-  missing from the listing is a tool the direct call refuses. Listing and calling
-  do go through one engine — but the listing's test is not the decision, it is
-  *membership in a set of resource strings*, and the surface makes that round trip
-  twice. That is what this proves about.
+  missing from the listing is a tool the direct call refuses. They cannot drift,
+  because the listing is not a second rule that agrees with the call — it is the
+  call, asked once per tool, and it keeps the tools that were allowed.
 
-  **The listing is the call** — `a_listed_tool_is_one_the_call_allows`. The key
-  the set is built from is the key the call is decided on, so the round trip
-  cannot change the answer; the surface's second round trip
-  (`a_tool_missing_from_the_surface_is_a_tool_the_call_refuses`) is the same
-  fact one layer out. Key the listing by anything else and it outruns the call:
+  **The listing is the call** — `a_listed_tool_is_one_the_call_allows`: an entry
+  is advertised exactly when the catalog holds it and the engine allowed its key,
+  which is the same question `tools/call` asks of the same key. Ask a shallower
+  one instead and the listing outruns the call:
   `keying_the_listing_by_the_server_lists_a_tool_the_call_refuses`.
 
   **One key is one tool** — `one_key_names_one_tool`, from
@@ -35,7 +33,9 @@
   Idealisation: a resource is its characters, which makes the key round trip the
   thing under proof rather than an assumed string equality, and a principal is
   folded into the engine — the engine as one request's principal sees it, which
-  is what `authz.visible` and `authz.decide` both already are. The shallower
+  is what `authz.visible` and `authz.decide` both already are. The catalog is the
+  entries as given, in the order it lists them, so what an entry is keyed by
+  downstream (`CatalogEntry.advertised`) is not restated. The shallower
   `mcp://<serverId>` a tool-less call addresses is `Formal/Match.lean`'s rule, and
   resolving a token to a principal is `Formal/Resolve.lean`'s, so neither is
   restated here. The audit events `decide.ts` records are not modelled: nothing
@@ -63,27 +63,20 @@ def serverKey (ref : ToolRef) : List Char := "mcp://".toList ++ ref.serverId.toL
 /-- The engine's verdict on a key, for the principal one request carries. -/
 abbrev Verdict := List Char → Bool
 
-/-- `authz.visible`, as the keys it answered with. -/
-def grantedKeys (decide : Verdict) (refs : List ToolRef) : List (List Char) :=
-  (refs.map toolKey).filter decide
-
-/-- `visibleToolRefs`: the engine's answer collected into a set of keys, then the
-refs whose own key is in it. -/
-def visibleToolRefs (decide : Verdict) (refs : List ToolRef) : List ToolRef :=
-  refs.filter fun ref => toolKey ref ∈ grantedKeys decide refs
-
-/-- `authorizeCall`, for a call that names a tool: the same key, decided. -/
+/-- `authorizeCall`, for a call that names a tool: the tool's own key, decided. -/
 def authorizeCall (decide : Verdict) (ref : ToolRef) : Bool := decide (toolKey ref)
 
-/-- The surface `tools/list` answers with — `mcp-surface.ts`'s `project`, both
-round trips through the key as written, and the empty surface a request that
-resolved to no principal gets. -/
+/-- `visibleEntries`: every entry offered to the engine, and kept when the engine
+allowed it. One decision each, and no rule besides it. -/
+def listedBy (decide : Verdict) (entries : List ToolRef) : List ToolRef :=
+  entries.filter fun entry => decide (toolKey entry)
+
+/-- The surface `tools/list` answers with — `mcp-surface.ts`'s `visibleEntries`,
+and the empty surface a request that resolved to no principal gets. -/
 def surfaceOf (engine : Option Verdict) (entries : List ToolRef) : List ToolRef :=
   match engine with
   | none => []
-  | some decide =>
-    let listed := (visibleToolRefs decide entries).map toolKey
-    entries.filter fun entry => toolKey entry ∈ listed
+  | some decide => listedBy decide entries
 
 /-- The call for the same request, refused when there is no principal. -/
 def callOf (engine : Option Verdict) (ref : ToolRef) : Bool :=
@@ -91,47 +84,12 @@ def callOf (engine : Option Verdict) (ref : ToolRef) : Bool :=
   | none => false
   | some decide => authorizeCall decide ref
 
-/-- A key the engine granted is the key the call asks about — the same key, so
-the set and the call cannot answer differently. -/
-theorem a_key_the_engine_granted_is_the_key_the_call_asks_about (decide : Verdict)
-    (refs : List ToolRef) (ref : ToolRef) (below : ref ∈ refs) :
-    toolKey ref ∈ grantedKeys decide refs ↔ authorizeCall decide ref = true := by
-  rw [grantedKeys, List.mem_filter, authorizeCall]
-  constructor
-  · intro held
-    exact held.2
-  · intro allowed
-    exact ⟨List.mem_map.mpr ⟨ref, below, rfl⟩, allowed⟩
-
 /-- A tool the listing shows is a tool the call allows, and a tool it hides is one
-the call refuses. -/
-theorem a_listed_tool_is_one_the_call_allows (decide : Verdict) (refs : List ToolRef)
+the call refuses — the one decision, kept. -/
+theorem a_listed_tool_is_one_the_call_allows (decide : Verdict) (entries : List ToolRef)
     (ref : ToolRef) :
-    ref ∈ visibleToolRefs decide refs ↔ (ref ∈ refs ∧ authorizeCall decide ref = true) := by
-  rw [visibleToolRefs, List.mem_filter]
-  constructor
-  · intro held
-    exact ⟨held.1,
-      (a_key_the_engine_granted_is_the_key_the_call_asks_about decide refs ref held.1).mp
-        (decide_eq_true_iff.mp held.2)⟩
-  · intro held
-    exact ⟨held.1, decide_eq_true_iff.mpr
-      ((a_key_the_engine_granted_is_the_key_the_call_asks_about decide refs ref held.1).mpr held.2)⟩
-
-/-- The surface's own round trip: the key it lists a ref under is the key the call
-is decided on, whichever ref put that key in the set. -/
-theorem a_key_the_surface_lists_is_the_key_the_call_asks_about (decide : Verdict)
-    (refs : List ToolRef) (ref : ToolRef) (below : ref ∈ refs) :
-    toolKey ref ∈ (visibleToolRefs decide refs).map toolKey ↔ authorizeCall decide ref = true := by
-  constructor
-  · intro held
-    obtain ⟨other, shown, same⟩ := List.mem_map.mp held
-    have allowed := (a_listed_tool_is_one_the_call_allows decide refs other).mp shown
-    rw [authorizeCall, ← same]
-    exact allowed.2
-  · intro allowed
-    exact List.mem_map.mpr ⟨ref, (a_listed_tool_is_one_the_call_allows decide refs ref).mpr
-      ⟨below, allowed⟩, rfl⟩
+    ref ∈ listedBy decide entries ↔ (ref ∈ entries ∧ authorizeCall decide ref = true) := by
+  simp [listedBy, authorizeCall]
 
 /-- What `tools/list` answers with and what `tools/call` decides are one answer:
 the listing has no tool the call would refuse. -/
@@ -140,17 +98,7 @@ theorem a_tool_missing_from_the_surface_is_a_tool_the_call_refuses (engine : Opt
     ref ∈ surfaceOf engine entries ↔ (ref ∈ entries ∧ callOf engine ref = true) := by
   cases engine with
   | none => simp [surfaceOf, callOf]
-  | some decide =>
-    rw [surfaceOf, callOf, List.mem_filter]
-    constructor
-    · intro held
-      exact ⟨held.1,
-        (a_key_the_surface_lists_is_the_key_the_call_asks_about decide entries ref held.1).mp
-          (decide_eq_true_iff.mp held.2)⟩
-    · intro held
-      exact ⟨held.1, decide_eq_true_iff.mpr
-        ((a_key_the_surface_lists_is_the_key_the_call_asks_about decide entries ref held.1).mpr
-          held.2)⟩
+  | some decide => simpa [surfaceOf, callOf] using a_listed_tool_is_one_the_call_allows decide entries ref
 
 /-- A request that resolved to no principal: an empty listing, because
 `tools/list` has no channel for a refusal, and a refusal in full from the call.
@@ -206,10 +154,10 @@ theorem one_key_names_one_tool (serverId tool serverId' tool' : String)
     left left' (List.append_cancel_left same)
   exact ⟨String.toList_inj.mp halves.1, String.toList_inj.mp halves.2⟩
 
-/-- The control for the key: a tool the listing shows by the server's grant, and
-the call on that same tool. Keyed by the server instead of the tool, the listing
-advertises a tool the call refuses — the drift `mcp-surface.ts` keys the tool to
-avoid. -/
+/-- The control for the key: the listing asked about the server instead of the
+tool, which is the shallower question a server grant answers. Two tools of one
+server are then advertised together, and the call on the one the grant never
+covered is refused — the drift that deciding each entry on its own key avoids. -/
 def surfaceKeyedByServer (decide : Verdict) (entries : List ToolRef) : List ToolRef :=
   let listed := (entries.map serverKey).filter decide
   entries.filter fun entry => serverKey entry ∈ listed
