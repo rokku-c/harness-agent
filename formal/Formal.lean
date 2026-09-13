@@ -20,6 +20,7 @@ import Formal.Egress
 import Formal.Generation
 import Formal.InFlight
 import Formal.Lifecycle
+import Formal.Queue
 import Formal.Readout
 import Formal.Redact
 import Formal.Reload
