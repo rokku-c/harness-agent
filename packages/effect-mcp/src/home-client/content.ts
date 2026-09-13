@@ -1,2 +1,0 @@
-export const textContent = (content: unknown): string => !Array.isArray(content) ? "" : content.filter((c): c is { type: "text"; text?: string } => typeof c === "object" && c !== null && (c as any).type === "text").map((c) => c.text ?? "").join("\n")
-export const resourceText = (content: unknown): string => !Array.isArray(content) ? "" : (content.find((c) => typeof c === "object" && c !== null && typeof (c as any).text === "string") as any)?.text ?? ""
