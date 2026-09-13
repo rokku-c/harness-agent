@@ -26,23 +26,26 @@ import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
  * not to the surface, so it sits above that screen's own content and a screen
  * laid out in a pane gets a pane's height rather than a page's.
  *
- * The press is the browser's own history, because every entry into a screen
- * wrote one — which is what makes the back button on the browser and the control
- * here the same gesture. A link that arrived cold has no entry behind it, and
- * this is then the browser's answer to that too: the page the reader came from.
+ * What the press does is the host's answer, not this file's — a screen that was
+ * walked to goes back through the history it walked, and one that was pasted in
+ * goes up to its parent (console-stack.ts). It is drawn only where there is a
+ * screen above this one to go back to; at the first screen the way out is Home,
+ * and it is one control, in the status bar.
  */
-const ScreenBar = ({ depth, title }: { readonly depth: number; readonly title: string }) =>
+const ScreenBar = ({ depth, title, onBack }: { readonly depth: number; readonly title: string; readonly onBack: () => void }) =>
   depth < 2 ? null : <div className="screen-bar">
-    <Button variant="soft" size="2" onClick={() => window.history.back()}>‹ Back</Button>
+    <Button variant="soft" size="2" onClick={onBack}>‹ Back</Button>
     <Text size="2" weight="medium" className="screen-bar-title">{title}</Text>
   </div>
 
 const Pane = ({ screen, registry }: { readonly screen: ScreenPayload; readonly registry: ComponentRegistry }) =>
   <div className="screen-body"><Renderer spec={screen.spec} registry={registry} /></div>
 
-export const ScreenPanes = ({ chain, registry, menu }: {
+export const ScreenPanes = ({ chain, registry, menu, onBack }: {
   readonly chain: readonly ScreenPayload[]
   readonly registry: ComponentRegistry
+  /** Where the back control above the current screen goes. */
+  readonly onBack: () => void
   /** What the first screen offers below itself, when the host had to read the screens off the layout. */
   readonly menu?: React.ReactNode
 }) => {
@@ -51,7 +54,7 @@ export const ScreenPanes = ({ chain, registry, menu }: {
   return <div className="screen-panes" data-split={parent === undefined ? "off" : "on"}>
     {parent === undefined ? null : <div className="screen-parent"><Pane screen={parent} registry={registry} /></div>}
     <div className="screen-pane">
-      <ScreenBar depth={chain.length} title={current.title} />
+      <ScreenBar depth={chain.length} title={current.title} onBack={onBack} />
       <Pane screen={current} registry={registry} />
       {menu}
     </div>

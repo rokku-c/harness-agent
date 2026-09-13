@@ -1,5 +1,5 @@
 export interface ConsoleEntry { id: string; title: string; hasView: boolean; hasConfig: boolean; icon: string; color: string }
-export type ConsoleSurface = "home" | "settings" | "view" | "config"
+export type ConsoleSurface = "home" | "settings" | "view"
 export interface ConsoleCatalogue {
   readonly ui?: ReadonlyArray<{ readonly interfaceId?: string; readonly title?: string; readonly icon?: string; readonly color?: string }>
   readonly views?: ReadonlyArray<string>
@@ -66,25 +66,35 @@ export interface ConsoleDestination {
 export type ConsoleRoute = { kind: ConsoleSurface | "settings-config"; id?: string } & Partial<ConsoleDestination>
 
 /** `#view/<app>`, then optionally `/<screen>` and `?<name>=<value>`. Written once, read in both places below. */
-const DESTINATION = /^#(config|view)\/([^/?]+)(?:\/([^?]*))?(?:\?(.*))?$/
+const DESTINATION = /^#view\/([^/?]+)(?:\/([^?]*))?(?:\?(.*))?$/
 const decode = (value: string): string => { try { return decodeURIComponent(value) } catch { return value } }
 
 /** The destination a hash names, on its own — no catalogue needed, because the view in the panel is what asks. */
 export const parseDestination = (hash: string): ConsoleDestination => {
   const match = hash.match(DESTINATION)
-  const screen = match?.[3]
+  const screen = match?.[2]
   const params: Record<string, string> = {}
-  for (const [name, value] of new URLSearchParams(match?.[4] ?? "")) params[name] = value
+  for (const [name, value] of new URLSearchParams(match?.[3] ?? "")) params[name] = value
   return { ...(screen === undefined || screen === "" ? {} : { screen: decode(screen) }), ...(Object.keys(params).length === 0 ? {} : { params }) }
 }
 
+/**
+ * The route a hash names, resolved against what is actually registered.
+ *
+ * `#config/<app>` is a link to an app's configuration, and configuration has one
+ * surface: Settings, one row per configurable app (F5). So the link resolves to
+ * the Settings page that holds the form — not to a second config surface that
+ * would have to be kept in step with the first. An app with no configuration
+ * lands on Settings, which is where a reader can see what there is to configure.
+ */
 export const parseConsoleHash = (hash: string, plan: ConsoleEntry[]): ConsoleRoute => {
   if (hash === "#settings") return { kind: "settings" }; if (hash === "#" || hash === "") return { kind: "home" }
   const settingsMatch = hash.match(/^#settings\/config\/([^/?]+)/); if (settingsMatch) { try { const entry = plan.find((item) => item.id === decodeURIComponent(settingsMatch[1]) && item.hasConfig); return entry ? { kind: "settings-config", id: entry.id } : { kind: "settings" } } catch { return { kind: "settings" } } }
+  const configMatch = hash.match(/^#config\/([^/?]+)/); if (configMatch) { try { const entry = plan.find((item) => item.id === decodeURIComponent(configMatch[1]) && item.hasConfig); return entry ? { kind: "settings-config", id: entry.id } : { kind: "settings" } } catch { return { kind: "settings" } } }
   const match = hash.match(DESTINATION); if (!match) return { kind: "home" }
   // The app id stops at the first `/`, so a screen name is never mistaken for it.
-  try { const entry = plan.find((item) => item.id === decodeURIComponent(match[2]) && (match[1] === "view" ? item.hasView : item.hasConfig)); return entry ? { kind: match[1] as "view" | "config", id: entry.id, ...parseDestination(hash) } : { kind: "home" } } catch { return { kind: "home" } }
+  try { const entry = plan.find((item) => item.id === decodeURIComponent(match[1]) && item.hasView); return entry ? { kind: "view", id: entry.id, ...parseDestination(hash) } : { kind: "home" } } catch { return { kind: "home" } }
 }
-/** Where an app's own tile goes. The system apps own a surface, not a view. */
-export const appRoute = (id: string, hasView: boolean): ConsoleRoute =>
-  id === "settings" ? { kind: "settings" } : { kind: hasView ? "view" : "config", id }
+/** Where an app's own tile goes: the app's view. Everything that has a tile has one. */
+export const appRoute = (id: string): ConsoleRoute =>
+  id === "settings" ? { kind: "settings" } : { kind: "view", id }

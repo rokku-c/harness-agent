@@ -1,8 +1,15 @@
 /**
  * The console shell.
  *
- * A strip that says what this host is, the surface below it, and — on the
- * desktop alone — the dock.
+ * A strip that says what this host is, the surface below it, and, under a
+ * document screen that is not the springboard, the dock.
+ *
+ * There is one way Home from an app screen and it is the strip's own control
+ * (console-status-bar.tsx): an app screen carries no navigation of its own
+ * except the way up to the screen it came from. Two controls that both go Home
+ * are two destinations to a reader — and the same holds between the springboard
+ * and the dock, which is why the dock is not drawn under the springboard that
+ * already is one.
  *
  * The two kinds of screen are framed differently, and deliberately. A document
  * screen — the launcher, settings — is the design system's own `Section` for
@@ -19,12 +26,11 @@ import { Callout, Container, Flex, Section } from "@radix-ui/themes"
 import { ConsoleTheme } from "./console-theme.tsx"
 import { ConsoleStatusBar } from "./console-status-bar.tsx"
 import { ConsoleDock } from "./console-dock.tsx"
-import { ConsoleShellMenu } from "./console-shell-menu.tsx"
 import { ConsoleHome } from "./console-home.tsx"
 import { ConsoleSettings } from "./console-settings.tsx"
 import { ConsoleActivity } from "./console-activity-view.tsx"
 import { MountedSurface } from "./console-mounted.tsx"
-import { useRoute } from "./console-nav.ts"
+import { useAddressTruth, useRoute } from "./console-nav.ts"
 import { loadCatalogue, loadStatusLine } from "./console-boot.ts"
 import { planConsole, type ConsoleCatalogue, type ConsoleEntry, type ConsoleRoute } from "./console-plan.ts"
 import type { ConsoleSurfaces } from "./console-surfaces.ts"
@@ -65,6 +71,7 @@ export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces 
   }, [])
   const plan = React.useMemo(() => planConsole(catalogue ?? {}), [catalogue])
   const route = useRoute(plan)
+  useAddressTruth(route, catalogue !== undefined)
   const desktop = isDesktop(route)
   const notice = failure === undefined ? null : <Callout.Root color="red" mb={desktop ? "5" : "3"}><Callout.Text>{failure}</Callout.Text></Callout.Root>
   return <ConsoleTheme>
@@ -75,7 +82,7 @@ export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces 
           ? <Section size="1" px="4"><Container>{notice}<Content route={route} plan={plan} surfaces={surfaces} /></Container></Section>
           : <Flex className="view-fill" direction="column" p="4">{notice}<Content route={route} plan={plan} surfaces={surfaces} /></Flex>}
       </div>
-      {desktop ? <ConsoleDock plan={plan} route={route} /> : <ConsoleShellMenu />}
+      {desktop && route.kind !== "home" ? <ConsoleDock plan={plan} route={route} /> : null}
     </Flex>
   </ConsoleTheme>
 }

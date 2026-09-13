@@ -45,6 +45,7 @@ import Formal.Rollup
 import Formal.Rules
 import Formal.Screen
 import Formal.Sets
+import Formal.Stack
 import Formal.Surface
 import Formal.Swap
 import Formal.Timeline

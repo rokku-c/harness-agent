@@ -22,7 +22,8 @@ import { ScreenMenu } from "./effect-ui-screen-menu.tsx"
 import { ScreenPanes } from "./effect-ui-screen-panes.tsx"
 import { useNavState, useScreenView } from "./effect-ui-screen-nav.ts"
 import { SourceLoader, useViewStore } from "./effect-ui-view-state.tsx"
-import { openScreen } from "./console-nav.ts"
+import { openScreen, navigate } from "./console-nav.ts"
+import { canGoBack } from "./console-stack.ts"
 import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 
 type Props = { readonly registry: ComponentRegistry; readonly runtime?: EffectUiRuntimeSpec }
@@ -38,13 +39,26 @@ export const EffectUiRuntime = ({ registry, runtime }: Props) => {
   const { chain, current, params } = useScreenView(screens)
   useNavState(store, current?.id, params)
   const open = React.useCallback<OpenScreen>((screen, values) => openScreen(appId, { screen, params: asParams(values) }), [appId])
+  /**
+   * Up one level. A screen this session walked to has the screen it came from
+   * behind it in the browser's history, and going back through that history is
+   * what keeps the ancestors' own parameters; a screen the reader pasted in has
+   * nothing behind it, and there the chain the view declares is the answer
+   * (screen.ts), which is also the only one that cannot leave the product.
+   */
+  const back = React.useCallback(() => {
+    if (canGoBack()) { window.history.back(); return }
+    // The first screen is `nodes`, and the address names it by saying nothing.
+    const parent = chain[chain.length - 2]?.id
+    navigate({ kind: "view", id: appId, screen: parent === ROOT_SCREEN ? undefined : parent })
+  }, [appId, chain])
   const handlers = React.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open, fetcher), [runtime?.actions, sources, store, open, fetcher])
   if (current === undefined) return null
   const menu = runtime?.menu === true && current.id === ROOT_SCREEN ? <ScreenMenu appId={appId} screens={screens} /> : null
   return <ConsoleTheme fill>
     <JSONUIProvider store={store} registry={registry} handlers={handlers}>
       <SourceLoader sources={sources} store={store} fetcher={fetcher} />
-      <ScreenPanes chain={chain} registry={registry} menu={menu} />
+      <ScreenPanes chain={chain} registry={registry} menu={menu} onBack={back} />
     </JSONUIProvider>
   </ConsoleTheme>
 }

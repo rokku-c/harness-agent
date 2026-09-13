@@ -46,15 +46,18 @@ test("hash routes resolve only declared view/config surfaces", () => {
   expect(parseConsoleHash("#settings/config/daemon", plan)).toEqual({ kind: "settings-config", id: "daemon" })
   expect(parseConsoleHash("#view/my%20app", plan)).toEqual({ kind: "view", id: "my app" })
   expect(parseConsoleHash("#view/daemon", plan)).toEqual({ kind: "home" })
+  // a link to an app's configuration is a link to Settings, which is the one surface that configures
+  expect(parseConsoleHash("#config/daemon", plan)).toEqual({ kind: "settings-config", id: "daemon" })
+  expect(parseConsoleHash("#config/daemon/deep?x=1", plan)).toEqual({ kind: "settings-config", id: "daemon" })
+  expect(parseConsoleHash("#config/nothing", plan)).toEqual({ kind: "settings" })
 })
 
 test("an app's tile destination survives a round trip through the address bar", () => {
   const plan = planConsole({ ui: [{ interfaceId: "board", title: "Board" }, { interfaceId: "settings", title: "Settings" }], config: [{ appId: "board" }] })
   for (const entry of plan) {
-    const route = appRoute(entry.id, entry.hasView)
+    const route = appRoute(entry.id)
     expect(parseConsoleHash(hashOf(route), plan)).toEqual(route)
   }
-  expect(appRoute("board", true)).toEqual({ kind: "view", id: "board" })
-  expect(appRoute("settings", true)).toEqual({ kind: "settings" })
-  expect(appRoute("daemon", false)).toEqual({ kind: "config", id: "daemon" })
+  expect(appRoute("board")).toEqual({ kind: "view", id: "board" })
+  expect(appRoute("settings")).toEqual({ kind: "settings" })
 })

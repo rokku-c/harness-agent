@@ -14,7 +14,7 @@ export const ConsoleHome = ({ plan }: { readonly plan: readonly ConsoleEntry[] }
     {apps.length === 0
       ? <Callout.Root color="amber"><Callout.Text>No apps discovered.</Callout.Text></Callout.Root>
       : <Grid columns={{ initial: "2", sm: "4", md: "6" }} gap="3">
-          {apps.map((entry) => <AppTile key={entry.id} entry={entry} onSelect={() => navigate(appRoute(entry.id, entry.hasView))} />)}
+          {apps.map((entry) => <AppTile key={entry.id} entry={entry} onSelect={() => navigate(appRoute(entry.id))} />)}
         </Grid>}
   </Flex>
 }

@@ -1,10 +1,10 @@
 /**
- * The launcher, as a dock along the bottom of the desktop.
+ * The launcher, as a dock under the shell's own document screens.
  *
- * It belongs to the desktop — Home, Settings, and the app surfaces — because an
- * open app owns its page: while one is open the dock is not drawn at all, and
- * the way back is one small button in the corner. A launcher that is always
- * there is a second navigation every app has to share its page with.
+ * It is what the shell offers *besides* the springboard, and it is drawn only
+ * where the springboard is not: under Settings. Home needs no dock — it is the
+ * whole list, at full size — and an open app owns its page, so there the way to
+ * another app is Home first, which is one press and one control.
  *
  * The tile's palette is the one the app declared for itself, so this file holds
  * no list of app ids and no per-app colour: adding an app never means editing
@@ -34,11 +34,11 @@ const Item = ({ entry, active, open }: {
 const SETTINGS: ConsoleEntry = { id: "settings", title: "Settings", hasView: false, hasConfig: true, icon: "⚙", color: "gray" }
 
 export const ConsoleDock = ({ plan, route }: { readonly plan: readonly ConsoleEntry[]; readonly route: ConsoleRoute }) => {
-  const apps = plan.filter((entry) => entry.hasView && appRoute(entry.id, entry.hasView).kind !== "settings")
+  const apps = plan.filter((entry) => entry.hasView && entry.id !== "settings")
   const here = (kind: ConsoleRoute["kind"], id?: string): boolean => route.kind === kind && (id === undefined || route.id === id)
   return <nav className="shell-dock" aria-label="Apps">
     {apps.map((entry) =>
-      <Item key={entry.id} entry={entry} active={here("view", entry.id)} open={() => navigate(appRoute(entry.id, entry.hasView))} />)}
+      <Item key={entry.id} entry={entry} active={here("view", entry.id)} open={() => navigate(appRoute(entry.id))} />)}
     <span className="shell-dock-divider" role="separator" aria-label="System" />
     <Item entry={SETTINGS} active={here("settings") || here("settings-config")} open={() => navigate({ kind: "settings" })} />
   </nav>
