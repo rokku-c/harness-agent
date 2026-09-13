@@ -25,5 +25,6 @@ import Formal.Readout
 import Formal.Redact
 import Formal.Reload
 import Formal.Screen
+import Formal.Slot
 import Formal.Swap
 import Formal.ToolKey

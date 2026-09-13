@@ -29,6 +29,7 @@ absent from the list would be counted here while never being compiled.
 | `Formal/Redact.lean` | `mcp-gateway/src/redaction.ts`, `ai-gateway/src/redaction.ts` | the scrub leaves no field unvisited at any depth, for any vocabulary; a credential-named header is not carried |
 | `Formal/Reload.lean` | `effect-server/src/manifest-loader/generation.ts` | a generation number is handed out once, so a spent path is never served again; a commit keeps the serving copy and one rollback target, and discarding the displaced copy loses the rollback |
 | `Formal/Screen.lean` | `effect-ui/src/screen.ts` | entered screens form a chain back to the root, without repeats |
+| `Formal/Slot.lean` | `effect-apps/src/registration/generations.ts` | the rollback target is the generation the live one displaced, not the oldest the slot ever had; a commit that replaces the history instead of joining it leaves nothing to roll back to |
 | `Formal/Swap.lean` | `effect-bundle/src/supervisor-swap.ts` | at every moment of a kernel swap the dispatcher points at a kernel that is loaded; stopping the old one first does not |
 | `Formal/ToolKey.lean` | `effect-interface/src/tool-key.ts`, `effect-mcp/src/node-server/tools.ts` | a dot-free id splits a flattened tool key into exactly the pair that made it; two tool names can sanitize to one served name, and the surface refuses that instead of dropping a tool |
 
