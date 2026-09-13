@@ -21,6 +21,7 @@ import Formal.Derive
 import Formal.Egress
 import Formal.Generation
 import Formal.InFlight
+import Formal.Lease
 import Formal.Lifecycle
 import Formal.Match
 import Formal.NodeGuard
