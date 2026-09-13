@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test"
 import { makePluginHost } from "@effect-agent/effect-host"
+import { makeMcpSetRegistry, makeRegistrySetResolver } from "@effect-agent/mcp-gateway"
 import { makeRegistry } from "@effect-agent/mcp-registry"
 import { createMcpGatewayPlugin } from "../src/effect-plugin.ts"
-import { makeAuditLog, previewAccess } from "../src/access-audit.ts"
+import { makeAuditLog } from "../src/audit-log.ts"
+import { previewAccess, type AccessConfig } from "../src/access-preview.ts"
 
 const server = { serverId: "files", name: "files", version: "1", era: "modern" as const, transport: { kind: "streamable-http" as const, endpoint: "http://files.invalid/mcp" } }
 const config = {
@@ -14,10 +16,18 @@ const config = {
   defaultAction: "deny" as const, captureArgs: false,
 }
 
-test("previewAccess reports the set the gateway decides on, and its reason", () => {
+/** The engine the plugin builds, built the same way — the preview asks this one. */
+const surfacesOf = (value: AccessConfig) => {
   const registry = makeRegistry()
   registry.register(server)
-  const allowed = previewAccess(config, registry, "agent-1", "read")
+  const sets = makeMcpSetRegistry({ resolver: makeRegistrySetResolver(registry) })
+  for (const set of value.sets) sets.registerSet(set)
+  for (const binding of value.bindings) sets.bindAgent(binding)
+  return { config: value, registry, sets }
+}
+
+test("previewAccess reads its verdict off the gateway's own set registry", () => {
+  const allowed = previewAccess(surfacesOf(config), "agent-1", "read")
   expect(allowed.allowed).toBe(true)
   expect(allowed.sets.map((set) => set.setId)).toEqual(["safe", "danger"])
 
@@ -25,27 +35,29 @@ test("previewAccess reports the set the gateway decides on, and its reason", () 
   // answers from it alone and never consults "danger" — whose deny is not the
   // reason for anything. Reading every bound set reports a reason the gateway's
   // own rule never reaches, and a grant in a later set erases an earlier deny.
-  const denied = previewAccess(config, registry, "agent-1", "write")
+  const denied = previewAccess(surfacesOf(config), "agent-1", "write")
   expect(denied.allowed).toBe(false)
   expect(denied.reasons).toEqual(["safe allowlist does not include write"])
 
   // the denying set first: it decides, and its own deny is the reason
-  const bound = { bindings: [{ agentId: "agent-1", setIds: ["safe"] }] }
-  const refusing = { ...config, ...bound, sets: [{ setId: "safe", servers: ["files"], denyTools: ["write"] }] }
-  const refused = previewAccess(refusing, registry, "agent-1", "write")
+  const refusing = { ...config, bindings: [{ agentId: "agent-1", setIds: ["safe"] }], sets: [{ setId: "safe", name: "Safe", servers: ["files"], denyTools: ["write"] }] }
+  const refused = previewAccess(surfacesOf(refusing), "agent-1", "write")
   expect(refused.allowed).toBe(false)
   expect(refused.reasons).toEqual(["safe explicitly denies write"])
 
   // no bound set reaches a server at all: the gateway has nothing to decide on
-  const dark = { ...config, ...bound, sets: [{ setId: "safe", servers: ["missing"] }] }
-  const unreachable = previewAccess(dark, registry, "agent-1", "read")
+  const dark = { ...config, bindings: [{ agentId: "agent-1", setIds: ["safe"] }], sets: [{ setId: "safe", name: "Safe", servers: ["missing"] }] }
+  const unreachable = previewAccess(surfacesOf(dark), "agent-1", "read")
   expect(unreachable.allowed).toBe(false)
   expect(unreachable.reasons).toEqual(["no bound set has a reachable server"])
 
-  const unbound = previewAccess(config, registry, "nobody", "read")
+  // one fact, one sentence: an agent with no binding is unbound whether or not
+  // a tool was named, so the page cannot say it two ways
+  const unbound = previewAccess(surfacesOf(config), "nobody", "read")
   expect(unbound.bound).toBe(false)
   expect(unbound.allowed).toBe(false)
-  expect(unbound.reasons[0]).toBe("no set bound to this agent")
+  expect(unbound.reasons).toEqual(["no set bound to this agent"])
+  expect(previewAccess(surfacesOf(config), "nobody").reasons).toEqual(["no set bound to this agent"])
 })
 
 test("gateway serves access previews and exposes an audit surface", async () => {

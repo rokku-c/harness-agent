@@ -11,13 +11,11 @@
  */
 import { OperationFault, noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
-import type { Registry } from "@effect-agent/mcp-registry"
-import { previewAccess, type AccessConfig, type AuditLog } from "./access-audit.ts"
+import { previewAccess, type AccessSurfaces } from "./access-preview.ts"
+import type { AuditLog } from "./audit-log.ts"
 
-/** What these operations read: the shared registry, the live config, the audit. */
-export interface GatewaySurfaces {
-  readonly config: AccessConfig
-  readonly registry: Registry
+/** What these operations read: the shared registry, the live config, the audit — and the engine that decides. */
+export interface GatewaySurfaces extends AccessSurfaces {
   readonly audit: AuditLog
 }
 
@@ -59,7 +57,7 @@ export const mcpGatewayOperations = (surfaces: GatewaySurfaces): readonly Operat
     handler: (input) => {
       const agent = named(input.agent)
       if (agent === undefined) throw new OperationFault(400, "agent query parameter is required")
-      return { ok: true, access: previewAccess(surfaces.config, surfaces.registry, agent, named(input.tool)) }
+      return { ok: true, access: previewAccess(surfaces, agent, named(input.tool)) }
     },
   }),
 ]

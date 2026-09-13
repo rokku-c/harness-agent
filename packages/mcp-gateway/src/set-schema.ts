@@ -24,6 +24,20 @@ export const allowDenyOverlap = (
   return (set.denyTools ?? []).some((tool) => allow.has(tool))
 }
 
+/**
+ * The first name that is not one of the known ones, or undefined: a set bound
+ * to an agent, or a server named by a set. A name nobody declares authorizes
+ * nothing, so it is refused rather than carried — the grammar refuses it while
+ * the operator is looking at the form, and the registry refuses it when a
+ * caller registers directly. One rule, asked by both doors, because a binding
+ * that means "refused here, carried there" is how a preview ends up explaining
+ * a decision the gateway never made.
+ */
+export const unknownName = (
+  names: readonly string[],
+  known: (name: string) => boolean,
+): string | undefined => names.find((name) => !known(name))
+
 /** A declared set. At least one server: a set that reaches nothing is not a set. */
 export const mcpSetSchema = z.object({
   setId: z.string().min(1),

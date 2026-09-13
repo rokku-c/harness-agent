@@ -21,22 +21,19 @@ const outcome = (value: string, color: string, allowed: boolean): UiNodeSpec =>
 const failure = failureCallout("/access/result/error")
 
 /**
- * Reasons are the shape of a refusal; the gateway clears them on an allowance.
- * A refusal it cannot explain — a binding naming a set the config no longer
- * declares — serves none, and "Denied because" over an empty list is a heading
- * claiming something it does not have. The heading is said only when there is
- * something under it; the badge above still states the verdict either way.
+ * Reasons are the shape of a refusal, and every refusal has one: the preview
+ * reads the gateway's own registry and names the set that decided it — a set
+ * that denies, a set whose allowlist does not carry the tool, no reachable set
+ * at all, or no binding at all. The config refuses a binding to a set nobody
+ * declares before it can be stored, so "Denied because" is never a heading over
+ * nothing. The badge above states the verdict; this states why.
  */
 const reasons: UiNodeSpec = { component: "Flex", props: { direction: "column", gap: "1" },
   visible: { source: { state: "/access/result/access/allowed" }, equals: false },
-  children: [{
-    component: "Flex", props: { direction: "column", gap: "1" },
-    visible: { source: { state: "/access/result/access/reasons/0" } },
-    children: [
-      text("Denied because", { size: "2", color: "gray" }),
-      list({ source: { state: "/access/result/access/reasons" } }, line("", { size: "2", color: "gray" })),
-    ],
-  }] }
+  children: [
+    text("Denied because", { size: "2", color: "gray" }),
+    list({ source: { state: "/access/result/access/reasons" } }, line("", { size: "2", color: "gray" })),
+  ] }
 
 /**
  * The sets the preview resolved, when it resolved any. An agent bound to

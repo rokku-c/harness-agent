@@ -44,11 +44,23 @@ export interface McpGatewayRecorder { record(event: McpGatewayEvent): void | Pro
 export interface McpGatewayServer { readonly serverId: string; readonly name?: string; readonly era?: string; readonly transport?: "streamable-http" | "stdio"; readonly endpoint?: string; readonly command?: string; readonly args?: readonly string[]; readonly env?: Readonly<Record<string, string>>; readonly headers?: Readonly<Record<string, string>> }
 export interface McpSet { readonly setId: string; readonly name: string; readonly servers: readonly string[]; readonly allowTools?: readonly string[]; readonly denyTools?: readonly string[] }
 export interface McpSetBinding { readonly agentId: string; readonly setIds: readonly string[] }
-export interface McpSetResolution extends McpGatewayServer { readonly setId: string; readonly allowed: boolean }
+/** Which of a set's two lists refused a tool. A list's absence is not a refusal. */
+export type McpSetRefusal = "deny" | "allowlist"
+/** The bound set the gateway would use: the first that reaches a server. */
+export interface McpSetReach extends McpGatewayServer { readonly setId: string }
+export interface McpSetResolution extends McpSetReach {
+  readonly allowed: boolean
+  /** Why the set refused the tool; absent exactly when `allowed`. */
+  readonly refusedBy?: McpSetRefusal
+}
 export interface McpSetRegistry {
   registerServer(server: McpGatewayServer): void
   registerSet(set: McpSet): void
   bindAgent(binding: McpSetBinding): void
+  /** Whether the agent has any binding at all — the question a refusal must ask to name a reason. */
+  bound(agent: string | undefined): boolean
+  /** Which set a call would go through, asked without a tool. */
+  reach(agent: string | undefined, setId?: string): McpSetReach | undefined
   resolve(agent: string | undefined, setId: string | undefined, tool: string): McpSetResolution | undefined
 }
 export interface McpServerResolver { resolve(context: McpGatewayContext): Promise<McpGatewayServer | undefined> }

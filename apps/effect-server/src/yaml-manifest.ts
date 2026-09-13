@@ -33,8 +33,19 @@ export const discoverManifests = (roots: readonly string[]): readonly Discovered
   for (const root of roots) {
     if (!existsSync(root)) continue
     for (const entry of readdirSync(root)) {
+      // A hidden child is not an app. The reload staging directory is one, and
+      // `generation.ts` puts it under an app root precisely so discovery does
+      // not look at it.
+      if (entry.startsWith(".")) continue
       const dir = join(root, entry)
-      if (!statSync(dir).isDirectory()) continue
+      // The root's own guard, one level down: this walk runs from a watcher, and
+      // a directory can be gone between the listing and the look — a reload
+      // sweep removes one while the walk is in it. Throwing here took the whole
+      // dev server down; a directory nobody can stat is a directory with no app
+      // in it, which is exactly what a failed `existsSync` means above.
+      let isDirectory: boolean
+      try { isDirectory = statSync(dir).isDirectory() } catch { continue }
+      if (!isDirectory) continue
       const manifest = readManifest(join(dir, "effect.yaml"))
       if (manifest !== undefined) out.push({ dir, manifest })
     }
