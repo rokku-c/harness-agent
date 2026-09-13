@@ -33,6 +33,12 @@ export interface AgentdControlOptions {
    * that looked armed would be worse than no guard.
    */
   readonly nodeToken?: string
+  /**
+   * Where this fleet's agents reach the MCP Gateway (§F10). Declared once rather
+   * than per agent: the door is one, and a second author for one address is the
+   * shape that lets two agents on one machine disagree about where the platform is.
+   */
+  readonly gatewayUrl?: string
 }
 
 /** A node's held deployment (§8.4): the binding, plus what it resolved to. */

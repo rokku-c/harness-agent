@@ -1,14 +1,16 @@
 /**
- * The control plane, assembled: one state, three groups of verbs, and the status
+ * The control plane, assembled: one state, four groups of verbs, and the status
  * view that spans them.
  *
  * The split is by layer, not by size — `control-state.ts` owns what is held,
  * `control-projections.ts` owns what a binding resolves to, and the verb files
  * own how state is written. This file is only the seam, so a verb can be found
- * by the question it answers: agent, deployment, or liveness.
+ * by the question it answers: agent, deployment, liveness, or the config an
+ * agent is handed.
  */
 
 import { agentOps } from "./control-agent-ops.ts"
+import { configOps } from "./control-config-ops.ts"
 import { deploymentOps } from "./control-deployment-ops.ts"
 import { livenessOps } from "./control-liveness-ops.ts"
 import { makeControlState, type AgentdControlOptions } from "./control-state.ts"
@@ -18,6 +20,7 @@ export const makeAgentdControl = (options: AgentdControlOptions = {}): AgentdCon
   const control = makeControlState(options)
   return {
     ...agentOps(control),
+    ...configOps(control, options.gatewayUrl),
     ...deploymentOps(control),
     ...livenessOps(control),
     status: () => ({

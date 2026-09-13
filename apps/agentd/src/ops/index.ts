@@ -9,6 +9,7 @@
 import { toEffectTools, type EffectTool, type Operation } from "@effect-agent/effect-interface"
 import { agentOperations } from "./agent-ops.ts"
 import { factsOperations } from "./facts-ops.ts"
+import { gatewayOperations } from "./gateway-op.ts"
 import { installOperations } from "./install-op.ts"
 import { launchOperations } from "./launch-ops.ts"
 import { nodeOperations } from "./node-ops.ts"
@@ -19,6 +20,7 @@ export const agentdOperations = (surfaces: AgentdSurfaces): readonly Operation[]
   ...agentOperations(surfaces),
   ...registryOperations(surfaces),
   ...nodeOperations(surfaces),
+  ...gatewayOperations(surfaces),
   ...launchOperations(surfaces),
   ...factsOperations(surfaces),
   ...installOperations(surfaces),

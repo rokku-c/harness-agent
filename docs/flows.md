@@ -64,12 +64,13 @@ Activity owns *observing*; none of them re-implements another's step.
 ## Journey 2 — the agent
 
 ```
-planned ──▶ connect ──▶ identified ──▶ discover (tools/list) ──▶ authorized ──▶ call ──▶ audited
+planned ──▶ fetched ──▶ connect ──▶ identified ──▶ discover (tools/list) ──▶ authorized ──▶ call ──▶ audited
 ```
 
 | step | owner | what must be true |
 |---|---|---|
 | be planned | the center (agentd, `setCredential`) | F10: named the door's way, and its credential declared with it |
+| be fetched | the machine that runs it (`GET /agentd/gateway`) | F10: the config, served only to the node credential and never drawn on a console |
 | connect | the gateway's one door (`POST /mcp-gateway`) | one entry point; no second door with different rules |
 | be identified | the gateway (token → principal) | F6: verified, not asserted |
 | discover | the gateway's advertised surface | F8: the advertised set is the enforced set |
@@ -193,3 +194,26 @@ its own copy of navigation state.
   states as words (`stated` in `effect-ui-cells.ts`), in the agents table and in
   the row's Inspect answer, because "which agents will the door refuse" is the
   operator's question and it is answered by a word, not by a secret.
+- F10, second half: `packages/agentd/src/control-config-ops.ts` +
+  `apps/agentd/src/ops/gateway-op.ts` — a plan nobody can fetch is the same defect
+  as no plan at all, and until this the adapter had no caller outside its own
+  test. The config is **served** to the machine that will write the file, at
+  `GET /agentd/gateway`, guarded by the node credential exactly as
+  `/agentd/artifact` is — a plaintext secret is fetched, not browsed, which is
+  also what the fleet's one token buys and the reason the guard is checked before
+  anything about the fleet is read. Three things
+  belong to the request and two to the center, and the model is that split
+  (`Formal/ConfigFetch.lean`): the caller presents the node credential, names the
+  agent, and says what it already runs; the center declares the door and holds the
+  credential. So a machine offered the config it is already running gets the same
+  bytes and an empty diff, a caller cannot name the door it is pointed at, and an
+  agent holding nothing is refused rather than handed an empty header that would
+  be turned away at the door, far from whoever could have issued one. The door's
+  address is declared once for the fleet (`gateway:` in the center's config, and
+  `gatewayUrl` on the control plane, checked before the agent is looked up so a
+  refusal about the request never reports the fleet's state) rather than per
+  agent: the door is one, and a second author for one address is the shape that
+  lets two agents on one machine disagree about where the platform is. What is
+  *not* built here is the other side of the wire — the probe fetching it and the
+  CLI dialects rendering it — so the console still states the word and no surface
+  in the platform echoes the value.

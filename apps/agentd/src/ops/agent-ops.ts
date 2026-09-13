@@ -3,7 +3,7 @@
  * the receipt for what it did run. A node is the same three verbs at a larger
  * unit, in `node-ops`.
  */
-import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
+import { json, noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { shownToReader } from "../desired-view.ts"
 import { bundlePlan } from "./plan.ts"
@@ -26,7 +26,7 @@ export const agentOperations = ({ control, applied, status }: AgentdSurfaces): r
   }),
   operation({
     name: "agentd_plan_bundles", description: "The artifact plan for one agent, and the place a push is refused",
-    access: "read", input: z.object({ agentId: z.string().min(1), reported: z.unknown().optional() }).strict(),
+    access: "read", input: z.object({ agentId: z.string().min(1), reported: json(z.unknown()).optional() }).strict(),
     http: { method: "GET", path: "/agentd/plan" },
     handler: (input) => ({ ok: true, ...bundlePlan(control, input.agentId, input.reported) }),
   }),

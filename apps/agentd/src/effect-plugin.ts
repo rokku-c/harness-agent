@@ -32,6 +32,7 @@ export const createAgentdPlugin = (getConfig: () => unknown = () => ({}), option
     const control = makeAgentdControl({
       ...(parsed.nodeToken === undefined ? {} : { nodeToken: parsed.nodeToken }),
       ...(parsed.leaseTtlMs === undefined ? {} : { leaseTtlMs: parsed.leaseTtlMs }),
+      ...(parsed.gateway === undefined ? {} : { gatewayUrl: parsed.gateway }),
     })
     const applied = new Map<string, AppliedReport>(), nodeApplied = new Map<string, NodeAppliedReport>()
     const launches = makeLaunchQueue()

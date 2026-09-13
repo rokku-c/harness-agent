@@ -18,6 +18,7 @@ import Formal.CatalogLoad
 import Formal.Chain
 import Formal.Compat
 import Formal.Config
+import Formal.ConfigFetch
 import Formal.Consent
 import Formal.Credential
 import Formal.Derive

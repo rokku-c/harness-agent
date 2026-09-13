@@ -26,3 +26,19 @@ export const csv = <S extends z.ZodType>(list: S): S =>
  * one field serves both without the declaration caring which asked.
  */
 export const count = z.coerce.number().int().min(0)
+
+/**
+ * A document that arrives as JSON text in a query string - there is no syntax
+ * for an object there - and as the object itself over MCP. The same split `csv`
+ * bridges, one level up: a machine saying what it is already running has to fit
+ * in a URL, and the tool beside it does not. Text that is not JSON is left as it
+ * arrived, so the shape refuses it rather than this reading it as something.
+ */
+export const json = <S extends z.ZodType>(shape: S): S =>
+  z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value
+      try { return JSON.parse(value) } catch { return value }
+    },
+    shape,
+  ) as unknown as S

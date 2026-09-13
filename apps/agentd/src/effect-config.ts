@@ -1,5 +1,6 @@
 import { z, type ConfigDeclaration } from "@effect-agent/effect-config"
 import { mcpSetBindingSchema as binding, mcpSetSchema as set } from "@effect-agent/mcp-gateway"
+import { bundle } from "./bundle-schema.ts"
 import { machine } from "./machine-schema.ts"
 
 const agent = z.object({
@@ -11,34 +12,6 @@ const server = z.object({
   serverId: z.string().min(1), endpoint: z.string().min(1),
   transport: z.enum(["stdio", "streamable-http"]), authRef: z.string().min(1).optional(),
 }).strict()
-/**
- * One code artifact to distribute (§7.6). `kind` decides which of §5's two ABI
- * lines is the one that matters: an app is checked against `abi`, a kernel
- * against `bootstrapAbi` as well.
- */
-const bundleBase = z.object({
-  bundleId: z.string().min(1), version: z.string().min(1), abi: z.string().min(1),
-  runtimes: z.array(z.enum(["os", "browser", "sandbox"])).min(1).optional(),
-  kind: z.enum(["app", "kernel"]).default("app"),
-  bootstrapAbi: z.string().min(1).optional(),
-  /**
-   * The directory this artifact's *bytes* live in (§8.2, P6) — the compiled
-   * output `compileEffectBundle` writes. Absent = a version every node is
-   * expected to already have; a node that has never seen it gets a named 404
-   * instead of being told to run something it does not have.
-   */
-  source: z.string().min(1).optional(),
-}).strict()
-/** The two-ABI-lines rule, applied wherever an artifact is written down. */
-const refineBundle = (value: { kind: "app" | "kernel"; bootstrapAbi?: string }, ctx: z.RefinementCtx): void => {
-  if (value.kind === "kernel" && value.bootstrapAbi === undefined) {
-    ctx.addIssue({ code: "custom", message: "a kernel bundle must declare bootstrapAbi" })
-  }
-  if (value.kind === "app" && value.bootstrapAbi !== undefined) {
-    ctx.addIssue({ code: "custom", message: "an app bundle must not declare bootstrapAbi; that line is host↔kernel" })
-  }
-}
-const bundle = bundleBase.superRefine(refineBundle)
 /** Artifacts an agent should run, named `bundleId@version` so versions coexist. */
 const bundleBinding = z.object({ agentId: z.string().min(1), bundleIds: z.array(z.string().min(1)) }).strict()
 /**
@@ -60,9 +33,9 @@ const nodeBinding = z.object({
 }).strict()
 /**
  * What one agent presents at the MCP Gateway's door (§F10), declared against the
- * agent's id — the key the door resolves it to and binds by. Plaintext lives
- * here for the same reason `nodeToken` does: the center is what writes agent
- * configs, and a credential is plaintext wherever it is used.
+ * agent's id — the key the door resolves it to and binds by. Plaintext lives here
+ * for the same reason `nodeToken` does: the center is what writes agent configs,
+ * and a credential is plaintext wherever it is used.
  */
 const credential = z.object({ agentId: z.string().min(1), token: z.string().min(1) }).strict()
 const schema = z.object({
@@ -86,13 +59,20 @@ const schema = z.object({
   tunnel: z.array(z.object({ name: z.string().min(1), url: z.string().min(1) }).strict()).default([]),
   /**
    * How long one node heartbeat is good for (§8.5-1). Absent = the presence
-   * table's own default. This is fleet policy rather than a constant: a machine
-   * on a flaky link and one on a lab switch want different answers, and the
-   * operator is the one who knows which they have. It is also what makes the
-   * lease observable — a TTL that cannot be set is a lease nobody can watch
-   * expire.
+   * table's own default. This is fleet policy rather than a constant: a machine on
+   * a flaky link and one on a lab switch want different answers, and the operator
+   * is the one who knows which they have. It is also what makes the lease
+   * observable — a TTL that cannot be set is a lease nobody can watch expire.
    */
   leaseTtlMs: z.number().int().positive().optional(),
+  /**
+   * Where the agents this center configures reach the MCP Gateway (§F10). Absent =
+   * they cannot be told, and the fetch says so rather than planning a config with
+   * no door in it. The address is not validated here: the adapter one layer down
+   * decides what a door may be, and two rules for one question is what lets a
+   * config that saves be a config that cannot be planned.
+   */
+  gateway: z.string().min(1).optional(),
 }).strict()
 
 export const effectConfig: ConfigDeclaration<typeof schema> = {

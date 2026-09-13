@@ -5,13 +5,13 @@
  * The answers carry an explicit `ok` because a machine reads them as a
  * protocol — it is not a tool call that either returns or throws.
  */
-import { OperationFault, operation, type Operation } from "@effect-agent/effect-interface"
+import { OperationFault, json, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { announcedMachine } from "../machine-schema.ts"
 import { nodePlan } from "./plan.ts"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
-const CREDENTIAL = { field: "token", header: "authorization", prefix: "Bearer " } as const
+export const NODE_CREDENTIAL = { field: "token", header: "authorization", prefix: "Bearer " } as const
 /**
  * `at` is declared rather than left to be refused as an unknown key: liveness
  * time is the server's observation, and a body carrying its own is saying so out
@@ -36,7 +36,7 @@ const lease = <T extends { nodeId: string; token?: string; at?: unknown }, R>(ru
 export const nodeOperations = ({ control, nodeApplied }: AgentdSurfaces): readonly Operation[] => [
   operation({
     name: "agentd_announce_node", description: "A node declaring what it is and what it can run; the server timestamps it",
-    input: announce, http: { method: "POST", path: "/agentd/node/announce", credential: CREDENTIAL },
+    input: announce, http: { method: "POST", path: "/agentd/node/announce", credential: NODE_CREDENTIAL },
     handler: (input) => {
       timed(input)
       return { ok: true, presence: control.announceNode(input.machine, input.token) }
@@ -44,12 +44,12 @@ export const nodeOperations = ({ control, nodeApplied }: AgentdSurfaces): readon
   }),
   operation({
     name: "agentd_heartbeat_node", description: "A node renewing its lease; the server records when it was seen",
-    input: liveness, http: { method: "POST", path: "/agentd/node/heartbeat", credential: CREDENTIAL },
+    input: liveness, http: { method: "POST", path: "/agentd/node/heartbeat", credential: NODE_CREDENTIAL },
     handler: lease(control.heartbeatNode.bind(control)),
   }),
   operation({
     name: "agentd_withdraw_node", description: "A node leaving on its own terms, so it is not shown as up until its lease lapses",
-    input: liveness, http: { method: "POST", path: "/agentd/node/withdraw", credential: CREDENTIAL },
+    input: liveness, http: { method: "POST", path: "/agentd/node/withdraw", credential: NODE_CREDENTIAL },
     handler: lease(control.withdrawNode.bind(control)),
   }),
   operation({
@@ -64,7 +64,7 @@ export const nodeOperations = ({ control, nodeApplied }: AgentdSurfaces): readon
     http: { method: "GET", path: "/agentd/node" }, handler: (input) => ({ ok: true, desired: control.desiredNode(input.nodeId) }) }),
   operation({
     name: "agentd_plan_node", description: "The node plan: where a whole deployment is adjudicated, artifact by artifact",
-    access: "read", input: liveness.extend({ reported: z.unknown().optional() }).strict(),
+    access: "read", input: liveness.extend({ reported: json(z.unknown()).optional() }).strict(),
     http: { method: "GET", path: "/agentd/node/plan" },
     handler: (input) => ({ ok: true, ...nodePlan(control, input.nodeId, input.reported) }),
   }),
@@ -81,7 +81,7 @@ export const nodeOperations = ({ control, nodeApplied }: AgentdSurfaces): readon
   operation({
     name: "agentd_artifact", description: "Fetch a published version's bytes", access: "read",
     input: z.object({ id: z.string().min(1), token: z.string().optional() }).strict(),
-    http: { method: "GET", path: "/agentd/artifact", credential: CREDENTIAL },
+    http: { method: "GET", path: "/agentd/artifact", credential: NODE_CREDENTIAL },
     handler: (input) => ({ ok: true, artifact: control.artifact(input.id, input.token) }),
   }),
 ]

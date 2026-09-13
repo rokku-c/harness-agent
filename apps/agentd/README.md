@@ -31,8 +31,10 @@ than a tool plus a route plus the wiring between them.
   wrote, on any machine that reported it.
 
 The machine verbs and the read surfaces carry HTTP paths, so `/agentd/node/announce`,
-`/agentd/node/plan`, `/agentd/launch`, `/agentd/facts`, `/agentd/sessions`, `/agentd/session` and
-`/agentd/artifact` all mean what the tool of the same name means. The declaring verbs —
+`/agentd/node/plan`, `/agentd/launch`, `/agentd/facts`, `/agentd/sessions`, `/agentd/session`,
+`/agentd/gateway` and `/agentd/artifact` all mean what the tool of the same name means. The last two
+both answer with a secret — a config's credential, an artifact's bytes — so a machine fetches them
+with the node credential instead of reading them off a console. The declaring verbs —
 `agentd_register_*`, `agentd_bind*`, `agentd_publish_bundle`, `agentd_install` — are MCP-only: they
 are typed declarations an operator makes through a client, not traffic a machine drives. Over HTTP a
 machine sends its token in `authorization: Bearer …`; a token in a body or a query string is not a

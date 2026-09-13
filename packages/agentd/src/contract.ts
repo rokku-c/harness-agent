@@ -1,6 +1,7 @@
 import type {
-  AgentBinding, AgentInstance, BundleRef, DeclaredMachine, DesiredAgentConfig, McpServerRef, McpSet, Machine,
+  AdapterPlan, AgentBinding, AgentInstance, BundleRef, DeclaredMachine, DesiredAgentConfig, McpServerRef, McpSet, Machine,
 } from "./types.ts"
+import type { GatewayAgentConfig } from "./adapter.ts"
 import type { DesiredNode, NodeAppPlacement, NodeBinding } from "./node-types.ts"
 import type { NodePresence } from "./presence.ts"
 import type { WireArtifact } from "./artifact-wire.ts"
@@ -53,6 +54,13 @@ export interface AgentdControl {
    * covers every node-facing verb.
    */
   artifact(bundleId: string, token?: string): WireArtifact
+  /**
+   * The config one agent runs with, served to the machine that runs it (§F10).
+   * It carries the credential, so it is fetched with the node credential and is
+   * never drawn on a console. A read, so it does not bump — and the address in the
+   * plan is this center's declaration, never the caller's.
+   */
+  gatewayConfig(agentId: string, token?: string, reported?: unknown): AdapterPlan<GatewayAgentConfig>
   /** Bind artifacts to an agent; bumps the same revision the receipt is measured against. */
   bindBundles(agentId: string, bundleIds: readonly string[]): AgentBinding
   desired(agentId: string): DesiredAgentConfig
