@@ -50,7 +50,8 @@ export const effectGateway = (options: EffectGatewayOptions = {}): SessionGatewa
     },
     close: async (sessionId: string) => { sessions.delete(sessionId) },
     send: async (sessionId: string, text: string): Promise<SendOutcome> => {
-      const box = getBox(sessionId)
+      const box = sessions.get(sessionId)
+      if (box === undefined) return { ok: false, detail: "unknown session " + sessionId }
       if (box.status === "running") return { ok: false, detail: "session busy: a turn is already running" }
       box.status = "running"
       box.lastActivityAt = Date.now()

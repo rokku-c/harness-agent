@@ -10,6 +10,7 @@
 import { Effect, Runtime } from "effect"
 import { materialize, requireUntil, schemaJson, type Driver, type RunRequest } from "@effect-agent/core"
 import type { ClaudeCodeOptions } from "./options.ts"
+import { callableOps } from "../access.ts"
 import { mcpTools } from "./mcp.ts"
 import { runClaudeSession } from "./session.ts"
 import { interpretResult } from "./result.ts"
@@ -37,10 +38,7 @@ export const ClaudeCode = {
           if (unsupported) return yield* Effect.fail(unsupported)
           const prepared = yield* materialize(request)
           const runtime = yield* Effect.runtime<any>()
-          // read ops always; write ops only where write access was granted
-          const ops = prepared.access.flatMap(({ binding, write }) =>
-            (binding.ops ?? []).filter((op) => op.access === "read" || write)
-          )
+          const ops = callableOps(prepared.access)
           const injected = mcpTools(ops, runtime)
           const outputFormat = request.until._tag === "Schema"
             ? { type: "json_schema" as const, schema: schemaJson(request.until.schema) as unknown as Record<string, unknown> }

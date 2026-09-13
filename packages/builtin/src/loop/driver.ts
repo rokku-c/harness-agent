@@ -12,6 +12,7 @@ import {
   AgentContext, AgentFailure, AgentSession, CheckpointStore, materialize, requireUntil,
   type AgentEvent, type Content, type Driver, type RunRequest
 } from "@effect-agent/core"
+import { callableOps } from "../access.ts"
 import { recoveryContent } from "../checkpoint.ts"
 import type { WireMessage } from "../wire.ts"
 import type { EffectAgentOptions, RunBox } from "./types.ts"
@@ -45,9 +46,7 @@ export const EffectAgent = {
           const agentName = Option.isSome(session) ? session.value.agent : driver.id
           const emit = (event: AgentEvent) =>
             Option.isSome(session) ? Effect.asVoid(PubSub.publish(session.value.events, event)) : Effect.void
-          const allOps = prepared.access.flatMap(({ binding, write }) =>
-            (binding.ops ?? []).filter((op) => op.access === "read" || write)
-          )
+          const allOps = callableOps(prepared.access)
           const byName = new Map(allOps.map((op) => [op.name, op]))
           const boundary = request.until._tag === "Schema"
             ? { schema: request.until.schema, asTool: request.until.asTool }
