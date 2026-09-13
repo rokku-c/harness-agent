@@ -20,7 +20,7 @@
  * label would be decoration.
  */
 
-import { makeNodeStore } from "@effect-agent/effect-planes"
+import { makeNodeStore } from "./store.ts"
 import type { EffectRuntimeKind } from "./compat.ts"
 import type { Clock, CryptoCapability, RuntimeCapabilities } from "./capabilities.ts"
 

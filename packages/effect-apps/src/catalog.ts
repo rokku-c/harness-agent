@@ -15,7 +15,11 @@ import { listAppTools } from "./tools.ts"
 /** Planes an app can expose, and the ops authorize() is asked about. */
 export type AppsPlane = "interface" | "ui" | "store" | "config"
 
-/** Minimal JSON KV store (structurally compatible with effect-planes' NodeStore). */
+/**
+ * Minimal JSON KV store. The same shape as `effect-bundle`'s `NodeStore`, written
+ * out rather than imported: an app plane is duck-typed, so an app's store is
+ * anything with these four methods and the app plane stays clear of the loader.
+ */
 export interface NodeStore {
   get(key: string): unknown | undefined
   set(key: string, value: unknown): void

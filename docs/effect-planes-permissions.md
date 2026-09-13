@@ -1,5 +1,12 @@
 # effect-agent — 统一 Planes(接口 / UI / 存储)与权限
 
+> **状态（2026-09-13）**:§1 的资源模型与寻址语法已落地在 `packages/effect-authz`
+> （`resource.ts` / `match.ts` / `decide.ts`），生效的 plane 控制面是
+> `packages/effect-host/src/{control,operations}.ts` 的 `/-/planes/*`。
+> 本文 §5/§6 里那个 `packages/effect-planes` **没有保留下来**：它的 `makePlanes` 是同一套
+> plane 模型的第二份实现（已被 effect-host 取代），已删除；其中唯一在用的 `NodeStore`
+> 并入了 `packages/effect-bundle/src/store.ts`。下文按设计原样保留，读的时候按此对照。
+
 目标:所有 app(node)的**接口、UI、存储**都用一套统一、namespace 化、可寻址的资源模型
 表达;**权限**是这套模型的显式一层——某个节点只要有权限,就能**读取/调用其它节点**的
 接口、UI 或存储(跨节点只读是默认禁止,授权后才放行)。

@@ -16,7 +16,7 @@
  * describe (§7.4: no uniform sandbox grade).
  */
 
-import type { NodeStore } from "@effect-agent/effect-planes"
+import type { NodeStore } from "./store.ts"
 import type { EgressRouter } from "@effect-agent/effect-network"
 import type { EffectRuntimeKind } from "./compat.ts"
 

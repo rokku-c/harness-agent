@@ -19,7 +19,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test"
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { pathToFileURL } from "node:url"
 import { resolve } from "node:path"
-import { makeNodeStore } from "@effect-agent/effect-planes"
+import { makeNodeStore } from "../src/store.ts"
 import { compileEffectBundle, entryFor, loadEffectBundle } from "../src/index.ts"
 import type { RuntimeCapabilities } from "../src/index.ts"
 import {

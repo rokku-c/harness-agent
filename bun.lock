@@ -289,7 +289,6 @@
         "@effect-agent/effect-host": "workspace:*",
         "@effect-agent/effect-interface": "workspace:*",
         "@effect-agent/effect-network": "workspace:*",
-        "@effect-agent/effect-planes": "workspace:*",
         "@effect-agent/effect-ui": "workspace:*",
         "@effect-agent/mcp-registry": "workspace:*",
       },
@@ -353,14 +352,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@effect-agent/effect-apps": "workspace:*",
-        "@effect-agent/effect-interface": "workspace:*",
-      },
-    },
-    "packages/effect-planes": {
-      "name": "@effect-agent/effect-planes",
-      "version": "0.0.0",
-      "dependencies": {
-        "@effect-agent/effect-authz": "workspace:*",
         "@effect-agent/effect-interface": "workspace:*",
       },
     },
@@ -614,8 +605,6 @@
     "@effect-agent/effect-observe": ["@effect-agent/effect-observe@workspace:packages/effect-observe"],
 
     "@effect-agent/effect-parity": ["@effect-agent/effect-parity@workspace:packages/effect-parity"],
-
-    "@effect-agent/effect-planes": ["@effect-agent/effect-planes@workspace:packages/effect-planes"],
 
     "@effect-agent/effect-server": ["@effect-agent/effect-server@workspace:apps/effect-server"],
 
