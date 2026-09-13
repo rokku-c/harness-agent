@@ -7,7 +7,7 @@
  * this identity exist and is it on"; what it may do is effect-authz's job.
  */
 
-import type { PrincipalKind } from "@effect-agent/effect-authz"
+import { principalKey, type PrincipalKind } from "@effect-agent/effect-authz"
 
 export type PrincipalStatus = "active" | "disabled"
 
@@ -40,7 +40,7 @@ export const makePrincipalRegistry = (options: { readonly now?: () => number } =
   const records = new Map<string, PrincipalRecord>()
 
   const register = ({ kind, id, displayName }: RegisterPrincipalInput): PrincipalRecord => {
-    const key = `${kind}:${id}`
+    const key = principalKey({ kind, id })
     const existing = records.get(key)
     const record: PrincipalRecord = {
       kind,

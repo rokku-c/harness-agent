@@ -10,8 +10,9 @@
  * simply *not having moved*. If the flip itself throws, A is put back in front;
  * it was never stopped, so putting it back cannot fail for a reason we created.
  */
+import { messageOf } from "@effect-agent/effect-interface"
 import type { KernelRevision } from "./repo.ts"
-import { messageOf, type KernelSlot, type StageResult } from "./supervisor-outcome.ts"
+import { type KernelSlot, type StageResult } from "./supervisor-outcome.ts"
 import type { KernelRuntime } from "./supervisor-runtime.ts"
 
 export const swapInto = async <K>(runtime: KernelRuntime<K>, revision: KernelRevision): Promise<StageResult<K>> => {

@@ -28,9 +28,6 @@ export const describeRefusal = (refusal: Refusal): string =>
     : `would break ${refusal.broken.length} loaded app(s): ` +
       refusal.broken.map((entry) => `${entry.app} (${entry.reason.message})`).join("; ")
 
-/** A thrown unknown as the readable reason a result, an event or a log line carries. */
-export const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error))
-
 export type StageResult<K> =
   | { readonly ok: true; readonly slot: KernelSlot<K> }
   | { readonly ok: false; readonly reason: "incompatible" | "apps-incompatible"; readonly refusal: Refusal }

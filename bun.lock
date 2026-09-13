@@ -32,6 +32,7 @@
         "@effect-agent/effect-config": "workspace:*",
         "@effect-agent/effect-host": "workspace:*",
         "@effect-agent/effect-interface": "workspace:*",
+        "@effect-agent/effect-network": "workspace:*",
         "@effect-agent/effect-ui": "workspace:*",
         "@effect-agent/storage-typeorm": "workspace:*",
         "effect": "^3.22.1",
@@ -305,6 +306,9 @@
     "packages/effect-host": {
       "name": "@effect-agent/effect-host",
       "version": "0.0.0",
+      "dependencies": {
+        "@effect-agent/effect-interface": "workspace:*",
+      },
     },
     "packages/effect-interface": {
       "name": "@effect-agent/effect-interface",

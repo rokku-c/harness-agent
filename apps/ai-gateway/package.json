@@ -10,6 +10,7 @@
     "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",
+    "@effect-agent/effect-network": "workspace:*",
     "@effect-agent/effect-apps": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*"
   }

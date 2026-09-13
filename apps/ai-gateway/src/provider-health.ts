@@ -1,3 +1,4 @@
+import { messageOf } from "@effect-agent/effect-interface"
 import type { GatewayProvider } from "./providers.ts"
 import { upstreamHeaders } from "./upstream-headers.ts"
 import type { HttpSend } from "./upstream.ts"
@@ -9,8 +10,6 @@ export interface ProviderHealth {
   readonly durationMs: number
   readonly error?: string
 }
-
-const message = (value: unknown): string => value instanceof Error ? value.message : String(value)
 
 /** A live reachability probe through the same platform egress the proxy uses. */
 export const checkProvider = async (provider: GatewayProvider, send: HttpSend): Promise<ProviderHealth> => {
@@ -26,7 +25,7 @@ export const checkProvider = async (provider: GatewayProvider, send: HttpSend): 
   } catch (error) {
     return {
       providerId: provider.id, reachable: false, durationMs: Math.round(performance.now() - started),
-      error: message(error),
+      error: messageOf(error),
     }
   }
 }

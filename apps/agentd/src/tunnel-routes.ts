@@ -1,6 +1,6 @@
 import type { Tunnel } from "@effect-agent/agentd"
+import { messageOf } from "@effect-agent/effect-interface"
 import { json } from "./http.ts"
-import { message } from "./ops/surfaces.ts"
 
 const PREFIX = "/agentd/tunnel"
 
@@ -46,6 +46,6 @@ export const tunnelRoutes = async (request: Request, url: URL, tunnel: Tunnel): 
       ...(bodiless ? {} : { body: request.body }),
     })
   } catch (error) {
-    return json({ ok: false, error: message(error) }, statusOf(error))
+    return json({ ok: false, error: messageOf(error) }, statusOf(error))
   }
 }

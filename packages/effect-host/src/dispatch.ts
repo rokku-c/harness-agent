@@ -3,7 +3,8 @@ import type { PluginLifecycle } from "./lifecycle.ts"
 import type { HostOperationTarget } from "./operations.ts"
 import { matchesHostRoute, matchesPlugin } from "./routes.ts"
 import { controlRequest } from "./control.ts"
-import { errorDetail, json } from "./response.ts"
+import { messageOf } from "@effect-agent/effect-interface"
+import { json } from "./response.ts"
 
 export const dispatchRequest = async (
   request: Request, lifecycle: PluginLifecycle & HostOperationTarget,
@@ -18,7 +19,7 @@ export const dispatchRequest = async (
   for (const route of routes) {
     if (!matchesHostRoute(route, request)) continue
     try { return await route.handle(request) } catch (error) {
-      return json({ ok: false, detail: `route error: ${errorDetail(error)}` }, 502)
+      return json({ ok: false, detail: `route error: ${messageOf(error)}` }, 502)
     }
   }
   for (const entry of lifecycle.ordered()) {
@@ -26,7 +27,7 @@ export const dispatchRequest = async (
     try {
       if (matchesPlugin(entry, request)) return await entry.loaded.handle(request)
     } catch (error) {
-      return json({ ok: false, detail: `plugin ${entry.plugin.id} error: ${errorDetail(error)}` }, 502)
+      return json({ ok: false, detail: `plugin ${entry.plugin.id} error: ${messageOf(error)}` }, 502)
     }
   }
   return json({ ok: false, detail: "not found: " + path }, 404)

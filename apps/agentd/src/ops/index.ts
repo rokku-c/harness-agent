@@ -29,4 +29,3 @@ export const makeAgentdTools = (surfaces: AgentdSurfaces): readonly EffectTool[]
   toEffectTools(agentdOperations(surfaces))
 
 export type { AgentdSurfaces, AppliedReport, NodeAppliedReport } from "./surfaces.ts"
-export { message } from "./surfaces.ts"

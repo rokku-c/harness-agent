@@ -7,7 +7,7 @@
  * is a payload rather than a thrown failure.
  */
 import type { HostOperation, HostOperationTarget } from "./operations.ts"
-import { errorDetail } from "./response.ts"
+import { messageOf } from "@effect-agent/effect-interface"
 
 /** Execute one declared operation. IO lives in the lifecycle, not here. */
 export const runHostOperation = async (
@@ -31,7 +31,7 @@ export const runHostOperation = async (
         ok, id,
         ...(reason === undefined ? {} : { reason }),
         ...(generation === undefined ? {} : { generation }),
-        ...(error === undefined ? {} : { detail: errorDetail(error) }),
+        ...(error === undefined ? {} : { detail: messageOf(error) }),
         ...(report === undefined ? {} : { report }),
       }
     }

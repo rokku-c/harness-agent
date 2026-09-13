@@ -1,4 +1,5 @@
 import { makeAiGateway, type GatewayRecorder, type GatewayRule } from "@effect-agent/ai-gateway"
+import { messageOf } from "@effect-agent/effect-interface"
 import { gatewayConfig } from "./config.ts"
 import { apiTypeForPath, type GatewayProvider } from "./providers.ts"
 import { makeProviderSelector, ProviderSelectionError } from "./provider-selection.ts"
@@ -11,7 +12,6 @@ export interface AiGatewayHandlerOptions {
   readonly rules?: readonly GatewayRule[]
 }
 const error = (status: number, type: string, message: string) => Response.json({ error: { type, message } }, { status })
-const message = (cause: unknown) => cause instanceof Error ? cause.message : String(cause)
 
 export const makeAiGatewayHandler = (options: AiGatewayHandlerOptions = {}) => {
   const select = makeProviderSelector()
@@ -22,7 +22,7 @@ export const makeAiGatewayHandler = (options: AiGatewayHandlerOptions = {}) => {
     if (request.method !== "POST" || apiType === undefined) return new Response("Not Found", { status: 404 })
     let config: ReturnType<typeof gatewayConfig>
     try { config = gatewayConfig(options.getConfig?.()) }
-    catch (cause) { return error(503, "config_error", `ai-gateway: invalid active config: ${message(cause)}`) }
+    catch (cause) { return error(503, "config_error", `ai-gateway: invalid active config: ${messageOf(cause)}`) }
     let provider: GatewayProvider | undefined
     try { provider = select(config.providers ?? [], apiType, request.headers.get("x-upstream-id")) }
     catch (cause) {
@@ -41,6 +41,6 @@ export const makeAiGatewayHandler = (options: AiGatewayHandlerOptions = {}) => {
       path,
     }
     try { return await gateway.handle(request, context) }
-    catch (cause) { return error(502, "gateway_error", message(cause)) }
+    catch (cause) { return error(502, "gateway_error", messageOf(cause)) }
   }
 }

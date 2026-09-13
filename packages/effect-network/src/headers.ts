@@ -8,10 +8,14 @@ export const headerPairs = (headers: Headers): ReadonlyArray<readonly [string, s
   return out
 }
 
+/** The header names the `Connection` header lists: hop-by-hop for this one message. */
+export const connectionHeaderNames = (headers: Headers): ReadonlySet<string> =>
+  new Set((headers.get("connection") ?? "").split(",").map((s) => s.trim().toLowerCase()))
+
 /** Removes transport/platform metadata, never the target's own Authorization. */
 export const targetHeaders = (input: Headers): Headers => {
   const headers = new Headers(input)
-  const named = new Set((headers.get("connection") ?? "").split(",").map((s) => s.trim().toLowerCase()))
+  const named = connectionHeaderNames(headers)
   for (const key of headerPairs(headers).map(([name]) => name)) {
     if (hop.has(key) || named.has(key) || key.startsWith("x-effect-") || /^x-(agent|session|namespace|bundle)(-|$)/.test(key)) headers.delete(key)
   }

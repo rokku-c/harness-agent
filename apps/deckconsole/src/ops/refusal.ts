@@ -7,7 +7,7 @@
  * would have to reinvent. A tool call reaches the same refusal as a tool error,
  * which is what an agent can act on - an HTTP status is not.
  */
-import { issuesOf, messageOf, type Failed } from "@effect-agent/effect-interface"
+import { issuesOf, messageOf, statusOf, type Failed } from "@effect-agent/effect-interface"
 
 /** A refusal carrying the exact body its route has always returned. */
 export class Refusal extends Error {
@@ -31,7 +31,5 @@ export const deckFailure = (error: unknown): Failed => {
   if (error instanceof Refusal) return { status: error.status, body: error.body }
   const issues = issuesOf(error)
   if (issues !== undefined) return { status: 400, body: { ok: false, detail: issues } }
-  const status = (error as { status?: unknown } | null)?.status
-  const code = typeof status === "number" && status >= 400 && status < 600 ? status : 500
-  return { status: code, body: { ok: false, detail: messageOf(error) } }
+  return { status: statusOf(error), body: { ok: false, detail: messageOf(error) } }
 }

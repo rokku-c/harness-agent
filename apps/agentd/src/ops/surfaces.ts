@@ -24,9 +24,3 @@ export interface AgentdSurfaces {
   readonly facts: FactsRegistry
   readonly status: () => unknown
 }
-
-export const message = (value: unknown): string => value instanceof Error ? value.message : String(value)
-export const statusOf = (value: unknown): number => {
-  const status = (value as { status?: unknown } | null)?.status
-  return typeof status === "number" && status >= 400 && status < 600 ? status : 500
-}

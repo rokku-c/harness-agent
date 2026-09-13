@@ -1,4 +1,5 @@
 import { isCredentialHeader } from "@effect-agent/ai-gateway"
+import { connectionHeaderNames, headerPairs } from "@effect-agent/effect-network"
 import type { GatewayProvider } from "./providers.ts"
 
 const transportHeaders = new Set([
@@ -10,10 +11,8 @@ const identity = /^x-(?:(?:effect|identity|agent|session|user|actor|tenant)(?:-|
 
 export const upstreamHeaders = (incoming: Headers, provider: GatewayProvider): Headers => {
   const headers = new Headers(incoming)
-  const connection = new Set((incoming.get("connection") ?? "").split(",").map((s) => s.trim().toLowerCase()))
-  const names: string[] = []
-  ;(headers as Headers & { forEach(cb: (value: string, key: string) => void): void }).forEach((_value, name) => names.push(name))
-  for (const name of names) {
+  const connection = connectionHeaderNames(incoming)
+  for (const [name] of headerPairs(headers)) {
     if (transportHeaders.has(name) || connection.has(name) || isCredentialHeader(name) || identity.test(name)) {
       headers.delete(name)
     }

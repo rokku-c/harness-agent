@@ -1,4 +1,5 @@
 import { AgentdError } from "./errors.ts"
+import { fail, record, sameKeys } from "./guards.ts"
 import type { AgentAdapter, AgentInstance, AdapterPlan, DesiredAgentConfig } from "./types.ts"
 
 export interface GatewayAgentConfig {
@@ -6,13 +7,10 @@ export interface GatewayAgentConfig {
   readonly metadata: { readonly agentId: string; readonly revision: number; readonly sets: readonly string[] }
 }
 
-const record = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value)
 const validUrl = (value: unknown): value is string => {
   if (typeof value !== "string") return false
   try { const url = new URL(value); return url.protocol === "http:" || url.protocol === "https:" } catch { return false }
 }
-const fail = (message: string): never => { throw new AgentdError(400, message) }
-const sameKeys = (value: Record<string, unknown>, keys: readonly string[]): boolean => Object.keys(value).sort().join("\0") === [...keys].sort().join("\0")
 
 function validateGatewayConfig(config: unknown): asserts config is GatewayAgentConfig {
   const value: Record<string, unknown> = record(config) ? config : fail("invalid gateway config")

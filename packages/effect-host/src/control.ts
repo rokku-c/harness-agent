@@ -1,7 +1,8 @@
 import type { PluginLifecycle } from "./lifecycle.ts"
 import { matchHostOperation } from "./operation-match.ts"
 import { runHostOperation } from "./operation-run.ts"
-import { errorDetail, json } from "./response.ts"
+import { messageOf } from "@effect-agent/effect-interface"
+import { json } from "./response.ts"
 
 /**
  * The `/-/planes` control surface is the executor of the declared host
@@ -16,6 +17,6 @@ export const controlRequest = async (
   try {
     return json(await runHostOperation(matched.operation, matched.params, lifecycle))
   } catch (error) {
-    return json({ ok: false, detail: `control error: ${errorDetail(error)}` }, 502)
+    return json({ ok: false, detail: `control error: ${messageOf(error)}` }, 502)
   }
 }

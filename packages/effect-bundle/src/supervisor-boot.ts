@@ -10,8 +10,9 @@
  * not retried, and not overwritten. A revision that could not run once is not
  * offered again, so a bad artifact cannot make every restart pay for it twice.
  */
+import { messageOf } from "@effect-agent/effect-interface"
 import type { KernelRevision } from "./repo.ts"
-import { describeRefusal, messageOf, type BootResult, type KernelSlot } from "./supervisor-outcome.ts"
+import { describeRefusal, type BootResult, type KernelSlot } from "./supervisor-outcome.ts"
 import type { KernelRuntime } from "./supervisor-runtime.ts"
 
 export const bootFrom = async <K>(runtime: KernelRuntime<K>, shipped?: KernelRevision): Promise<BootResult<K>> => {

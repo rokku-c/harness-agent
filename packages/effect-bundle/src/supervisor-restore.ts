@@ -9,8 +9,9 @@
  * come back needs a restart, and reporting a rollback that only looks successful
  * would be worse than the failure itself.
  */
+import { messageOf } from "@effect-agent/effect-interface"
 import type { KernelRevision } from "./repo.ts"
-import { messageOf, type StageResult } from "./supervisor-outcome.ts"
+import { type StageResult } from "./supervisor-outcome.ts"
 import type { KernelRuntime } from "./supervisor-runtime.ts"
 import type { AppRebuild } from "./supervisor-types.ts"
 

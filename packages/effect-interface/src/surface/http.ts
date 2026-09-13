@@ -23,7 +23,8 @@ export interface HttpSurfaceOptions {
   readonly onError?: (error: unknown) => Failed
 }
 
-const statusOf = (error: unknown): number => {
+/** The status a thrown error carries, when it carries one; anything else is the server's own 500. */
+export const statusOf = (error: unknown): number => {
   const status = (error as { status?: unknown } | null)?.status
   return typeof status === "number" && status >= 400 && status < 600 ? status : 500
 }

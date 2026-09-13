@@ -13,8 +13,7 @@
  * caller downgrade by sending a token it knows is bad.
  */
 
-import type { Principal, PrincipalKind } from "@effect-agent/effect-authz"
-import { isPrincipalKind, parsePrincipalKey } from "@effect-agent/effect-authz"
+import { isPrincipalKind, parsePrincipalKey, principalKey, type Principal, type PrincipalKind } from "@effect-agent/effect-authz"
 
 import { type HeaderBag, headerValue } from "./identity.ts"
 import type { PrincipalRegistry } from "./principals.ts"
@@ -62,7 +61,7 @@ const claim = (read: (name: string) => string | undefined): Claimed | undefined 
 export const resolvePrincipal = (input: ResolvePrincipalInput): PrincipalResolution => {
   const settle = (kind: Principal["kind"], id: string, via: "token" | "claim"): PrincipalResolution => {
     const registry = input.principals
-    if (registry !== undefined && !registry.active(`${kind}:${id}`)) return { detail: "principal is not active" }
+    if (registry !== undefined && !registry.active(principalKey({ kind, id }))) return { detail: "principal is not active" }
     return { principal: { kind, id }, via }
   }
 
