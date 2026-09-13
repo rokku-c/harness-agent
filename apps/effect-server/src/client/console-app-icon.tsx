@@ -17,10 +17,6 @@ const accent = (color: string): never => color as never
 export const AppAvatar = ({ entry, size = "5" }: { readonly entry: ConsoleEntry; readonly size?: "4" | "5" | "6" }) =>
   <Avatar size={size} radius="large" variant="solid" color={accent(entry.color)} fallback={entry.icon} />
 
-/** The dock's form: the mark alone, inline beside a label. */
-export const AppMark = ({ entry, size = "2" }: { readonly entry: ConsoleEntry; readonly size?: "1" | "2" | "3" }) =>
-  <Avatar size={size} radius="large" variant="solid" color={accent(entry.color)} fallback={entry.icon} />
-
 /** The springboard's form: the mark, then the name underneath. */
 export const AppTile = ({ entry, onSelect }: { readonly entry: ConsoleEntry; readonly onSelect: () => void }) =>
   <Card asChild size="2">

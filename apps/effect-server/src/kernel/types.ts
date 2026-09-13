@@ -58,8 +58,13 @@ export const KERNEL_PLANES: readonly KernelPlaneSpec[] = [
   { id: "config", priority: 150 },
 ]
 
-export const planeIdsOf = (specs: readonly KernelPlaneSpec[], enabled: ReadonlySet<string>): readonly string[] =>
-  specs.filter((spec) => spec.always === true || enabled.has(spec.id)).map((spec) => spec.id)
+/**
+ * Whether a plane slot is on: the host marks it always-on, or it was enabled.
+ * Stated once because boot, the kernel-swap guard and the router all ask it —
+ * a plane that were on in one and off in another is a slot nobody serves.
+ */
+export const planeIsOn = (spec: KernelPlaneSpec, enabled: ReadonlySet<string>): boolean =>
+  spec.always === true || enabled.has(spec.id)
 
 /** Everything a kernel revision is given. Built once; survives every swap. */
 export interface KernelContext {

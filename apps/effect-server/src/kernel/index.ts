@@ -10,7 +10,7 @@
  */
 
 import type { LoadedPlane } from "@effect-agent/effect-host"
-import { KERNEL_PLANES, type KernelContext, type KernelInstance } from "./types.ts"
+import { KERNEL_PLANES, planeIsOn, type KernelContext, type KernelInstance } from "./types.ts"
 import { pluginFor } from "./planes.ts"
 
 export * from "./types.ts"
@@ -22,7 +22,7 @@ const stopQuietly = async (plane: LoadedPlane | undefined): Promise<void> => {
 }
 
 export const createKernel = async (context: KernelContext): Promise<KernelInstance> => {
-  const specs = KERNEL_PLANES.filter((spec) => spec.always === true || context.enabled.has(spec.id))
+  const specs = KERNEL_PLANES.filter((spec) => planeIsOn(spec, context.enabled))
   const planes = new Map<string, LoadedPlane>()
   const id = context.revision === undefined
     ? "io.effect-agent.effect-server@0.0.0"

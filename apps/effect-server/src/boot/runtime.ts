@@ -24,7 +24,7 @@ import { disposeAll } from "./dispose.ts"
 import { networkConfig } from "../network/config.ts"
 import { makeNetworkRuntime } from "../network/runtime.ts"
 import { makeManagedListeners } from "../network/listeners.ts"
-import { KERNEL_PLANES, type KernelContext, type KernelInstance } from "../kernel/index.ts"
+import { KERNEL_PLANES, planeIsOn, type KernelContext, type KernelInstance } from "../kernel/index.ts"
 import { loadKernel, planeStandIn } from "../kernel/load.ts"
 import type { EffectServer, EffectServerOptions } from "./options.ts"
 import type { AppReloader, ReloadOutcome } from "./reload-types.ts"
@@ -134,7 +134,7 @@ export const bootRuntime = async (
       // slots for would leave holes reachable by URL — refuse it while the old
       // kernel is still serving, not on the first request that finds the hole.
       for (const spec of KERNEL_PLANES) {
-        if (spec.always !== true && !active.has(spec.id)) continue
+        if (!planeIsOn(spec, active)) continue
         if (!slot.kernel.planes.has(spec.id)) {
           throw new Error(`kernel ${slot.kernel.id} leaves slot ${spec.id} unfilled`)
         }
@@ -189,7 +189,7 @@ export const bootRuntime = async (
     // One stable entry per plane slot: ids and priorities are the host's, and they
     // do not move when a kernel does (§6.3-①). Inert until a kernel is activated.
     for (const spec of KERNEL_PLANES) {
-      if (spec.always !== true && !active.has(spec.id)) continue
+      if (!planeIsOn(spec, active)) continue
       await host.register(planeStandIn(spec, point))
     }
     await appLayer.boot()

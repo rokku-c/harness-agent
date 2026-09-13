@@ -11,7 +11,7 @@
  */
 import { Effect, Option, Queue } from "effect"
 import { AgentFailure, AgentPaused, type AgentEvent, type Op, type Until } from "@effect-agent/core"
-import type { LoopState, RunBox, EffectAgentOptions } from "./types.ts"
+import { DEFAULT_DECODE_RETRIES, DEFAULT_MAX_REFLECTIONS, DEFAULT_MAX_STEPS, type LoopState, type RunBox, type EffectAgentOptions } from "./types.ts"
 import type { FinalTool } from "./protocol.ts"
 import { planSurface, visibleNames, wireTools } from "./protocol.ts"
 import { runTurnCalls, type TurnEnv } from "./turn.ts"
@@ -35,9 +35,9 @@ export interface CycleEnv {
 
 export const runCycle = <A>(env: CycleEnv): Effect.Effect<A, AgentFailure, any> =>
   Effect.gen(function* () {
-    const maxSteps = env.options.maxSteps ?? 32
-    const maxReflections = env.options.maxReflections ?? 1
-    const decodeRetries = env.options.decodeRetries ?? 2
+    const maxSteps = env.options.maxSteps ?? DEFAULT_MAX_STEPS
+    const maxReflections = env.options.maxReflections ?? DEFAULT_MAX_REFLECTIONS
+    const decodeRetries = env.options.decodeRetries ?? DEFAULT_DECODE_RETRIES
     const systemPrompt = env.options.instructions ?? ""
     let reflections = 0
     for (let step = env.firstStep; step < maxSteps; step++) {

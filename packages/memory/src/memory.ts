@@ -81,12 +81,3 @@ export const ScopedMemory = Effect.gen(function* () {
   }
   return service
 })
-
-/** Promotion hook example: counts promotions into an in-memory counter. */
-export const promoteHook = (counter: { count: number }) => ({
-  promote: (from: string, to: string, _entry: MemoryEntry) =>
-    Effect.sync(() => {
-      counter.count++
-      console.log("[memory] promote " + from + " -> " + to)
-    })
-})

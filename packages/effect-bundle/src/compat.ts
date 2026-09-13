@@ -99,9 +99,6 @@ const lineOf = (abi: string, prefix: string): string | undefined => {
  */
 export const abiLine = (abi: string): string | undefined => lineOf(abi, "effect")
 
-/** The bootstrap line's counterpart of {@link abiLine} — `bootstrap-<major>`. */
-export const bootstrapAbiLine = (abi: string): string | undefined => lineOf(abi, "bootstrap")
-
 /**
  * Adjudicate one ABI line. Shared by both lines and both artifact kinds (§5) —
  * `assessBundleCompat` uses it for `effect`, the kernel gate for `bootstrap`.
