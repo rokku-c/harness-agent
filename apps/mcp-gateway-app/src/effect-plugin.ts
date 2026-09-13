@@ -21,7 +21,7 @@ import type { AppRuntimeContext } from "@effect-agent/effect-apps"
 import { serveMcpHttp } from "@effect-agent/effect-mcp-http"
 import { toEffectTools, toHttpHandler } from "@effect-agent/effect-interface"
 import {
-  authenticateRequest, buildMcpGatewayServer, makeIdentityStore, makeMcpGateway, makeMcpSetRegistry,
+  authenticateRequest, buildMcpGatewayServer, makeIdentityStore, makeLiveSets, makeMcpGateway,
   makeRegistryHttpUpstream, makeRegistrySetResolver, makeToolCatalog, type McpToolSurface,
 } from "@effect-agent/mcp-gateway"
 import { makeAuditLog } from "./audit-log.ts"
@@ -37,9 +37,11 @@ export const createMcpGatewayPlugin = (getConfig: () => unknown, context: AppRun
     const registry = context.mcpRegistry
     if (!registry) throw new Error("mcp-gateway requires the shared MCP Registry")
     const config = effectConfig.schema.parse(getConfig())
-    const sets = makeMcpSetRegistry({ resolver: makeRegistrySetResolver(registry) })
-    for (const set of config.sets) sets.registerSet(set)
-    for (const binding of config.bindings) sets.bindAgent(binding)
+    // The sets are agentd's, read where they live: the registry below is rebuilt
+    // whenever the center's revision moves and never on a clock, so the door
+    // decides with the binding the operator holds now rather than with one a
+    // timer has not noticed yet.
+    const sets = makeLiveSets(context.mcpSets, makeRegistrySetResolver(registry))
     const upstream = makeRegistryHttpUpstream({ registry, fetch: context.fetch })
     const audit = makeAuditLog()
     const store = makeIdentityStore(config.databaseFile)
@@ -56,7 +58,7 @@ export const createMcpGatewayPlugin = (getConfig: () => unknown, context: AppRun
     // one list, two projections: what the console reads and what an agent calls
     // are the same declarations, and the console's preview asks the same set
     // registry the gateway decides with, so it cannot answer differently
-    const operations = mcpGatewayOperations({ config, registry, sets, offered: catalog, audit, live, identities: store })
+    const operations = mcpGatewayOperations({ registry, sets, offered: catalog, audit, live, identities: store })
     const console = toHttpHandler(operations)
     const serving = (request: Request): Response | Promise<Response> | undefined =>
       new URL(request.url).pathname === "/mcp-gateway" && request.method === "POST" ? mcp(request) : undefined

@@ -13,7 +13,7 @@ import type { Authz, Principal } from "@effect-agent/effect-authz"
 
 import type { McpGatewayEvent, McpGatewayRecorder, RuleDecision } from "./contract-audit.ts"
 import type { McpGatewayRule } from "./rules.ts"
-import type { McpGatewayServer, McpSetRegistry } from "./contract-sets.ts"
+import type { McpGatewayServer, McpSetReader } from "./contract-sets.ts"
 
 export interface McpGatewayContext {
   readonly callId: string
@@ -41,7 +41,8 @@ export interface McpGatewayOptions {
   readonly rules?: readonly McpGatewayRule[]
   readonly recorder?: McpGatewayRecorder
   readonly resolver?: McpServerResolver
-  readonly setRegistry?: McpSetRegistry
+  /** What a call may reach. A reader, not a registry: the door enforces sets, it does not declare them. */
+  readonly setRegistry?: McpSetReader
   /**
    * Per-principal enforcement. Absent means the gateway runs unguarded, which
    * is the pre-convergence posture; the external door must set it.

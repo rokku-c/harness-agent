@@ -27,6 +27,7 @@ export const registerEffectApp = async (host: EffectAppHost, app: EffectAppDescr
           return host.network.fetch(app.id, input, init)
         },
         mcpRegistry: host.mcpRegistry,
+        mcpSets: host.mcpSets,
       }) : app.plugin
       if (plugin !== undefined) steps.push(await registerAppPlugin(host.host, withAppRuntime(host, app, plugin)))
     }

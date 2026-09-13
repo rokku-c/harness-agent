@@ -8,6 +8,7 @@ import { makeAgentdTools } from "./ops/index.ts"
 import type { AppliedReport, NodeAppliedReport } from "./ops/surfaces.ts"
 import { seed } from "./seed.ts"
 import { makeStatus } from "./status.ts"
+import type { McpSetSlot } from "@effect-agent/mcp-gateway"
 
 export interface AgentdPluginOptions {
   /**
@@ -15,6 +16,12 @@ export interface AgentdPluginOptions {
    * tunnel without it refuses rather than reaching the network ungoverned.
    */
   readonly send?: TunnelSend
+  /**
+   * Where the mcpsets are held. The center is the one place a set and a binding
+   * are declared, and the gateway is one reader among several, so what leaves
+   * this app is a reader over its own state and never a copy of it.
+   */
+  readonly sets?: McpSetSlot
 }
 
 export const createAgentdPlugin = (getConfig: () => unknown = () => ({}), options: AgentdPluginOptions = {}): EffectPlugin => ({
@@ -36,6 +43,10 @@ export const createAgentdPlugin = (getConfig: () => unknown = () => ({}), option
       ...(options.send === undefined ? {} : { send: options.send }),
     })
     seed(control, parsed)
+    // The set an agent reaches the gateway through is declared here, so here is
+    // where it is read from. Nothing is copied out: the gateway is handed the
+    // reading itself, at the revision this center is holding.
+    options.sets?.provide("agentd", { facts: () => control.mcpsets() })
     // one surface object, so the tools and the routes are the same operations
     const surfaces = { control, applied, nodeApplied, launches, tunnel, facts, status: makeStatus(control, applied, nodeApplied) }
     return {

@@ -27,7 +27,7 @@ import { directoryOperations } from "./ops-directory.ts"
 import { tokenOperations } from "./ops-token.ts"
 import { withListings } from "./server-listings.ts"
 
-/** What these operations read: the shared registry, the live config, the audit — and the two engines that decide and issue. */
+/** What these operations read: the shared registry, the center's sets, the live catalog, the audit — and the two engines that decide and issue. */
 export interface GatewaySurfaces extends AccessSurfaces {
   readonly audit: AuditLog
   /** The catalog *as a read*: it rebuilds, and it says how the rebuild went. */
@@ -48,15 +48,16 @@ const named = (value: string | undefined): string | undefined => {
 export const mcpGatewayOperations = (surfaces: GatewaySurfaces): readonly Operation[] => [
   operation({
     name: "mcp_gateway_topology",
-    description: "The gateway's registry servers and what each answered when its tools were listed, the sets that group them, the agents bound to those sets, the tools it can offer, and its recent decisions",
+    description: "The gateway's registry servers and what each answered when its tools were listed, the sets and agent bindings the agentd center declares, the tools it can offer, and its recent decisions",
     access: "read", input: noInput, http: { method: "GET", path: "/mcp-gateway" },
     handler: async () => {
       await surfaces.live.refresh()
+      const facts = surfaces.sets.facts()
       return {
         app: "mcp-gateway",
         servers: withListings(surfaces.registry.list(), surfaces.live.report()),
-        sets: surfaces.config.sets,
-        bindings: surfaces.config.bindings,
+        sets: facts.sets,
+        bindings: facts.bindings,
         tools: surfaces.offered.list(),
         audit: surfaces.audit.list(),
       }

@@ -13,5 +13,5 @@ export const effectApp = defineApp({
    * when its role changes.
    */
   egress: "main-first",
-  createPlugin: (getConfig, context) => createAgentdPlugin(getConfig, { send: context.fetch }),
+  createPlugin: (getConfig, context) => createAgentdPlugin(getConfig, { send: context.fetch, sets: context.mcpSets }),
 })

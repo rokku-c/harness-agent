@@ -50,6 +50,7 @@ import Formal.Rollup
 import Formal.Rules
 import Formal.Screen
 import Formal.ServerListings
+import Formal.SetSource
 import Formal.Sets
 import Formal.Stack
 import Formal.Surface

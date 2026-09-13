@@ -25,6 +25,14 @@ export interface AgentdControl {
   upsertSet(set: McpSet): McpSet
   bindAgent(agentId: string, setIds: readonly string[]): AgentBinding
   /**
+   * The mcpset facts as they stand: the one place a set and a binding live, read
+   * as a value rather than written out to a second store. `revision` is the
+   * counter every write here bumps and every receipt is measured against, so a
+   * reader that has built for one revision has built for every write below it —
+   * which is what lets the door rebuild on the counter instead of on a clock.
+   */
+  mcpsets(): { readonly revision: number; readonly sets: readonly McpSet[]; readonly bindings: readonly AgentBinding[] }
+  /**
    * Publish one artifact version for distribution (§7.6); keyed `bundleId@version`.
    * `source` is the directory its bytes live in, when the publisher has them —
    * a version published without one is a version a node must already have.

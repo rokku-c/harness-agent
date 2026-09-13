@@ -8,6 +8,4 @@ apps:
     resourceUri: ui://mcp-gateway/console
     path: /mcp-gateway
 config:
-  sets: []
-  bindings: []
   captureArgs: false

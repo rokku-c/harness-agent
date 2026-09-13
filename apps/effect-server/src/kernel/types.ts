@@ -27,6 +27,7 @@ import type { EffectPluginHost, LoadedPlane } from "@effect-agent/effect-host"
 import type { EffectRegistry } from "@effect-agent/effect-interface"
 import type { ConfigRegistry } from "@effect-agent/effect-config"
 import type { Registry as McpRegistry } from "@effect-agent/mcp-registry"
+import type { McpSetSlot } from "@effect-agent/mcp-gateway"
 import type { EffectUiView } from "@effect-agent/effect-ui"
 import type { AppCatalog } from "@effect-agent/effect-apps"
 import type { KernelRevision } from "@effect-agent/effect-bundle"
@@ -40,6 +41,7 @@ export interface KernelContext {
   readonly configRuntime: ConfigRuntime
   readonly network: EgressRouter
   readonly mcpRegistry: McpRegistry
+  readonly mcpSets: McpSetSlot
   readonly uiViews: Map<string, EffectUiView>
   readonly catalog: AppCatalog
   readonly enabled: ReadonlySet<string>

@@ -35,7 +35,10 @@ export const bootRuntime = async (
   const declaration = assertKernelBootable(options.kernel)
   if (process.env.EFFECT_KERNEL_LOG === "1") console.error(`[effect-server] kernel ${declaration.kernelId}`)
   const active = new Set(enabled)
-  if (active.has("mcp-gateway")) active.add("mcp-registry") // satisfies the gateway's declared requires
+  // What an app declares it needs, satisfied the one way it can be: the registry
+  // that holds the servers, and the center that holds the sets and the bindings.
+  if (active.has("mcp-gateway")) active.add("mcp-registry")
+  if (active.has("mcp-gateway")) active.add("agentd")
   // Reloading is the one capability handed to the host *after* construction: the
   // reloaders are built from that host. The dispatch holds the binding (and reads
   // it per request, never while booting) so the host can be built first.
@@ -51,6 +54,7 @@ export const bootRuntime = async (
     let bundleFailures: readonly string[] = []
     const app: EffectServer = {
       host: services.host, registry: services.registry, mcpRegistry: services.mcpRegistry,
+      mcpSets: services.mcpSets,
       configs: services.configs, configRuntime: services.configRuntime,
       initializeConfig: services.initializeConfig, uiViews: services.uiViews, network: services.network,
       reloadApp: dispatch.reload,

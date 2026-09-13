@@ -35,10 +35,10 @@ export const makeKernelRuntime = (
   options: EffectServerOptions,
   active: ReadonlySet<string>,
 ): KernelRuntime => {
-  const { host, registry, mcpRegistry, configs, configRuntime, network, uiViews } = services
+  const { host, registry, mcpRegistry, mcpSets, configs, configRuntime, network, uiViews } = services
   const point = makeDispatchPoint<KernelInstance>()
   const context: KernelContext = {
-    host, registry, configs, configRuntime, network, mcpRegistry, uiViews, catalog: apps.catalog,
+    host, registry, configs, configRuntime, network, mcpRegistry, mcpSets, uiViews, catalog: apps.catalog,
     enabled: active,
     yamlOf: (id) => services.yaml.get(id),
     observationFile: process.env.EFFECT_OBSERVE_FILE,

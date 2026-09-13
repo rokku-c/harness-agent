@@ -1,4 +1,5 @@
 import type { Registry as McpRegistry } from "@effect-agent/mcp-registry"
+import type { McpSetSlot } from "@effect-agent/mcp-gateway"
 import type { EgressRouter } from "@effect-agent/effect-network"
 import type { makeManagedListeners } from "../network/listeners.ts"
 import type { EffectPluginHost } from "@effect-agent/effect-host"
@@ -51,6 +52,7 @@ export interface EffectServer {
   readonly host: EffectPluginHost
   readonly registry: EffectRegistry
   readonly mcpRegistry: McpRegistry
+  readonly mcpSets: McpSetSlot
   readonly configs: ConfigRegistry
   readonly configRuntime: ConfigRuntime
   readonly initializeConfig: (appId: string) => void

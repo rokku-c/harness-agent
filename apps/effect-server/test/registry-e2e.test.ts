@@ -17,7 +17,7 @@ test("issued credential -> one door -> advertised catalog -> real upstream, with
     })
     return mcp
   }) })
-  const f = await registryFixture()
+  const f = await registryFixture(upstream.url.href)
   const connect = async (headers: Record<string, string>) => {
     const client = new Client({ name: "agentd-client", version: "1" })
     await client.connect(new StreamableHTTPClientTransport(new URL("/mcp-gateway", f.url), { requestInit: { headers } }))

@@ -39,10 +39,10 @@ export const makeAppRuntime = (
   roots: readonly string[],
   active: ReadonlySet<string>,
 ): AppRuntime => {
-  const { host, registry, mcpRegistry, configs, configRuntime, uiViews, network, initializeConfig } = services
+  const { host, registry, mcpRegistry, mcpSets, configs, configRuntime, uiViews, network, initializeConfig } = services
   const catalog = makeHostCatalog({ host, registry, configs, uiViews })
   const loadContext: LoadContext = {
-    host, registry, mcpRegistry, configs, uiViews, network, initializeConfig,
+    host, registry, mcpRegistry, mcpSets, configs, uiViews, network, initializeConfig,
     activeConfig: (id) => configRuntime.active(id),
   }
   const layer = makeAppLayer({ load: (only) => bootManifests(loadContext, roots, active, only) })
@@ -57,7 +57,7 @@ export const makeAppRuntime = (
     apps: options.bundles,
     root: options.bundleRoot ?? resolve(".effect-bundles"),
     api: {
-      host, registry, mcpRegistry, configs, uiViews, network, namespace: "ops",
+      host, registry, mcpRegistry, mcpSets, configs, uiViews, network, namespace: "ops",
       initializeConfig, activeConfig: (id) => configRuntime.active(id),
     },
   })

@@ -20,11 +20,11 @@
  * any of them — and naming the advertised name instead would send an operator
  * to write an entry that list never matches.
  */
-import type { CatalogEntry, McpSetRegistry, McpSetResolution } from "@effect-agent/mcp-gateway"
+import type { CatalogEntry, McpSetReader, McpSetResolution } from "@effect-agent/mcp-gateway"
 
 /** What the verdict was, and everything a sentence about it can be built from. */
 export interface Refusal {
-  readonly sets: McpSetRegistry
+  readonly sets: McpSetReader
   readonly agentId: string
   /** Whether the agent is bound to any set at all. */
   readonly bound: boolean

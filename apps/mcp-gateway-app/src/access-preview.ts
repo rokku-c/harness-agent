@@ -1,4 +1,4 @@
-import { makeRegistrySetResolver, type McpSet, type McpSetBinding, type McpSetRegistry, type ToolCatalog } from "@effect-agent/mcp-gateway"
+import { makeRegistrySetResolver, type LiveSets, type ToolCatalog } from "@effect-agent/mcp-gateway"
 import type { Registry } from "@effect-agent/mcp-registry"
 import { refusalReasons } from "./access-reasons.ts"
 
@@ -16,16 +16,13 @@ export interface AccessPreview {
   readonly allowed: boolean
   readonly reasons: readonly string[]
 }
-/** The gateway's own two declarations, not a second copy of their shape. */
-export interface AccessConfig {
-  readonly sets: readonly McpSet[]
-  readonly bindings: readonly McpSetBinding[]
-}
-/** What a preview asks: the config it explains, the registry it draws, the engine that decides, and what the door offers. */
+/**
+ * What a preview asks: the registry it draws topology from, the sets the center
+ * declares — the same object the door decides with — and what the door offers.
+ */
 export interface AccessSurfaces {
-  readonly config: AccessConfig
   readonly registry: Registry
-  readonly sets: McpSetRegistry
+  readonly sets: LiveSets
   /** The door's own catalog, keyed by the name `tools/list` answers with. */
   readonly offered: ToolCatalog
 }
@@ -36,11 +33,12 @@ export interface AccessSurfaces {
  * record reaches is the resolver the engine itself uses, so a set drawn as
  * reachable is a set the engine would route through.
  */
-const boundSets = ({ config, registry }: AccessSurfaces, agentId: string): readonly AccessSet[] => {
+const boundSets = ({ sets, registry }: AccessSurfaces, agentId: string): readonly AccessSet[] => {
   const resolver = makeRegistrySetResolver(registry)
-  const bound = config.bindings.find((binding) => binding.agentId === agentId)?.setIds ?? []
+  const facts = sets.facts()
+  const bound = facts.bindings.find((binding) => binding.agentId === agentId)?.setIds ?? []
   return bound.flatMap((setId): AccessSet[] => {
-    const set = config.sets.find((candidate) => candidate.setId === setId)
+    const set = facts.sets.find((candidate) => candidate.setId === setId)
     if (set === undefined) return []
     return [{
       setId, name: set.name,

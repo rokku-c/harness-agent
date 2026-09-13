@@ -25,6 +25,19 @@ export const allowDenyOverlap = (
 }
 
 /**
+ * The first name that repeats, or undefined. A set that names one server twice
+ * reaches it twice and a binding that names one set twice reaches it twice, and
+ * the registry refuses both by throwing — at load, when nothing can explain it.
+ * The grammar is where the shape of a declaration is stated, so it is stated
+ * here, and the door's rebuild is then total by construction
+ * (`Formal/SetSource.lean`).
+ */
+export const repeatedName = (names: readonly string[]): string | undefined => {
+  const seen = new Set<string>()
+  return names.find((name) => (seen.has(name) ? true : (seen.add(name), false)))
+}
+
+/**
  * The first name that is not one of the known ones, or undefined: a set bound
  * to an agent, or a server named by a set. A name nobody declares authorizes
  * nothing, so it is refused rather than carried — the grammar refuses it while
@@ -47,10 +60,15 @@ export const mcpSetSchema = z.object({
   denyTools: z.array(z.string().min(1)).optional(),
 }).strict().superRefine((value, ctx) => {
   if (allowDenyOverlap(value)) ctx.addIssue({ code: "custom", message: "allowTools and denyTools overlap" })
+  const twice = repeatedName(value.servers)
+  if (twice !== undefined) ctx.addIssue({ code: "custom", message: `${twice} is named twice in this set` })
 })
 
 /** An agent's sets. At least one: a binding to nothing says nothing. */
 export const mcpSetBindingSchema = z.object({
   agentId: z.string().min(1),
   setIds: z.array(z.string().min(1)).min(1),
-}).strict()
+}).strict().superRefine((value, ctx) => {
+  const twice = repeatedName(value.setIds)
+  if (twice !== undefined) ctx.addIssue({ code: "custom", message: `${twice} is bound twice to this agent` })
+})

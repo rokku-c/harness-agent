@@ -46,6 +46,7 @@ export interface EffectBundleApi {
   readonly initializeConfig?: (appId: string) => void
   readonly activeConfig?: (appId: string) => unknown
   readonly mcpRegistry?: import("@effect-agent/mcp-registry").Registry
+  readonly mcpSets?: import("@effect-agent/mcp-gateway").McpSetSlot
 }
 
 export interface EffectBundleEntry {
@@ -84,8 +85,7 @@ export const loadEffectBundle = async (bundleDir: string, api: EffectBundleApi):
   // single line of its entry. Fail loud, never silently downgrade (§5, §7.4).
   assertBundleCompat(manifest, { abi: api.abi, runtime: api.runtime })
   assertCapabilityCompat(manifest, api.capabilities)
-  // Pick the build for the runtime we are actually in (§7.5-2), falling back to
-  // the primary entry so an artifact compiled before multi-target still loads.
+  // The build for this runtime (§7.5-2), falling back to the primary entry.
   const runtime = api.runtime ?? DEFAULT_RUNTIME
   const entryPath = resolve(bundleDir, manifest.entries?.[runtime] ?? manifest.entry ?? "entry.js")
   const mod = (await import(entryPath)) as EffectBundleEntry

@@ -3,6 +3,7 @@ import { makeConfigRegistry, makeSqliteConfigStore, type ConfigOutcome } from "@
 import { makePluginHost, type EffectPluginHost } from "@effect-agent/effect-host"
 import { makeEffectRegistry, type EffectRegistry } from "@effect-agent/effect-interface"
 import { makeRegistry } from "@effect-agent/mcp-registry"
+import { makeMcpSetSlot } from "@effect-agent/mcp-gateway"
 import { dependencyError, dependencyGaps } from "./dependencies.ts"
 
 export interface StandaloneRegistrationOptions {
@@ -66,7 +67,7 @@ export const registerStandaloneApp = async (
   }
   try {
     dispose = await registerEffectApp({
-      host, registry, configs, mcpRegistry: makeRegistry(),
+      host, registry, configs, mcpRegistry: makeRegistry(), mcpSets: makeMcpSetSlot(),
       initializeConfig: (id) => {
         const out = configs.initialize(id, {
           ...(options.config === undefined ? {} : { yaml: options.config }),

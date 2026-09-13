@@ -37,14 +37,21 @@ export interface McpSetQuery {
   /** The tool being called. Absent asks the routing question alone, which no list can refuse. */
   readonly tool?: string
 }
-export interface McpSetRegistry {
-  registerServer(server: McpGatewayServer): void
-  registerSet(set: McpSet): void
-  bindAgent(binding: McpSetBinding): void
+/**
+ * The two questions anyone asks a set registry, and the only two the door asks.
+ * A reader is what a caller with no business declaring sets holds — which is
+ * every surface that decides, previews or draws one.
+ */
+export interface McpSetReader {
   /** Whether the agent has any binding at all — the question a refusal must ask to name a reason. */
   bound(agent: string | undefined): boolean
   /** The set and server a call would go through, and whether that set's lists admit the tool. */
   resolve(query: McpSetQuery): McpSetResolution | undefined
+}
+export interface McpSetRegistry extends McpSetReader {
+  registerServer(server: McpGatewayServer): void
+  registerSet(set: McpSet): void
+  bindAgent(binding: McpSetBinding): void
 }
 /** A transport that already knows where a named server lives. */
 export type McpServerSource = McpGatewayServer & { readonly transport: "streamable-http" | "stdio"; readonly endpoint: string; readonly headers?: Readonly<Record<string, string>> }

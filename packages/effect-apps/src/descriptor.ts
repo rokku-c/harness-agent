@@ -1,4 +1,5 @@
 import type { Registry as McpRegistry } from "@effect-agent/mcp-registry"
+import type { McpSetSlot } from "@effect-agent/mcp-gateway"
 import type { EgressPolicy, EgressRouter, HttpSend } from "@effect-agent/effect-network"
 /** Standard app authoring contract; registration is awaited and reversible. */
 import type { EffectPlugin, EffectPluginHost, RoutePattern } from "@effect-agent/effect-host"
@@ -6,7 +7,17 @@ import type { EffectRegistry } from "@effect-agent/effect-interface"
 import type { ConfigRegistry } from "@effect-agent/effect-config"
 import type { EffectUiView } from "@effect-agent/effect-ui"
 
-export interface AppRuntimeContext { readonly fetch: HttpSend; readonly mcpRegistry?: McpRegistry }
+/**
+ * `mcpRegistry` is the platform's shared server registry; `mcpSets` is the seam
+ * where the center that configures machines says where a set and a binding live.
+ * Both are handed to every app and both are optional: an app that needs one says
+ * so in `requires`, and the composition root is what satisfies it.
+ */
+export interface AppRuntimeContext {
+  readonly fetch: HttpSend
+  readonly mcpRegistry?: McpRegistry
+  readonly mcpSets?: McpSetSlot
+}
 
 export interface EffectAppDescriptor {
   readonly routes?: readonly RoutePattern[]
@@ -35,6 +46,7 @@ export interface EffectAppDescriptor {
 export interface EffectAppHost {
   readonly network?: EgressRouter
   readonly mcpRegistry?: McpRegistry
+  readonly mcpSets?: McpSetSlot
   readonly host?: EffectPluginHost
   readonly registry?: EffectRegistry
   readonly configs?: ConfigRegistry

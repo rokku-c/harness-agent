@@ -12,6 +12,7 @@
  */
 
 import { makeRegistry, type Registry as McpRegistry } from "@effect-agent/mcp-registry"
+import { makeMcpSetSlot, type McpSetSlot } from "@effect-agent/mcp-gateway"
 import { makePluginHost, type EffectPluginHost } from "@effect-agent/effect-host"
 import { makeEffectRegistry, type EffectRegistry } from "@effect-agent/effect-interface"
 import { makeConfigRegistry, makeSqliteConfigStore, type ConfigRegistry } from "@effect-agent/effect-config"
@@ -31,6 +32,8 @@ export interface BootServices {
   readonly host: EffectPluginHost
   readonly registry: EffectRegistry
   readonly mcpRegistry: McpRegistry
+  /** Where the center says a set and a binding live; the door reads it from here. */
+  readonly mcpSets: McpSetSlot
   readonly configs: ConfigRegistry
   readonly configRuntime: ConfigRuntime
   /** Give an app its config layers — what its manifest declared. */
@@ -52,6 +55,7 @@ export const makeServices = (
   const host = makePluginHost({ control: options.control, reload })
   const registry = makeEffectRegistry()
   const mcpRegistry = makeRegistry()
+  const mcpSets = makeMcpSetSlot()
   const configFile = configFileFrom(options.configFile)
   const store = makeSqliteConfigStore({ file: configFile })
   const configs = makeConfigRegistry({ store })
@@ -82,7 +86,7 @@ export const makeServices = (
   const uiViews = new Map<string, EffectUiView>()
   const yaml = new Map(discoverManifests(roots).map((d) => [d.manifest.id, d.manifest.config]))
   return {
-    host, registry, mcpRegistry, configs, configRuntime, uiViews, yaml,
+    host, registry, mcpRegistry, mcpSets, configs, configRuntime, uiViews, yaml,
     network: networkRuntime.network,
     listeners,
     initializeConfig: (id) => configRuntime.initialize(id, { yaml: yaml.get(id) }),

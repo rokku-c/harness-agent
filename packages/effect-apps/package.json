@@ -13,6 +13,7 @@
     "@effect-agent/effect-network": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/mcp-registry": "workspace:*",
+    "@effect-agent/mcp-gateway": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^3.25.0"
   }

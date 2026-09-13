@@ -26,6 +26,7 @@
     "@effect-agent/effect-parity": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/mcp-registry": "workspace:*",
+    "@effect-agent/mcp-gateway": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@radix-ui/themes": "^3.3.0",
     "yaml": "^2.4.0",
