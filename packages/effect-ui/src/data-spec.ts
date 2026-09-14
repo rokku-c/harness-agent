@@ -49,11 +49,17 @@ export interface UiActionSpec {
    */
   readonly clear?: readonly string[]
   /**
-   * The reads to run again once this action succeeded — a source id, or the
-   * name of a declared action. A refresh is a read and not a press: it makes
-   * its call and writes its own answer, and it consumes no draft and enters no
-   * screen. That is what lets the answer this action just wrote stay where the
-   * operator can read it, while the list beside it catches up.
+   * The reads to run again — a source id, or the name of a declared action. A
+   * refresh is a read and not a press: it makes its call and writes its own
+   * answer, and it consumes no draft and enters no screen. That is what lets the
+   * answer this action just wrote stay where the operator can read it, while the
+   * list beside it catches up.
+   *
+   * An action with no `url` is the retry: it has no call to make, so `refresh` is
+   * the whole of the press — `{ name, refresh: [source] }` is a "Try again" for a
+   * list that failed to load. `clear` still needs a call to have succeeded, since
+   * emptying a draft is something only a write earns; re-reading is not, because a
+   * read puts the world back and cannot take anything away.
    */
   readonly refresh?: readonly string[]
 }

@@ -437,6 +437,42 @@ Two operational notes that are not visible from a file list:
   deletion nor the rebuild restarts it; it keeps serving the old console until
   the new bundle is built, which is the intended behaviour and not a failure.
 
+**A defect the reimplementation found, not one it invented.** Two app agents,
+working in different apps and neither aware of the other, reported the same
+thing: a declared source could not be retried from a view. `design-system.md`
+:954 lists "no retry on any failure" as a defect and :572 requires a `Try again`
+"that repeats exactly the request that failed" — but the runtime's gate read
+`if (action.url !== undefined && await call(...))`, so an action with no `url`
+never reached its `refresh` list, and a `Try again` for a source read had
+nothing to repeat.
+
+The gate was right about `clear` and wrong about `refresh`, and the reason is
+the distinction `Refresh.lean` already draws: `clear` takes state *away*, which
+is something only a write that succeeded has earned, while a refresh puts the
+world *back* and — by `refresh_never_blanks` — can never empty a path. So the
+gate splits: `clear` still requires a successful call; `refresh` runs when the
+call succeeded **or** when there was no call to make at all. An action with no
+`url` is now the retry: `{ name, refresh: [sourceId] }`.
+
+The change is **strictly additive at the runtime**: every `refresh` in the tree
+today also declares a `url`, so no existing action's behaviour moves. It costs
+three theorems, in the module that already models the mechanism —
+`retry_is_refresh_only` (the retry is `pressEdits` with no answer and nothing
+cleared), `retry_untouched` (the half of `answer_survives_refresh` that still has
+a subject when there is no answer to protect: a retry may not disturb a path its
+reads do not own), and `retry_writes_its_read` (it is not a no-op). The figure
+becomes **496 in 57**, which satisfies §3's floor of 493 rather than beating it:
+the floor is there so no mechanism goes unproven, not to make a count climb.
+
+Two things follow for the app layer. `apps/mcp-registry-app` had written the
+workaround this gap forced — a `registry.read` action carrying a real `GET` so
+that the gate would open — and its own comment said the runtime "makes no call
+and so refreshes nothing"; that comment was true when written and is false now,
+so the action is `registry.retry` with no `url`, one press and one read instead
+of two. And `apps/ui-host` reported the gap without working around it, which left
+its source failures as bare `failureNotice` calls — a reason with no way out,
+against :572. That is a separate act, not a silent patch.
+
 ---
 
 ## 8. What `flows.md` requires, and how much of it these six layers carry

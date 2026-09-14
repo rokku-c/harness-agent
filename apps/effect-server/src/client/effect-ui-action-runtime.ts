@@ -49,16 +49,21 @@ export const makeActionHandlers = (actions: readonly UiActionSpec[] = [], source
 
   return Object.fromEntries(actions.map((action) => [action.name, async (runtimeParams: Params = {}) => {
     const params = declaredOf(action, runtimeParams)
-    // A press that made no call has nothing that succeeded, so it neither consumes a draft nor re-runs a read.
-    if (action.url !== undefined && await call(action, params)) {
-      for (const path of action.clear ?? []) store.set(path, "")
-      await Promise.all((action.refresh ?? []).map(async (id) => {
-        const source = sources.find((candidate) => candidate.id === id)
-        if (source !== undefined) return loadSource(source, store, fetcher)
-        const read = actions.find((candidate) => candidate.name === id)
-        if (read !== undefined) await call(read, declaredOf(read, {}))
-      }))
-    }
+    const ran = action.url !== undefined && await call(action, params)
+    // Only a press that succeeded empties the drafts it consumed: taking state away
+    // is something a write earns, and a press that did nothing has not earned it.
+    if (ran) for (const path of action.clear ?? []) store.set(path, "")
+    // Its reads re-run when it made a call and the call worked, or when it had no
+    // call to make at all — the retry, which is `refresh` and nothing else. That
+    // second case is safe for the reason `Formal/Refresh.lean` gives: a re-run read
+    // writes its own answer and can never blank a path, so there is nothing it can
+    // erase from under the operator.
+    if (ran || action.url === undefined) await Promise.all((action.refresh ?? []).map(async (id) => {
+      const source = sources.find((candidate) => candidate.id === id)
+      if (source !== undefined) return loadSource(source, store, fetcher)
+      const read = actions.find((candidate) => candidate.name === id)
+      if (read !== undefined) await call(read, declaredOf(read, {}))
+    }))
     if (action.opens !== undefined) open(action.opens, params)
   }]))
 }

@@ -29,6 +29,16 @@
   The condition is a condition on the app, not on the runtime: a refresh must not
   name the path the press's own answer went to. The deck's send writes
   `/result/turn` and refreshes the transcript read, which writes `/opened`.
+
+  A press need not have a call at all. `{ name, refresh: [source] }` — a "Try
+  again" under a list that failed to load — is a press whose whole work is the
+  reads it re-runs, and it is the same `pressEdits` with no answer and nothing
+  cleared. There is no answer of its own to protect, so `answer_survives_refresh`
+  has no subject here; what such a press owes is the other half of the same fact,
+  that it may not disturb what the operator reads anywhere its reads do not write.
+  This is also why the runtime's gate on `clear` stays where it is while the gate
+  on `refresh` does not: emptying a draft is something a write earns, and re-reading
+  is not, because only one of the two can take something away.
 -/
 
 namespace EffectUi
@@ -156,5 +166,35 @@ theorem answer_survives_refresh {store : Store} {answer : String} {path : String
   rw [pressEdits, apply_append, apply_append,
     apply_untouched (refresh_untouched hreads), apply_untouched (clear_untouched hclear)]
   exact apply_read_self store (some path) answer rfl
+
+/-! ### The press with no call to make -/
+
+/-- A press may name reads and have no call: `{ name, refresh: [source] }`. It wrote
+no answer and consumed no draft, so it is `pressEdits` with neither — and the whole
+of it is the reads it re-runs. -/
+theorem retry_is_refresh_only {answer : String} {reads : List (Option String × String)} :
+    pressEdits answer none [] reads = reads.flatMap (fun read => readEdits read.1 read.2) := by
+  simp [pressEdits, readEdits]
+
+/-- **So the whole of a retry's safety is one thing:** it changes the paths its reads
+own and no other. Nothing else can move, so it cannot take away what the operator is
+reading. This is what the runtime's gate on `refresh` rests on, and the reason that
+gate is not the gate on `clear` — a press that made no call may re-read, but it may
+not empty a draft. -/
+theorem retry_untouched {store : Store} {reads : List (Option String × String)} {key : String}
+    (h : ∀ read ∈ reads, read.1 ≠ some key) :
+    apply store (reads.flatMap (fun read => readEdits read.1 read.2)) key = store key :=
+  apply_untouched (refresh_untouched h)
+
+/-- And it is not a no-op: the path a re-run read owns does get its answer, which is
+the point of retrying. Stated for the read that runs first — a later read naming the
+same path would be the app contradicting itself, and `retry_untouched` is what says
+no *other* path moves. -/
+theorem retry_writes_its_read {store : Store} {key : String} {answer : String}
+    {rest : List (Option String × String)} (h : ∀ read ∈ rest, read.1 ≠ some key) :
+    apply store (((some key, answer) :: rest).flatMap (fun read => readEdits read.1 read.2)) key
+      = some answer := by
+  rw [List.flatMap_cons, apply_append, apply_untouched (refresh_untouched h)]
+  simp [readEdits, apply, step]
 
 end EffectUi

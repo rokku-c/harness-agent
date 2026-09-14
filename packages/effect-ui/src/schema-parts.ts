@@ -25,10 +25,12 @@ export const visible = z.union([condition, z.object({ any: z.array(condition) })
 export const source = z.object({ id: z.string().min(1), url: z.string().min(1), state: z.string().min(1), refreshMs: z.number().positive().optional() })
 
 /**
- * A press calls an address, enters a screen, or both — the last being what
- * opening a record is, where the read fills `result` and the screen renders it.
- * Neither one is a press that does nothing, and a view that declares one is a
- * button that silently does nothing in the browser, so it is refused here.
+ * A press calls an address, enters a screen, or re-runs the reads it names — the
+ * first two together being what opening a record is, where the read fills
+ * `result` and the screen renders it, and the third being the retry, whose whole
+ * work is the read it repeats. Any one of them is a press that does something. A
+ * view that declares none is a button that silently does nothing in the browser,
+ * so it is refused here.
  */
 export const action = z.object({
   name: z.string().min(1),
@@ -40,7 +42,7 @@ export const action = z.object({
   clear: z.array(z.string()).optional(),
   refresh: z.array(z.string()).optional(),
 }).superRefine((value, ctx) => {
-  if (value.url === undefined && value.opens === undefined) {
-    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url or opens a screen; this one has neither" })
+  if (value.url === undefined && value.opens === undefined && (value.refresh ?? []).length === 0) {
+    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url, opens a screen, or re-runs a read; this one does none" })
   }
 })
