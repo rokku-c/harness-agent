@@ -13,8 +13,6 @@ export interface UIRuntime {
   readonly version: (canvasId: string) => number
   readonly theme: () => string
   readonly setTheme: (theme: string) => void
-  readonly renderer: () => string
-  readonly setRenderer: (renderer: string) => void
   readonly data: () => UIDataStore
 }
 
@@ -27,11 +25,9 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     options.onCommand?.({ kind: "set-data", path, value })
   })
   let activeTheme = "default"
-  let activeRenderer = "web-html"
   return {
     apply: (command) => {
       if (command.kind === "set-theme") { activeTheme = command.theme; options.onCommand?.(command); return }
-      if (command.kind === "set-renderer") { activeRenderer = command.renderer; options.onCommand?.(command); return }
       if (command.kind === "navigate") { actions.navigate(command.canvasId, command.params); options.onCommand?.(command); return }
       if (command.kind === "set-data") { data.set(command.path, command.value); options.onCommand?.(command); return }
       store.apply(command)
@@ -55,11 +51,6 @@ export const makeUIRuntime = (store: DefinitionStore, initialCanvas: string, opt
     setTheme: (theme) => {
       activeTheme = theme
       options.onCommand?.({ kind: "set-theme", theme })
-    },
-    renderer: () => activeRenderer,
-    setRenderer: (renderer) => {
-      activeRenderer = renderer
-      options.onCommand?.({ kind: "set-renderer", renderer })
     },
     data: () => data
   }

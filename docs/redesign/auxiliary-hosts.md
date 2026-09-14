@@ -11,6 +11,22 @@ it, and the `src/` of `packages/ui-agent` (2), `ui-definition` (2), `ui-extensio
 `ui-protocol` (2), `ui-renderer` (3), `ui-runtime` (11), `ui-sandbox` (1), `effect-interface`
 (11). Test files are not classified.
 
+**This is the inventory the deletion was planned against, and §1 and §2 describe the state at the
+time it was taken.** Since then, in `f3c754f` (177 files, 45,055 lines removed): board's
+`hosts/web/public` (23 files — the page, the stylesheets, the DOM scripts below), deckconsole's
+`public/client` (10) and the `src/http/assets.ts` that served it, the mantis `webui` panel (24)
+with the `webui/public` it was built into, and the `effect-ui-tone` table each of agentd,
+ai-gateway, mcp-gateway-app and mcp-registry-app kept. Those apps kept their non-presentational
+halves: mantis's `webui/api.ts` is still what the console's mantis screens read, board's
+`hosts/mcp` still registers the same operations as tools, and deckconsole's eight
+`effect-ui-*.ts` modules are declared views now rather than page assets.
+
+Two surfaces this inventory did not list were deleted later, both having been missed rather than
+argued for: the ui-host app's own canvas page (`src/shell.ts`, `public/canvas.js` and the
+`packages/ui-renderer` that drew it, `8138020`) and the perry page the mantis app had stopped
+serving (`4a8d3d9`, 5,006 lines). A second rendering of a declared view is the thing
+`design-system.md` §2 refuses, in either app.
+
 ## 1. Each surface described
 
 **Mantis web panel — `apps/mantis/src/hosts/webui/**`.** A standalone HTTP host that serves a
@@ -106,10 +122,11 @@ transcript; read launchers and presets; remove a launcher; navigate between scre
 wire contract (nodes, canvases, components, extension manifests, commands); `ui-definition` is the
 canvas/component store with its tree and version rules; `ui-extension` enables and disables
 component extensions under a permission check; `ui-runtime` applies commands, resolves bindings,
-holds the data store, navigates, and journals/replays streams; `ui-renderer` turns a resolved tree
-into markup (a string renderer and a React renderer) under a theme registry; `ui-sandbox` runs an
-extension's script behind permission validation; `ui-agent` exposes the canvas ops to an agent as
-tools. Transport: whatever the embedding host uses; no surface of their own.
+holds the data store, navigates, and journals/replays streams; `ui-sandbox` runs an extension's
+script behind permission validation; `ui-agent` exposes the canvas ops to an agent as tools.
+Transport: whatever the embedding host uses; no surface of their own. `ui-renderer` used to turn a
+resolved tree into markup here, and it is the one part of this model that was presentation — it
+went with the page it drew for (`8138020`), and a canvas is read as data now.
 
 **`effect-interface`.** Not a surface: one operation declared once and projected to two transports
 (`toHttpHandler`, `toEffectTools`), a registry of interfaces with reversible registration, and the
@@ -288,12 +305,18 @@ Non-presentational:
 - `public/client/state.js:1` — module-level store for fetched launchers and samples. *uncertain.*
 - `src/http/assets.ts:2` — the allowed module list and the `__DECK_BASE__` substitution.
 
-### `packages/ui-agent`, `ui-definition`, `ui-extension`, `ui-protocol`, `ui-renderer`,
-`ui-runtime`, `ui-sandbox`, `effect-interface` — 4 presentation, 29 non-presentational
+### `packages/ui-agent`, `ui-definition`, `ui-extension`, `ui-protocol`,
+`ui-runtime`, `ui-sandbox`, `effect-interface` — 29 non-presentational, no presentation
 
-Presentation: `ui-renderer/src/index.ts` (emits HTML, owns escaping and theme tokens),
-`ui-renderer/src/json-react.ts` (React renderer), `ui-renderer/src/theme.ts` (token registry),
-`ui-runtime/src/json-render.ts` (builds a `@json-render` spec).
+Presentation, all four now gone: `ui-renderer/src/index.ts` (emits HTML, owns escaping and theme
+tokens), `ui-renderer/src/json-react.ts` (React renderer) and `ui-renderer/src/theme.ts` (token
+registry) went with the package in `8138020`, and `ui-runtime/src/json-render.ts` (builds a
+`@json-render` spec out of a canvas) went with them — its only reader was the renderer it fed, and
+nothing imported the export. The renderer *selection* went too, in the same pass: `UICommand`'s
+`set-renderer`, the runtime's `renderer`/`setRenderer`, the `ui_set_renderer` Op an agent could
+call, and the definition store's no-op branch for it. It outlived its registry by exactly one
+commit, and what it outlived as was a tool that reported success for a setting nothing read.
+What is left of the canvas stack is behaviour, which is why it stays.
 
 Non-presentational:
 
@@ -315,8 +338,7 @@ Non-presentational:
 - `ui-runtime/src/index.ts:27` — `resolveBinding`/`resolveCanvas`: template expansion and binding
   resolution.
 - `ui-runtime/src/journal.ts:14` — persists every command to a log and replays it.
-- `ui-runtime/src/runtime.ts:16` — the `UIRuntime` that applies commands and holds
-  theme/renderer selection.
+- `ui-runtime/src/runtime.ts:16` — the `UIRuntime` that applies commands and holds the theme.
 - `ui-runtime/src/source.ts:12` — `fetchDataSource`: a network data source.
 - `ui-runtime/src/spec-journal.ts:16` — persists spec patches; `recover` reports an interrupted
   stream.
@@ -352,16 +374,25 @@ Modules whose header comment names a file under these directories:
 | `formal/Formal/Lifecycle.lean` | `packages/effect-interface/src/revocable.ts` (the README row names `effect-interface/src/registry.ts`) | Register and dispose are symmetric, and a stale disposer cannot revoke the registration that replaced it. |
 
 Adjacent, and load-bearing for files in scope: `formal/Formal/Rollup.lean` models
-`apps/board/src/tasks/rollup.ts`, which is outside these directories, but the rule it proves is
-read only at `apps/board/src/hosts/web/public/state.js:13` and
-`apps/board/src/hosts/web/public/tree-view.js:48-54`; deleting those files deletes the only UI of
-a proven rule. `formal/Formal/TreeOrder.lean` models `apps/board/src/tasks/tree-order.ts`, which
+`apps/board/src/tasks/rollup.ts`, which is outside these directories, but the rule it proves was
+then read only at `apps/board/src/hosts/web/public/state.js:13` and
+`apps/board/src/hosts/web/public/tree-view.js:48-54`, so deleting those files left the rule with
+no reader. That is what happened, and it is not a proof left dangling: the board's derived state
+is declared in the view the console draws (`apps/board/src/effect-ui.ts`, read through
+`apps/board/src/board.ts`), so the rule the proof is about is a rule the product still applies —
+the reader moved from a script that drew it to a declaration that states it. What would have been
+a defect is deleting the rule rather than the drawing of it. `formal/Formal/TreeOrder.lean` models `apps/board/src/tasks/tree-order.ts`, which
 has no reader under `apps/board/src/hosts`. No formal module names a file under
 `apps/mantis/src/hosts/mcp`, `apps/deckconsole`, or any `ui-*` package.
 
 ---
 
-178 files classified: **62 presentational, 116 non-presentational**. Only two directories are
-mostly presentation (`webui/panel`, board `web/public`), while the DingTalk and MCP hosts and all
-eight `ui-*`/`effect-interface` packages are behaviour that merely lives beside a UI — and four of
-those files are pinned by Lean proofs.
+The classification above counted 178 files in these directories: **62 presentational, 116
+non-presentational**. The presentational 62 are all gone, and no presentation has replaced them,
+so what those directories hold now is 109 files, every one of them behaviour: the two directories
+that were mostly presentation (`webui/panel`, board `web/public`) have emptied or shrunk to their
+data half, and the seven remaining `ui-*`/`effect-interface` packages are behaviour that merely
+lives beside a UI — two of those files, `effect-interface/src/tool-key.ts` and
+`effect-interface/src/revocable.ts`, are pinned by Lean proofs, and no proof names a file that is
+now deleted. What an operator reads these surfaces through is the console, which draws every one
+of them from a declaration, on exactly one surface.

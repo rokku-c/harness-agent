@@ -31,10 +31,13 @@ Dependencies point upward only; `assembly` is the single composition root; the s
 1. `ui-protocol`: DSL, nodes, events, permissions, errors; zero business dependencies.
 2. `ui-definition`: Component/Canvas definitions, props schema, slots, versioning and catalog.
 3. `ui-runtime`: tree/graph instances, command transactions, binding resolution, history, navigation stack.
-4. `ui-renderer`: RendererRegistry and the recursive render Host; default web-html.
-5. `ui-extension`, `ui-sandbox`, `ui-agent`: dynamic registration, script isolation, Agent/MCP adaptation.
+4. `ui-extension`, `ui-sandbox`, `ui-agent`: dynamic registration, script isolation, Agent/MCP adaptation.
 
-The repository already has these 7 UI packages; keep the boundaries and do not stuff UI detail into `core`.
+There is no renderer package and no renderer selection: the console client draws every declared
+view, so a canvas is read on one surface, and a second renderer for the same node vocabulary is
+not part of the chain.
+
+The repository has these 6 UI packages; keep the boundaries and do not stuff UI detail into `core`.
 
 ## Core data model
 

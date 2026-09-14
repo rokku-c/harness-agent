@@ -5,7 +5,6 @@ export { makeUIRuntime, type UIRuntime, type UIRuntimeOptions } from "./runtime.
 export { makeUIJournal, restoreUIRuntime, type UIJournal } from "./journal.ts"
 export { makeUIDataStore, type UIDataStore } from "./data.ts"
 export { cachedDataSource, fetchDataSource, syncDataSource, type UIDataSource, type UIDataSync } from "./source.ts"
-export { toJsonRenderSpec } from "./json-render.ts"
 export { makeSpecStreamAdapter, type SpecStreamAdapter } from "./spec-stream.ts"
 export { makeSpecJournal, restoreSpec, type SpecJournal } from "./spec-journal.ts"
 export { decodeSpecRecord, recoveryOf, type SpecJournalRecord, type SpecRecovery } from "./spec-session.ts"

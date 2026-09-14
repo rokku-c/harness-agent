@@ -9,8 +9,10 @@ Current experimental evidence:
 
 - The StateStore of `@json-render/core@0.20.0` has already replaced the `UIDataStore` core, and the old tests pass unchanged.
 - A Canvas can be converted into the official `Spec`, keeping nodes, slots, path binding, actions, and CanvasRef.
-- `@json-render/react@0.20.0` is registered in a real `ui-host`; it can be switched with `set-renderer`
-  and has completed HTTP render acceptance.
+- `@json-render/react@0.20.0` is the console client's runtime, and every declared view is lowered
+  server-side into its Spec and drawn by it. There is no second renderer and no `set-renderer`:
+  the host's own page and the in-house renderer behind it were removed, so the console is the one
+  surface a canvas is read on.
 - Full-repo regression 348 pass, 3 skip, 0 fail.
 
 ## The product layer we keep
@@ -29,7 +31,7 @@ These are not json-render's responsibility and continue to be maintained by this
 | `ui-protocol` | shrink to the product protocols (Canvas, commands, permissions); switch generic node/action types to core |
 | `ui-definition` | becomes a json-render Catalog + multi-Canvas definition repository |
 | `ui-runtime` | keeps navigation/transactions/journal; state, Spec, and patch are delegated to core |
-| `ui-renderer` | becomes the selection of the official renderer and theme adaptation; delete the in-house HTML recurser once parity is reached |
+| `ui-renderer` | **gone.** The official renderer is the console client's runtime, so the package and the in-house HTML recurser it still carried were deleted rather than kept as a selection between two renderers for one node vocabulary |
 | `ui-agent` | keeps the Op/MCP → product command adaptation, without copying the catalog schema |
 | `ui-extension` | keeps the plugin lifecycle, with component registration landing in the Catalog |
 | `ui-sandbox` | kept as the optional untrusted-code execution boundary |

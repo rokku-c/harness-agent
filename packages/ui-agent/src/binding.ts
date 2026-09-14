@@ -59,17 +59,10 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
   })
   const theme = Op.write({
     name: "ui_set_theme",
-    description: notationText("Switch the active renderer theme."),
+    description: notationText("Switch the theme the canvas is drawn in."),
     input: Schema.Struct({ theme: Schema.String }),
     output: Schema.Unknown,
     execute: ({ theme }) => Effect.sync(() => runtime.apply({ kind: "set-theme", theme }))
-  })
-  const renderer = Op.write({
-    name: "ui_set_renderer",
-    description: notationText("Switch the active UI renderer."),
-    input: Schema.Struct({ renderer: Schema.String }),
-    output: Schema.Unknown,
-    execute: ({ renderer }) => Effect.sync(() => runtime.apply({ kind: "set-renderer", renderer }))
   })
   const data = Op.write({
     name: "ui_set_data",
@@ -85,5 +78,5 @@ export const uiBinding = (runtime: UIRuntime): Binding => {
     output: Schema.Unknown,
     execute: ({ canvasId, nodeId }) => Effect.sync(() => runtime.apply({ kind: "remove-node", canvasId, nodeId }))
   })
-  return { uri: "ea://ui/runtime", ops: [create, insert, patch, bind, link, enter, remove, read, theme, renderer, data] }
+  return { uri: "ea://ui/runtime", ops: [create, insert, patch, bind, link, enter, remove, read, theme, data] }
 }

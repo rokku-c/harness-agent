@@ -46,7 +46,6 @@ export type UICommand =
   | { readonly kind: "bind-node"; readonly canvasId: string; readonly nodeId: string; readonly key: string; readonly binding: BindingExpression; readonly expectedVersion: number }
   | { readonly kind: "link-canvas"; readonly canvasId: string; readonly nodeId: string; readonly targetCanvasId: string; readonly parentId?: string }
   | { readonly kind: "set-theme"; readonly theme: string }
-  | { readonly kind: "set-renderer"; readonly renderer: string }
   | { readonly kind: "navigate"; readonly canvasId: string; readonly params?: Record<string, Json> }
   | { readonly kind: "set-data"; readonly path: string; readonly value: Json }
 export * from "./errors.ts"

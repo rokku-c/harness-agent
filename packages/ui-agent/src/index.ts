@@ -22,7 +22,6 @@ export interface UIAgentOps {
   listComponents(): ReadonlyArray<import("@effect-agent/ui-protocol").ComponentDefinition>
   linkCanvas(canvasId: string, nodeId: string, targetCanvasId: string, parentId?: string): void
   setTheme(theme: string): void
-  setRenderer(renderer: string): void
   setData(path: string, value: Json): void
 }
 
@@ -37,6 +36,5 @@ export const makeUIAgentOps = (runtime: UIRuntime, definitions?: DefinitionStore
   listComponents: () => definitions?.listComponents() ?? [],
   linkCanvas: (canvasId, nodeId, targetCanvasId, parentId) => runtime.apply({ kind: "link-canvas", canvasId, nodeId, targetCanvasId, parentId }),
   setTheme: (theme) => runtime.apply({ kind: "set-theme", theme }),
-  setRenderer: (renderer) => runtime.apply({ kind: "set-renderer", renderer }),
   setData: (path, value) => runtime.apply({ kind: "set-data", path, value })
 })
