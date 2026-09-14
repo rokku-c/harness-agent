@@ -22,6 +22,8 @@ import { ConsoleStatusBar } from "./console-status-bar.tsx"
 import { ConsolePalette } from "./console-palette.tsx"
 import { ConsoleShortcuts } from "./console-shortcuts.tsx"
 import { SkipLink } from "./console-skip-link.tsx"
+import { ConsoleLiveRegion } from "./console-live-region.tsx"
+import { useRouteAnnouncement } from "./console-live.ts"
 import { useConsoleKeys } from "./console-keyboard.ts"
 import { useConsoleEscape } from "./console-escape.ts"
 import { useConsoleMoves } from "./console-actions.ts"
@@ -55,6 +57,7 @@ export const ConsoleChrome = ({ plan, route, status, home, body }: {
   })
   useConsoleEscape(moves.back)
   useRouteFocus(route, body)
+  useRouteAnnouncement(route.kind, titleOf(route, plan, PLACES))
   // Keyed by mode, so `Mod+P` on an open palette is the same field in the other mode.
   const drawer = layer === null ? null
     : layer.kind === "shortcuts" ? <ConsoleShortcuts onClose={close} restore={restore} />
@@ -63,6 +66,7 @@ export const ConsoleChrome = ({ plan, route, status, home, body }: {
           onShortcuts={() => replace({ kind: "shortcuts" })} />
   return <>
     <SkipLink target={body} />
+    <ConsoleLiveRegion />
     <ConsoleStatusBar status={status} title={titleOf(route, plan, PLACES)} home={home}
       onPalette={() => open({ kind: "palette", mode: "commands" })} />
     {drawer}

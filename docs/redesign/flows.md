@@ -1128,6 +1128,7 @@ Modifiers are written once: `Mod` is `Cmd` on macOS and `Ctrl` elsewhere.
 |---|---|---|
 | `Mod+K` | global | Command palette, in command mode (§6.4) |
 | `Mod+P` | global | Command palette, in Go to mode |
+| `↑` / `↓` | the command palette | Move the cursor one row, wrapping at either end (§6.2 rule 4's list keys, on the one list that binds them so far) |
 | `/` | global | Focus the current place's filter or search |
 | `?` | global | The shortcut sheet, generated from the key registry |
 | `g` then `h` | global | Home |

@@ -46,6 +46,10 @@ const BACK = isMac() ? "⌘" : "Alt"
 export const KEY_MAP: readonly KeyBinding[] = [
   { keys: `${MOD}+K`, action: "Open the command palette, in command mode", scope: "Global" },
   { keys: `${MOD}+P`, action: "Open the command palette, in Go to mode: destinations only", scope: "Global" },
+  // The palette's own two keys. They are §6.2 rule 4's list keys, and the palette is the
+  // only list that binds them so far — the scope says where the press is answered, so it
+  // widens the day a second list owns them, and not before.
+  { keys: "Up / Down", action: "Move the cursor one row, wrapping at either end", scope: "The command palette, while rows are listed" },
   { keys: "/", action: "Focus the current place's filter or search", scope: "Global, not while a text field has focus" },
   { keys: "?", action: "Open the shortcut sheet", scope: "Global, not while a text field has focus" },
   { keys: "g then h", action: "Go Home", scope: "Global, not while a text field has focus. The g prefix expires after 1500 ms" },

@@ -19,29 +19,10 @@ import { navigate } from "./console-nav.ts"
 import { Freshness } from "./console-freshness.tsx"
 import { useSource, sourceValue } from "./console-source.ts"
 import { loadInbox, type ActionItem, type Decision } from "./console-decision.ts"
+import { ActionRow, ItemRow } from "./console-inbox-rows.tsx"
 import { DecisionCard } from "./console-decision-card.tsx"
+import { useRouteDetailFor } from "./console-live.ts"
 import type { Place } from "./console-place.ts"
-
-const ItemRow = ({ label, detail, active, open }: {
-  readonly label: string
-  readonly detail: string
-  readonly active: boolean
-  readonly open: () => void
-}) =>
-  <Button size="2" variant={active ? "soft" : "ghost"} color={active ? "jade" : "gray"}
-    style={{ justifyContent: "flex-start", height: "auto", paddingBlock: "var(--space-2)" }} onClick={open}>
-    <Flex direction="column" align="start" gap="1">
-      <Text size="2" weight="medium">{label}</Text>
-      <Text size="1" color="gray">{detail}</Text>
-    </Flex>
-  </Button>
-
-const ActionRow = ({ item }: { readonly item: ActionItem }) =>
-  <Flex direction="column" gap="1">
-    <Text size="2" weight="medium">{item.title}</Text>
-    {item.detail === undefined ? null : <Text size="1" color="gray">{item.detail}</Text>}
-    <Text size="1" color="gray">{item.app === undefined ? item.action : `${item.app} · ${item.action}`}</Text>
-  </Flex>
 
 const InboxPlace = ({ decisionId }: { readonly decisionId?: string }) => {
   const inbox = useSource("inbox", loadInbox)
@@ -49,6 +30,9 @@ const InboxPlace = ({ decisionId }: { readonly decisionId?: string }) => {
   const decisions: readonly Decision[] = snapshot?.decisions ?? []
   const actionItems: readonly ActionItem[] = snapshot?.actionItems ?? []
   const open = decisionId === undefined ? undefined : decisions.find((item) => item.id === decisionId)
+  // What the route contains, for the live region — the one place that knows. Silence until
+  // the read lands, not `0 waiting`: an unread count is not a count (see the empty state).
+  useRouteDetailFor("inbox", snapshot === undefined ? undefined : `${decisions.length + actionItems.length} waiting`)
   return <Flex direction="column" gap="5">
     <Flex direction="column" gap="1">
       <Heading size="6">Inbox</Heading>

@@ -41,7 +41,7 @@ export const viewRoute = (options: ConsoleOptions, id: string): Response => {
     return Response.json({ kind: "none", id, detail: `"${id}" declares no view` }, { status: 404 })
   }
   const screens = screensOf(view)
-  return Response.json({ kind: "view", id, view, languages: ["effect-ui", "json-render"],
+  return Response.json({ kind: "view", id, view,
     screens: screens.map((screen) => payload(view, screen)),
     menu: view.screens === undefined && screens.length > 1,
   })

@@ -4,6 +4,7 @@ import type { ConfigApi, ConfigState, SaveStrategy } from "./config-api.ts"
 import type { ConfigMountFactory } from "./config-spec.ts"
 import { describeConfigState } from "./config-state.ts"
 import { makeConfigSession } from "./config-session.ts"
+import { announce } from "./console-live.ts"
 
 const TONE = { active: "green", pending: "amber", error: "red" } as const
 const EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart."
@@ -30,7 +31,13 @@ export const ConfigSurface = ({ id, api, mountConfig }: {
     const node = form.current
     if (node === null) return
     let live = true
-    const made = makeConfigSession(api, id, { onState: setState, onNote: (message, error) => setNote({ message, error }), current: () => live })
+    const made = makeConfigSession(api, id, {
+      onState: setState,
+      // §6.2 rule 6's third announcement. The note is drawn beside the form and said
+      // aloud here, from one message rather than two: a save's outcome is one fact.
+      onNote: (message, error) => { setNote({ message, error }); announce(message) },
+      current: () => live,
+    })
     session.current = made
     const run = async () => {
       try { await made.reload(node, mountConfig); if (live) setNote({ message: "", error: false }) }

@@ -13,6 +13,7 @@
 
 import * as React from "react"
 import { useReadNow } from "./console-read-now.ts"
+import { announce } from "./console-live.ts"
 
 export type SourceState<T> =
   | { readonly status: "loading" }
@@ -32,6 +33,9 @@ export const useSource = <T,>(key: string, load: (key: string) => Promise<T>) =>
       (value) => { if (live) setState({ status: "ready", value, at: Date.now() }) },
       (cause: Error) => {
         if (!live) return
+        // §6.2 rule 6's fourth announcement. It is said here rather than where a failure is
+        // drawn, because a failure that is only drawn is told to whoever is looking at it.
+        announce(`Reading ${key} failed: ${cause.message}`)
         setState((old) => old.status === "ready"
           ? { status: "failed", error: cause.message, at: old.at, value: old.value }
           : { status: "failed", error: cause.message })
