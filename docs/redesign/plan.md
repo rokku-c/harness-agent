@@ -136,6 +136,17 @@ that genuinely disappears rather than being rewritten. The reimplementation is
 obliged to prove its **new** mechanisms and to bring this back up; that
 obligation is the house rule and is not waived by a redesign.
 
+**Correction, made after L1 was executed.** `readout.ts` is not presentation and
+does not go at L1. It exports `failureCallout` and `failureBadge`, which
+**twenty-two app files** import — the same class of thing as `nodes.ts`, and for
+the same reason: it is a node builder. It is deleted by the act that deletes the
+builders, not by the act that deletes the renderers. So L1 costs nothing at all,
+`check:proofs` still reads **493 in 57**, and the 4 `Readout` theorems move to the
+builder act alongside the file. The general lesson stands and is worth repeating
+here: the file list in §4 is a list of *subjects*, and a subject can be a
+presentation concern, a builder, or both, only one of which the renderer act
+owns.
+
 Three modules are kept with a debt attached, and the debt is not optional:
 `Door`, `Entry` and `Refresh` keep their headers naming a file that will be gone
 until the layer that replaces it lands. A module header names the file it models,
@@ -332,11 +343,41 @@ moved it.
 | # | layer | deleted | rebuilt as | its gate |
 |---|---|---|---|---|
 | L1 | **the render contract** — what an app declares and how a node becomes an element | the 10 presentation files and 3 dead files in `packages/effect-ui/src`, `console/view-route.ts`, all of `client/adapt/**`, and the second renderer in `ui-renderer`/`ui-runtime` (group D) | the new node vocabulary, the new lowerer (§4's extension), and `adapt/**` rewritten **under its existing names**, because §3 keeps `Adapt.lean` and its 13 theorems | `typecheck:client` clean; the client bundle stays near 2.46 MB, not 5.0 |
+
 | L2 | **the shell** — chrome, routing, theme, keyboard | the rest of `apps/effect-server/src/client/**`, rewritten under its existing names where §3 keeps its proof (`console-stack.ts`) | per `design-system.md` §10–11 and `flows.md` §6 | the console loads at `/console` and every address in `console-surface.md` §2 still resolves |
 | L3 | **the nine app views** | `apps/*/src/effect-ui*.ts` (73 files) | one view per app against the new vocabulary, per `flows.md` §7; `check-ui.ts` updated to the new naming | every app's entry flow walks end to end in a browser; each app's `effect-app.ts` registers cleanly |
 | L4 | **the auxiliary hosts** | `mantis/src/hosts/webui/panel` + its `public/`, board `hosts/web/public`, `deckconsole/public` | the board's UI is the board's app view; mantis keeps its HTTP API and loses its panel | mantis and the board still answer over MCP; the board's UI is reachable from the console |
 | L5 | **dependencies** | `@mantine/core`, `@tabler/icons-react` | the one icon family chosen in `design-system.md` §8 | `bun run check:boundary` at 0/0 with the packages gone |
 | L6 | **proofs** | the 4 `Readout` theorems that model `readout.ts`, a file that genuinely disappears | one module per new mechanism, house style | `check:proofs` at **no fewer than 493 in 57** — the pre-deletion figure. The deletion itself leaves **489**: `Adapt` and `Stack` are rewritten under their own names, not removed |
+
+**L1 as executed.** Two things the table above did not anticipate, both found by
+running the deletion rather than reading it, and both recorded because the
+remaining layers will meet the same two.
+
+*L1 cannot be one commit, because two of its groups are not presentation at all.*
+`nodes.ts`, `empty-rows.ts`, `press.ts`, `region.ts`, `row.ts` **and `readout.ts`**
+are imported by the nine apps' own view declarations (`row` 31 uses, `press` 14,
+`text` 34, `emptyRows` 17, `failureCallout`/`failureBadge` 22 files); they are the
+same mechanism as the views that call them, split across `packages/` and `apps/`.
+Same for group D: `ui-renderer` is imported by `apps/ui-host/src/{main,web,ops/surfaces}.ts`
+and its `renderer` config enum is a `z.enum(["web-html", "json-render-react"])`.
+So L1 landed the **self-contained** subset — the html renderer, the document
+projector, the renderer registry, the old form barrel, the form's HTML rendering —
+and the builders move to the act that deletes group B and group D's hosts. The
+gate for that first commit is the gate above, and it holds: the client bundle
+rebuilds at 2.36 MiB.
+
+*Deleting a file can change the program's lib set.* `packages/effect-ui/src/form/mount.ts`
+opened with `/// <reference lib="dom" />`, and it was the only thing pulling
+`lib.dom.d.ts` into the root program. Deleting it produced **78 errors in
+`apps/**`** — `Cannot find name 'window'`, `HTMLElement`, `RequestInfo` — none of
+them anywhere near the deleted file, and all of them vanishing when the file came
+back. The root `tsconfig.json` now names `"DOM"` in `lib`. The behaviour is
+identical to before, because the lib was already loaded; what changes is that the
+program states what it contains instead of inheriting it from a file nobody would
+have thought to suspect. Any deletion in the remaining layers should be checked
+the same way: `bunx tsc --noEmit --listFilesOnly | diff` against the pre-deletion
+list is what showed it.
 
 The `Door`, `Entry` and `Refresh` headers are re-pointed **inside L2**, the layer
 that gives them their new subject, not at the end. A module header names the file
