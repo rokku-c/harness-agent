@@ -1,62 +1,60 @@
 /**
  * The AI Gateway console: the model plane an operator runs.
  *
- * The first screen answers the three questions the standard asks, in the order
- * it asks them. What this is, then the figures that say how much it is carrying,
- * then the providers — the thing the console exists for, since every row is one
- * the operator can ask to answer. The rules and the endpoints behind them are
- * destinations rather than sections: a list an operator only reads is somewhere
- * they go, and on a phone a section is somewhere they scroll to. The header
- * carries the doors, because a view that names its own screens is offered no
- * menu and its first screen has to state where it leads.
+ * The first screen answers the standard's three questions in their order. What
+ * this is, then what it has carried, then the providers — the screen's own task,
+ * since every row is one the operator can ask to answer. The three read-only
+ * lists are doors in the header rather than sections under the table: a list an
+ * operator only reads is somewhere they go, and a door that scrolls away with
+ * the region is a door an operator finds again on every screen.
  *
- * Every screen that draws this source's lists states the read's own loading and
- * failure above them, because a screen is a surface and a failure noticed only
- * on another one is a failure the operator meets as a bare table. The read is
- * one, so a screen holding one of its lists says it once.
+ * Every screen states the one read's loading and failure above its lists. The
+ * read is one and it feeds every list, so a failure is one fact about one read;
+ * stating it per list would put four identical callouts on a screen for it. The
+ * screens behind the doors state it too, because a screen is a surface and a
+ * failure met only on another one is met as a bare table.
+ *
+ * The header carries the posture line, and it is not a caveat for its own sake:
+ * this app declares three reads and a probe, so the console cannot change the
+ * plane it presents, and a surface that looks controllable and is not is the
+ * defect the line exists to prevent.
  */
 import type { EffectUiView } from "@effect-agent/effect-ui"
 import { region } from "@effect-agent/effect-ui"
+import { exchangesSection } from "./effect-ui-exchanges.ts"
+import { usageFigures } from "./effect-ui-figures.ts"
 import { gatewayHeader } from "./effect-ui-header.ts"
-import { MODEL_SOURCE, row, signal, sourceVerdict } from "./effect-ui-nodes.ts"
-import { usageNodes, activitySection } from "./effect-ui-usage.ts"
+import { MODEL_SOURCE, readState } from "./effect-ui-nodes.ts"
 import { providersSection } from "./effect-ui-providers.ts"
-import { rulesSection, endpointsSection } from "./effect-ui-routing.ts"
+import { endpointsSection, rulesSection } from "./effect-ui-routing.ts"
 
 export const effectUiView: EffectUiView = {
   viewId: "ai-gateway-console",
   title: "AI Gateway",
   state: {
-    models: { providers: [], rules: [], endpoints: [], captureBodies: false, usage: { requests: 0, responses: 0, errors: 0, averageDurationMs: null, recent: [] } },
+    models: {
+      providers: [], rules: [], endpoints: [], captureBodies: false,
+      usage: { requests: 0, responses: 0, errors: 0, averageDurationMs: null, recent: [] },
+    },
+    // where the probe's answer lands; empty until the first Test
     health: { result: undefined },
   },
   sources: [{ id: MODEL_SOURCE, url: "/models", state: "/models", refreshMs: 10000 }],
   actions: [
     { name: "gateway.testProvider", method: "POST", url: "/models/providers/{providerId}/test", result: "/health/result" },
-    // nothing to read on the way in: each screen's content is the read this
-    // console already keeps, and the one list that is not on the first screen is
-    // complete the moment it is entered
-    { name: "gateway.activity", opens: "activity" },
+    // the three doors carry nothing on the way in: every list they show is part
+    // of the read this console already keeps, so the screen is complete when it
+    // is entered and none of them makes a call
+    { name: "gateway.exchanges", opens: "exchanges" },
     { name: "gateway.rules", opens: "rules" },
     { name: "gateway.endpoints", opens: "endpoints" },
   ],
-  nodes: [
-    gatewayHeader,
-    // the one source's own read, before everything it feeds: every list reads the
-    // same answer, so a failed read is one fact about one read
-    ...sourceVerdict,
-    // A page-wide fact rather than a row's state: it says what the gateway is
-    // keeping, and it is worth the ink only while it is on.
-    row([signal("Request bodies are recorded", "/models/captureBodies", "amber")]),
-    // The figures are the first screen's headline and belong to every exchange the
-    // lists are made of, so they stay above the fold and the providers move under
-    // them — in the region, whose box scrolls, so the header's doors stay put.
-    ...usageNodes,
-    region([providersSection]),
-  ],
+  nodes: [gatewayHeader, ...readState, ...usageFigures, region([...providersSection])],
   screens: [
-    { id: "activity", title: "Recent activity", nodes: [...sourceVerdict, activitySection] },
-    { id: "rules", title: "Routing rules", nodes: [...sourceVerdict, rulesSection] },
-    { id: "endpoints", title: "Upstream endpoints", nodes: [...sourceVerdict, endpointsSection] },
+    // titled for what they hold, not for the place they used to share with the
+    // console's own activity: an exchange is a request and its answer
+    { id: "exchanges", title: "Exchanges", nodes: [...readState, region([...exchangesSection])] },
+    { id: "rules", title: "Routing rules", nodes: [...readState, region([...rulesSection])] },
+    { id: "endpoints", title: "Upstream endpoints", nodes: [...readState, region([...endpointsSection])] },
   ],
 }

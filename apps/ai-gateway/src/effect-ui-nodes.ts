@@ -1,61 +1,58 @@
 /**
- * The shapes every block of the gateway console is built from.
+ * The shapes every screen of this console is built from.
  *
- * Shared rather than repeated per section: the cell, the chip, the table, and
- * the three states every list has. What differs between sections — which
- * columns, which fields — lives with the section it belongs to. The shapes the
- * framework has an opinion about are re-exported from it rather than restated.
+ * Two facts about this app decide all of them. It reads one source that carries
+ * four lists, and only an unanswered or a failed read is a fact about that
+ * source: the runtime decides "empty" from every array an answer holds, so the
+ * verdict of a source carrying four lists can never say that any one of them is
+ * empty — it reads ready while the list in front of the operator has nothing in
+ * it. Each list therefore asks its own first row, and loading and failure are
+ * stated once per screen, above everything they cover.
+ *
+ * And a block here is a heading and its content, never a card. The shared
+ * `section` builder wraps one, and the design system bans a card around a table
+ * by name: the table already draws its own surface and its own hairlines, so a
+ * card adds a second frame around an edge that is already drawn.
  */
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { failureNotice, loadingRows, table as tableOf } from "@effect-agent/effect-ui"
+import { emptyRows, failureNotice, heading, loadingRows, stateRows, table, text, whenRows } from "@effect-agent/effect-ui"
 
-export { cell, cellOf, heading, row, section, text } from "@effect-agent/effect-ui"
-
-/** The one source this page reads: the model plane, usage included. */
+/** The one source this console reads: the model plane, usage included. */
 export const MODEL_SOURCE = "models"
 
 /**
- * A field that is a handle rather than prose: a provider id, a rule id, a
- * request id, a served path. An operator copies it into a request header or
- * matches it against a log rather than reading it, so it renders as a code chip
- * instead of as a cell of text.
+ * A value that stands inside a sentence — a count, a duration, a path. Mono
+ * without the chip's ground, so a figure reads as a value and not as a handle
+ * to copy. Both forms are size 2 because mono is never a step down from the
+ * prose beside it: an id column shrunk to fit is what makes it unreadable.
  */
-export const chip = (field: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
-  ({ component: "Code", props: { size: "1", variant: "soft", ...props }, item: field })
+export const mono = (field: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
+  ({ component: "Code", props: { variant: "ghost", size: "2", ...props }, item: field })
+export const monoBind = (bind: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
+  ({ component: "Code", props: { variant: "ghost", size: "2", ...props }, bind })
+
+/** A block's own sentence, above the block it introduces. */
+export const note = (value: string): UiNodeSpec => text(value, { size: "2", color: "gray" })
+
+/** What a reading is counted over, or what a row's answer is: meta, a step down
+ *  from the prose it annotates, and never below 12 px. */
+export const caption = (value: string): UiNodeSpec => text(value, { size: "1", color: "gray" })
+
+/** A region title and its content. */
+export const block = (title: string, children: readonly UiNodeSpec[]): UiNodeSpec =>
+  ({ component: "Flex", props: { direction: "column", gap: "3" }, children: [heading(title, { size: "3" }), ...children] })
 
 /**
- * A fact worth flagging, rendered only while it is true.
- *
- * Colour belongs to a condition of this shape — on or off, failed or not — and
- * never to a value's variant: the language has no value-to-style map, so a
- * coloured badge can only be one the page is in or is not in. A state with
- * several spellings binds its badge and takes the design system's default.
+ * One table over one list of the source, and the sentence that stands in for it
+ * while it has no rows. The two read the same condition — this list has no
+ * first row — so they cannot disagree about whether there is anything, and the
+ * table is not drawn over nothing: a header row alone is a table of columns of
+ * nothing, which reads as broken rather than as empty.
  */
-export const signal = (value: string, path: string, color: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color, value }, visible: { source: { state: path } } })
+export const listRows = (headings: readonly string[], cells: readonly UiNodeSpec[], path: string, empty: string, key?: string): readonly UiNodeSpec[] => [
+  emptyRows(MODEL_SOURCE, path, empty),
+  whenRows(stateRows(path), table(headings, cells, { source: { state: path }, ...(key === undefined ? {} : { key }) })),
+]
 
-/**
- * A table over one source's list, named rather than composed: this gateway has
- * exactly one source, so its tables say which list they read. The framework's
- * table owns the shape; `key` names the field a list sits under.
- */
-export const table = (headings: readonly string[], cells: readonly UiNodeSpec[], source: string, key?: string): UiNodeSpec =>
-  tableOf(headings, cells, { source: { state: source }, ...(key === undefined ? {} : { key }) })
-
-/**
- * The source's own read, stated once on each screen that draws its lists.
- *
- * Every table reads the one `/models` answer, so loading and failed are facts
- * about that read rather than about any list: repeated per list they would put
- * four identical callouts on one screen for one failure. A screen is a surface,
- * so each screen says it once for the lists it holds — and on the first screen
- * the figures sit under it too, because before the first answer their zeros read
- * as "no traffic" when what they mean is that nothing has been read yet.
- *
- * A list's own emptiness is not here. This source carries four lists, so its
- * verdict cannot say "empty" about any one of them: it stays ready while any of
- * them has a row, and a verdict of ready over an empty table is a bare header.
- * Each section asks its own first row instead, with the framework's `emptyRows`
- * and this source's id — there is no second shape between them to restate.
- */
-export const sourceVerdict: readonly UiNodeSpec[] = [loadingRows(MODEL_SOURCE, 2), failureNotice(MODEL_SOURCE)]
+/** What a screen states about the one read every list on it comes from. */
+export const readState: readonly UiNodeSpec[] = [loadingRows(MODEL_SOURCE), failureNotice(MODEL_SOURCE)]
