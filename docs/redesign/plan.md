@@ -91,8 +91,8 @@ prove, and does the thing it proves still exist"**:
 | `Derive.lean` | id minting (`slug()` at `screen-derive.ts:50-56`, the `[ROOT_SCREEN]` seed at `screen.ts:38`) | **stays** — fully live. The first table had this backwards. |
 | `Door.lean` | the gate path is the send path; two doors of one press differ only in what they carried | **stays, re-pointed** — nothing it names survives, but the rule binds the new runtime |
 | `Entry.lean` | `onEnter` and address half is real (`unaddressed_iff`, `the_screen_is_handed_what_the_press_held`); the press/write half is the deleted runtime | **stays, half re-pointed** |
-| `Refresh.lean` | `clear`/`refresh` store semantics (`answer_survives_refresh`, `refresh_never_blanks`) are real; the editor half is the deleted runtime | **stays, half re-pointed** |
-| `Readout.lean` | 6 theorems model `sourceStateOf` at `source-status.ts:48`; 4 model the deleted `readout.ts` | **split** — keep 6, delete 4 |
+| `Refresh.lean` | `clear`/`refresh` store semantics (`answer_survives_refresh`, `refresh_never_blanks`) | **stays, now fully live** — both files it names survive, and the retry it modelled as absent is now a mechanism with its own three theorems |
+| `Readout.lean` | 6 theorems model `sourceStateOf` at `source-status.ts:48`; 4 model `readout.ts` | **all 10 stay** — `readout.ts` is shared vocabulary, not presentation (§4's correction below), so no theorem loses its subject |
 | `Timeline.lean` | turn numbering onto durable history | **stays** — both files are behaviour (§4) |
 | `CardVerdict.lean` | the verdict is read only from fields named `action` | **stays** — the file is behaviour |
 | `Lifecycle.lean` | register and dispose are symmetric; a stale disposer cannot revoke its replacement | **stays** — behaviour (§4) |
@@ -130,22 +130,25 @@ This is the same lesson as §2's, applied to proofs instead of to lines: **a fil
 name is not a unit of intent either.** "The file is deleted" and "the mechanism
 is deleted" are different claims, and only the second one costs a theorem.
 
-So the corrected figure is **489 theorems in 57 files**: 493 less only the 4
-`Readout` theorems that model `packages/effect-ui/src/readout.ts`, the one file
-that genuinely disappears rather than being rewritten. The reimplementation is
-obliged to prove its **new** mechanisms and to bring this back up; that
-obligation is the house rule and is not waived by a redesign.
+So the corrected figure was **489 theorems in 57 files**: 493 less only the 4
+`Readout` theorems, on the reading that `readout.ts` was "the one file that
+genuinely disappears rather than being rewritten". **That reading was wrong, and
+§4's correction is what showed it:** `readout.ts` exports `failureCallout` and
+`failureBadge`, which twenty-two app files import, so it is a node builder and it
+stays. With it staying, nothing at all loses its subject — **493 in 57 before the
+redesign, 496 in 57 now**, the three extra being `Refresh.lean`'s retry theorems.
 
 **Correction, made after L1 was executed.** `readout.ts` is not presentation and
 does not go at L1. It exports `failureCallout` and `failureBadge`, which
 **twenty-two app files** import — the same class of thing as `nodes.ts`, and for
-the same reason: it is a node builder. It is deleted by the act that deletes the
-builders, not by the act that deletes the renderers. So L1 costs nothing at all,
-`check:proofs` still reads **493 in 57**, and the 4 `Readout` theorems move to the
-builder act alongside the file. The general lesson stands and is worth repeating
-here: the file list in §4 is a list of *subjects*, and a subject can be a
-presentation concern, a builder, or both, only one of which the renderer act
-owns.
+the same reason: it is a node builder. §4's later correction is stronger still:
+the whole shared vocabulary **stays**, including this file, because deleting it
+would delete the thing that makes one UI possible. So L1 costs nothing at all,
+the file stays, and the 4 `Readout` theorems keep their subject along with the
+other 6 — there is no act at which they move. The general lesson stands and is
+worth repeating here: the file list in §4 is a list of *subjects*, and a subject
+can be a presentation concern, a builder, or both, only one of which the renderer
+act owns.
 
 Three modules are kept with a debt attached, and the debt is not optional:
 `Door`, `Entry` and `Refresh` keep their headers naming a file that will be gone
@@ -370,7 +373,7 @@ moved it.
 | L3 | **the nine app views** | `apps/*/src/effect-ui*.ts` (73 files) | one view per app against the new vocabulary, per `flows.md` §7; `check-ui.ts` updated to the new naming | every app's entry flow walks end to end in a browser; each app's `effect-app.ts` registers cleanly |
 | L4 | **the auxiliary hosts** | `mantis/src/hosts/webui/panel` + its `public/`, board `hosts/web/public`, `deckconsole/public` | the board's UI is the board's app view; mantis keeps its HTTP API and loses its panel | mantis and the board still answer over MCP; the board's UI is reachable from the console |
 | L5 | **dependencies** | `@mantine/core`, `@tabler/icons-react` | the one icon family chosen in `design-system.md` §8 | `bun run check:boundary` at 0/0 with the packages gone |
-| L6 | **proofs** | the 4 `Readout` theorems that model `readout.ts`, a file that genuinely disappears | one module per new mechanism, house style | `check:proofs` at **no fewer than 493 in 57** — the pre-deletion figure. The deletion itself leaves **489**: `Adapt` and `Stack` are rewritten under their own names, not removed |
+| L6 | **proofs** | nothing — no mechanism loses its subject, so L6 deletes no theorem | one module per new mechanism, house style | `check:proofs` at **no fewer than 493 in 57**. The redesign's own mechanisms bring it to **496**: `Refresh.lean` gained `retry_is_refresh_only`, `retry_untouched` and `retry_writes_its_read` for the press with no call to make. `Adapt` and `Stack` were rewritten under their own names, not removed |
 
 **L1 as executed.** Two things the table above did not anticipate, both found by
 running the deletion rather than reading it, and both recorded because the
