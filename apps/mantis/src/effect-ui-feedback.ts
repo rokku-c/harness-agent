@@ -1,37 +1,51 @@
 /**
- * How a press's outcome is shown, in the section that holds the button.
+ * What a press reported, in the design system's own tones.
  *
- * Two failure shapes reach a view. The runtime writes `{ ok: false, error }`
- * for anything that fails at the transport or HTTP level; a route that refuses
- * a well-formed request instead answers 200 with its own `{ ok: false, detail }`.
- * Both are failures an operator has to see, and each readout is guarded by the
- * path it binds — an unguarded one renders as an empty chip before the press.
+ * A press here has three answers, and they are three facts rather than one fact
+ * restated: the route accepted it; the route refused a well-formed request with
+ * its own `detail` on a 200; or the call never reached the route at all and the
+ * runtime wrote `{ ok: false, error }` at the result path. The two failures are
+ * the package's `failureBadge` — one red chip, guarded on the very path it binds,
+ * so it is shown exactly when it has a sentence to show. The two names below only
+ * say which path is which fact; a screen that reads the wrong one reports a
+ * failure that did not happen.
+ *
+ * The accepted answer and the refused *write* are this app's, and both are here
+ * for the same reason: neither is a plain failure. Accepting is the accent's
+ * second meaning — the console's own answer is yes — so it is the `ok` tone and
+ * never a green the accent does not own; and a write whose success answers with a
+ * sentence of its own needs the second condition `refusedWriteBadge` explains.
  */
 
 import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
-
-/** A press the app accepted. It either happened or it did not, so it can carry a colour. */
-export const acceptedBadge = (guard: string, label: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "green", value: label },
-    visible: { source: { state: guard }, equals: true } })
-
-/** The runtime's failure shape, which always carries a readable `error`. */
-export const errorBadge = (result: string): UiNodeSpec => failureBadge(`${result}/error`)
+import { toneBadge } from "./effect-ui-nodes.ts"
 
 /** A refusal the route itself answered: a 200, with the reason in `detail`. */
-export const refusalBadge = (result: string): UiNodeSpec => failureBadge(`${result}/detail`)
+export const refusedBadge = (result: string): UiNodeSpec => failureBadge(`${result}/detail`)
+
+/** The call never reached the route: the runtime's own `{ ok: false, error }`. */
+export const failedBadge = (result: string): UiNodeSpec => failureBadge(`${result}/error`)
 
 /**
- * The refusal of a write whose own success answers with `detail` too: the delete
- * says "deleted <id>" when it worked, so a `detail` on its own is not a refusal
- * and needs a false `ok` beside it. The runtime's failure shape has no `detail`
- * at all, so that guard hangs on a wrapper rather than on the badge — hiding the
- * whole readout instead of leaving an empty chip behind. The wrapper is a row,
- * not the column it looks like it wants: a column stretches the badge it holds
- * into a bar across the form.
+ * The refusal of a write whose success answers with `detail` too: deleting a
+ * record answers `{ ok: true, detail: "deleted <id>" }`, so a `detail` on its own
+ * is not a refusal and needs a false `ok` beside it.
+ *
+ * Two conditions on one node are not expressible — a view's `visible` is one
+ * comparison, or an `any` of them — so the second is the wrapper. The wrapper is a
+ * row and not a column, because a column stretches what it holds and a stretched
+ * badge is a bar across the form rather than the chip it is; and a row whose
+ * children are all hidden takes no height, so the failure shape leaves no gap.
  */
-export const writeRefusalBadge = (result: string): UiNodeSpec => ({
-  ...row([{ component: "Badge", props: { variant: "soft", color: "red" }, bind: `${result}/detail`,
-    visible: { source: { state: `${result}/ok` }, equals: false } }]),
-  visible: { source: { state: `${result}/error` }, not: true },
+export const refusedWriteBadge = (result: string): UiNodeSpec => ({
+  ...row([failureBadge(`${result}/detail`)]),
+  visible: { source: { state: `${result}/ok` }, equals: false },
 })
+
+/**
+ * The three answers of one press, in the order they can arrive. They share a row
+ * so a form states its outcome in one place whatever the outcome was, and each
+ * hides itself while it has nothing to say.
+ */
+export const outcome = (result: string, accepted: string, label: string): readonly UiNodeSpec[] =>
+  [toneBadge(label, "ok", { source: { state: accepted }, equals: true }), refusedBadge(result), failedBadge(result)]
