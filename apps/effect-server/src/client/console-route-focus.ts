@@ -8,11 +8,12 @@
  * the shell body, which is a real target because the shell gives it a
  * `tabindex`.
  *
- * The look happens one frame later, and that is forced rather than cautious. An
- * app's view is mounted in a React root of its own, so when the address moves the
- * two roots commit independently; reading the DOM in the shell's own effect would
- * be reading it half-updated and would sometimes find the heading of the screen
- * the operator just left.
+ * The look happens one frame later, and that is forced rather than cautious. A
+ * view's screens arrive from a read that the route change itself started, so at
+ * the moment the shell commits, the surface the reader is arriving at may not be
+ * in the document yet; reading it in the shell's own effect would sometimes find
+ * the heading of the screen the operator just left. The frame is the commit that
+ * settles it.
  *
  * The focus move never scrolls. §12 asks for that: on a document route the
  * operator's scroll position is theirs, and arriving at a heading is not a reason
@@ -21,7 +22,7 @@
 
 import * as React from "react"
 import { hashOf } from "./console-nav.ts"
-import { isTypingTarget } from "./console-keys.ts"
+import { isTypingTarget } from "./console-key-press.ts"
 import type { ConsoleRoute } from "./console-route.ts"
 
 /** The route's heading: the one a surface declared, or the topmost heading it drew. */

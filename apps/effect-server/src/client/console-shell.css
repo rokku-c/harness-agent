@@ -131,3 +131,9 @@
 .command-palette-list { max-height: min(60vh, 420px) }
 .command-palette-row { width: 100%; justify-content: flex-start; text-align: left }
 .command-palette-row[data-active="on"] { background: var(--gray-a3) }
+/*
+ * The address a row goes to (§6.4 rule 6). It is the row's least important text
+ * and the one with no length limit, so it is the one that gives way: it shrinks
+ * first and is cut with an ellipsis rather than wrapping the row onto two lines.
+ */
+.command-palette-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }

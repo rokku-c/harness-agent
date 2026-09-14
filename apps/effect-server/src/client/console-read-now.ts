@@ -1,11 +1,13 @@
 /**
- * One press of `r`, and every source on the screen reads again.
+ * One press of `Mod+Shift+R`, and every source on the screen reads again.
  *
  * The signal is raised on the window rather than passed through React context,
- * and that is forced rather than convenient: an app's declared view is mounted
- * in a React root of its own (`effect-ui-client.tsx`), so the sources it reads
- * are outside any context the shell can provide. A window event is the one
- * channel both roots share, and it is the same channel a `keydown` arrives on.
+ * because the readers are not one tree. A place is drawn by the shell, an app's
+ * view is drawn by a surface the registry was asked for, and a freshness marker
+ * is a child of either — three subtrees whose only common ancestor is the shell
+ * itself, which is not what is pressing the key. The window is the one channel
+ * every reader is already standing on, and it is the same channel a `keydown`
+ * arrives on.
  *
  * What the press means is "read again, now" and not "reload the page": the
  * readers keep the value they already had and the freshness marker says when the

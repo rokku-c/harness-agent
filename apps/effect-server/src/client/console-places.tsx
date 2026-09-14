@@ -50,18 +50,6 @@ export const SURFACES: readonly Surface[] = [...PLACES, APP, NOT_FOUND]
 export const surfaceFor = (route: ConsoleRoute): Surface | undefined =>
   SURFACES.find((surface) => surface.kinds.includes(route.kind))
 
-/** The place this route is in, when it is in one: an app address and Not found are not places. */
-export const placeFor = (route: ConsoleRoute): Place | undefined =>
-  PLACES.find((place) => place.kinds.includes(route.kind))
-
-/** What the chrome calls this route. An app answers with its own title; nothing else is more specific than its place. */
-export const titleOf = (route: ConsoleRoute, plan: readonly ConsoleEntry[]): string => {
-  if (route.kind === "app" || route.kind === "app-settings") {
-    return plan.find((entry) => entry.id === route.id)?.title ?? route.id
-  }
-  return placeFor(route)?.title ?? "Not found"
-}
-
 /** The address, resolved: the first surface that claims it, or Not found at that address. */
 export const parseConsoleHash = (hash: string, plan: readonly ConsoleEntry[]): ConsoleRoute => {
   const address = parseAddress(hash)

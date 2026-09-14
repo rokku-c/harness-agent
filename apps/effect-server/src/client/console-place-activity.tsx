@@ -35,8 +35,11 @@ const FilterBar = ({ filter, plan }: { readonly filter: ActivityFilter; readonly
   return <Flex direction="column" gap="2">
     <Flex align="center" gap="3" wrap="wrap">
       <Text size="2" color="gray">Actor</Text>
+      {/* `data-filter` is §6.3's `/`: the one control on a surface that the key focuses. It is a
+          marker on the element rather than a ref the chrome has to be told about, because the
+          chrome draws no part of this bar and cannot reach into it. */}
       <Select.Root value={filter.actor ?? "all"} onValueChange={(value) => set({ ...filter, actor: value })}>
-        <Select.Trigger aria-label="Actor" /><Select.Content>
+        <Select.Trigger aria-label="Actor" data-filter="" /><Select.Content>
           {ACTORS.map((actor) => <Option key={actor} value={actor} label={actor === "all" ? "All actors" : actor} />)}
         </Select.Content>
       </Select.Root>

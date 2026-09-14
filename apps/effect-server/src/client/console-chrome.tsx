@@ -1,27 +1,34 @@
 /**
- * The chrome layer: the bar, the skip link, the palette, and the keys that open it.
+ * The chrome layer: the bar, the skip link, the two layers, and the keys that
+ * open them.
  *
  * The shell used to draw the bar itself and know nothing about a keyboard. What
  * is here instead is the one part of the shell that is about the operator rather
- * than about the address: it owns the palette's open state, the control that
- * opened it, and the keys §10.3 binds. The shell keeps what it is good at —
- * resolving an address to a surface — and hands the chrome its title and its
- * body.
+ * than about the address: it owns which layer is up and the control that opened
+ * it (`console-layers.ts`), what the moving keys do (`console-actions.ts`), and
+ * nothing else. The shell keeps what it is good at — resolving an address to a
+ * surface — and hands the chrome its title and its body.
  *
- * The opener is remembered as an element and not as a flag, because "focus
- * returns to whatever opened it" is only true if that element is still in the
- * document when the palette closes; a control that has since been unmounted
- * hands focus to the shell body instead of to the document.
+ * `g l` and the place chords are why the app slot is written on every route the
+ * shell resolves (`console-goto.ts`): the key knows where the operator last was
+ * without the chrome keeping a second record of where they are, which is the same
+ * standing the address bar has.
  */
 
 import * as React from "react"
-import { PLACES, titleOf } from "./console-places.tsx"
+import { PLACES } from "./console-places.tsx"
+import { titleOf } from "./console-titles.ts"
 import { ConsoleStatusBar } from "./console-status-bar.tsx"
-import { ConsolePalette, type PaletteMode } from "./console-palette.tsx"
+import { ConsolePalette } from "./console-palette.tsx"
+import { ConsoleShortcuts } from "./console-shortcuts.tsx"
 import { SkipLink } from "./console-skip-link.tsx"
 import { useConsoleKeys } from "./console-keyboard.ts"
+import { useConsoleEscape } from "./console-escape.ts"
+import { useConsoleMoves } from "./console-actions.ts"
+import { useLayer } from "./console-layers.ts"
 import { useRouteFocus } from "./console-route-focus.ts"
-import { navigate } from "./console-nav.ts"
+import { rememberApp } from "./console-goto.ts"
+import type { PaletteMode } from "./console-commands.ts"
 import type { ConsoleEntry } from "./console-plan.ts"
 import type { ConsoleRoute } from "./console-route.ts"
 
@@ -34,33 +41,30 @@ export const ConsoleChrome = ({ plan, route, status, home, body }: {
   /** The shell's body: what a skip link reaches and what a route with no heading focuses. */
   readonly body: React.RefObject<HTMLDivElement | null>
 }) => {
-  const [palette, setPalette] = React.useState<PaletteMode | null>(null)
-  const opener = React.useRef<HTMLElement | null>(null)
-  const openPalette = React.useCallback((mode: PaletteMode) => {
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    setPalette(mode)
-  }, [])
-  const closePalette = React.useCallback(() => setPalette(null), [])
-  const restore = React.useCallback(() => {
-    const control = opener.current
-    if (control !== null && control.isConnected) control.focus({ preventScroll: true })
-    else body.current?.focus({ preventScroll: true })
-  }, [body])
+  const { layer, open, replace, close, restore } = useLayer(body)
+  const moves = useConsoleMoves(route, body)
+  React.useEffect(() => { rememberApp(route) }, [route])
   useConsoleKeys({
-    paletteOpen: palette !== null,
-    openPalette: React.useCallback(() => openPalette("commands"), [openPalette]),
-    openShortcuts: React.useCallback(() => openPalette("shortcuts"), [openPalette]),
-    closePalette,
-    goHome: React.useCallback(() => navigate({ kind: "home" }), []),
-    goSettings: React.useCallback(() => navigate({ kind: "settings" }), []),
+    // Only the palette, not "a layer": `Mod+K` closes the palette it opened and
+    // replaces the shortcut sheet, which it did not (`console-keyboard.ts`).
+    paletteOpen: layer?.kind === "palette",
+    openPalette: React.useCallback((mode: PaletteMode) => open({ kind: "palette", mode }), [open]),
+    closePalette: close,
+    openShortcuts: React.useCallback(() => open({ kind: "shortcuts" }), [open]),
+    ...moves,
   })
+  useConsoleEscape(moves.back)
   useRouteFocus(route, body)
+  // Keyed by mode, so `Mod+P` on an open palette is the same field in the other mode.
+  const drawer = layer === null ? null
+    : layer.kind === "shortcuts" ? <ConsoleShortcuts onClose={close} restore={restore} />
+      : <ConsolePalette key={layer.mode} mode={layer.mode} plan={plan} route={route}
+          places={PLACES} onClose={close} restore={restore}
+          onShortcuts={() => replace({ kind: "shortcuts" })} />
   return <>
     <SkipLink target={body} />
-    <ConsoleStatusBar status={status} title={titleOf(route, plan)} home={home}
-      onPalette={() => openPalette("commands")} />
-    {/* Keyed by mode, so `?` on an open palette is the sheet and not the same list re-titled. */}
-    {palette === null ? null : <ConsolePalette key={palette} mode={palette} plan={plan} route={route}
-      places={PLACES} onClose={closePalette} restore={restore} />}
+    <ConsoleStatusBar status={status} title={titleOf(route, plan, PLACES)} home={home}
+      onPalette={() => open({ kind: "palette", mode: "commands" })} />
+    {drawer}
   </>
 }

@@ -14,6 +14,8 @@
  *
  * It is an ordinary component of the console's own tree: the shell and the view
  * are one bundle and one React instance, so one owner draws into one container.
+ * Being an ordinary component is also what lets it register the two things only a
+ * live view can answer — how to leave it, and what it can run (effect-ui-mount.ts).
  */
 
 import * as React from "react"
@@ -28,10 +30,10 @@ import { ScreenMenu } from "./effect-ui-screen-menu.tsx"
 import { ScreenPanes } from "./effect-ui-screen-panes.tsx"
 import { useNavState, useScreenView } from "./effect-ui-screen-nav.ts"
 import { useScreenEnter } from "./effect-ui-screen-entry.ts"
+import { useScreenBack } from "./effect-ui-screen-back.ts"
+import { useMountedView } from "./effect-ui-mount.ts"
 import { SourceLoader, useViewStore } from "./effect-ui-view-state.tsx"
-import { openScreen, navigate } from "./console-nav.ts"
-import { canGoBack, backTarget } from "./console-stack.ts"
-import { parseDestination } from "./console-route.ts"
+import { openScreen } from "./console-nav.ts"
 import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 
 type Props = { readonly runtime?: EffectUiRuntimeSpec }
@@ -60,33 +62,10 @@ export const EffectUiRuntime = ({ runtime }: Props) => {
   const { chain, current, params } = useScreenView(screens)
   useNavState(store, current?.id, params)
   const open = React.useCallback<OpenScreen>((screen, values) => openScreen(appId, { screen, params: asParams(values) }), [appId])
-  /**
-   * Up one level. A screen this session walked to has the screen it came from
-   * behind it in the browser's history, and going back through that history is
-   * what keeps the ancestors' own parameters; a screen the reader pasted in has
-   * nothing behind it, and there the chain the view declares is the answer
-   * (screen.ts), which is also the only one that cannot leave the product.
-   */
-  const back = React.useCallback(() => {
-    if (canGoBack()) { window.history.back(); return }
-    // The first screen is `nodes`, and the address names it by saying nothing.
-    const parent = chain[chain.length - 2]?.id
-    navigate({ kind: "app", id: appId, ...(parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent }) })
-  }, [appId, chain])
-  /**
-   * Where the return control goes, named by that destination's own title (§2.H5):
-   * a walked screen is the one the history is about to land on, a pasted one is
-   * the parent the view declares. It is never the word "Back", because two
-   * controls that both read as "back" is the defect this replaces.
-   */
-  const returnTo = React.useMemo(() => {
-    const parent = chain[chain.length - 2]
-    if (!canGoBack()) return parent
-    const screen = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN
-    return screens.find((candidate) => candidate.id === screen) ?? parent
-  }, [chain, screens])
+  const { back, returnTo } = useScreenBack(appId, chain, screens)
   const handlers = React.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open, fetcher), [runtime?.actions, sources, store, open, fetcher])
   useScreenEnter(handlers, current, params)
+  useMountedView(appId, back, handlers)
   if (current === undefined) return null
   const menu = runtime?.menu === true && current.id === ROOT_SCREEN
     ? <ScreenMenu appId={appId} title={runtime.title ?? appId} screens={screens} />

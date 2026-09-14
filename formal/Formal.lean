@@ -18,6 +18,8 @@ import Formal.Canonical
 import Formal.CardVerdict
 import Formal.CatalogLoad
 import Formal.Chain
+import Formal.CommandRun
+import Formal.CommandSearch
 import Formal.Compat
 import Formal.Config
 import Formal.ConfigFetch
@@ -36,6 +38,7 @@ import Formal.Lease
 import Formal.Lifecycle
 import Formal.Match
 import Formal.NodeGuard
+import Formal.ParentRoute
 import Formal.PluginRoute
 import Formal.PolicyScope
 import Formal.Presence
