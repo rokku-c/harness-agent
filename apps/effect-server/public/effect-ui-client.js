@@ -17231,7 +17231,7 @@ var require_react_jsx_dev_runtime_development = __commonJS((exports) => {
       try {
         testStringCoercion(value);
         var JSCompiler_inline_result = false;
-      } catch (e45) {
+      } catch (e76) {
         JSCompiler_inline_result = true;
       }
       if (JSCompiler_inline_result) {
@@ -17399,10 +17399,10 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 });
 
 // src/client/effect-ui-client.tsx
-var import_client3 = __toESM(require_client(), 1);
+var import_client2 = __toESM(require_client(), 1);
 
 // src/client/effect-ui-runtime.tsx
-var React68 = __toESM(require_react(), 1);
+var React67 = __toESM(require_react(), 1);
 
 // ../../node_modules/zod/v4/classic/external.js
 var exports_external = {};
@@ -38803,8 +38803,8 @@ var action = exports_external.object({
   clear: exports_external.array(exports_external.string()).optional(),
   refresh: exports_external.array(exports_external.string()).optional()
 }).superRefine((value, ctx) => {
-  if (value.url === undefined && value.opens === undefined) {
-    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url or opens a screen; this one has neither" });
+  if (value.url === undefined && value.opens === undefined && (value.refresh ?? []).length === 0) {
+    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url, opens a screen, or re-runs a read; this one does none" });
   }
 });
 
@@ -38817,137 +38817,6 @@ var nodeProps = exports_external.record(exports_external.string(), exports_exter
     }
   }
 });
-// ../../packages/effect-ui/src/form/model.ts
-function createFormModel() {
-  let sequence = 0;
-  const build = (key, schema2, input2, required2 = false) => {
-    const value = input2 === undefined ? schema2.default : input2;
-    const node2 = {
-      id: `cfg-${++sequence}`,
-      key,
-      schema: schema2,
-      required: required2,
-      value,
-      present: value !== undefined,
-      kind: schema2.enum?.length ? "enum" : schema2.type ?? (schema2.properties ? "object" : "string"),
-      fields: [],
-      rows: []
-    };
-    if (node2.kind === "object") {
-      const record2 = value && typeof value === "object" ? value : {};
-      node2.fields = Object.entries(schema2.properties ?? {}).map(([name, field]) => build(name, field, record2[name], schema2.required?.includes(name)));
-    }
-    if (node2.kind === "array" && schema2.items) {
-      const values = Array.isArray(value) ? value : [];
-      node2.rows = values.map((entry, index) => build(String(index + 1), schema2.items, entry, true));
-    }
-    return node2;
-  };
-  const create = (appId, schema2, value, sources) => {
-    const root = build(appId, { ...schema2, type: "object" }, value ?? {}, true);
-    root.fields.forEach((field) => {
-      field.source = sources?.[field.key];
-    });
-    return { appId, root, declared: schema2?.properties !== undefined };
-  };
-  const add = (node2) => {
-    if (node2.kind !== "array" || !node2.schema.items)
-      throw new Error("Expected an array with an item schema");
-    if (node2.schema.maxItems !== undefined && node2.rows.length >= node2.schema.maxItems)
-      throw new Error("Maximum array size reached");
-    const row = build(String(node2.rows.length + 1), node2.schema.items, undefined, true);
-    node2.rows.push(row);
-    node2.present = true;
-    return row;
-  };
-  const remove = (node2, index) => {
-    if (node2.kind !== "array")
-      throw new Error("Expected an array with an item schema");
-    if (!Number.isInteger(index) || index < 0 || index >= node2.rows.length)
-      throw new Error("Invalid array index");
-    node2.rows.splice(index, 1);
-    node2.rows.forEach((row, i) => {
-      row.key = String(i + 1);
-    });
-    node2.present = true;
-  };
-  const visit2 = (node2, fn) => {
-    fn(node2);
-    node2.fields.forEach((child) => visit2(child, fn));
-    node2.rows.forEach((child) => visit2(child, fn));
-  };
-  return { create, add, remove, visit: visit2 };
-}
-
-// ../../packages/effect-ui/src/form/parse.ts
-function createFormParser() {
-  const fail = (path, reason) => {
-    throw new Error(`${path}: ${reason}`);
-  };
-  const scalar = (node2, path) => {
-    const { value, schema: schema2, kind } = node2;
-    if (value === undefined || value === "") {
-      if (!node2.required)
-        return;
-      if (kind !== "string")
-        return fail(path, "a value is required");
-    }
-    if (kind === "enum") {
-      if (!schema2.enum?.some((option) => Object.is(option, value)))
-        return fail(path, "choose a declared option");
-      return value;
-    }
-    if (kind === "boolean") {
-      if (value === true || value === "true")
-        return true;
-      if (value === false || value === "false")
-        return false;
-      return fail(path, "expected a boolean");
-    }
-    if (kind === "number" || kind === "integer") {
-      if (typeof value !== "number" && (typeof value !== "string" || !value.trim()))
-        return fail(path, "expected a number");
-      const number4 = Number(value);
-      if (!Number.isFinite(number4) || kind === "integer" && !Number.isInteger(number4))
-        return fail(path, `expected a finite ${kind}`);
-      if (schema2.minimum !== undefined && number4 < schema2.minimum)
-        return fail(path, `minimum is ${schema2.minimum}`);
-      if (schema2.maximum !== undefined && number4 > schema2.maximum)
-        return fail(path, `maximum is ${schema2.maximum}`);
-      return number4;
-    }
-    if (kind !== "string")
-      return fail(path, `unsupported field type ${kind}`);
-    const text = String(value ?? "");
-    if (schema2.minLength !== undefined && text.length < schema2.minLength)
-      return fail(path, `minimum length is ${schema2.minLength}`);
-    if (schema2.maxLength !== undefined && text.length > schema2.maxLength)
-      return fail(path, `maximum length is ${schema2.maxLength}`);
-    return text;
-  };
-  const read = (node2, path) => {
-    if (node2.kind === "object") {
-      const pairs = node2.fields.map((child) => [child.key, read(child, `${path}.${child.key}`)]).filter(([, value]) => value !== undefined);
-      return pairs.length || node2.required || node2.present ? Object.fromEntries(pairs) : undefined;
-    }
-    if (node2.kind === "array") {
-      const values = node2.rows.map((child, i) => read(child, `${path}[${i}]`)).filter((value) => value !== undefined);
-      if (!values.length && !node2.present && !node2.required)
-        return;
-      if (node2.schema.minItems !== undefined && values.length < node2.schema.minItems)
-        return fail(path, `minimum items is ${node2.schema.minItems}`);
-      if (node2.schema.maxItems !== undefined && values.length > node2.schema.maxItems)
-        return fail(path, `maximum items is ${node2.schema.maxItems}`);
-      return values;
-    }
-    return scalar(node2, path);
-  };
-  return { parse: (form) => read(form.root, form.appId) };
-}
-
-// ../../packages/effect-ui/src/form.ts
-var configFormModel = createFormModel();
-var parseConfigForm = createFormParser().parse;
 // src/client/effect-ui-source-runtime.ts
 var rowsIn = (body) => {
   if (Array.isArray(body))
@@ -39034,9 +38903,11 @@ var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, f
   };
   return Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
     const params = declaredOf(action2, runtimeParams);
-    if (action2.url !== undefined && await call(action2, params)) {
+    const ran = action2.url !== undefined && await call(action2, params);
+    if (ran)
       for (const path of action2.clear ?? [])
         store.set(path, "");
+    if (ran || action2.url === undefined)
       await Promise.all((action2.refresh ?? []).map(async (id) => {
         const source2 = sources.find((candidate) => candidate.id === id);
         if (source2 !== undefined)
@@ -39045,7 +38916,6 @@ var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, f
         if (read !== undefined)
           await call(read, declaredOf(read, {}));
       }));
-    }
     if (action2.opens !== undefined)
       open2(action2.opens, params);
   }]));
@@ -41543,7 +41413,7 @@ var zeroGap = {
   right: 0,
   gap: 0
 };
-var parse5 = function(x) {
+var parse6 = function(x) {
   return parseInt(x || "", 10) || 0;
 };
 var getOffset = function(gapMode) {
@@ -41551,7 +41421,7 @@ var getOffset = function(gapMode) {
   var left = cs[gapMode === "padding" ? "paddingLeft" : "marginLeft"];
   var top = cs[gapMode === "padding" ? "paddingTop" : "marginTop"];
   var right = cs[gapMode === "padding" ? "paddingRight" : "marginRight"];
-  return [parse5(left), parse5(top), parse5(right)];
+  return [parse6(left), parse6(top), parse6(right)];
 };
 var getGapWidth = function(gapMode) {
   if (gapMode === undefined) {
@@ -42618,7 +42488,7 @@ function CheckboxProvider(props) {
     children,
     defaultChecked,
     disabled,
-    form: form2,
+    form,
     name,
     onCheckedChange,
     required: required2,
@@ -42635,7 +42505,7 @@ function CheckboxProvider(props) {
   const [bubbleInput, setBubbleInput] = React39.useState(null);
   const hasConsumerStoppedPropagationRef = React39.useRef(false);
   const [userInteractionCount, onUserInteraction] = React39.useReducer((count3) => count3 + 1, 0);
-  const isFormControl = control ? !!form2 || !!control.closest("form") : true;
+  const isFormControl = control ? !!form || !!control.closest("form") : true;
   const context = {
     checked,
     disabled,
@@ -42643,7 +42513,7 @@ function CheckboxProvider(props) {
     control,
     setControl,
     name,
-    form: form2,
+    form,
     value,
     hasConsumerStoppedPropagationRef,
     userInteractionCount,
@@ -42679,11 +42549,11 @@ var CheckboxTrigger = /* @__PURE__ */ React39.forwardRef(/* @__PURE__ */ __name2
   const composedRefs = useComposedRefs(forwardedRef, setControl);
   const initialCheckedStateRef = React39.useRef(checked);
   React39.useEffect(() => {
-    const form2 = control?.form;
-    if (form2) {
+    const form = control?.form;
+    if (form) {
       const reset = /* @__PURE__ */ __name24(() => setChecked(initialCheckedStateRef.current), "reset");
-      form2.addEventListener("reset", reset);
-      return () => form2.removeEventListener("reset", reset);
+      form.addEventListener("reset", reset);
+      return () => form.removeEventListener("reset", reset);
     }
   }, [control, setChecked]);
   return /* @__PURE__ */ import_jsx_runtime21.jsx(Primitive.button, {
@@ -42722,7 +42592,7 @@ var Checkbox = /* @__PURE__ */ React39.forwardRef(/* @__PURE__ */ __name24(funct
     disabled,
     value,
     onCheckedChange,
-    form: form2,
+    form,
     ...checkboxProps
   } = props;
   return /* @__PURE__ */ import_jsx_runtime21.jsx(CheckboxProvider, {
@@ -42733,7 +42603,7 @@ var Checkbox = /* @__PURE__ */ React39.forwardRef(/* @__PURE__ */ __name24(funct
     required: required2,
     onCheckedChange,
     name,
-    form: form2,
+    form,
     value,
     internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ import_jsx_runtime21.jsxs(import_jsx_runtime21.Fragment, { children: [
       /* @__PURE__ */ import_jsx_runtime21.jsx(CheckboxTrigger, {
@@ -42774,7 +42644,7 @@ var CheckboxBubbleInput = /* @__PURE__ */ React39.forwardRef(/* @__PURE__ */ __n
     disabled,
     name,
     value,
-    form: form2,
+    form,
     bubbleInput,
     setBubbleInput
   } = useCheckboxContext(BUBBLE_INPUT_NAME, __scopeCheckbox);
@@ -42813,7 +42683,7 @@ var CheckboxBubbleInput = /* @__PURE__ */ React39.forwardRef(/* @__PURE__ */ __n
     disabled,
     name,
     value,
-    form: form2,
+    form,
     ...props,
     tabIndex: -1,
     ref: composedRefs,
@@ -47882,7 +47752,7 @@ function RadioProvider(props) {
     checked = false,
     children,
     disabled,
-    form: form2,
+    form,
     name,
     onCheck,
     required: required2,
@@ -47893,13 +47763,13 @@ function RadioProvider(props) {
   const [bubbleInput, setBubbleInput] = React53.useState(null);
   const hasConsumerStoppedPropagationRef = React53.useRef(false);
   const [userInteractionCount, onUserInteraction] = React53.useReducer((count3) => count3 + 1, 0);
-  const isFormControl = control ? !!form2 || !!control.closest("form") : true;
+  const isFormControl = control ? !!form || !!control.closest("form") : true;
   const context = {
     checked,
     disabled,
     required: required2,
     name,
-    form: form2,
+    form,
     value,
     control,
     setControl,
@@ -47971,7 +47841,7 @@ var RadioBubbleInput = /* @__PURE__ */ React53.forwardRef(/* @__PURE__ */ __name
     disabled,
     name,
     value,
-    form: form2,
+    form,
     bubbleInput,
     setBubbleInput,
     hasConsumerStoppedPropagationRef,
@@ -48011,7 +47881,7 @@ var RadioBubbleInput = /* @__PURE__ */ React53.forwardRef(/* @__PURE__ */ __name
     disabled,
     name,
     value,
-    form: form2,
+    form,
     ...props,
     tabIndex: -1,
     ref: composedRefs,
@@ -48052,7 +47922,7 @@ var RadioGroup3 = /* @__PURE__ */ React210.forwardRef(/* @__PURE__ */ __name38(f
   const {
     __scopeRadioGroup,
     name,
-    form: form2,
+    form,
     defaultValue,
     value: valueProp,
     required: required2 = false,
@@ -48075,17 +47945,17 @@ var RadioGroup3 = /* @__PURE__ */ React210.forwardRef(/* @__PURE__ */ __name38(f
   const composedRefs = useComposedRefs(forwardedRef, setControl);
   const initialValueRef = React210.useRef(value);
   React210.useEffect(() => {
-    const associatedForm = form2 ? control?.ownerDocument.getElementById(form2) : control?.closest("form");
+    const associatedForm = form ? control?.ownerDocument.getElementById(form) : control?.closest("form");
     if (associatedForm instanceof HTMLFormElement) {
       const reset = /* @__PURE__ */ __name38(() => setValue(initialValueRef.current), "reset");
       associatedForm.addEventListener("reset", reset);
       return () => associatedForm.removeEventListener("reset", reset);
     }
-  }, [control, form2, setValue]);
+  }, [control, form, setValue]);
   return /* @__PURE__ */ import_jsx_runtime33.jsx(RadioGroupProvider2, {
     scope: __scopeRadioGroup,
     name,
-    form: form2,
+    form,
     required: required2,
     disabled,
     value,
@@ -48962,7 +48832,7 @@ function SelectProvider(props) {
     autoComplete,
     disabled,
     required: required2,
-    form: form2,
+    form,
     internal_do_not_use_render
   } = props;
   const popperScope = usePopperScope4(__scopeSelect);
@@ -48985,14 +48855,14 @@ function SelectProvider(props) {
   const triggerPointerDownPosRef = React55.useRef(null);
   const initialValueRef = React55.useRef(value);
   React55.useEffect(() => {
-    const associatedForm = form2 ? trigger?.ownerDocument.getElementById(form2) : trigger?.form;
+    const associatedForm = form ? trigger?.ownerDocument.getElementById(form) : trigger?.form;
     if (associatedForm instanceof HTMLFormElement) {
       const reset = /* @__PURE__ */ __name40(() => setValue(initialValueRef.current), "reset");
       associatedForm.addEventListener("reset", reset);
       return () => associatedForm.removeEventListener("reset", reset);
     }
-  }, [form2, trigger, setValue]);
-  const isFormControl = trigger ? !!form2 || !!trigger.closest("form") : true;
+  }, [form, trigger, setValue]);
+  const isFormControl = trigger ? !!form || !!trigger.closest("form") : true;
   const [nativeOptionsSet, setNativeOptionsSet] = React55.useState(/* @__PURE__ */ new Set);
   const contentId = useId();
   const nativeSelectKey = Array.from(nativeOptionsSet).map((option) => option.props.value).join(";");
@@ -49024,7 +48894,7 @@ function SelectProvider(props) {
     disabled,
     name,
     autoComplete,
-    form: form2,
+    form,
     nativeOptions: nativeOptionsSet,
     nativeSelectKey,
     isFormControl
@@ -49849,7 +49719,7 @@ var SelectArrow = /* @__PURE__ */ React55.forwardRef(/* @__PURE__ */ __name40(fu
 var BUBBLE_INPUT_NAME3 = "SelectBubbleInput";
 var SelectBubbleInput = /* @__PURE__ */ React55.forwardRef(/* @__PURE__ */ __name40(function SelectBubbleInput2({ __scopeSelect, ...props }, forwardedRef) {
   const context = useSelectContext(BUBBLE_INPUT_NAME3, __scopeSelect);
-  const { value, onValueChange, required: required2, disabled, name, autoComplete, form: form2 } = context;
+  const { value, onValueChange, required: required2, disabled, name, autoComplete, form } = context;
   const { nativeOptions, nativeSelectKey } = context;
   const ref = React55.useRef(null);
   const composedRefs = useComposedRefs(forwardedRef, ref);
@@ -49876,7 +49746,7 @@ var SelectBubbleInput = /* @__PURE__ */ React55.forwardRef(/* @__PURE__ */ __nam
     name,
     autoComplete,
     disabled,
-    form: form2,
+    form,
     onChange: (event) => onValueChange(event.target.value),
     ...props,
     style: { ...VISUALLY_HIDDEN_STYLES, ...props.style },
@@ -49989,7 +49859,7 @@ var Slider = /* @__PURE__ */ React56.forwardRef(/* @__PURE__ */ __name41(functio
     onValueChange = /* @__PURE__ */ __name41(() => {}, "onValueChange"),
     onValueCommit = /* @__PURE__ */ __name41(() => {}, "onValueCommit"),
     inverted = false,
-    form: form2,
+    form,
     ...sliderProps
   } = props;
   const thumbRefs = React56.useRef(/* @__PURE__ */ new Set);
@@ -50015,13 +49885,13 @@ var Slider = /* @__PURE__ */ React56.forwardRef(/* @__PURE__ */ __name41(functio
   const valuesBeforeSlideStartRef = React56.useRef(values);
   const initialValuesRef = React56.useRef(values);
   React56.useEffect(() => {
-    const associatedForm = form2 ? control?.ownerDocument.getElementById(form2) : control?.closest("form");
+    const associatedForm = form ? control?.ownerDocument.getElementById(form) : control?.closest("form");
     if (associatedForm instanceof HTMLFormElement) {
       const reset = /* @__PURE__ */ __name41(() => setValues(initialValuesRef.current), "reset");
       associatedForm.addEventListener("reset", reset);
       return () => associatedForm.removeEventListener("reset", reset);
     }
-  }, [control, form2, setValues]);
+  }, [control, form, setValues]);
   function handleSlideStart(value2) {
     const closestIndex = getClosestValueIndex(values, value2);
     updateValues(value2, closestIndex);
@@ -50065,7 +49935,7 @@ var Slider = /* @__PURE__ */ React56.forwardRef(/* @__PURE__ */ __name41(functio
     thumbs: thumbRefs.current,
     values,
     orientation,
-    form: form2,
+    form,
     children: /* @__PURE__ */ import_jsx_runtime36.jsx(Collection5.Provider, { scope: props.__scopeSlider, children: /* @__PURE__ */ import_jsx_runtime36.jsx(Collection5.Slot, { scope: props.__scopeSlider, children: /* @__PURE__ */ import_jsx_runtime36.jsx(SliderOrientation, {
       "aria-disabled": disabled,
       "data-disabled": disabled ? "" : undefined,
@@ -50421,7 +50291,7 @@ var SliderThumb = /* @__PURE__ */ React56.forwardRef(/* @__PURE__ */ __name41(fu
 }, "SliderThumb"));
 var BUBBLE_INPUT_NAME4 = "SliderBubbleInput";
 var SliderBubbleInput = /* @__PURE__ */ React56.forwardRef(/* @__PURE__ */ __name41(function SliderBubbleInput2({ __scopeSlider, ...props }, forwardedRef) {
-  const { value, name, form: form2 } = useSliderThumbContext(BUBBLE_INPUT_NAME4, __scopeSlider);
+  const { value, name, form } = useSliderThumbContext(BUBBLE_INPUT_NAME4, __scopeSlider);
   const ref = React56.useRef(null);
   const composedRefs = useComposedRefs(ref, forwardedRef);
   const prevValue = usePrevious(value);
@@ -50441,7 +50311,7 @@ var SliderBubbleInput = /* @__PURE__ */ React56.forwardRef(/* @__PURE__ */ __nam
   return /* @__PURE__ */ import_jsx_runtime36.jsx(Primitive.input, {
     style: { display: "none" },
     name,
-    form: form2,
+    form,
     ...props,
     ref: composedRefs,
     defaultValue: value
@@ -50582,7 +50452,7 @@ function SwitchProvider(props) {
     children,
     defaultChecked,
     disabled,
-    form: form2,
+    form,
     name,
     onCheckedChange,
     required: required2,
@@ -50599,7 +50469,7 @@ function SwitchProvider(props) {
   const [bubbleInput, setBubbleInput] = React57.useState(null);
   const hasConsumerStoppedPropagationRef = React57.useRef(false);
   const [userInteractionCount, onUserInteraction] = React57.useReducer((count3) => count3 + 1, 0);
-  const isFormControl = control ? !!form2 || !!control.closest("form") : true;
+  const isFormControl = control ? !!form || !!control.closest("form") : true;
   const context = {
     checked,
     setChecked,
@@ -50607,7 +50477,7 @@ function SwitchProvider(props) {
     control,
     setControl,
     name,
-    form: form2,
+    form,
     value,
     hasConsumerStoppedPropagationRef,
     userInteractionCount,
@@ -50625,7 +50495,7 @@ var TRIGGER_NAME10 = "SwitchTrigger";
 var SwitchTrigger = /* @__PURE__ */ React57.forwardRef(/* @__PURE__ */ __name42(function SwitchTrigger2({ __scopeSwitch, onClick, ...switchProps }, forwardedRef) {
   const {
     control,
-    form: form2,
+    form,
     value,
     disabled,
     checked,
@@ -50640,13 +50510,13 @@ var SwitchTrigger = /* @__PURE__ */ React57.forwardRef(/* @__PURE__ */ __name42(
   const composedRefs = useComposedRefs(forwardedRef, setControl);
   const initialCheckedStateRef = React57.useRef(checked);
   React57.useEffect(() => {
-    const associatedForm = form2 ? control?.ownerDocument.getElementById(form2) : control?.form;
+    const associatedForm = form ? control?.ownerDocument.getElementById(form) : control?.form;
     if (associatedForm instanceof HTMLFormElement) {
       const reset = /* @__PURE__ */ __name42(() => setChecked(initialCheckedStateRef.current), "reset");
       associatedForm.addEventListener("reset", reset);
       return () => associatedForm.removeEventListener("reset", reset);
     }
-  }, [control, form2, setChecked]);
+  }, [control, form, setChecked]);
   return /* @__PURE__ */ import_jsx_runtime37.jsx(Primitive.button, {
     type: "button",
     role: "switch",
@@ -50679,7 +50549,7 @@ var Switch = /* @__PURE__ */ React57.forwardRef(/* @__PURE__ */ __name42(functio
     disabled,
     value,
     onCheckedChange,
-    form: form2,
+    form,
     ...switchProps
   } = props;
   return /* @__PURE__ */ import_jsx_runtime37.jsx(SwitchProvider, {
@@ -50690,7 +50560,7 @@ var Switch = /* @__PURE__ */ React57.forwardRef(/* @__PURE__ */ __name42(functio
     required: required2,
     onCheckedChange,
     name,
-    form: form2,
+    form,
     value,
     internal_do_not_use_render: ({ isFormControl }) => /* @__PURE__ */ import_jsx_runtime37.jsxs(import_jsx_runtime37.Fragment, { children: [
       /* @__PURE__ */ import_jsx_runtime37.jsx(SwitchTrigger, {
@@ -50727,7 +50597,7 @@ var SwitchBubbleInput = /* @__PURE__ */ React57.forwardRef(/* @__PURE__ */ __nam
     disabled,
     name,
     value,
-    form: form2,
+    form,
     bubbleInput,
     setBubbleInput
   } = useSwitchContext(BUBBLE_INPUT_NAME5, __scopeSwitch);
@@ -50765,7 +50635,7 @@ var SwitchBubbleInput = /* @__PURE__ */ React57.forwardRef(/* @__PURE__ */ __nam
     disabled,
     name,
     value,
-    form: form2,
+    form,
     ...props,
     tabIndex: -1,
     ref: composedRefs,
@@ -53317,6 +53187,809 @@ var e43 = o58.forwardRef((i23, p37) => {
   return o58.createElement(exports_dist29.Root, { ...C7 }, o58.createElement(exports_dist29.Trigger, { asChild: true }, r48), o58.createElement(exports_dist29.Portal, { container: T6, forceMount: c6 }, o58.createElement(R2, { asChild: true }, o58.createElement(exports_dist29.Content, { sideOffset: 4, collisionPadding: 10, ...d11, asChild: false, ref: p37, className: import_classnames54.default("rt-TooltipContent", n25) }, o58.createElement(p, { as: "p", className: "rt-TooltipText", size: "1" }, P9), o58.createElement(exports_dist29.Arrow, { className: "rt-TooltipArrow" })))));
 });
 e43.displayName = "Tooltip";
+// ../../node_modules/@phosphor-icons/react/dist/csr/ArrowClockwise.es.js
+var o60 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/lib/IconBase.es.js
+var e45 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/lib/context.es.js
+var import_react11 = __toESM(require_react(), 1);
+var o59 = import_react11.createContext({
+  color: "currentColor",
+  size: "1em",
+  weight: "regular",
+  mirrored: false
+});
+
+// ../../node_modules/@phosphor-icons/react/dist/lib/IconBase.es.js
+var p37 = e45.forwardRef((s26, a40) => {
+  const {
+    alt: n25,
+    color: r49,
+    size: t37,
+    weight: o60,
+    mirrored: c6,
+    children: i23,
+    weights: m16,
+    ...x4
+  } = s26, {
+    color: d11 = "currentColor",
+    size: l14,
+    weight: f21 = "regular",
+    mirrored: g8 = false,
+    ...w3
+  } = e45.useContext(o59);
+  return /* @__PURE__ */ e45.createElement("svg", {
+    ref: a40,
+    xmlns: "http://www.w3.org/2000/svg",
+    width: t37 != null ? t37 : l14,
+    height: t37 != null ? t37 : l14,
+    fill: r49 != null ? r49 : d11,
+    viewBox: "0 0 256 256",
+    transform: c6 || g8 ? "scale(-1, 1)" : undefined,
+    ...w3,
+    ...x4
+  }, !!n25 && /* @__PURE__ */ e45.createElement("title", null, n25), i23, m16.get(o60 != null ? o60 : f21));
+});
+p37.displayName = "IconBase";
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/ArrowClockwise.es.js
+var e46 = __toESM(require_react(), 1);
+var a40 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e46.createElement(e46.Fragment, null, /* @__PURE__ */ e46.createElement("path", { d: "M244,56v48a12,12,0,0,1-12,12H184a12,12,0,1,1,0-24H201.1l-19-17.38c-.13-.12-.26-.24-.38-.37A76,76,0,1,0,127,204h1a75.53,75.53,0,0,0,52.15-20.72,12,12,0,0,1,16.49,17.45A99.45,99.45,0,0,1,128,228h-1.37A100,100,0,1,1,198.51,57.06L220,76.72V56a12,12,0,0,1,24,0Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e46.createElement(e46.Fragment, null, /* @__PURE__ */ e46.createElement("path", { d: "M216,128a88,88,0,1,1-88-88A88,88,0,0,1,216,128Z", opacity: "0.2" }), /* @__PURE__ */ e46.createElement("path", { d: "M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64l-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,85.8V56a8,8,0,1,1,16,0Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e46.createElement(e46.Fragment, null, /* @__PURE__ */ e46.createElement("path", { d: "M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1-5.66-13.66l17-17-10.55-9.65-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,1,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60l10.93,10L226.34,50.3A8,8,0,0,1,240,56Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e46.createElement(e46.Fragment, null, /* @__PURE__ */ e46.createElement("path", { d: "M238,56v48a6,6,0,0,1-6,6H184a6,6,0,0,1,0-12h32.55l-30.38-27.8c-.06-.06-.12-.13-.19-.19a82,82,0,1,0-1.7,117.65,6,6,0,0,1,8.24,8.73A93.46,93.46,0,0,1,128,222h-1.28A94,94,0,1,1,194.37,61.4L226,90.35V56a6,6,0,1,1,12,0Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e46.createElement(e46.Fragment, null, /* @__PURE__ */ e46.createElement("path", { d: "M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.81,71.64l-.25-.24a80,80,0,1,0-1.67,114.78,8,8,0,0,1,11,11.63A95.44,95.44,0,0,1,128,224h-1.32A96,96,0,1,1,195.75,60L224,85.8V56a8,8,0,1,1,16,0Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e46.createElement(e46.Fragment, null, /* @__PURE__ */ e46.createElement("path", { d: "M236,56v48a4,4,0,0,1-4,4H184a4,4,0,0,1,0-8h37.7L187.53,68.69l-.13-.12a84,84,0,1,0-1.75,120.51,4,4,0,0,1,5.5,5.82A91.43,91.43,0,0,1,128,220h-1.26A92,92,0,1,1,193,62.84l35,32.05V56a4,4,0,1,1,8,0Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ArrowClockwise.es.js
+var r49 = o60.forwardRef((e47, c6) => /* @__PURE__ */ o60.createElement(p37, { ref: c6, ...e47, weights: a40 }));
+r49.displayName = "ArrowClockwiseIcon";
+var m16 = r49;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ArrowSquareOut.es.js
+var r50 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/ArrowSquareOut.es.js
+var a41 = __toESM(require_react(), 1);
+var e47 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M228,104a12,12,0,0,1-24,0V69l-59.51,59.51a12,12,0,0,1-17-17L187,52H152a12,12,0,0,1,0-24h64a12,12,0,0,1,12,12Zm-44,24a12,12,0,0,0-12,12v64H52V84h64a12,12,0,0,0,0-24H48A20,20,0,0,0,28,80V208a20,20,0,0,0,20,20H176a20,20,0,0,0,20-20V140A12,12,0,0,0,184,128Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", {
+      d: "M184,80V208a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H176A8,8,0,0,1,184,80Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a41.createElement("path", { d: "M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M192,136v72a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V80A16,16,0,0,1,48,64h72a8,8,0,0,1,0,16H48V208H176V136a8,8,0,0,1,16,0Zm32-96a8,8,0,0,0-8-8H152a8,8,0,0,0-5.66,13.66L172.69,72l-42.35,42.34a8,8,0,0,0,11.32,11.32L184,83.31l26.34,26.35A8,8,0,0,0,224,104Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M222,104a6,6,0,0,1-12,0V54.49l-69.75,69.75a6,6,0,0,1-8.48-8.48L201.51,46H152a6,6,0,0,1,0-12h64a6,6,0,0,1,6,6Zm-38,26a6,6,0,0,0-6,6v72a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V80a2,2,0,0,1,2-2h72a6,6,0,0,0,0-12H48A14,14,0,0,0,34,80V208a14,14,0,0,0,14,14H176a14,14,0,0,0,14-14V136A6,6,0,0,0,184,130Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M220,104a4,4,0,0,1-8,0V49.66l-73.16,73.17a4,4,0,0,1-5.66-5.66L206.34,44H152a4,4,0,0,1,0-8h64a4,4,0,0,1,4,4Zm-36,28a4,4,0,0,0-4,4v72a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V80a4,4,0,0,1,4-4h72a4,4,0,0,0,0-8H48A12,12,0,0,0,36,80V208a12,12,0,0,0,12,12H176a12,12,0,0,0,12-12V136A4,4,0,0,0,184,132Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ArrowSquareOut.es.js
+var o61 = r50.forwardRef((e48, t37) => /* @__PURE__ */ r50.createElement(p37, { ref: t37, ...e48, weights: e47 }));
+o61.displayName = "ArrowSquareOutIcon";
+var n25 = o61;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/CaretLeft.es.js
+var e49 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/CaretLeft.es.js
+var e48 = __toESM(require_react(), 1);
+var a42 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M168.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L97,128Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M160,48V208L80,128Z", opacity: "0.2" }), /* @__PURE__ */ e48.createElement("path", { d: "M163.06,40.61a8,8,0,0,0-8.72,1.73l-80,80a8,8,0,0,0,0,11.32l80,80A8,8,0,0,0,168,208V48A8,8,0,0,0,163.06,40.61ZM152,188.69,91.31,128,152,67.31Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M168,48V208a8,8,0,0,1-13.66,5.66l-80-80a8,8,0,0,1,0-11.32l80-80A8,8,0,0,1,168,48Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M164.24,203.76a6,6,0,1,1-8.48,8.48l-80-80a6,6,0,0,1,0-8.48l80-80a6,6,0,0,1,8.48,8.48L88.49,128Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M162.83,205.17a4,4,0,0,1-5.66,5.66l-80-80a4,4,0,0,1,0-5.66l80-80a4,4,0,1,1,5.66,5.66L85.66,128Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/CaretLeft.es.js
+var t37 = e49.forwardRef((o62, r51) => /* @__PURE__ */ e49.createElement(p37, { ref: r51, ...o62, weights: a42 }));
+t37.displayName = "CaretLeftIcon";
+var s26 = t37;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Check.es.js
+var e51 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Check.es.js
+var e50 = __toESM(require_react(), 1);
+var a43 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", {
+      d: "M232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ e50.createElement("path", { d: "M205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M228.24,76.24l-128,128a6,6,0,0,1-8.48,0l-56-56a6,6,0,0,1,8.48-8.48L96,191.51,219.76,67.76a6,6,0,0,1,8.48,8.48Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M226.83,74.83l-128,128a4,4,0,0,1-5.66,0l-56-56a4,4,0,0,1,5.66-5.66L96,194.34,221.17,69.17a4,4,0,1,1,5.66,5.66Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Check.es.js
+var o62 = e51.forwardRef((c6, r51) => /* @__PURE__ */ e51.createElement(p37, { ref: r51, ...c6, weights: a43 }));
+o62.displayName = "CheckIcon";
+var n26 = o62;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Desktop.es.js
+var o63 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Desktop.es.js
+var a44 = __toESM(require_react(), 1);
+var e52 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,36H48A28,28,0,0,0,20,64V172a28,28,0,0,0,28,28h68v12H96a12,12,0,0,0,0,24h64a12,12,0,0,0,0-24H140V200h68a28,28,0,0,0,28-28V64A28,28,0,0,0,208,36ZM48,60H208a4,4,0,0,1,4,4v72H44V64A4,4,0,0,1,48,60ZM208,176H48a4,4,0,0,1-4-4V160H212v12A4,4,0,0,1,208,176Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", {
+      d: "M224,64v88H32V64A16,16,0,0,1,48,48H208A16,16,0,0,1,224,64Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a44.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40ZM48,56H208a8,8,0,0,1,8,8v80H40V64A8,8,0,0,1,48,56ZM208,184H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm0,144H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,42H48A22,22,0,0,0,26,64V176a22,22,0,0,0,22,22h74v20H96a6,6,0,0,0,0,12h64a6,6,0,0,0,0-12H134V198h74a22,22,0,0,0,22-22V64A22,22,0,0,0,208,42ZM48,54H208a10,10,0,0,1,10,10v82H38V64A10,10,0,0,1,48,54ZM208,186H48a10,10,0,0,1-10-10V158H218v18A10,10,0,0,1,208,186Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40ZM48,56H208a8,8,0,0,1,8,8v80H40V64A8,8,0,0,1,48,56ZM208,184H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,44H48A20,20,0,0,0,28,64V176a20,20,0,0,0,20,20h76v24H96a4,4,0,0,0,0,8h64a4,4,0,0,0,0-8H132V196h76a20,20,0,0,0,20-20V64A20,20,0,0,0,208,44ZM48,52H208a12,12,0,0,1,12,12v84H36V64A12,12,0,0,1,48,52ZM208,188H48a12,12,0,0,1-12-12V156H220v20A12,12,0,0,1,208,188Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Desktop.es.js
+var e53 = o63.forwardRef((t38, r51) => /* @__PURE__ */ o63.createElement(p37, { ref: r51, ...t38, weights: e52 }));
+e53.displayName = "DesktopIcon";
+var c6 = e53;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/DotsThree.es.js
+var e55 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/DotsThree.es.js
+var e54 = __toESM(require_react(), 1);
+var a45 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M144,128a16,16,0,1,1-16-16A16,16,0,0,1,144,128ZM60,112a16,16,0,1,0,16,16A16,16,0,0,0,60,112Zm136,0a16,16,0,1,0,16,16A16,16,0,0,0,196,112Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", {
+      d: "M240,96v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V96A16,16,0,0,1,32,80H224A16,16,0,0,1,240,96Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ e54.createElement("path", { d: "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M224,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V96A16,16,0,0,0,224,80ZM60,140a12,12,0,1,1,12-12A12,12,0,0,1,60,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,196,140Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M138,128a10,10,0,1,1-10-10A10,10,0,0,1,138,128ZM60,118a10,10,0,1,0,10,10A10,10,0,0,0,60,118Zm136,0a10,10,0,1,0,10,10A10,10,0,0,0,196,118Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M136,128a8,8,0,1,1-8-8A8,8,0,0,1,136,128Zm-76-8a8,8,0,1,0,8,8A8,8,0,0,0,60,120Zm136,0a8,8,0,1,0,8,8A8,8,0,0,0,196,120Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/DotsThree.es.js
+var o64 = e55.forwardRef((r51, t38) => /* @__PURE__ */ e55.createElement(p37, { ref: t38, ...r51, weights: a45 }));
+o64.displayName = "DotsThreeIcon";
+var n27 = o64;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Gear.es.js
+var e56 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Gear.es.js
+var a46 = __toESM(require_react(), 1);
+var l14 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,76a52,52,0,1,0,52,52A52.06,52.06,0,0,0,128,76Zm0,80a28,28,0,1,1,28-28A28,28,0,0,1,128,156Zm92-27.21v-1.58l14-17.51a12,12,0,0,0,2.23-10.59A111.75,111.75,0,0,0,225,71.89,12,12,0,0,0,215.89,66L193.61,63.5l-1.11-1.11L190,40.1A12,12,0,0,0,184.11,31a111.67,111.67,0,0,0-27.23-11.27A12,12,0,0,0,146.3,22L128.79,36h-1.58L109.7,22a12,12,0,0,0-10.59-2.23A111.75,111.75,0,0,0,71.89,31.05,12,12,0,0,0,66,40.11L63.5,62.39,62.39,63.5,40.1,66A12,12,0,0,0,31,71.89,111.67,111.67,0,0,0,19.77,99.12,12,12,0,0,0,22,109.7l14,17.51v1.58L22,146.3a12,12,0,0,0-2.23,10.59,111.75,111.75,0,0,0,11.29,27.22A12,12,0,0,0,40.11,190l22.28,2.48,1.11,1.11L66,215.9A12,12,0,0,0,71.89,225a111.67,111.67,0,0,0,27.23,11.27A12,12,0,0,0,109.7,234l17.51-14h1.58l17.51,14a12,12,0,0,0,10.59,2.23A111.75,111.75,0,0,0,184.11,225a12,12,0,0,0,5.91-9.06l2.48-22.28,1.11-1.11L215.9,190a12,12,0,0,0,9.06-5.91,111.67,111.67,0,0,0,11.27-27.23A12,12,0,0,0,234,146.3Zm-24.12-4.89a70.1,70.1,0,0,1,0,8.2,12,12,0,0,0,2.61,8.22l12.84,16.05A86.47,86.47,0,0,1,207,166.86l-20.43,2.27a12,12,0,0,0-7.65,4,69,69,0,0,1-5.8,5.8,12,12,0,0,0-4,7.65L166.86,207a86.47,86.47,0,0,1-10.49,4.35l-16.05-12.85a12,12,0,0,0-7.5-2.62c-.24,0-.48,0-.72,0a70.1,70.1,0,0,1-8.2,0,12.06,12.06,0,0,0-8.22,2.6L99.63,211.33A86.47,86.47,0,0,1,89.14,207l-2.27-20.43a12,12,0,0,0-4-7.65,69,69,0,0,1-5.8-5.8,12,12,0,0,0-7.65-4L49,166.86a86.47,86.47,0,0,1-4.35-10.49l12.84-16.05a12,12,0,0,0,2.61-8.22,70.1,70.1,0,0,1,0-8.2,12,12,0,0,0-2.61-8.22L44.67,99.63A86.47,86.47,0,0,1,49,89.14l20.43-2.27a12,12,0,0,0,7.65-4,69,69,0,0,1,5.8-5.8,12,12,0,0,0,4-7.65L89.14,49a86.47,86.47,0,0,1,10.49-4.35l16.05,12.85a12.06,12.06,0,0,0,8.22,2.6,70.1,70.1,0,0,1,8.2,0,12,12,0,0,0,8.22-2.6l16.05-12.85A86.47,86.47,0,0,1,166.86,49l2.27,20.43a12,12,0,0,0,4,7.65,69,69,0,0,1,5.8,5.8,12,12,0,0,0,7.65,4L207,89.14a86.47,86.47,0,0,1,4.35,10.49l-12.84,16.05A12,12,0,0,0,195.88,123.9Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", {
+      d: "M207.86,123.18l16.78-21a99.14,99.14,0,0,0-10.07-24.29l-26.7-3a81,81,0,0,0-6.81-6.81l-3-26.71a99.43,99.43,0,0,0-24.3-10l-21,16.77a81.59,81.59,0,0,0-9.64,0l-21-16.78A99.14,99.14,0,0,0,77.91,41.43l-3,26.7a81,81,0,0,0-6.81,6.81l-26.71,3a99.43,99.43,0,0,0-10,24.3l16.77,21a81.59,81.59,0,0,0,0,9.64l-16.78,21a99.14,99.14,0,0,0,10.07,24.29l26.7,3a81,81,0,0,0,6.81,6.81l3,26.71a99.43,99.43,0,0,0,24.3,10l21-16.77a81.59,81.59,0,0,0,9.64,0l21,16.78a99.14,99.14,0,0,0,24.29-10.07l3-26.7a81,81,0,0,0,6.81-6.81l26.71-3a99.43,99.43,0,0,0,10-24.3l-16.77-21A81.59,81.59,0,0,0,207.86,123.18ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a46.createElement("path", { d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8.06,8.06,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8.06,8.06,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M216,130.16q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162ZM214,130.84c.06-1.89.06-3.79,0-5.68L229.33,106a6,6,0,0,0,1.11-5.29A105.34,105.34,0,0,0,219.76,74.9a6,6,0,0,0-4.53-3l-24.45-2.71q-1.93-2.07-4-4l-2.72-24.46a6,6,0,0,0-3-4.53,105.65,105.65,0,0,0-25.77-10.66A6,6,0,0,0,150,26.68l-19.2,15.37c-1.89-.06-3.79-.06-5.68,0L106,26.67a6,6,0,0,0-5.29-1.11A105.34,105.34,0,0,0,74.9,36.24a6,6,0,0,0-3,4.53L69.23,65.22q-2.07,1.94-4,4L40.76,72a6,6,0,0,0-4.53,3,105.65,105.65,0,0,0-10.66,25.77A6,6,0,0,0,26.68,106l15.37,19.2c-.06,1.89-.06,3.79,0,5.68L26.67,150.05a6,6,0,0,0-1.11,5.29A105.34,105.34,0,0,0,36.24,181.1a6,6,0,0,0,4.53,3l24.45,2.71q1.94,2.07,4,4L72,215.24a6,6,0,0,0,3,4.53,105.65,105.65,0,0,0,25.77,10.66,6,6,0,0,0,5.29-1.11L125.16,214c1.89.06,3.79.06,5.68,0l19.21,15.38a6,6,0,0,0,3.75,1.31,6.2,6.2,0,0,0,1.54-.2,105.34,105.34,0,0,0,25.76-10.68,6,6,0,0,0,3-4.53l2.71-24.45q2.07-1.93,4-4l24.46-2.72a6,6,0,0,0,4.53-3,105.49,105.49,0,0,0,10.66-25.77,6,6,0,0,0-1.11-5.29Zm-3.1,41.63-23.64,2.63a6,6,0,0,0-3.82,2,75.14,75.14,0,0,1-6.31,6.31,6,6,0,0,0-2,3.82l-2.63,23.63A94.28,94.28,0,0,1,155.14,218l-18.57-14.86a6,6,0,0,0-3.75-1.31h-.36a78.07,78.07,0,0,1-8.92,0,6,6,0,0,0-4.11,1.3L100.87,218a94.13,94.13,0,0,1-17.34-7.17L80.9,187.21a6,6,0,0,0-2-3.82,75.14,75.14,0,0,1-6.31-6.31,6,6,0,0,0-3.82-2l-23.63-2.63A94.28,94.28,0,0,1,38,155.14l14.86-18.57a6,6,0,0,0,1.3-4.11,78.07,78.07,0,0,1,0-8.92,6,6,0,0,0-1.3-4.11L38,100.87a94.13,94.13,0,0,1,7.17-17.34L68.79,80.9a6,6,0,0,0,3.82-2,75.14,75.14,0,0,1,6.31-6.31,6,6,0,0,0,2-3.82l2.63-23.63A94.28,94.28,0,0,1,100.86,38l18.57,14.86a6,6,0,0,0,4.11,1.3,78.07,78.07,0,0,1,8.92,0,6,6,0,0,0,4.11-1.3L155.13,38a94.13,94.13,0,0,1,17.34,7.17l2.63,23.64a6,6,0,0,0,2,3.82,75.14,75.14,0,0,1,6.31,6.31,6,6,0,0,0,3.82,2l23.63,2.63A94.28,94.28,0,0,1,218,100.86l-14.86,18.57a6,6,0,0,0-1.3,4.11,78.07,78.07,0,0,1,0,8.92,6,6,0,0,0,1.3,4.11L218,155.13A94.13,94.13,0,0,1,210.85,172.47Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,84a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,84Zm0,80a36,36,0,1,1,36-36A36,36,0,0,1,128,164Zm83.93-32.49q.13-3.51,0-7l15.83-19.79a4,4,0,0,0,.75-3.53A103.64,103.64,0,0,0,218,75.9a4,4,0,0,0-3-2l-25.19-2.8c-1.58-1.71-3.24-3.37-4.95-4.95L182.07,41a4,4,0,0,0-2-3A104,104,0,0,0,154.82,27.5a4,4,0,0,0-3.53.74L131.51,44.07q-3.51-.14-7,0L104.7,28.24a4,4,0,0,0-3.53-.75A103.64,103.64,0,0,0,75.9,38a4,4,0,0,0-2,3l-2.8,25.19c-1.71,1.58-3.37,3.24-4.95,4.95L41,73.93a4,4,0,0,0-3,2A104,104,0,0,0,27.5,101.18a4,4,0,0,0,.74,3.53l15.83,19.78q-.14,3.51,0,7L28.24,151.3a4,4,0,0,0-.75,3.53A103.64,103.64,0,0,0,38,180.1a4,4,0,0,0,3,2l25.19,2.8c1.58,1.71,3.24,3.37,4.95,4.95l2.8,25.2a4,4,0,0,0,2,3,104,104,0,0,0,25.28,10.46,4,4,0,0,0,3.53-.74l19.78-15.83q3.51.13,7,0l19.79,15.83a4,4,0,0,0,2.5.88,4,4,0,0,0,1-.13A103.64,103.64,0,0,0,180.1,218a4,4,0,0,0,2-3l2.8-25.19c1.71-1.58,3.37-3.24,4.95-4.95l25.2-2.8a4,4,0,0,0,3-2,104,104,0,0,0,10.46-25.28,4,4,0,0,0-.74-3.53Zm.17,42.83-24.67,2.74a4,4,0,0,0-2.55,1.32,76.2,76.2,0,0,1-6.48,6.48,4,4,0,0,0-1.32,2.55l-2.74,24.66a95.45,95.45,0,0,1-19.64,8.15l-19.38-15.51a4,4,0,0,0-2.5-.87h-.24a73.67,73.67,0,0,1-9.16,0,4,4,0,0,0-2.74.87l-19.37,15.5a95.33,95.33,0,0,1-19.65-8.13l-2.74-24.67a4,4,0,0,0-1.32-2.55,76.2,76.2,0,0,1-6.48-6.48,4,4,0,0,0-2.55-1.32l-24.66-2.74a95.45,95.45,0,0,1-8.15-19.64l15.51-19.38a4,4,0,0,0,.87-2.74,77.76,77.76,0,0,1,0-9.16,4,4,0,0,0-.87-2.74l-15.5-19.37A95.33,95.33,0,0,1,43.9,81.66l24.67-2.74a4,4,0,0,0,2.55-1.32,76.2,76.2,0,0,1,6.48-6.48,4,4,0,0,0,1.32-2.55l2.74-24.66a95.45,95.45,0,0,1,19.64-8.15l19.38,15.51a4,4,0,0,0,2.74.87,73.67,73.67,0,0,1,9.16,0,4,4,0,0,0,2.74-.87l19.37-15.5a95.33,95.33,0,0,1,19.65,8.13l2.74,24.67a4,4,0,0,0,1.32,2.55,76.2,76.2,0,0,1,6.48,6.48,4,4,0,0,0,2.55,1.32l24.66,2.74a95.45,95.45,0,0,1,8.15,19.64l-15.51,19.38a4,4,0,0,0-.87,2.74,77.76,77.76,0,0,1,0,9.16,4,4,0,0,0,.87,2.74l15.5,19.37A95.33,95.33,0,0,1,212.1,174.34Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Gear.es.js
+var o65 = e56.forwardRef((r51, a47) => /* @__PURE__ */ e56.createElement(p37, { ref: a47, ...r51, weights: l14 }));
+o65.displayName = "GearIcon";
+var n28 = o65;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Hourglass.es.js
+var o66 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Hourglass.es.js
+var a47 = __toESM(require_react(), 1);
+var e57 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M204,75.64V40a20,20,0,0,0-20-20H72A20,20,0,0,0,52,40V76a20.1,20.1,0,0,0,8,16l48,36L60,164a20.1,20.1,0,0,0-8,16v36a20,20,0,0,0,20,20H184a20,20,0,0,0,20-20V180.36a20.13,20.13,0,0,0-7.94-16L147.9,128l48.16-36.4A20.13,20.13,0,0,0,204,75.64ZM180,212H76V182l52-39,52,39.33Zm0-138.35L128,113,76,74V44H180Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", {
+      d: "M188.82,82,128,128,67.2,82.4A8,8,0,0,1,64,76V40a8,8,0,0,1,8-8H184a8,8,0,0,1,8,8V75.64A8,8,0,0,1,188.82,82ZM64,180v36a8,8,0,0,0,8,8H184a8,8,0,0,0,8-8V180.36a8,8,0,0,0-3.18-6.38L128,128,67.2,173.6A8,8,0,0,0,64,180Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a47.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.59A16.09,16.09,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M198,75.64V40a14,14,0,0,0-14-14H72A14,14,0,0,0,58,40V76a14.06,14.06,0,0,0,5.6,11.2L118,128,63.6,168.8A14.06,14.06,0,0,0,58,180v36a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V180.36a14.08,14.08,0,0,0-5.56-11.17L138,128l54.49-41.19A14.08,14.08,0,0,0,198,75.64ZM186,180.36V216a2,2,0,0,1-2,2H72a2,2,0,0,1-2-2V180a2,2,0,0,1,.8-1.6L128,135.51l57.22,43.25A2,2,0,0,1,186,180.36Zm0-104.72a2,2,0,0,1-.79,1.6L128,120.49,70.8,77.6A2,2,0,0,1,70,76V40a2,2,0,0,1,2-2H184a2,2,0,0,1,2,2Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.6A16.05,16.05,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M196,75.64V40a12,12,0,0,0-12-12H72A12,12,0,0,0,60,40V76a12,12,0,0,0,4.8,9.6L121.33,128,64.8,170.4A12,12,0,0,0,60,180v36a12,12,0,0,0,12,12H184a12,12,0,0,0,12-12V180.36a12.05,12.05,0,0,0-4.76-9.57L134.63,128l56.61-42.79A12.05,12.05,0,0,0,196,75.64Zm-8,104.72V216a4,4,0,0,1-4,4H72a4,4,0,0,1-4-4V180a4,4,0,0,1,1.6-3.2L128,133l58.42,44.16A4,4,0,0,1,188,180.36Zm0-104.72a4,4,0,0,1-1.59,3.19L128,123,69.6,79.2A4,4,0,0,1,68,76V40a4,4,0,0,1,4-4H184a4,4,0,0,1,4,4Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Hourglass.es.js
+var r51 = o66.forwardRef((s27, a48) => /* @__PURE__ */ o66.createElement(p37, { ref: a48, ...s27, weights: e57 }));
+r51.displayName = "HourglassIcon";
+var n29 = r51;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/House.es.js
+var o67 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/House.es.js
+var a48 = __toESM(require_react(), 1);
+var e58 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M222.14,105.85l-80-80a20,20,0,0,0-28.28,0l-80,80A19.86,19.86,0,0,0,28,120v96a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V164h24v52a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V120A19.86,19.86,0,0,0,222.14,105.85ZM204,204H164V152a12,12,0,0,0-12-12H104a12,12,0,0,0-12,12v52H52V121.65l76-76,76,76Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", {
+      d: "M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a48.createElement("path", { d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M217.9,110.1l-80-80a14,14,0,0,0-19.8,0l-80,80A13.92,13.92,0,0,0,34,120v96a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V158h36v58a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V120A13.92,13.92,0,0,0,217.9,110.1ZM210,210H158V152a6,6,0,0,0-6-6H104a6,6,0,0,0-6,6v58H46V120a2,2,0,0,1,.58-1.42l80-80a2,2,0,0,1,2.84,0l80,80A2,2,0,0,1,210,120Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M216.49,111.51l-80-80a12,12,0,0,0-17,0l-80,80A12,12,0,0,0,36,120v96a4,4,0,0,0,4,4h64a4,4,0,0,0,4-4V156h40v60a4,4,0,0,0,4,4h64a4,4,0,0,0,4-4V120A12,12,0,0,0,216.49,111.51ZM212,212H156V152a4,4,0,0,0-4-4H104a4,4,0,0,0-4,4v60H44V120a4,4,0,0,1,1.17-2.83l80-80a4,4,0,0,1,5.66,0l80,80A4,4,0,0,1,212,120Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/House.es.js
+var e59 = o67.forwardRef((r52, s27) => /* @__PURE__ */ o67.createElement(p37, { ref: s27, ...r52, weights: e58 }));
+e59.displayName = "HouseIcon";
+var n30 = e59;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Info.es.js
+var o68 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Info.es.js
+var e60 = __toESM(require_react(), 1);
+var a49 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M108,84a16,16,0,1,1,16,16A16,16,0,0,1,108,84Zm128,44A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128Zm-72,36.68V132a20,20,0,0,0-20-20,12,12,0,0,0-4,23.32V168a20,20,0,0,0,20,20,12,12,0,0,0,4-23.32Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e60.createElement("path", { d: "M144,176a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176Zm88-48A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128ZM124,96a12,12,0,1,0-12-12A12,12,0,0,0,124,96Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-4,48a12,12,0,1,1-12,12A12,12,0,0,1,124,72Zm12,112a16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40a8,8,0,0,1,0,16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M142,176a6,6,0,0,1-6,6,14,14,0,0,1-14-14V128a2,2,0,0,0-2-2,6,6,0,0,1,0-12,14,14,0,0,1,14,14v40a2,2,0,0,0,2,2A6,6,0,0,1,142,176ZM124,94a10,10,0,1,0-10-10A10,10,0,0,0,124,94Zm106,34A102,102,0,1,1,128,26,102.12,102.12,0,0,1,230,128Zm-12,0a90,90,0,1,0-90,90A90.1,90.1,0,0,0,218,128Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M140,176a4,4,0,0,1-4,4,12,12,0,0,1-12-12V128a4,4,0,0,0-4-4,4,4,0,0,1,0-8,12,12,0,0,1,12,12v40a4,4,0,0,0,4,4A4,4,0,0,1,140,176ZM124,92a8,8,0,1,0-8-8A8,8,0,0,0,124,92Zm104,36A100,100,0,1,1,128,28,100.11,100.11,0,0,1,228,128Zm-8,0a92,92,0,1,0-92,92A92.1,92.1,0,0,0,220,128Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Info.es.js
+var e61 = o68.forwardRef((r52, t38) => /* @__PURE__ */ o68.createElement(p37, { ref: t38, ...r52, weights: a49 }));
+e61.displayName = "InfoIcon";
+var c7 = e61;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Key.es.js
+var e63 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Key.es.js
+var a50 = __toESM(require_react(), 1);
+var e62 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M196,76a16,16,0,1,1-16-16A16,16,0,0,1,196,76Zm48,22.74A84.3,84.3,0,0,1,160.11,180H160a83.52,83.52,0,0,1-23.65-3.38l-7.86,7.87A12,12,0,0,1,120,188H108v12a12,12,0,0,1-12,12H84v12a12,12,0,0,1-12,12H40a20,20,0,0,1-20-20V187.31a19.86,19.86,0,0,1,5.86-14.14l53.52-53.52A84,84,0,1,1,244,98.74ZM202.43,53.57A59.48,59.48,0,0,0,158,36c-32,1-58,27.89-58,59.89a59.69,59.69,0,0,0,4.2,22.19,12,12,0,0,1-2.55,13.21L44,189v23H60V200a12,12,0,0,1,12-12H84V176a12,12,0,0,1,12-12h19l9.65-9.65a12,12,0,0,1,13.22-2.55A59.58,59.58,0,0,0,160,156h.08c32,0,58.87-26.07,59.89-58A59.55,59.55,0,0,0,202.43,53.57Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", {
+      d: "M232,98.36C230.73,136.92,198.67,168,160.09,168a71.68,71.68,0,0,1-26.92-5.17h0L120,176H96v24H72v24H40a8,8,0,0,1-8-8V187.31a8,8,0,0,1,2.34-5.65l58.83-58.83h0A71.68,71.68,0,0,1,88,95.91c0-38.58,31.08-70.64,69.64-71.87A72,72,0,0,1,232,98.36Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a50.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM180,92a16,16,0,1,1,16-16A16,16,0,0,1,180,92Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M213.74,42.26A76,76,0,0,0,88.51,121.84l-57,57A11.93,11.93,0,0,0,28,187.31V216a12,12,0,0,0,12,12H72a4,4,0,0,0,4-4V204H96a4,4,0,0,0,4-4V180h20a4,4,0,0,0,2.83-1.17l11.33-11.34A75.72,75.72,0,0,0,160,172h.1A76,76,0,0,0,213.74,42.26Zm14.22,56c-1.15,36.22-31.6,65.72-67.87,65.77H160a67.52,67.52,0,0,1-25.21-4.83,4,4,0,0,0-4.45.83l-12,12H96a4,4,0,0,0-4,4v20H72a4,4,0,0,0-4,4v20H40a4,4,0,0,1-4-4V187.31a4.06,4.06,0,0,1,1.17-2.83L96,125.66a4,4,0,0,0,.83-4.45A67.51,67.51,0,0,1,92,95.91C92,59.64,121.55,29.19,157.77,28A68,68,0,0,1,228,98.23ZM188,76a8,8,0,1,1-8-8A8,8,0,0,1,188,76Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Key.es.js
+var o69 = e63.forwardRef((r52, t38) => /* @__PURE__ */ e63.createElement(p37, { ref: t38, ...r52, weights: e62 }));
+o69.displayName = "KeyIcon";
+var n31 = o69;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ListBullets.es.js
+var t38 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/ListBullets.es.js
+var a51 = __toESM(require_react(), 1);
+var e64 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M76,64A12,12,0,0,1,88,52H216a12,12,0,0,1,0,24H88A12,12,0,0,1,76,64Zm140,52H88a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24Zm0,64H88a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24ZM44,112a16,16,0,1,0,16,16A16,16,0,0,0,44,112Zm0-64A16,16,0,1,0,60,64,16,16,0,0,0,44,48Zm0,128a16,16,0,1,0,16,16A16,16,0,0,0,44,176Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M216,64V192H88V64Z", opacity: "0.2" }), /* @__PURE__ */ a51.createElement("path", { d: "M80,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H88A8,8,0,0,1,80,64Zm136,56H88a8,8,0,1,0,0,16H216a8,8,0,0,0,0-16Zm0,64H88a8,8,0,1,0,0,16H216a8,8,0,0,0,0-16ZM44,52A12,12,0,1,0,56,64,12,12,0,0,0,44,52Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,116Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,180Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM68,188a12,12,0,1,1,12-12A12,12,0,0,1,68,188Zm0-48a12,12,0,1,1,12-12A12,12,0,0,1,68,140Zm0-48A12,12,0,1,1,80,80,12,12,0,0,1,68,92Zm124,92H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Zm0-48H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Zm0-48H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M80,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H88A8,8,0,0,1,80,64Zm136,56H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM44,52A12,12,0,1,0,56,64,12,12,0,0,0,44,52Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,116Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,180Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M84,64a4,4,0,0,1,4-4H216a4,4,0,0,1,0,8H88A4,4,0,0,1,84,64Zm132,60H88a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8Zm0,64H88a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8ZM44,120a8,8,0,1,0,8,8A8,8,0,0,0,44,120Zm0-64a8,8,0,1,0,8,8A8,8,0,0,0,44,56Zm0,128a8,8,0,1,0,8,8A8,8,0,0,0,44,184Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ListBullets.es.js
+var e65 = t38.forwardRef((o70, s27) => /* @__PURE__ */ t38.createElement(p37, { ref: s27, ...o70, weights: e64 }));
+e65.displayName = "ListBulletsIcon";
+var m17 = e65;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/MagnifyingGlass.es.js
+var a53 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/MagnifyingGlass.es.js
+var e66 = __toESM(require_react(), 1);
+var a52 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M232.49,215.51,185,168a92.12,92.12,0,1,0-17,17l47.53,47.54a12,12,0,0,0,17-17ZM44,112a68,68,0,1,1,68,68A68.07,68.07,0,0,1,44,112Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M192,112a80,80,0,1,1-80-80A80,80,0,0,1,192,112Z", opacity: "0.2" }), /* @__PURE__ */ e66.createElement("path", { d: "M229.66,218.34,179.6,168.28a88.21,88.21,0,1,0-11.32,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M228.24,219.76l-51.38-51.38a86.15,86.15,0,1,0-8.48,8.48l51.38,51.38a6,6,0,0,0,8.48-8.48ZM38,112a74,74,0,1,1,74,74A74.09,74.09,0,0,1,38,112Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M226.83,221.17l-52.7-52.7a84.1,84.1,0,1,0-5.66,5.66l52.7,52.7a4,4,0,0,0,5.66-5.66ZM36,112a76,76,0,1,1,76,76A76.08,76.08,0,0,1,36,112Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/MagnifyingGlass.es.js
+var o70 = a53.forwardRef((s27, n32) => /* @__PURE__ */ a53.createElement(p37, { ref: n32, ...s27, weights: a52 }));
+o70.displayName = "MagnifyingGlassIcon";
+var f21 = o70;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Plugs.es.js
+var o71 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Plugs.es.js
+var a54 = __toESM(require_react(), 1);
+var l15 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M137,168l11.52-11.51a12,12,0,0,0-17-17L120,151l-15-15,11.52-11.51a12,12,0,0,0-17-17L88,119,72.49,103.51a12,12,0,0,0-17,17L59,124,38.54,144.49a36,36,0,0,0,0,50.91l2.55,2.54L15.51,223.51a12,12,0,0,0,17,17l25.57-25.58,2.54,2.55a36.06,36.06,0,0,0,50.91,0L132,197l3.51,3.52a12,12,0,0,0,17-17ZM94.54,200.49a12,12,0,0,1-17,0L55.51,178.43a12,12,0,0,1,0-17L76,141l39,39Zm146-185a12,12,0,0,0-17,0L197.94,41.09l-2.54-2.55a36.05,36.05,0,0,0-50.91,0L124,59l-3.51-3.52a12,12,0,0,0-17,17l80,80a12,12,0,0,0,17-17L197,132l20.49-20.49a36,36,0,0,0,0-50.91l-2.55-2.54,25.58-25.57A12,12,0,0,0,240.49,15.51Zm-40,79L180,115,141,76l20.49-20.49a12,12,0,0,1,17,0l22.06,22.06a12,12,0,0,1,0,17Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", {
+      d: "M76,124l56,56-29,29a24,24,0,0,1-33.94,0L47,186.91A24,24,0,0,1,47,153ZM209,69.09,186.91,47A24,24,0,0,0,153,47L124,76l56,56,29-29A24,24,0,0,0,209,69.09Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a54.createElement("path", { d: "M149.66,138.34a8,8,0,0,0-11.32,0L120,156.69,99.31,136l18.35-18.34a8,8,0,0,0-11.32-11.32L88,124.69,69.66,106.34a8,8,0,0,0-11.32,11.32L64.69,124,41.37,147.31a32,32,0,0,0,0,45.26l5.38,5.37-28.41,28.4a8,8,0,0,0,11.32,11.32l28.4-28.41,5.37,5.38a32,32,0,0,0,45.26,0L132,191.31l6.34,6.35a8,8,0,0,0,11.32-11.32L131.31,168l18.35-18.34A8,8,0,0,0,149.66,138.34Zm-52.29,65a16,16,0,0,1-22.62,0L52.69,181.25a16,16,0,0,1,0-22.62L76,135.31,120.69,180Zm140.29-185a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Zm-34.35,79L180,120.69,135.31,76l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,203.31,97.37Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M149.66,149.66,131.31,168l18.35,18.34a8,8,0,0,1-11.32,11.32L132,191.31l-23.31,23.32a32.06,32.06,0,0,1-45.26,0l-5.37-5.38-28.4,28.41a8,8,0,0,1-11.32-11.32l28.41-28.4-5.38-5.37a32,32,0,0,1,0-45.26L64.69,124l-6.35-6.34a8,8,0,0,1,11.32-11.32L88,124.69l18.34-18.35a8,8,0,0,1,11.32,11.32L99.31,136,120,156.69l18.34-18.35a8,8,0,0,1,11.32,11.32Zm88-131.32a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M148.24,139.76a6,6,0,0,0-8.48,0L120,159.51,96.49,136l19.75-19.76a6,6,0,0,0-8.48-8.48L88,127.51,68.24,107.76a6,6,0,0,0-8.48,8.48L67.51,124,42.79,148.73a30,30,0,0,0,0,42.42l6.78,6.79L19.76,227.76a6,6,0,1,0,8.48,8.48l29.82-29.81,6.79,6.78a30,30,0,0,0,42.42,0L132,188.49l7.76,7.75a6,6,0,0,0,8.48-8.48L128.49,168l19.75-19.76A6,6,0,0,0,148.24,139.76Zm-49.45,65a18,18,0,0,1-25.46,0L51.27,182.67a18,18,0,0,1,0-25.46L76,132.49,123.51,180Zm137.45-185a6,6,0,0,0-8.48,0L197.94,49.57l-6.79-6.78a30,30,0,0,0-42.42,0L124,67.51l-7.76-7.75a6,6,0,0,0-8.48,8.48l80,80a6,6,0,0,0,8.48-8.48L188.49,132l24.72-24.73a30,30,0,0,0,0-42.42l-6.78-6.79,29.81-29.82A6,6,0,0,0,236.24,19.76Zm-31.51,79L180,123.51,132.49,76l24.72-24.73a18,18,0,0,1,25.46,0l22.06,22.06a18,18,0,0,1,0,25.46Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M149.66,138.34a8,8,0,0,0-11.32,0L120,156.69,99.31,136l18.35-18.34a8,8,0,0,0-11.32-11.32L88,124.69,69.66,106.34a8,8,0,0,0-11.32,11.32L64.69,124,41.37,147.31a32,32,0,0,0,0,45.26l5.38,5.37-28.41,28.4a8,8,0,0,0,11.32,11.32l28.4-28.41,5.37,5.38a32,32,0,0,0,45.26,0L132,191.31l6.34,6.35a8,8,0,0,0,11.32-11.32L131.31,168l18.35-18.34A8,8,0,0,0,149.66,138.34Zm-52.29,65a16,16,0,0,1-22.62,0L52.69,181.25a16,16,0,0,1,0-22.62L76,135.31,120.69,180Zm140.29-185a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Zm-34.35,79L180,120.69,135.31,76l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,203.31,97.37Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M146.83,141.17a4,4,0,0,0-5.66,0L120,162.34,93.66,136l21.17-21.17a4,4,0,0,0-5.66-5.66L88,130.34,66.83,109.17a4,4,0,0,0-5.66,5.66L70.34,124,44.2,150.14a28,28,0,0,0,0,39.6l8.2,8.2L21.17,229.17a4,4,0,0,0,5.66,5.66L58.06,203.6l8.2,8.2a28,28,0,0,0,39.6,0L132,185.66l9.17,9.17a4,4,0,0,0,5.66-5.66L125.66,168l21.17-21.17A4,4,0,0,0,146.83,141.17Zm-46.63,65a20,20,0,0,1-28.28,0L49.86,184.08a20,20,0,0,1,0-28.28L76,129.66,126.34,180Zm134.63-185a4,4,0,0,0-5.66,0L197.94,52.4l-8.2-8.2a28,28,0,0,0-39.6,0L124,70.34l-9.17-9.17a4,4,0,0,0-5.66,5.66l80,80a4,4,0,0,0,5.66-5.66L185.66,132l26.14-26.14a28,28,0,0,0,0-39.6l-8.2-8.2,31.23-31.23A4,4,0,0,0,234.83,21.17ZM212,86.06a19.86,19.86,0,0,1-5.86,14.14L180,126.34,129.66,76,155.8,49.86a20,20,0,0,1,28.28,0l22.06,22.06A19.85,19.85,0,0,1,212,86.06Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Plugs.es.js
+var e67 = o71.forwardRef((r52, s27) => /* @__PURE__ */ o71.createElement(p37, { ref: s27, ...r52, weights: l15 }));
+e67.displayName = "PlugsIcon";
+var n32 = e67;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Prohibit.es.js
+var o72 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Prohibit.es.js
+var e68 = __toESM(require_react(), 1);
+var t39 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm84,108a83.6,83.6,0,0,1-16.75,50.28L77.72,60.75A84,84,0,0,1,212,128ZM44,128A83.6,83.6,0,0,1,60.75,77.72L178.28,195.25A84,84,0,0,1,44,128Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e68.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M200,128a71.69,71.69,0,0,1-15.78,44.91L83.09,71.78A71.95,71.95,0,0,1,200,128ZM56,128a71.95,71.95,0,0,0,116.91,56.22L71.78,83.09A71.69,71.69,0,0,0,56,128Zm180,0A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-20,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm90,102a89.6,89.6,0,0,1-22.29,59.22L68.78,60.29A89.95,89.95,0,0,1,218,128ZM38,128A89.6,89.6,0,0,1,60.29,68.78L187.22,195.71A89.95,89.95,0,0,1,38,128Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm92,100a91.67,91.67,0,0,1-24.21,62.13L65.87,60.21A92,92,0,0,1,220,128ZM36,128A91.67,91.67,0,0,1,60.21,65.87L190.13,195.79A92,92,0,0,1,36,128Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Prohibit.es.js
+var r52 = o72.forwardRef((t40, i23) => /* @__PURE__ */ o72.createElement(p37, { ref: i23, ...t40, weights: t39 }));
+r52.displayName = "ProhibitIcon";
+var s27 = r52;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Robot.es.js
+var o73 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Robot.es.js
+var a55 = __toESM(require_react(), 1);
+var e69 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M72,104a16,16,0,1,1,16,16A16,16,0,0,1,72,104Zm96,16a16,16,0,1,0-16-16A16,16,0,0,0,168,120Zm68-40V192a36,36,0,0,1-36,36H56a36,36,0,0,1-36-36V80A36,36,0,0,1,56,44h60V16a12,12,0,0,1,24,0V44h60A36,36,0,0,1,236,80Zm-24,0a12,12,0,0,0-12-12H56A12,12,0,0,0,44,80V192a12,12,0,0,0,12,12H200a12,12,0,0,0,12-12Zm-12,82a30,30,0,0,1-30,30H86a30,30,0,0,1,0-60h84A30,30,0,0,1,200,162Zm-80-6v12h16V156ZM86,168H96V156H86a6,6,0,0,0,0,12Zm90-6a6,6,0,0,0-6-6H160v12h10A6,6,0,0,0,176,162Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", {
+      d: "M200,56H56A24,24,0,0,0,32,80V192a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56ZM164,184H92a20,20,0,0,1,0-40h72a20,20,0,0,1,0,40Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a55.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Zm4,28H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48ZM172,96a12,12,0,1,1-12,12A12,12,0,0,1,172,96ZM96,184H80a16,16,0,0,1,0-32H96ZM84,120a12,12,0,1,1,12-12A12,12,0,0,1,84,120Zm60,64H112V152h32Zm32,0H160V152h16a16,16,0,0,1,0,32Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,50H134V16a6,6,0,0,0-12,0V50H56A30,30,0,0,0,26,80V192a30,30,0,0,0,30,30H200a30,30,0,0,0,30-30V80A30,30,0,0,0,200,50Zm18,142a18,18,0,0,1-18,18H56a18,18,0,0,1-18-18V80A18,18,0,0,1,56,62H200a18,18,0,0,1,18,18ZM74,108a10,10,0,1,1,10,10A10,10,0,0,1,74,108Zm88,0a10,10,0,1,1,10,10A10,10,0,0,1,162,108Zm2,30H92a26,26,0,0,0,0,52h72a26,26,0,0,0,0-52Zm-22,12v28H114V150ZM78,164a14,14,0,0,1,14-14h10v28H92A14,14,0,0,1,78,164Zm86,14H154V150h10a14,14,0,0,1,0,28Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-52-56H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,52H132V16a4,4,0,0,0-8,0V52H56A28,28,0,0,0,28,80V192a28,28,0,0,0,28,28H200a28,28,0,0,0,28-28V80A28,28,0,0,0,200,52Zm20,140a20,20,0,0,1-20,20H56a20,20,0,0,1-20-20V80A20,20,0,0,1,56,60H200a20,20,0,0,1,20,20ZM76,108a8,8,0,1,1,8,8A8,8,0,0,1,76,108Zm88,0a8,8,0,1,1,8,8A8,8,0,0,1,164,108Zm0,32H92a24,24,0,0,0,0,48h72a24,24,0,0,0,0-48Zm-20,8v32H112V148ZM76,164a16,16,0,0,1,16-16h12v32H92A16,16,0,0,1,76,164Zm88,16H152V148h12a16,16,0,0,1,0,32Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Robot.es.js
+var t40 = o73.forwardRef((e70, r53) => /* @__PURE__ */ o73.createElement(p37, { ref: r53, ...e70, weights: e69 }));
+t40.displayName = "RobotIcon";
+var n33 = t40;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ShieldCheck.es.js
+var e71 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/ShieldCheck.es.js
+var a56 = __toESM(require_react(), 1);
+var e70 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,36H48A20,20,0,0,0,28,56v56c0,54.29,26.32,87.22,48.4,105.29,23.71,19.39,47.44,26,48.44,26.29a12.1,12.1,0,0,0,6.32,0c1-.28,24.73-6.9,48.44-26.29,22.08-18.07,48.4-51,48.4-105.29V56A20,20,0,0,0,208,36Zm-4,76c0,35.71-13.09,64.69-38.91,86.15A126.28,126.28,0,0,1,128,219.38a126.14,126.14,0,0,1-37.09-21.23C65.09,176.69,52,147.71,52,112V60H204ZM79.51,144.49a12,12,0,1,1,17-17L112,143l47.51-47.52a12,12,0,0,1,17,17l-56,56a12,12,0,0,1-17,0Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", {
+      d: "M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a56.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm-34.32,69.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,44H48A12,12,0,0,0,36,56v56c0,51.16,24.73,82.12,45.47,99.1,22.4,18.32,44.55,24.5,45.48,24.76a4,4,0,0,0,2.1,0c.93-.26,23.08-6.44,45.48-24.76,20.74-17,45.47-47.94,45.47-99.1V56A12,12,0,0,0,208,44Zm4,68c0,38.44-14.23,69.63-42.29,92.71A132.45,132.45,0,0,1,128,227.82a132.23,132.23,0,0,1-41.71-23.11C58.23,181.63,44,150.44,44,112V56a4,4,0,0,1,4-4H208a4,4,0,0,1,4,4Zm-41.17-10.83a4,4,0,0,1,0,5.66l-56,56a4,4,0,0,1-5.66,0l-24-24a4,4,0,0,1,5.66-5.66L112,154.34l53.17-53.17A4,4,0,0,1,170.83,101.17Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ShieldCheck.es.js
+var o74 = e71.forwardRef((c8, r53) => /* @__PURE__ */ e71.createElement(p37, { ref: r53, ...c8, weights: e70 }));
+o74.displayName = "ShieldCheckIcon";
+var h4 = o74;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Terminal.es.js
+var e73 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Terminal.es.js
+var e72 = __toESM(require_react(), 1);
+var a57 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M120,137,48,201A12,12,0,1,1,32,183l61.91-55L32,73A12,12,0,1,1,48,55l72,64A12,12,0,0,1,120,137Zm96,43H120a12,12,0,0,0,0,24h96a12,12,0,0,0,0-24Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M216,80V192H40V64H200A16,16,0,0,1,216,80Z", opacity: "0.2" }), /* @__PURE__ */ e72.createElement("path", { d: "M117.31,134l-72,64a8,8,0,1,1-10.63-12L100,128,34.69,70A8,8,0,1,1,45.32,58l72,64a8,8,0,0,1,0,12ZM216,184H120a8,8,0,0,0,0,16h96a8,8,0,0,0,0-16Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM77.66,173.66a8,8,0,0,1-11.32-11.32L100.69,128,66.34,93.66A8,8,0,0,1,77.66,82.34l40,40a8,8,0,0,1,0,11.32ZM192,176H128a8,8,0,0,1,0-16h64a8,8,0,0,1,0,16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M116,132.48l-72,64a6,6,0,0,1-8-9L103,128,36,68.49a6,6,0,0,1,8-9l72,64a6,6,0,0,1,0,9ZM216,186H120a6,6,0,0,0,0,12h96a6,6,0,0,0,0-12Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M117.31,134l-72,64a8,8,0,1,1-10.63-12L100,128,34.69,70A8,8,0,1,1,45.32,58l72,64a8,8,0,0,1,0,12ZM216,184H120a8,8,0,0,0,0,16h96a8,8,0,0,0,0-16Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M116,128a4,4,0,0,1-1.34,3l-72,64a4,4,0,1,1-5.32-6L106,128,37.34,67a4,4,0,0,1,5.32-6l72,64A4,4,0,0,1,116,128Zm100,60H120a4,4,0,0,0,0,8h96a4,4,0,0,0,0-8Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Terminal.es.js
+var o75 = e73.forwardRef((r53, a58) => /* @__PURE__ */ e73.createElement(p37, { ref: a58, ...r53, weights: a57 }));
+o75.displayName = "TerminalIcon";
+var c8 = o75;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/WarningCircle.es.js
+var r53 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/WarningCircle.es.js
+var e74 = __toESM(require_react(), 1);
+var a58 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm0,192a84,84,0,1,1,84-84A84.09,84.09,0,0,1,128,212Zm-12-80V80a12,12,0,0,1,24,0v52a12,12,0,0,1-24,0Zm28,40a16,16,0,1,1-16-16A16,16,0,0,1,144,172Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e74.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,56a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm8,104a12,12,0,1,1,12-12A12,12,0,0,1,128,184Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm0,192a90,90,0,1,1,90-90A90.1,90.1,0,0,1,128,218Zm-6-82V80a6,6,0,0,1,12,0v56a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,172Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm0,192a92,92,0,1,1,92-92A92.1,92.1,0,0,1,128,220Zm-4-84V80a4,4,0,0,1,8,0v56a4,4,0,0,1-8,0Zm12,36a8,8,0,1,1-8-8A8,8,0,0,1,136,172Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/WarningCircle.es.js
+var e75 = r53.forwardRef((o76, n34) => /* @__PURE__ */ r53.createElement(p37, { ref: n34, ...o76, weights: a58 }));
+e75.displayName = "WarningCircleIcon";
+var m18 = e75;
+
+// src/client/adapt/glyphs.ts
+var glyphs = {
+  ArrowClockwise: m16,
+  ArrowSquareOut: n25,
+  CaretLeft: s26,
+  Check: n26,
+  Desktop: c6,
+  DotsThree: n27,
+  Gear: n28,
+  Hourglass: n29,
+  House: n30,
+  Info: c7,
+  Key: n31,
+  ListBullets: m17,
+  MagnifyingGlass: f21,
+  Plugs: n32,
+  Prohibit: s27,
+  Robot: n33,
+  ShieldCheck: h4,
+  Terminal: c8,
+  WarningCircle: m18
+};
+
 // src/client/adapt/catalog.ts
 var library = exports_esm;
 var isComponent = (node2) => typeof node2 === "function" || typeof node2 === "object" && node2 !== null && ("$$typeof" in node2);
@@ -53331,7 +54004,9 @@ var walk = (name) => {
 };
 var libraryComponent = (name) => {
   const node2 = walk(name);
-  return isComponent(node2) ? node2 : undefined;
+  if (isComponent(node2))
+    return node2;
+  return glyphs[name];
 };
 
 // src/client/adapt/unresolved.tsx
@@ -53392,9 +54067,9 @@ var adaptComponent = (name) => {
   if (cached2 !== undefined)
     return cached2;
   const of = libraryComponent(name);
-  const renderer2 = of === undefined ? Unresolved : shapeOf(name, of);
-  CACHE.set(name, renderer2);
-  return renderer2;
+  const renderer = of === undefined ? Unresolved : shapeOf(name, of);
+  CACHE.set(name, renderer);
+  return renderer;
 };
 
 // src/client/theme-appearance.ts
@@ -53479,9 +54154,6 @@ var ConsoleTheme = ({ children, fill = false }) => {
   }, undefined, false, undefined, this);
 };
 
-// src/client/console-nav.ts
-var React63 = __toESM(require_react(), 1);
-
 // src/client/console-stack.ts
 var entries = [];
 var current = () => entries[entries.length - 1];
@@ -53503,22 +54175,32 @@ if (typeof window !== "undefined") {
 }
 
 // src/client/console-nav.ts
-var tailOf = (route) => {
-  const screen2 = route.screen === undefined ? "" : `/${encodeURIComponent(route.screen)}`;
-  const query = new URLSearchParams(Object.entries(route.params ?? {})).toString();
-  return query === "" ? screen2 : `${screen2}?${query}`;
+var segment = (value) => value === undefined || value === "" ? "" : `/${encodeURIComponent(value)}`;
+var query = (params) => {
+  const search = new URLSearchParams;
+  for (const [name, value] of Object.entries(params ?? {}))
+    if (typeof value === "string" && value !== "")
+      search.set(name, value);
+  return search.toString() === "" ? "" : `?${search.toString()}`;
 };
 var hashOf = (route) => {
-  const id = route.id === undefined ? "" : encodeURIComponent(route.id);
   switch (route.kind) {
     case "home":
       return "#";
+    case "inbox":
+      return `#inbox${segment(route.decisionId)}`;
+    case "activity":
+      return `#activity${query(route.filter)}`;
+    case "tools":
+      return `#tools${segment(route.app)}${segment(route.operation)}`;
     case "settings":
-      return "#settings";
-    case "settings-config":
-      return `#settings/config/${id}`;
-    default:
-      return `#${route.kind}/${id}${tailOf(route)}`;
+      return `#settings${segment(route.app)}`;
+    case "app":
+      return `#app/${encodeURIComponent(route.id)}${segment(route.screen === ROOT_SCREEN ? undefined : route.screen)}${query(route.params)}`;
+    case "app-settings":
+      return `#app/${encodeURIComponent(route.id)}/settings`;
+    case "not-found":
+      return route.address === "" ? "#" : route.address;
   }
 };
 var here = () => window.location.hash === "" ? "#" : window.location.hash;
@@ -53529,16 +54211,7 @@ var navigate = (route) => {
   pushed(hash2);
   window.location.hash = hash2;
 };
-var openScreen = (id, destination) => navigate({ kind: "view", id, ...destination });
-var useAddressTruth = (route, ready) => {
-  React63.useEffect(() => {
-    if (!ready)
-      return;
-    const truth = hashOf(route);
-    if (here() !== truth)
-      window.history.replaceState(null, "", truth);
-  }, [ready, route]);
-};
+var openScreen = (id, destination) => navigate({ kind: "app", id, ...destination });
 
 // src/client/effect-ui-screen-menu.tsx
 var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
@@ -53554,14 +54227,14 @@ var ScreenMenu = ({ appId, screens }) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV
 
 // src/client/effect-ui-screen-panes.tsx
 var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenBar = ({ depth, title, onBack }) => depth < 2 ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
+var ScreenBar = ({ label, title, onBack }) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
   className: "screen-bar",
   children: [
     /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(o15, {
       variant: "soft",
       size: "2",
       onClick: onBack,
-      children: "‹ Back"
+      children: `‹ ${label}`
     }, undefined, false, undefined, this),
     /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(p, {
       size: "2",
@@ -53579,7 +54252,7 @@ var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev
     fallback: Unresolved
   }, undefined, false, undefined, this)
 }, undefined, false, undefined, this);
-var ScreenPanes = ({ chain, registry: registry2, menu, onBack }) => {
+var ScreenPanes = ({ chain, registry: registry2, menu, onBack, returnLabel }) => {
   const current2 = chain[chain.length - 1];
   const parent = chain.length < 2 ? undefined : chain[chain.length - 2];
   return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
@@ -53596,8 +54269,8 @@ var ScreenPanes = ({ chain, registry: registry2, menu, onBack }) => {
       /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
         className: "screen-pane",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ScreenBar, {
-            depth: chain.length,
+          returnLabel === undefined ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ScreenBar, {
+            label: returnLabel,
             title: current2.title,
             onBack
           }, undefined, false, undefined, this),
@@ -53613,107 +54286,50 @@ var ScreenPanes = ({ chain, registry: registry2, menu, onBack }) => {
 };
 
 // src/client/effect-ui-screen-nav.ts
-var React65 = __toESM(require_react(), 1);
-
-// src/client/console-route-hooks.ts
 var React64 = __toESM(require_react(), 1);
 
-// src/client/console-plan.ts
-var PALETTE = ["jade", "iris", "grass", "sky", "cyan", "amber", "crimson", "violet", "orange", "teal"];
-var defaultColor = (id) => {
-  let hash2 = 0;
-  for (const char of id)
-    hash2 = hash2 * 31 + char.codePointAt(0) >>> 0;
-  return PALETTE[hash2 % PALETTE.length];
-};
-var planConsole = (catalogue) => {
-  const map2 = new Map;
-  const touch = (id, title) => {
-    const old = map2.get(id);
-    if (old)
-      return old;
-    const entry = { id, title, hasView: false, hasConfig: false, icon: "", color: defaultColor(id) };
-    map2.set(id, entry);
-    return entry;
-  };
-  for (const app of catalogue.ui ?? [])
-    if (app.interfaceId) {
-      const entry = touch(app.interfaceId, app.title ?? app.interfaceId);
-      entry.hasView = true;
-      if (app.title)
-        entry.title = app.title;
-      if (app.icon)
-        entry.icon = app.icon;
-      if (app.color)
-        entry.color = app.color;
-    }
-  for (const id of catalogue.views ?? [])
-    touch(id, id).hasView = true;
-  for (const app of catalogue.tools ?? [])
-    if (app.interfaceId)
-      touch(app.interfaceId, app.title ?? app.interfaceId).hasView = true;
-  for (const app of catalogue.config ?? [])
-    touch(app.appId, app.title ?? app.appId).hasConfig = true;
-  for (const entry of map2.values())
-    if (entry.icon === "")
-      entry.icon = entry.title.slice(0, 1).toUpperCase();
-  return [...map2.values()];
-};
-var DESTINATION = /^#view\/([^/?]+)(?:\/([^?]*))?(?:\?(.*))?$/;
-var decode3 = (value) => {
+// src/client/console-route-hooks.ts
+var React63 = __toESM(require_react(), 1);
+
+// src/client/console-route.ts
+var decodePart = (value) => {
   try {
     return decodeURIComponent(value);
   } catch {
     return value;
   }
 };
+var parseAddress = (hash2) => {
+  const body = hash2.startsWith("#") ? hash2.slice(1) : hash2;
+  const cut = body.indexOf("?");
+  return {
+    raw: hash2,
+    parts: (cut === -1 ? body : body.slice(0, cut)).split("/").filter((part) => part !== "").map(decodePart),
+    query: new URLSearchParams(cut === -1 ? "" : body.slice(cut + 1))
+  };
+};
+var paramsOf = (query2) => Object.fromEntries(query2);
+var filtersOf = (query2) => {
+  const one = (name) => {
+    const value = query2.get(name);
+    return value === null || value === "" ? {} : { [name]: value };
+  };
+  return { ...one("actor"), ...one("app"), ...one("kind"), ...one("since") };
+};
+var unresolved = (address, part, text, app) => ({ kind: "not-found", address: address.raw, part, text, ...app === undefined ? {} : { app } });
 var parseDestination = (hash2) => {
-  const match = hash2.match(DESTINATION);
-  const screen2 = match?.[2];
-  const params = {};
-  for (const [name, value] of new URLSearchParams(match?.[3] ?? ""))
-    params[name] = value;
-  return { ...screen2 === undefined || screen2 === "" ? {} : { screen: decode3(screen2) }, ...Object.keys(params).length === 0 ? {} : { params } };
+  const address = parseAddress(hash2);
+  if (address.parts[0] !== "app")
+    return {};
+  const screen2 = address.parts[2];
+  const params = paramsOf(address.query);
+  return { ...screen2 === undefined ? {} : { screen: screen2 }, ...Object.keys(params).length === 0 ? {} : { params } };
 };
-var parseConsoleHash = (hash2, plan) => {
-  if (hash2 === "#settings")
-    return { kind: "settings" };
-  if (hash2 === "#" || hash2 === "")
-    return { kind: "home" };
-  const settingsMatch = hash2.match(/^#settings\/config\/([^/?]+)/);
-  if (settingsMatch) {
-    try {
-      const entry = plan.find((item) => item.id === decodeURIComponent(settingsMatch[1]) && item.hasConfig);
-      return entry ? { kind: "settings-config", id: entry.id } : { kind: "settings" };
-    } catch {
-      return { kind: "settings" };
-    }
-  }
-  const configMatch = hash2.match(/^#config\/([^/?]+)/);
-  if (configMatch) {
-    try {
-      const entry = plan.find((item) => item.id === decodeURIComponent(configMatch[1]) && item.hasConfig);
-      return entry ? { kind: "settings-config", id: entry.id } : { kind: "settings" };
-    } catch {
-      return { kind: "settings" };
-    }
-  }
-  const match = hash2.match(DESTINATION);
-  if (!match)
-    return { kind: "home" };
-  try {
-    const entry = plan.find((item) => item.id === decodeURIComponent(match[1]) && item.hasView);
-    return entry ? { kind: "view", id: entry.id, ...parseDestination(hash2) } : { kind: "home" };
-  } catch {
-    return { kind: "home" };
-  }
-};
-var appRoute = (id) => id === "settings" ? { kind: "settings" } : { kind: "view", id };
 
 // src/client/console-route-hooks.ts
-var useHash = () => {
-  const [hash2, setHash] = React64.useState(() => window.location.hash);
-  React64.useEffect(() => {
+var useAddress = () => {
+  const [hash2, setHash] = React63.useState(() => window.location.hash);
+  React63.useEffect(() => {
     const onHash = () => setHash(window.location.hash);
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -53721,12 +54337,8 @@ var useHash = () => {
   return hash2;
 };
 var useDestination = () => {
-  const hash2 = useHash();
-  return React64.useMemo(() => parseDestination(hash2), [hash2]);
-};
-var useRoute = (plan) => {
-  const hash2 = useHash();
-  return React64.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
+  const hash2 = useAddress();
+  return React63.useMemo(() => parseDestination(hash2), [hash2]);
 };
 
 // src/client/effect-ui-screen-nav.ts
@@ -53736,24 +54348,24 @@ var chainFor = (screens, screen2) => {
 };
 var useScreenView = (screens) => {
   const destination = useDestination();
-  return React65.useMemo(() => {
+  return React64.useMemo(() => {
     const chain = chainFor(screens, destination.screen);
     return { chain, current: chain[chain.length - 1], params: destination.params ?? {} };
   }, [screens, destination]);
 };
 var useNavState = (store, id, params) => {
   const key = `${id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
-  React65.useLayoutEffect(() => {
+  React64.useLayoutEffect(() => {
     store.set(NAV_ROOT, { ...params });
   }, [store, key, params]);
 };
 
 // src/client/effect-ui-screen-entry.ts
-var React66 = __toESM(require_react(), 1);
+var React65 = __toESM(require_react(), 1);
 var useScreenEnter = (handlers, screen2, params) => {
   const key = `${screen2?.id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
   const name = screen2?.onEnter;
-  React66.useEffect(() => {
+  React65.useEffect(() => {
     if (name === undefined)
       return;
     handlers[name]?.();
@@ -53761,20 +54373,20 @@ var useScreenEnter = (handlers, screen2, params) => {
 };
 
 // src/client/effect-ui-view-state.tsx
-var React67 = __toESM(require_react(), 1);
+var React66 = __toESM(require_react(), 1);
 var seeded = (state, sources) => ({
   ...state,
   [NAV_ROOT]: {},
   _sources: Object.fromEntries(sources.map((source2) => [source2.id, initialStatus()]))
 });
 var useViewStore = (state, sources) => {
-  const ref = React67.useRef(null);
+  const ref = React66.useRef(null);
   if (ref.current === null)
     ref.current = createStateStore(seeded(state, sources));
   return ref.current;
 };
 var SourceLoader = ({ sources, store, fetcher }) => {
-  React67.useEffect(() => {
+  React66.useEffect(() => {
     const timers = [];
     for (const source2 of sources) {
       const load = () => void loadSource(source2, store, fetcher);
@@ -53791,24 +54403,31 @@ var SourceLoader = ({ sources, store, fetcher }) => {
 var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
 var asParams = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]));
 var EffectUiRuntime = ({ ours, runtime }) => {
-  const screens = React68.useMemo(() => runtime?.screens ?? [], [runtime]);
-  const sources = React68.useMemo(() => runtime?.sources ?? [], [runtime]);
+  const screens = React67.useMemo(() => runtime?.screens ?? [], [runtime]);
+  const sources = React67.useMemo(() => runtime?.sources ?? [], [runtime]);
   const appId = runtime?.appId ?? "";
-  const registry2 = React68.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ours))), [screens, ours]);
+  const registry2 = React67.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ours))), [screens, ours]);
   const store = useViewStore(screens[0]?.spec.state, sources);
-  const fetcher = React68.useMemo(() => window.fetch.bind(window), []);
+  const fetcher = React67.useMemo(() => window.fetch.bind(window), []);
   const { chain, current: current2, params } = useScreenView(screens);
   useNavState(store, current2?.id, params);
-  const open2 = React68.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
-  const back = React68.useCallback(() => {
+  const open2 = React67.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
+  const back = React67.useCallback(() => {
     if (canGoBack()) {
       window.history.back();
       return;
     }
     const parent = chain[chain.length - 2]?.id;
-    navigate({ kind: "view", id: appId, screen: parent === ROOT_SCREEN ? undefined : parent });
+    navigate({ kind: "app", id: appId, ...parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent } });
   }, [appId, chain]);
-  const handlers = React68.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
+  const returnTo = React67.useMemo(() => {
+    const parent = chain[chain.length - 2];
+    if (!canGoBack())
+      return parent;
+    const screen2 = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN;
+    return screens.find((candidate) => candidate.id === screen2) ?? parent;
+  }, [chain, screens]);
+  const handlers = React67.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
   useScreenEnter(handlers, current2, params);
   if (current2 === undefined)
     return null;
@@ -53832,7 +54451,8 @@ var EffectUiRuntime = ({ ours, runtime }) => {
           chain,
           registry: registry2,
           menu,
-          onBack: back
+          onBack: back,
+          returnLabel: returnTo?.title
         }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this)
@@ -53851,8 +54471,8 @@ var supportsConfigSpec = (input2) => {
 };
 
 // src/client/config-array.ts
-var kind = (s26) => s26.enum?.length ? "enum" : s26.type ?? (s26.properties ? "object" : "string");
-var inputType = (s26) => ["enum", "boolean"].includes(kind(s26)) ? "select" : ["number", "integer"].includes(kind(s26)) ? "number" : "text";
+var kind = (s28) => s28.enum?.length ? "enum" : s28.type ?? (s28.properties ? "object" : "string");
+var inputType = (s28) => ["enum", "boolean"].includes(kind(s28)) ? "select" : ["number", "integer"].includes(kind(s28)) ? "number" : "text";
 var parseFieldValue = (node2, input2) => {
   if (input2.type === "checkbox")
     return input2.checked;
@@ -54198,28 +54818,1181 @@ function createConfigApi(fetcher) {
   };
 }
 
-// src/client/console-tools.tsx
-var import_client2 = __toESM(require_client(), 1);
+// src/client/console-shell.tsx
+var React74 = __toESM(require_react(), 1);
 
-// src/client/inspector-panel.tsx
+// src/client/console-status-bar.tsx
+var React68 = __toESM(require_react(), 1);
+var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
+var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
+var AppearanceButton = () => {
+  const [mode, cycle] = useThemeMode();
+  const label = `Appearance: ${themeLabel(mode)}`;
+  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(e43, {
+    content: label,
+    children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(o30, {
+      size: "1",
+      variant: "ghost",
+      color: "gray",
+      "aria-label": label,
+      onClick: cycle,
+      children: "◐"
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+};
+var ConsoleStatusBar = ({ status, title, home }) => {
+  const [clock, setClock] = React68.useState(clockText);
+  React68.useEffect(() => {
+    const timer = setInterval(() => setClock(clockText()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p12, {
+    align: "center",
+    gap: "3",
+    px: "3",
+    py: "2",
+    flexShrink: "0",
+    children: [
+      home ? null : /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(e43, {
+        content: "Home",
+        children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(o30, {
+          size: "1",
+          variant: "ghost",
+          "aria-label": "Home",
+          onClick: () => navigate({ kind: "home" }),
+          children: "⌂"
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+        size: "2",
+        weight: "bold",
+        truncate: true,
+        children: title
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+        size: "1",
+        color: "gray",
+        truncate: true,
+        children: status
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p9, {
+        flexGrow: "1"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+        size: "1",
+        color: "gray",
+        style: { fontVariantNumeric: "tabular-nums" },
+        children: clock
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(AppearanceButton, {}, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-app-icon.tsx
+var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
+var accent = (color) => color;
+var markOf = (entry) => ({ title: entry.title, icon: entry.icon, color: entry.color });
+var AppAvatar = ({ mark, size: size4 = "5" }) => /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(i2, {
+  size: size4,
+  radius: "large",
+  variant: "solid",
+  color: accent(mark.color),
+  fallback: mark.icon
+}, undefined, false, undefined, this);
+var AppTile = ({ mark, onSelect }) => /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(o17, {
+  asChild: true,
+  size: "2",
+  children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV("button", {
+    type: "button",
+    onClick: onSelect,
+    style: { border: 0, background: "transparent", cursor: "pointer", padding: 0 },
+    children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p12, {
+      direction: "column",
+      align: "center",
+      gap: "2",
+      py: "2",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(AppAvatar, {
+          mark,
+          size: "6"
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p, {
+          size: "2",
+          weight: "medium",
+          align: "center",
+          children: mark.title
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this)
+}, undefined, false, undefined, this);
+
+// src/client/console-plan.ts
+var PALETTE = ["jade", "iris", "grass", "sky", "cyan", "amber", "crimson", "violet", "orange", "teal"];
+var defaultColor = (id) => {
+  let hash2 = 0;
+  for (const char of id)
+    hash2 = hash2 * 31 + char.codePointAt(0) >>> 0;
+  return PALETTE[hash2 % PALETTE.length];
+};
+var planConsole = (catalogue) => {
+  const map2 = new Map;
+  const touch = (id, title) => {
+    const old = map2.get(id);
+    if (old !== undefined)
+      return old;
+    const entry = { id, title, hasView: false, hasTools: false, hasConfig: false, icon: "", color: defaultColor(id) };
+    map2.set(id, entry);
+    return entry;
+  };
+  for (const app of catalogue.ui ?? [])
+    if (app.interfaceId) {
+      const entry = touch(app.interfaceId, app.title ?? app.interfaceId);
+      entry.hasView = true;
+      if (app.title)
+        entry.title = app.title;
+      if (app.icon)
+        entry.icon = app.icon;
+      if (app.color)
+        entry.color = app.color;
+    }
+  for (const id of catalogue.views ?? [])
+    touch(id, id).hasView = true;
+  for (const app of catalogue.tools ?? [])
+    if (app.interfaceId)
+      touch(app.interfaceId, app.title ?? app.interfaceId).hasTools = true;
+  for (const app of catalogue.config ?? [])
+    touch(app.appId, app.title ?? app.appId).hasConfig = true;
+  for (const entry of map2.values())
+    if (entry.icon === "")
+      entry.icon = entry.title.slice(0, 1).toUpperCase();
+  return [...map2.values()];
+};
+var configApps = (plan) => plan.filter((entry) => entry.hasConfig);
+var appRoute = (id) => ({ kind: "app", id });
+
+// src/client/console-not-found.tsx
+var jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
+var sentence = (part, text, app, known) => {
+  if (part === "place")
+    return text === "" ? "This console has no place at this address." : `This console has no place called "${text}".`;
+  if (part === "app") {
+    if (known !== undefined)
+      return `"${known.title}" declares no screen of its own.`;
+    return text === "" ? "This address names no app." : `No app is registered as "${text}".`;
+  }
+  return `"${app ?? ""}" has no screen called "${text}".`;
+};
+var shared = (a59, b6) => {
+  let count3 = 0;
+  while (count3 < a59.length && count3 < b6.length && a59[count3] === b6[count3])
+    count3 += 1;
+  return count3;
+};
+var nearest = (plan, text) => plan.filter((entry) => shared(entry.id, text) > 0).sort((left, right) => shared(right.id, text) - shared(left.id, text) || left.id.localeCompare(right.id)).slice(0, 3);
+var Link2 = ({ label, route }) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o15, {
+  size: "1",
+  variant: "soft",
+  color: "gray",
+  onClick: () => navigate(route),
+  children: label
+}, undefined, false, undefined, this);
+var NotFound = ({ address, part, text, app, plan, screens }) => {
+  const entry = part === "app" ? plan.find((item) => item.id === text) : undefined;
+  return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+    direction: "column",
+    gap: "5",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+        direction: "column",
+        gap: "1",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(r8, {
+            size: "6",
+            children: "Not found"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            children: sentence(part, text, app, entry)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+            size: "1",
+            color: "gray",
+            children: address
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      screens === undefined || screens.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+        gap: "2",
+        wrap: "wrap",
+        children: screens.map((screen2) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+          label: screen2.title,
+          route: { kind: "app", id: app ?? "", screen: screen2.id }
+        }, screen2.id, false, undefined, this))
+      }, undefined, false, undefined, this),
+      entry === undefined ? null : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+        gap: "2",
+        wrap: "wrap",
+        children: [
+          entry.hasTools ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+            label: `Operations of ${entry.title}`,
+            route: { kind: "tools", app: entry.id }
+          }, undefined, false, undefined, this) : null,
+          entry.hasConfig ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+            label: `Configure ${entry.title}`,
+            route: { kind: "settings", app: entry.id }
+          }, undefined, false, undefined, this) : null
+        ]
+      }, undefined, true, undefined, this),
+      entry === undefined && part === "app" ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+        gap: "2",
+        wrap: "wrap",
+        children: nearest(plan, text).map((candidate) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+          label: candidate.title,
+          route: appRoute(candidate.id)
+        }, candidate.id, false, undefined, this))
+      }, undefined, false, undefined, this) : null,
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+        gap: "2",
+        children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+          label: "Go to Home",
+          route: { kind: "home" }
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-source.ts
+var React69 = __toESM(require_react(), 1);
+var useSource = (key, load) => {
+  const [state, setState] = React69.useState({ status: "loading" });
+  const [attempt, setAttempt] = React69.useState(0);
+  React69.useEffect(() => {
+    let live = true;
+    load(key).then((value) => {
+      if (live)
+        setState({ status: "ready", value, at: Date.now() });
+    }, (cause) => {
+      if (!live)
+        return;
+      setState((old) => old.status === "ready" ? { status: "failed", error: cause.message, at: old.at, value: old.value } : { status: "failed", error: cause.message });
+    });
+    return () => {
+      live = false;
+    };
+  }, [key, load, attempt]);
+  const retry = React69.useCallback(() => setAttempt((count3) => count3 + 1), []);
+  return { state, retry };
+};
+var readAt = (at2) => new Date(at2).toLocaleTimeString();
+var sourceValue = (state) => state.status === "ready" ? state.value : state.status === "failed" ? state.value : undefined;
+
+// src/client/console-decision.ts
+var loadInbox = async () => {
+  const response = await fetch("/console/api/inbox", { cache: "no-store" });
+  if (!response.ok)
+    throw new Error(`/console/api/inbox: HTTP ${response.status}`);
+  const data = await response.json();
+  return { decisions: data.decisions ?? [], actionItems: data.actionItems ?? [] };
+};
+
+// src/client/console-first-steps.tsx
+var jsx_dev_runtime13 = __toESM(require_jsx_dev_runtime(), 1);
+var FirstSteps = ({ status, quiet }) => /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+  direction: "column",
+  gap: "4",
+  align: "start",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Root, {
+      color: "amber",
+      children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Text, {
+        children: [
+          quiet ? "No apps discovered. " : "",
+          "No app has registered a screen of its own."
+        ]
+      }, undefined, true, undefined, this)
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
+      size: "2",
+      color: "gray",
+      children: status
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+      direction: "column",
+      gap: "2",
+      align: "start",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
+          size: "2",
+          color: "gray",
+          children: "1. Register an MCP server."
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
+          size: "2",
+          variant: "soft",
+          color: "gray",
+          onClick: () => navigate({ kind: "activity", filter: {} }),
+          children: "2. Read the host record"
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
+          size: "2",
+          variant: "soft",
+          color: "gray",
+          onClick: () => navigate({ kind: "settings" }),
+          children: "3. Configure an app when one is registered"
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+
+// src/client/console-home-grid.tsx
 var React70 = __toESM(require_react(), 1);
+var jsx_dev_runtime14 = __toESM(require_jsx_dev_runtime(), 1);
+var matches = (entry, text) => {
+  const needle = text.trim().toLowerCase();
+  return needle === "" || entry.title.toLowerCase().includes(needle) || entry.id.toLowerCase().includes(needle);
+};
+var HomeGrid = ({ apps }) => {
+  const [filter, setFilter] = React70.useState("");
+  const shown = apps.filter((entry) => matches(entry, filter));
+  const missed = filter.trim() !== "" && shown.length === 0;
+  return /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
+    direction: "column",
+    gap: "3",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
+        align: "center",
+        gap: "3",
+        wrap: "wrap",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(exports_text_field.Root, {
+            size: "2",
+            style: { maxWidth: 280 },
+            value: filter,
+            placeholder: "Filter apps",
+            "aria-label": "Filter apps",
+            onChange: (event) => setFilter(event.target.value)
+          }, undefined, false, undefined, this),
+          missed ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
+            align: "center",
+            gap: "2",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p, {
+                size: "2",
+                color: "amber",
+                children: `No app matches "${filter.trim()}".`
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(o15, {
+                size: "1",
+                variant: "soft",
+                color: "gray",
+                onClick: () => setFilter(""),
+                children: "Clear"
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this) : null
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(o20, {
+        columns: { initial: "2", sm: "4", md: "6" },
+        gap: "3",
+        children: (missed ? apps : shown).map((entry) => /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(AppTile, {
+          mark: markOf(entry),
+          onSelect: () => navigate(appRoute(entry.id))
+        }, entry.id, false, undefined, this))
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-home.tsx
+var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
+var Count = ({ label }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o15, {
+  size: "2",
+  variant: "soft",
+  color: "violet",
+  onClick: () => navigate({ kind: "inbox" }),
+  children: label
+}, undefined, false, undefined, this);
+var NeedsYou = () => {
+  const inbox = useSource("inbox", loadInbox);
+  const snapshot = sourceValue(inbox.state);
+  const waiting = snapshot?.decisions.length ?? 0;
+  const actions = snapshot?.actionItems.length ?? 0;
+  if (waiting === 0 && actions === 0)
+    return null;
+  return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Root, {
+    color: "violet",
+    children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+        align: "center",
+        gap: "3",
+        wrap: "wrap",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+            size: "2",
+            weight: "medium",
+            children: "Needs you now"
+          }, undefined, false, undefined, this),
+          waiting === 0 ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Count, {
+            label: waiting === 1 ? "1 decision waiting" : `${String(waiting)} decisions waiting`
+          }, undefined, false, undefined, this),
+          actions === 0 ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Count, {
+            label: actions === 1 ? "1 action item" : `${String(actions)} action items`
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+};
+var HomePlace = ({ context }) => {
+  const apps = context.plan.filter((entry) => entry.hasView);
+  const { failure, retry } = context.catalogue;
+  return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+    direction: "column",
+    gap: "5",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+        direction: "column",
+        gap: "1",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(r8, {
+            size: "6",
+            children: "Apps"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            children: "The springboard: every app this host has, and what is waiting on you."
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      failure === undefined ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Root, {
+        color: "red",
+        children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Text, {
+          children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+            align: "center",
+            gap: "3",
+            wrap: "wrap",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+                size: "2",
+                children: failure
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o15, {
+                size: "1",
+                variant: "soft",
+                color: "gray",
+                onClick: retry,
+                children: "Retry"
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this)
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(NeedsYou, {}, undefined, false, undefined, this),
+      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(FirstSteps, {
+        status: context.status,
+        quiet: context.plan.length === 0
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(HomeGrid, {
+        apps
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+var HOME = {
+  id: "home",
+  title: "Home",
+  route: { kind: "home" },
+  mark: "⌂",
+  color: "jade",
+  chrome: "page",
+  kinds: ["home"],
+  claim: (address) => address.parts.length === 0 ? { kind: "home" } : undefined,
+  view: (_route, context) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(HomePlace, {
+    context
+  }, undefined, false, undefined, this)
+};
+
+// src/client/console-freshness.tsx
+var jsx_dev_runtime16 = __toESM(require_jsx_dev_runtime(), 1);
+var Tone = ({ tone: tone2, children }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
+  size: "1",
+  color: tone2 === "live" ? "gray" : tone2 === "stale" ? "amber" : "red",
+  children
+}, undefined, false, undefined, this);
+var Freshness = ({ state, onRetry }) => {
+  if (state.status === "loading")
+    return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Tone, {
+      tone: "live",
+      children: "Reading…"
+    }, undefined, false, undefined, this);
+  if (state.status === "ready")
+    return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Tone, {
+      tone: "live",
+      children: `live · read at ${readAt(state.at)}`
+    }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
+    align: "center",
+    gap: "2",
+    wrap: "wrap",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Tone, {
+        tone: state.value === undefined ? "failed" : "stale",
+        children: `${state.value === undefined ? "failed" : `stale · last read at ${state.at === undefined ? "never" : readAt(state.at)}`} · ${state.error}`
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(e43, {
+        content: "Read this source again now",
+        children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o15, {
+          size: "1",
+          variant: "soft",
+          color: "gray",
+          onClick: onRetry,
+          children: "Retry now"
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-decision-card.tsx
+var jsx_dev_runtime17 = __toESM(require_jsx_dev_runtime(), 1);
+var Row = ({ label, value }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
+  gap: "3",
+  align: "start",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      style: { minWidth: 104 },
+      children: label
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+      size: "2",
+      children: value
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var deadlineText = (deadline) => {
+  const left = Math.round((deadline - Date.now()) / 60000);
+  if (left <= 0)
+    return `${readAt(deadline)} · expired`;
+  return `${readAt(deadline)} · in ${left} min`;
+};
+var stateText = (decision) => {
+  if (decision.state === "waiting")
+    return "waiting for a verdict";
+  if (decision.state === "already-answered-elsewhere" || decision.answeredBy !== undefined) {
+    return `answered by ${decision.answeredBy ?? "another surface"}${decision.answeredAt === undefined ? "" : ` at ${readAt(decision.answeredAt)}`}${decision.answerSource === undefined ? "" : `, from the ${decision.answerSource}`}`;
+  }
+  return decision.state;
+};
+var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
+  direction: "column",
+  gap: "3",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
+      direction: "column",
+      gap: "1",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(r8, {
+          size: "3",
+          children: decision.subject
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          size: "2",
+          color: "gray",
+          children: stateText(decision)
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+      label: "Class",
+      value: decision.class
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+      label: "Asked by",
+      value: decision.raisedBy
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+      label: "Blocking",
+      value: decision.raisedFor
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+      label: "Reasons",
+      value: decision.reasons.join(" · ")
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+      label: "Deadline",
+      value: deadlineText(decision.deadline)
+    }, undefined, false, undefined, this),
+    decision.recovery === undefined ? null : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+      label: "Recovery",
+      value: decision.recovery
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+
+// src/client/console-place-inbox.tsx
+var jsx_dev_runtime18 = __toESM(require_jsx_dev_runtime(), 1);
+var ItemRow = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o15, {
+  size: "2",
+  variant: active ? "soft" : "ghost",
+  color: active ? "jade" : "gray",
+  style: { justifyContent: "flex-start", height: "auto", paddingBlock: "var(--space-2)" },
+  onClick: open2,
+  children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+    direction: "column",
+    align: "start",
+    gap: "1",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+        size: "2",
+        weight: "medium",
+        children: label
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+        size: "1",
+        color: "gray",
+        children: detail
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this)
+}, undefined, false, undefined, this);
+var ActionRow = ({ item }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+  direction: "column",
+  gap: "1",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      size: "2",
+      weight: "medium",
+      children: item.title
+    }, undefined, false, undefined, this),
+    item.detail === undefined ? null : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      children: item.detail
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      children: item.app === undefined ? item.action : `${item.app} · ${item.action}`
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var InboxPlace = ({ decisionId }) => {
+  const inbox = useSource("inbox", loadInbox);
+  const snapshot = sourceValue(inbox.state);
+  const decisions = snapshot?.decisions ?? [];
+  const actionItems = snapshot?.actionItems ?? [];
+  const open2 = decisionId === undefined ? undefined : decisions.find((item) => item.id === decisionId);
+  return /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+    direction: "column",
+    gap: "5",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+        direction: "column",
+        gap: "1",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(r8, {
+            size: "6",
+            children: "Inbox"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(Freshness, {
+            state: inbox.state,
+            onRetry: inbox.retry
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      snapshot === undefined ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+        size: "2",
+        color: "gray",
+        children: "This queue cannot be read, so it cannot say whether anything is waiting."
+      }, undefined, false, undefined, this) : decisions.length === 0 && actionItems.length === 0 ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_callout.Root, {
+        color: "gray",
+        children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_callout.Text, {
+          children: [
+            "Nothing is waiting on you. ",
+            /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o15, {
+              size: "1",
+              variant: "ghost",
+              onClick: () => navigate({ kind: "activity", filter: {} }),
+              children: "Read the host record"
+            }, undefined, false, undefined, this)
+          ]
+        }, undefined, true, undefined, this)
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o20, {
+        columns: { initial: "1", md: "320px 1fr" },
+        gap: "4",
+        align: "start",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+              direction: "column",
+              gap: "1",
+              children: [
+                decisions.map((item) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(ItemRow, {
+                  label: item.subject,
+                  detail: `${item.class} · ${item.raisedBy}`,
+                  active: item.id === decisionId,
+                  open: () => navigate({ kind: "inbox", decisionId: item.id })
+                }, item.id, false, undefined, this)),
+                actionItems.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+                  size: "1",
+                  color: "gray",
+                  mt: "3",
+                  children: "Action items"
+                }, undefined, false, undefined, this),
+                actionItems.map((item) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(ActionRow, {
+                  item
+                }, item.id, false, undefined, this))
+              ]
+            }, undefined, true, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o17, {
+            size: "3",
+            children: decisionId === undefined ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+              size: "2",
+              color: "gray",
+              children: "Select a decision to read what it is holding up."
+            }, undefined, false, undefined, this) : open2 === undefined ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+              size: "2",
+              color: "gray",
+              children: `No decision "${decisionId}" is waiting.`
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(DecisionCard, {
+              decision: open2
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+var INBOX = {
+  id: "inbox",
+  title: "Inbox",
+  route: { kind: "inbox" },
+  mark: "✉",
+  color: "violet",
+  chrome: "page",
+  kinds: ["inbox"],
+  claim: (address) => address.parts[0] === "inbox" ? { kind: "inbox", ...address.parts[1] === undefined ? {} : { decisionId: address.parts[1] } } : undefined,
+  view: (route) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(InboxPlace, {
+    decisionId: route.kind === "inbox" ? route.decisionId : undefined
+  }, undefined, false, undefined, this)
+};
+
+// src/client/console-activity.ts
+var asArray = (value) => Array.isArray(value) ? value : [];
+var text = (value) => typeof value === "string" ? value : "";
+var observationOf = (frame) => {
+  if (typeof frame !== "object" || frame === null)
+    return;
+  const record2 = frame;
+  const data = typeof record2.data === "object" && record2.data !== null ? record2.data : {};
+  const error61 = text(data.error) || text(data.detail);
+  return { at: Number(record2.at) || 0, perspective: text(record2.perspective), target: text(record2.target), ...error61 === "" ? {} : { error: error61 } };
+};
+var loadActivity = async (get) => {
+  const [planes, apps, operations, frames] = await Promise.all([
+    get("/-/status"),
+    get("/-/apps"),
+    get("/-/operations").catch(() => []),
+    get("/-/observe/frames").catch(() => [])
+  ]);
+  const services = asArray(planes).map((item) => {
+    const record2 = item;
+    return { id: text(record2.id), enabled: record2.enabled === true, priority: Number(record2.priority) || 0 };
+  });
+  const catalogue = apps;
+  const appIds = new Set;
+  for (const entry of asArray(catalogue?.ui))
+    if (typeof entry.interfaceId === "string")
+      appIds.add(entry.interfaceId);
+  for (const id of asArray(catalogue?.views))
+    if (typeof id === "string")
+      appIds.add(id);
+  for (const entry of asArray(catalogue?.config))
+    if (typeof entry.appId === "string")
+      appIds.add(entry.appId);
+  const ops = asArray(operations).map((item) => item);
+  const observations = asArray(frames).map(observationOf).filter((item) => item !== undefined);
+  return {
+    services,
+    appCount: appIds.size,
+    privilegedOperations: ops.filter((op) => op.privileged === true).length,
+    appOperations: ops.filter((op) => op.privileged !== true).length,
+    observations,
+    failures: observations.filter((observation) => observation.error !== undefined && observation.error !== "")
+  };
+};
+var fetchActivity = async (path) => {
+  const response = await fetch(path, { cache: "no-store" });
+  if (!response.ok)
+    throw new Error(`${path}: HTTP ${response.status}`);
+  return response.json();
+};
+
+// src/client/console-activity-filter.ts
+var ACTORS = ["all", "human", "agent", "system"];
+var actorOf = (observation) => observation.perspective === "agent" ? "agent" : "system";
+var all = (value) => value === undefined || value === "" || value === "all";
+var sinceOf = (filter) => {
+  if (filter.since === undefined || filter.since === "")
+    return;
+  const value = Number(filter.since);
+  return Number.isFinite(value) ? value : undefined;
+};
+var applyFilter = (observations, filter) => {
+  const since = sinceOf(filter);
+  return observations.filter((observation) => (all(filter.actor) || actorOf(observation) === filter.actor) && (all(filter.app) || observation.target === filter.app) && (since === undefined || observation.at >= since));
+};
+var unhonouredKind = (filter) => all(filter.kind) ? undefined : filter.kind;
+
+// src/client/console-activity-stream.tsx
+var jsx_dev_runtime19 = __toESM(require_jsx_dev_runtime(), 1);
+var Time = ({ at: at2 }) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+  size: "1",
+  color: "gray",
+  style: { fontVariantNumeric: "tabular-nums" },
+  children: new Date(at2).toLocaleTimeString()
+}, undefined, false, undefined, this);
+var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => observations.length === 0 ? /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+  size: "2",
+  color: "gray",
+  children: empty
+}, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Root, {
+  variant: "ghost",
+  size: "1",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Header, {
+      children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Row, {
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "1",
+              color: "gray",
+              children: "Actor"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "1",
+              color: "gray",
+              children: "App"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "1",
+              color: "gray",
+              children: "Outcome"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "1",
+              color: "gray",
+              children: "When"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Body, {
+      children: observations.map((observation, index2) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Row, {
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "2",
+              children: actorOf(observation)
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "2",
+              children: observation.target
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              size: "1",
+              color: observation.error === undefined ? "gray" : "red",
+              children: observation.error ?? "ok"
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Time, {
+              at: observation.at
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
+        ]
+      }, `${String(observation.at)}:${observation.target}:${String(index2)}`, true, undefined, this))
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+
+// src/client/console-activity-readouts.tsx
+var jsx_dev_runtime20 = __toESM(require_jsx_dev_runtime(), 1);
+var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o17, {
+  children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+    direction: "column",
+    gap: "3",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(r8, {
+        size: "3",
+        children: title
+      }, undefined, false, undefined, this),
+      rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+        size: "2",
+        color: "gray",
+        children: empty
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Root, {
+        variant: "ghost",
+        size: "1",
+        children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Body, {
+          children: rows.map(([label, detail], index2) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Row, {
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Cell, {
+                children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+                  size: "2",
+                  children: label
+                }, undefined, false, undefined, this)
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Cell, {
+                children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+                  size: "2",
+                  color: "gray",
+                  children: detail
+                }, undefined, false, undefined, this)
+              }, undefined, false, undefined, this)
+            ]
+          }, `${label}:${String(index2)}`, true, undefined, this))
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this)
+}, undefined, false, undefined, this);
+var ActivityReadOuts = ({ snapshot }) => {
+  const enabled = snapshot.services.filter((service) => service.enabled).length;
+  const offline = snapshot.services.filter((service) => !service.enabled).map((service) => service.id);
+  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+    direction: "column",
+    gap: "4",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o20, {
+        columns: { initial: "1", md: "2" },
+        gap: "4",
+        align: "start",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(CardTable, {
+            title: `Services (${String(enabled)}/${String(snapshot.services.length)})`,
+            empty: "Nothing reported yet.",
+            rows: snapshot.services.map((service) => [service.id, service.enabled ? `enabled, priority ${String(service.priority)}` : "disabled"])
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(CardTable, {
+            title: "Apps",
+            empty: "Nothing reported yet.",
+            rows: [
+              ["catalogued apps", String(snapshot.appCount)],
+              ["app operations", String(snapshot.appOperations)],
+              ["host operations", String(snapshot.privilegedOperations)]
+            ]
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(CardTable, {
+            title: `Failures (${String(snapshot.failures.length)})`,
+            empty: "No failures observed.",
+            rows: snapshot.failures.map((item) => [item.target, item.error ?? ""])
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      offline.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+        size: "2",
+        color: "amber",
+        children: `${String(offline.length)} service(s) disabled: ${offline.join(", ")}`
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-place-activity.tsx
+var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
+var loadHostRecord = () => loadActivity(fetchActivity);
+var Option = ({ value, label }) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Item, {
+  value,
+  children: label
+}, undefined, false, undefined, this);
+var FilterBar = ({ filter, plan }) => {
+  const set2 = (next) => {
+    navigate({ kind: "activity", filter: next });
+  };
+  const carried = unhonouredKind(filter);
+  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+    direction: "column",
+    gap: "2",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+        align: "center",
+        gap: "3",
+        wrap: "wrap",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            children: "Actor"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Root, {
+            value: filter.actor ?? "all",
+            onValueChange: (value) => set2({ ...filter, actor: value }),
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Trigger, {
+                "aria-label": "Actor"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Content, {
+                children: ACTORS.map((actor) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Option, {
+                  value: actor,
+                  label: actor === "all" ? "All actors" : actor
+                }, actor, false, undefined, this))
+              }, undefined, false, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            children: "App"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Root, {
+            value: filter.app ?? "all",
+            onValueChange: (value) => set2({ ...filter, app: value }),
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Trigger, {
+                "aria-label": "App"
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Content, {
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Option, {
+                    value: "all",
+                    label: "All apps"
+                  }, undefined, false, undefined, this),
+                  plan.map((entry) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Option, {
+                    value: entry.id,
+                    label: entry.title
+                  }, entry.id, false, undefined, this))
+                ]
+              }, undefined, true, undefined, this)
+            ]
+          }, undefined, true, undefined, this),
+          filter.actor === undefined && filter.app === undefined && filter.kind === undefined && filter.since === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o15, {
+            size: "1",
+            variant: "soft",
+            color: "gray",
+            onClick: () => set2({}),
+            children: "Clear filters"
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      carried === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+        size: "1",
+        color: "amber",
+        children: `The host record carries no kind yet, so "${carried}" is kept in the address and not applied.`
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+var ActivityPlace = ({ filter, context }) => {
+  const record2 = useSource("activity", loadHostRecord);
+  const snapshot = sourceValue(record2.state);
+  const filtered = filter.actor !== undefined || filter.app !== undefined || filter.kind !== undefined || filter.since !== undefined;
+  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+    direction: "column",
+    gap: "5",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+        direction: "column",
+        gap: "1",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r8, {
+            size: "6",
+            children: "Activity"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            children: "What the host reports about itself, drawn as it is reported."
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Freshness, {
+            state: record2.state,
+            onRetry: record2.retry
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(FilterBar, {
+        filter,
+        plan: context.plan
+      }, undefined, false, undefined, this),
+      snapshot === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+        direction: "column",
+        gap: "4",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityStream, {
+              observations: applyFilter(snapshot.observations.slice(-20).reverse(), filter),
+              empty: filtered ? "No row matches this filter." : "Nothing reported yet."
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityReadOuts, {
+            snapshot
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+var ACTIVITY = {
+  id: "activity",
+  title: "Activity",
+  route: { kind: "activity", filter: {} },
+  mark: "◔",
+  color: "orange",
+  chrome: "page",
+  kinds: ["activity"],
+  claim: (address) => address.parts[0] === "activity" ? { kind: "activity", filter: filtersOf(address.query) } : undefined,
+  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityPlace, {
+    filter: route.kind === "activity" ? route.filter : {},
+    context
+  }, undefined, false, undefined, this)
+};
+
+// src/client/console-tools-read.ts
+var loadTools = async () => {
+  const response = await fetch("/console/api/tools", { cache: "no-store" });
+  if (!response.ok)
+    throw new Error(`/console/api/tools: HTTP ${response.status}`);
+  const data = await response.json();
+  return { apps: data.apps ?? [] };
+};
+var operationOf = (app, operation) => operation === undefined ? undefined : app.tools.find((tool) => tool.name === operation);
 
 // src/client/inspector-detail.tsx
-var React69 = __toESM(require_react(), 1);
+var React71 = __toESM(require_react(), 1);
 
 // src/client/inspector-field.tsx
-var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime22 = __toESM(require_jsx_dev_runtime(), 1);
 var Control = ({ field, value, onChange }) => {
   if (field.type === "choice") {
-    return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_select.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Root, {
       value,
       onValueChange: onChange,
       children: [
-        /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_select.Trigger, {
+        /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Trigger, {
           placeholder: "Unset"
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_select.Content, {
-          children: field.choices?.map((choice) => /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_select.Item, {
+        /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Content, {
+          children: field.choices?.map((choice) => /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Item, {
             value: choice,
             children: choice
           }, choice, false, undefined, this))
@@ -54228,13 +56001,13 @@ var Control = ({ field, value, onChange }) => {
     }, undefined, true, undefined, this);
   }
   if (field.type === "boolean") {
-    return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(i19, {
+    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(i19, {
       checked: value === "true",
       onCheckedChange: (checked) => onChange(String(checked))
     }, undefined, false, undefined, this);
   }
   if (field.type === "json") {
-    return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(r46, {
+    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r46, {
       resize: "vertical",
       rows: 4,
       value,
@@ -54242,20 +56015,20 @@ var Control = ({ field, value, onChange }) => {
       onChange: (event) => onChange(event.target.value)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_text_field.Root, {
+  return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_text_field.Root, {
     type: field.type === "number" ? "number" : "text",
     value,
     placeholder: field.fallback,
     onChange: (event) => onChange(event.target.value)
   }, undefined, false, undefined, this);
 };
-var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p12, {
+var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
   asChild: true,
   direction: "column",
   gap: "2",
-  children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("label", {
+  children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV("label", {
     children: [
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
         size: "2",
         weight: "medium",
         color: "gray",
@@ -54264,12 +56037,12 @@ var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_run
           field.required ? " *" : ""
         ]
       }, undefined, true, undefined, this),
-      field.description === undefined ? null : /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+      field.description === undefined ? null : /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
         size: "1",
         color: "gray",
         children: field.description
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(Control, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(Control, {
         field,
         value,
         onChange
@@ -54279,7 +56052,7 @@ var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_run
 }, undefined, false, undefined, this);
 
 // src/client/inspector-result.tsx
-var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime23 = __toESM(require_jsx_dev_runtime(), 1);
 var shown = (value) => {
   if (typeof value === "string")
     return value;
@@ -54295,23 +56068,23 @@ var InspectorResult = ({ result }) => {
   if (result === undefined)
     return null;
   if (!result.ok) {
-    return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(exports_callout.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Root, {
       color: "red",
-      children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Text, {
         children: result.error ?? "The call failed."
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
     direction: "column",
     gap: "2",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r8, {
         size: "3",
         children: "Result"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(o17, {
-        children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o17, {
+        children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
           as: "div",
           size: "1",
           style: { fontFamily: "var(--code-font-family)", whiteSpace: "pre-wrap", wordBreak: "break-word" },
@@ -54403,13 +56176,13 @@ var fieldsOf = (schema3) => {
 var initialValues = (fields) => Object.fromEntries(fields.filter((field) => field.required && field.type === "boolean").map((field) => [field.name, "false"]));
 
 // src/client/inspector-detail.tsx
-var jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime24 = __toESM(require_jsx_dev_runtime(), 1);
 var message = (error61) => error61 instanceof Error ? error61.message : String(error61);
 var InspectorDetail = ({ id, tool }) => {
-  const fields = React69.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
-  const [values, setValues] = React69.useState(() => initialValues(fields));
-  const [result, setResult] = React69.useState(undefined);
-  const [running, setRunning] = React69.useState(false);
+  const fields = React71.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
+  const [values, setValues] = React71.useState(() => initialValues(fields));
+  const [result, setResult] = React71.useState(undefined);
+  const [running, setRunning] = React71.useState(false);
   const run = () => {
     let args;
     try {
@@ -54421,23 +56194,23 @@ var InspectorDetail = ({ id, tool }) => {
     setRunning(true);
     callTool(id, tool.name, args).then(setResult, (error61) => setResult({ ok: false, error: error61.message })).finally(() => setRunning(false));
   };
-  return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
     direction: "column",
     gap: "4",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(r8, {
             size: "4",
             children: tool.title ?? tool.name
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p16, {
+              /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p16, {
                 children: tool.name
               }, undefined, false, undefined, this),
               tool.description === undefined ? "" : `: ${tool.description}`
@@ -54445,94 +56218,127 @@ var InspectorDetail = ({ id, tool }) => {
           }, undefined, true, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o48, {
+      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o48, {
         size: "4"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(r8, {
         size: "3",
         children: "Arguments"
       }, undefined, false, undefined, this),
-      fields.length === 0 ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+      fields.length === 0 ? /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: "This tool takes no arguments."
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
         direction: "column",
         gap: "4",
-        children: fields.map((field) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(InspectorField, {
+        children: fields.map((field) => /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(InspectorField, {
           field,
           value: values[field.name] ?? "",
           onChange: (next) => setValues((old) => ({ ...old, [field.name]: next }))
         }, field.name, false, undefined, this))
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
-        children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o15, {
+      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
+        children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o15, {
           loading: running,
           onClick: run,
           children: running ? "Running" : "Run"
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(InspectorResult, {
+      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(InspectorResult, {
         result
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 };
 
-// src/client/inspector-panel.tsx
-var jsx_dev_runtime13 = __toESM(require_jsx_dev_runtime(), 1);
-var Inspector = ({ id, title, tools }) => {
-  const [selected, setSelected] = React70.useState(tools[0]?.name ?? "");
-  const tool = tools.find((candidate) => candidate.name === selected);
-  return /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+// src/client/console-place-tools.tsx
+var jsx_dev_runtime25 = __toESM(require_jsx_dev_runtime(), 1);
+var Row2 = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+  size: detail === undefined ? "2" : "3",
+  variant: active ? "soft" : "ghost",
+  color: active ? "jade" : "gray",
+  style: { justifyContent: "flex-start", marginLeft: detail === undefined ? "var(--space-3)" : undefined },
+  onClick: open2,
+  children: [
+    label,
+    detail === undefined ? null : ` · ${detail}`
+  ]
+}, undefined, true, undefined, this);
+var ToolsPlace = ({ app, operation }) => {
+  const tools = useSource("tools", loadTools);
+  const catalogue = sourceValue(tools.state);
+  const apps = catalogue?.apps ?? [];
+  const scoped = apps.find((entry) => entry.id === app);
+  const tool = scoped === undefined ? undefined : operationOf(scoped, operation);
+  return /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(r8, {
             size: "6",
-            children: title
+            children: "Tools"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
-            size: "2",
-            color: "gray",
-            children: [
-              tools.length === 1 ? "1 tool" : `${tools.length} tools`,
-              " registered over MCP, with no interface of its own."
-            ]
-          }, undefined, true, undefined, this)
+          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Freshness, {
+            state: tools.state,
+            onRetry: tools.retry
+          }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o20, {
-        columns: { initial: "1", md: "280px 1fr" },
+      catalogue === undefined ? null : apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_callout.Root, {
+        color: "gray",
+        children: /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_callout.Text, {
+          children: [
+            "No app has registered an operation.",
+            " ",
+            /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+              size: "1",
+              variant: "ghost",
+              onClick: () => navigate({ kind: "activity", filter: {} }),
+              children: "See which services are active"
+            }, undefined, false, undefined, this)
+          ]
+        }, undefined, true, undefined, this)
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o20, {
+        columns: { initial: "1", md: "320px 1fr" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
               direction: "column",
               gap: "1",
-              children: tools.map((entry) => /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
-                size: "3",
-                variant: entry.name === selected ? "soft" : "ghost",
-                color: entry.name === selected ? "jade" : "gray",
-                style: { justifyContent: "flex-start" },
-                onClick: () => setSelected(entry.name),
-                children: entry.title ?? entry.name
-              }, entry.name, false, undefined, this))
-            }, undefined, false, undefined, this)
+              children: [
+                apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Row2, {
+                  label: entry.title,
+                  detail: `${entry.tools.length}`,
+                  active: entry.id === app,
+                  open: () => navigate({ kind: "tools", app: entry.id })
+                }, entry.id, false, undefined, this)),
+                scoped === undefined ? null : scoped.tools.map((entry) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Row2, {
+                  label: entry.title ?? entry.name,
+                  active: entry.name === operation,
+                  open: () => navigate({ kind: "tools", app: scoped.id, operation: entry.name })
+                }, entry.name, false, undefined, this))
+              ]
+            }, undefined, true, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o17, {
+          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o17, {
             size: "3",
-            children: tool === undefined ? /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
+            children: scoped === undefined ? /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: "Select a tool to see what it takes."
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(InspectorDetail, {
-              id,
+            }, undefined, false, undefined, this) : tool === undefined ? /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p, {
+              size: "2",
+              color: "gray",
+              children: `"${scoped.title}" has no operation called "${operation ?? ""}".`
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(InspectorDetail, {
+              id: scoped.id,
               tool
             }, tool.name, false, undefined, this)
           }, undefined, false, undefined, this)
@@ -54541,239 +56347,29 @@ var Inspector = ({ id, title, tools }) => {
     ]
   }, undefined, true, undefined, this);
 };
-
-// src/client/console-tools.tsx
-var jsx_dev_runtime14 = __toESM(require_jsx_dev_runtime(), 1);
-var mountInspector = (container, payload) => {
-  const root = import_client2.createRoot(container);
-  root.render(/* @__PURE__ */ jsx_dev_runtime14.jsxDEV(ConsoleTheme, {
-    children: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Inspector, {
-      ...payload
-    }, undefined, false, undefined, this)
-  }, undefined, false, undefined, this));
-  return () => {
-    root.unmount();
-  };
-};
-
-// src/client/console-views.tsx
-var viewClient = () => window.effectUi;
-function createConsoleViews() {
-  const controllers = new WeakMap;
-  return async (panel, id, current2) => {
-    controllers.get(panel)?.abort();
-    const controller = new AbortController;
-    controllers.set(panel, controller);
-    const response = await fetch(`/console/api/view/${encodeURIComponent(id)}`, { cache: "no-store", signal: controller.signal });
-    const data = await response.json();
-    if (!response.ok)
-      throw new Error(data.error ?? data.detail ?? `HTTP ${response.status}`);
-    if (controller.signal.aborted || !current2())
-      return () => {};
-    const content2 = document.createElement("div");
-    content2.className = "view-fill";
-    panel.replaceChildren(content2);
-    if (data.kind === "tools")
-      return mountInspector(content2, data);
-    const api2 = viewClient();
-    if (data.view && data.screens && api2) {
-      return api2.mount(content2, { appId: data.id, screens: data.screens, menu: data.menu === true, actions: data.view.actions, sources: data.view.sources });
-    }
-    content2.textContent = api2 ? data.detail ?? "This app has no renderable view." : "View client failed to load; check /console-client.js and retry.";
-    return () => {};
-  };
-}
-
-// src/client/console-shell.tsx
-var React75 = __toESM(require_react(), 1);
-
-// src/client/console-status-bar.tsx
-var React71 = __toESM(require_react(), 1);
-var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
-var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
-var AppearanceButton = () => {
-  const [mode, cycle] = useThemeMode();
-  const label = `Appearance: ${themeLabel(mode)}`;
-  return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(e43, {
-    content: label,
-    children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o30, {
-      size: "1",
-      variant: "ghost",
-      color: "gray",
-      "aria-label": label,
-      onClick: cycle,
-      children: "◐"
-    }, undefined, false, undefined, this)
-  }, undefined, false, undefined, this);
-};
-var ConsoleStatusBar = ({ status, title, home }) => {
-  const [clock, setClock] = React71.useState(clockText);
-  React71.useEffect(() => {
-    const timer = setInterval(() => setClock(clockText()), 30000);
-    return () => clearInterval(timer);
-  }, []);
-  return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
-    align: "center",
-    gap: "3",
-    px: "3",
-    py: "2",
-    flexShrink: "0",
-    children: [
-      home ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(e43, {
-        content: "Home",
-        children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o30, {
-          size: "1",
-          variant: "ghost",
-          "aria-label": "Home",
-          onClick: () => navigate({ kind: "home" }),
-          children: "⌂"
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
-        size: "2",
-        weight: "bold",
-        truncate: true,
-        children: title
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
-        size: "1",
-        color: "gray",
-        truncate: true,
-        children: status
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p9, {
-        flexGrow: "1"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
-        size: "1",
-        color: "gray",
-        style: { fontVariantNumeric: "tabular-nums" },
-        children: clock
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(AppearanceButton, {}, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-
-// src/client/console-dock.tsx
-var jsx_dev_runtime16 = __toESM(require_jsx_dev_runtime(), 1);
-var palette = (color) => ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)`, "--tile-contrast": `var(--${color}-contrast)` });
-var Item5 = ({ entry, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV("button", {
-  type: "button",
-  className: "shell-dock-item",
-  "aria-label": entry.title,
-  title: entry.title,
-  "aria-current": active ? "page" : undefined,
-  onClick: open2,
-  children: [
-    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV("span", {
-      className: "shell-dock-icon",
-      style: palette(entry.color),
-      "aria-hidden": "true",
-      children: entry.icon
-    }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV("span", {
-      className: "shell-dock-label",
-      children: entry.title
-    }, undefined, false, undefined, this)
-  ]
-}, undefined, true, undefined, this);
-var SETTINGS = { id: "settings", title: "Settings", hasView: false, hasConfig: true, icon: "⚙", color: "gray" };
-var ConsoleDock = ({ plan, route }) => {
-  const apps = plan.filter((entry) => entry.hasView && entry.id !== "settings");
-  const here2 = (kind2, id) => route.kind === kind2 && (id === undefined || route.id === id);
-  return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV("nav", {
-    className: "shell-dock",
-    "aria-label": "Apps",
-    children: [
-      apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Item5, {
-        entry,
-        active: here2("view", entry.id),
-        open: () => navigate(appRoute(entry.id))
-      }, entry.id, false, undefined, this)),
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV("span", {
-        className: "shell-dock-divider",
-        role: "separator",
-        "aria-label": "System"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Item5, {
-        entry: SETTINGS,
-        active: here2("settings") || here2("settings-config"),
-        open: () => navigate({ kind: "settings" })
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-
-// src/client/console-app-icon.tsx
-var jsx_dev_runtime17 = __toESM(require_jsx_dev_runtime(), 1);
-var accent = (color) => color;
-var AppAvatar = ({ entry, size: size4 = "5" }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(i2, {
-  size: size4,
-  radius: "large",
-  variant: "solid",
-  color: accent(entry.color),
-  fallback: entry.icon
-}, undefined, false, undefined, this);
-var AppTile = ({ entry, onSelect }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(o17, {
-  asChild: true,
-  size: "2",
-  children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV("button", {
-    type: "button",
-    onClick: onSelect,
-    style: { border: 0, background: "transparent", cursor: "pointer", padding: 0 },
-    children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
-      direction: "column",
-      align: "center",
-      gap: "2",
-      py: "2",
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(AppAvatar, {
-          entry,
-          size: "6"
-        }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
-          size: "2",
-          weight: "medium",
-          align: "center",
-          children: entry.title
-        }, undefined, false, undefined, this)
-      ]
-    }, undefined, true, undefined, this)
+var TOOLS = {
+  id: "tools",
+  title: "Tools",
+  route: { kind: "tools" },
+  mark: "⌘",
+  color: "cyan",
+  chrome: "page",
+  kinds: ["tools"],
+  claim: (address, plan) => {
+    if (address.parts[0] !== "tools")
+      return;
+    const app = address.parts[1];
+    if (app === undefined)
+      return { kind: "tools" };
+    if (plan.length > 0 && plan.find((entry) => entry.id === app)?.hasTools !== true)
+      return unresolved(address, "app", app);
+    const operation = address.parts[2];
+    return { kind: "tools", app, ...operation === undefined ? {} : { operation } };
+  },
+  view: (route) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(ToolsPlace, {
+    app: route.kind === "tools" ? route.app : undefined,
+    operation: route.kind === "tools" ? route.operation : undefined
   }, undefined, false, undefined, this)
-}, undefined, false, undefined, this);
-
-// src/client/console-home.tsx
-var jsx_dev_runtime18 = __toESM(require_jsx_dev_runtime(), 1);
-var ConsoleHome = ({ plan }) => {
-  const apps = plan.filter((entry) => entry.hasView);
-  return /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
-    direction: "column",
-    gap: "5",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
-        direction: "column",
-        gap: "1",
-        children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(r8, {
-          size: "6",
-          children: "Apps"
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_callout.Root, {
-        color: "amber",
-        children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_callout.Text, {
-          children: "No apps discovered."
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o20, {
-        columns: { initial: "2", sm: "4", md: "6" },
-        gap: "3",
-        children: apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(AppTile, {
-          entry,
-          onSelect: () => navigate(appRoute(entry.id))
-        }, entry.id, false, undefined, this))
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
 };
 
 // src/client/config-surface.tsx
@@ -54782,9 +56378,9 @@ var React72 = __toESM(require_react(), 1);
 // src/client/config-state.ts
 function describeConfigState(state) {
   const pending = state.pendingRestart;
-  const tone = !state.ok ? "error" : pending ? "pending" : "active";
+  const tone2 = !state.ok ? "error" : pending ? "pending" : "active";
   return {
-    tone,
+    tone: tone2,
     label: !state.ok ? "Configuration error" : pending ? "Saved · restart or apply pending" : "Configuration is active",
     detail: pending ? "Saved values are not fully active; apply them explicitly or restart the service." : "Reload reads the persisted server values.",
     revision: state.revision === undefined ? "" : `revision ${state.revision}`,
@@ -54880,17 +56476,17 @@ var makeConfigSession = (api2, id, hooks) => {
 };
 
 // src/client/config-surface.tsx
-var jsx_dev_runtime19 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime26 = __toESM(require_jsx_dev_runtime(), 1);
 var TONE = { active: "green", pending: "amber", error: "red" };
 var EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart.";
 var STRATEGIES = ["apply", "restart"];
 var ConfigSurface = ({ id, api: api2, mountConfig }) => {
   const [state, setState] = React72.useState(undefined);
   const [note, setNote] = React72.useState({ message: "Loading configuration…", error: false });
-  const form2 = React72.useRef(null);
+  const form = React72.useRef(null);
   const session = React72.useRef(undefined);
   React72.useEffect(() => {
-    const node2 = form2.current;
+    const node2 = form.current;
     if (node2 === null)
       return;
     let live = true;
@@ -54932,39 +56528,39 @@ var ConfigSurface = ({ id, api: api2, mountConfig }) => {
     };
   }, [id, api2, mountConfig]);
   const apply = () => {
-    const node2 = form2.current;
+    const node2 = form.current;
     if (node2 !== null)
       session.current?.action(node2, mountConfig, undefined, true);
   };
   const display2 = state === undefined ? undefined : describeConfigState(state);
-  return /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p12, {
     direction: "column",
     gap: "4",
     children: [
-      display2 === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_callout.Root, {
+      display2 === undefined ? null : /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(exports_callout.Root, {
         color: TONE[display2.tone],
         size: "1",
-        children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_callout.Text, {
-          children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+        children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(exports_callout.Text, {
+          children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p12, {
             align: "center",
             gap: "3",
             wrap: "wrap",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
                 size: "2",
                 weight: "medium",
                 children: display2.label
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
                 size: "2",
                 children: display2.detail
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
                 size: "1",
                 color: "gray",
                 children: display2.revision
               }, undefined, false, undefined, this),
-              display2.canApply ? /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o15, {
+              display2.canApply ? /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(o15, {
                 size: "1",
                 variant: "soft",
                 onClick: apply,
@@ -54974,64 +56570,95 @@ var ConfigSurface = ({ id, api: api2, mountConfig }) => {
           }, undefined, true, undefined, this)
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      note.message === "" ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+      note.message === "" ? null : /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
         size: "2",
         color: note.error ? "red" : "gray",
         children: note.message
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV("div", {
-        ref: form2
+      /* @__PURE__ */ jsx_dev_runtime26.jsxDEV("div", {
+        ref: form
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 };
 
-// src/client/console-settings.tsx
-var jsx_dev_runtime20 = __toESM(require_jsx_dev_runtime(), 1);
-var ConsoleSettings = ({ plan, selected, config: config2 }) => {
-  const apps = plan.filter((entry) => entry.hasConfig);
-  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+// src/client/console-config-editor.tsx
+var jsx_dev_runtime27 = __toESM(require_jsx_dev_runtime(), 1);
+var ConfigEditor = ({ id, plan, surfaces }) => {
+  if (!plan.some((entry) => entry.id === id && entry.hasConfig)) {
+    return /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(p12, {
+      direction: "column",
+      gap: "3",
+      align: "start",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(p, {
+          size: "2",
+          color: "gray",
+          children: `"${id}" declares no configuration.`
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(o15, {
+          size: "1",
+          variant: "soft",
+          color: "gray",
+          onClick: () => navigate({ kind: "settings" }),
+          children: "All configuration"
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this);
+  }
+  return /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(ConfigSurface, {
+    id,
+    api: surfaces.config.api,
+    mountConfig: surfaces.config.mountConfig
+  }, id, false, undefined, this);
+};
+
+// src/client/console-place-settings.tsx
+var jsx_dev_runtime28 = __toESM(require_jsx_dev_runtime(), 1);
+var SettingsPlace = ({ app, context }) => {
+  const apps = configApps(context.plan);
+  return /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(r8, {
             size: "6",
             children: "Settings"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "One row per configurable app, with its editor beside it."
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_callout.Root, {
+      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(exports_callout.Root, {
         color: "amber",
-        children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_callout.Text, {
+        children: /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(exports_callout.Text, {
           children: "No configurable apps."
         }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o20, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o20, {
         columns: { initial: "1", md: "280px 1fr" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p12, {
               direction: "column",
               gap: "1",
-              children: apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o15, {
+              children: apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o15, {
                 size: "3",
-                variant: entry.id === selected ? "soft" : "ghost",
-                color: entry.id === selected ? "jade" : "gray",
+                variant: entry.id === app ? "soft" : "ghost",
+                color: entry.id === app ? "jade" : "gray",
                 style: { justifyContent: "flex-start" },
-                onClick: () => navigate({ kind: "settings-config", id: entry.id }),
+                onClick: () => navigate({ kind: "settings", app: entry.id }),
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(AppAvatar, {
-                    entry,
+                  /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(AppAvatar, {
+                    mark: markOf(entry),
                     size: "4"
                   }, undefined, false, undefined, this),
                   entry.title
@@ -55039,255 +56666,229 @@ var ConsoleSettings = ({ plan, selected, config: config2 }) => {
               }, entry.id, true, undefined, this))
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o17, {
+          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o17, {
             size: "3",
-            children: selected === undefined ? /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+            children: app === undefined ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: "Select an app to inspect and change its configuration."
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(ConfigSurface, {
-              id: selected,
-              api: config2.api,
-              mountConfig: config2.mountConfig
-            }, selected, false, undefined, this)
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ConfigEditor, {
+              id: app,
+              plan: context.plan,
+              surfaces: context.surfaces
+            }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this)
     ]
   }, undefined, true, undefined, this);
 };
+var SETTINGS = {
+  id: "settings",
+  title: "Settings",
+  route: { kind: "settings" },
+  mark: "⚙",
+  color: "gray",
+  chrome: "page",
+  kinds: ["settings"],
+  claim: (address) => address.parts[0] === "settings" ? { kind: "settings", ...address.parts[1] === undefined ? {} : { app: address.parts[1] } } : undefined,
+  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(SettingsPlace, {
+    app: route.kind === "settings" ? route.app : undefined,
+    context
+  }, undefined, false, undefined, this)
+};
 
-// src/client/console-activity-view.tsx
+// src/client/console-app-surface.tsx
 var React73 = __toESM(require_react(), 1);
 
-// src/client/console-activity.ts
-var asArray = (value) => Array.isArray(value) ? value : [];
-var text = (value) => typeof value === "string" ? value : "";
-var observationOf = (frame) => {
-  if (typeof frame !== "object" || frame === null)
-    return;
-  const record3 = frame;
-  const data = typeof record3.data === "object" && record3.data !== null ? record3.data : {};
-  const error61 = text(data.error) || text(data.detail);
-  return { at: Number(record3.at) || 0, perspective: text(record3.perspective), target: text(record3.target), ...error61 === "" ? {} : { error: error61 } };
-};
-var loadActivity = async (get) => {
-  const [planes, apps, operations, frames] = await Promise.all([
-    get("/-/status"),
-    get("/-/apps"),
-    get("/-/operations").catch(() => []),
-    get("/-/observe/frames").catch(() => [])
-  ]);
-  const services = asArray(planes).map((item) => {
-    const record3 = item;
-    return { id: text(record3.id), enabled: record3.enabled === true, priority: Number(record3.priority) || 0 };
-  });
-  const catalogue = apps;
-  const appIds = new Set;
-  for (const entry of asArray(catalogue?.ui))
-    if (typeof entry.interfaceId === "string")
-      appIds.add(entry.interfaceId);
-  for (const id of asArray(catalogue?.views))
-    if (typeof id === "string")
-      appIds.add(id);
-  for (const entry of asArray(catalogue?.config))
-    if (typeof entry.appId === "string")
-      appIds.add(entry.appId);
-  const ops = asArray(operations).map((item) => item);
-  const observations = asArray(frames).map(observationOf).filter((item) => item !== undefined);
+// src/client/console-view-read.ts
+var loadView = async (id) => {
+  const response = await fetch(`/console/api/view/${encodeURIComponent(id)}`, { cache: "no-store" });
+  const frame = await response.json();
+  if (response.status === 404)
+    return { kind: "missing", detail: frame.detail ?? `no view for ${id}` };
+  if (!response.ok)
+    throw new Error(frame.detail ?? `HTTP ${response.status}`);
   return {
-    services,
-    appCount: appIds.size,
-    privilegedOperations: ops.filter((op) => op.privileged === true).length,
-    appOperations: ops.filter((op) => op.privileged !== true).length,
-    observations,
-    failures: observations.filter((observation) => observation.error !== undefined && observation.error !== "")
+    id: frame.id ?? id,
+    screens: frame.screens ?? [],
+    menu: frame.menu === true,
+    ...frame.view?.actions === undefined ? {} : { actions: frame.view.actions },
+    ...frame.view?.sources === undefined ? {} : { sources: frame.view.sources }
   };
 };
-var fetchActivity = async (path) => {
-  const response = await fetch(path, { cache: "no-store" });
-  if (!response.ok)
-    throw new Error(`${path}: HTTP ${response.status}`);
-  return response.json();
-};
+var isView = (read2) => !("kind" in read2);
 
-// src/client/console-activity-view.tsx
-var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
-var ActivityCard = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o17, {
-  children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
-    direction: "column",
-    gap: "3",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r8, {
-        size: "3",
-        children: title
-      }, undefined, false, undefined, this),
-      rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
-        size: "2",
-        color: "gray",
-        children: empty
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_table.Root, {
-        variant: "ghost",
-        size: "1",
-        children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_table.Body, {
-          children: rows.map(([label, detail], index2) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_table.Row, {
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_table.Cell, {
-                children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
-                  size: "2",
-                  children: label
-                }, undefined, false, undefined, this)
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_table.Cell, {
-                children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
-                  size: "2",
-                  color: "gray",
-                  children: detail
-                }, undefined, false, undefined, this)
-              }, undefined, false, undefined, this)
-            ]
-          }, `${label}:${String(index2)}`, true, undefined, this))
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this)
-}, undefined, false, undefined, this);
-var Snapshot = ({ snapshot }) => {
-  const enabled = snapshot.services.filter((service) => service.enabled).length;
-  const offline = snapshot.services.filter((service) => !service.enabled).map((service) => service.id);
-  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
-    direction: "column",
-    gap: "4",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o20, {
-        columns: { initial: "1", md: "2" },
-        gap: "4",
-        align: "start",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityCard, {
-            title: `Services (${String(enabled)}/${String(snapshot.services.length)})`,
-            empty: "Nothing reported yet.",
-            rows: snapshot.services.map((service) => [service.id, service.enabled ? `enabled, priority ${String(service.priority)}` : "disabled"])
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityCard, {
-            title: "Apps",
-            empty: "Nothing reported yet.",
-            rows: [
-              ["catalogued apps", String(snapshot.appCount)],
-              ["app operations", String(snapshot.appOperations)],
-              ["host operations", String(snapshot.privilegedOperations)]
-            ]
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityCard, {
-            title: "Recent activity",
-            empty: "Nothing reported yet.",
-            rows: snapshot.observations.slice(-20).reverse().map((item) => [item.target || item.perspective, new Date(item.at).toLocaleTimeString()])
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityCard, {
-            title: `Failures (${String(snapshot.failures.length)})`,
-            empty: "No failures observed.",
-            rows: snapshot.failures.map((item) => [item.target, item.error ?? ""])
-          }, undefined, false, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      offline.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
-        size: "2",
-        color: "amber",
-        children: `${String(offline.length)} service(s) disabled: ${offline.join(", ")}`
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-var ConsoleActivity = () => {
-  const [state, setState] = React73.useState({ status: "loading" });
+// src/client/console-app-surface.tsx
+var jsx_dev_runtime29 = __toESM(require_jsx_dev_runtime(), 1);
+var Mounted = ({ payload, appId }) => {
+  const ref = React73.useRef(null);
   React73.useEffect(() => {
-    let live = true;
-    loadActivity(fetchActivity).then((snapshot) => {
-      if (live)
-        setState({ status: "ready", snapshot });
-    }, (cause) => {
-      if (live)
-        setState({ status: "error", message: cause.message });
+    const node2 = ref.current;
+    const api2 = window.effectUi;
+    if (node2 === null || api2 === undefined)
+      return;
+    node2.replaceChildren();
+    return api2.mount(node2, {
+      appId,
+      screens: payload.screens,
+      menu: payload.menu,
+      ...payload.actions === undefined ? {} : { actions: payload.actions },
+      ...payload.sources === undefined ? {} : { sources: payload.sources }
     });
-    return () => {
-      live = false;
-    };
-  }, []);
-  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
-    direction: "column",
-    gap: "5",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
-        direction: "column",
-        gap: "1",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r8, {
-            size: "6",
-            children: "Activity"
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
-            size: "2",
-            color: "gray",
-            children: "What the host reports about itself, drawn as it is reported."
-          }, undefined, false, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      state.status === "loading" ? /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(s9, {
-        size: "3"
-      }, undefined, false, undefined, this) : null,
-      state.status === "error" ? /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_callout.Root, {
-        color: "red",
-        children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_callout.Text, {
-          children: state.message
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this) : null,
-      state.status === "ready" ? /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Snapshot, {
-        snapshot: state.snapshot
-      }, undefined, false, undefined, this) : null
-    ]
-  }, undefined, true, undefined, this);
+  }, [payload, appId]);
+  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
+    className: "view-fill",
+    ref
+  }, undefined, false, undefined, this);
+};
+var AppScreen = ({ route, address, context }) => {
+  const read2 = useSource(route.id, loadView);
+  const payload = sourceValue(read2.state);
+  if (read2.state.status === "failed" && payload === undefined)
+    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Freshness, {
+      state: read2.state,
+      onRetry: read2.retry
+    }, undefined, false, undefined, this);
+  if (payload === undefined)
+    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(r40, {
+      style: { flex: "1 1 auto" }
+    }, undefined, false, undefined, this);
+  if (!isView(payload))
+    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(NotFound, {
+      address,
+      part: "app",
+      text: route.id,
+      plan: context.plan
+    }, undefined, false, undefined, this);
+  if (route.screen !== undefined && !payload.screens.some((screen2) => screen2.id === route.screen)) {
+    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(NotFound, {
+      address,
+      part: "screen",
+      text: route.screen,
+      app: route.id,
+      plan: context.plan,
+      screens: payload.screens.map((screen2) => ({ id: screen2.id, title: screen2.title }))
+    }, undefined, false, undefined, this);
+  }
+  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Mounted, {
+    payload,
+    appId: route.id
+  }, undefined, false, undefined, this);
+};
+var APP = {
+  kinds: ["app", "app-settings"],
+  chrome: "fill",
+  claim: (address) => {
+    if (address.parts[0] !== "app")
+      return;
+    const id = address.parts[1];
+    if (id === undefined)
+      return unresolved(address, "app", "");
+    if (address.parts[2] === "settings")
+      return { kind: "app-settings", id };
+    const params = paramsOf(address.query);
+    const screen2 = address.parts[2];
+    return { kind: "app", id, ...screen2 === undefined ? {} : { screen: screen2 }, ...Object.keys(params).length === 0 ? {} : { params } };
+  },
+  view: (route, context) => {
+    if (route.kind === "app-settings")
+      return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(ConfigEditor, {
+        id: route.id,
+        plan: context.plan,
+        surfaces: context.surfaces
+      }, undefined, false, undefined, this);
+    if (route.kind !== "app")
+      return null;
+    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(AppScreen, {
+      route,
+      address: hashOf(route),
+      context
+    }, undefined, false, undefined, this);
+  }
 };
 
-// src/client/console-mounted.tsx
-var React74 = __toESM(require_react(), 1);
-var jsx_dev_runtime22 = __toESM(require_jsx_dev_runtime(), 1);
-var MountedSurface = ({ id, open: open2 }) => {
-  const ref = React74.useRef(null);
-  const [error61, setError] = React74.useState(undefined);
-  React74.useEffect(() => {
-    const node2 = ref.current;
-    if (node2 === null)
-      return;
-    let live = true;
-    let close;
-    setError(undefined);
-    open2(node2, id, () => live).then((dispose) => {
-      if (live)
-        close = dispose;
-      else
-        dispose();
-    }, (cause) => {
-      if (live)
-        setError(cause.message);
-    });
-    return () => {
-      live = false;
-      close?.();
-    };
-  }, [id, open2]);
-  return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(jsx_dev_runtime22.Fragment, {
+// src/client/console-places.tsx
+var jsx_dev_runtime30 = __toESM(require_jsx_dev_runtime(), 1);
+var PLACES = [HOME, INBOX, ACTIVITY, TOOLS, SETTINGS];
+var NOT_FOUND = {
+  kinds: ["not-found"],
+  chrome: "page",
+  claim: () => {
+    return;
+  },
+  view: (route, context) => route.kind === "not-found" ? /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(NotFound, {
+    address: route.address,
+    part: route.part,
+    text: route.text,
+    plan: context.plan,
+    app: route.app
+  }, undefined, false, undefined, this) : null
+};
+var SURFACES = [...PLACES, APP, NOT_FOUND];
+var surfaceFor = (route) => SURFACES.find((surface) => surface.kinds.includes(route.kind));
+var placeFor = (route) => PLACES.find((place) => place.kinds.includes(route.kind));
+var titleOf = (route, plan) => {
+  if (route.kind === "app" || route.kind === "app-settings") {
+    return plan.find((entry) => entry.id === route.id)?.title ?? route.id;
+  }
+  return placeFor(route)?.title ?? "Not found";
+};
+var parseConsoleHash = (hash2, plan) => {
+  const address = parseAddress(hash2);
+  for (const surface of SURFACES) {
+    const route = surface.claim(address, plan);
+    if (route !== undefined)
+      return route;
+  }
+  return unresolved(address, "place", address.parts[0] ?? "");
+};
+
+// src/client/console-dock.tsx
+var jsx_dev_runtime31 = __toESM(require_jsx_dev_runtime(), 1);
+var palette = (color) => ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)`, "--tile-contrast": `var(--${color}-contrast)` });
+var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("button", {
+  type: "button",
+  className: "shell-dock-item",
+  "aria-label": mark.title,
+  title: mark.title,
+  "aria-current": active ? "page" : undefined,
+  onClick: open2,
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("span", {
+      className: "shell-dock-icon",
+      style: palette(mark.color),
+      "aria-hidden": "true",
+      children: mark.icon
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("span", {
+      className: "shell-dock-label",
+      children: mark.title
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var placeMark = (place) => ({ title: place.title, icon: place.mark, color: place.color });
+var ConsoleDock = ({ plan, route }) => {
+  const apps = plan.filter((entry) => entry.hasView);
+  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("nav", {
+    className: "shell-dock",
+    "aria-label": "Places and apps",
     children: [
-      error61 === undefined ? null : /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_callout.Root, {
-        color: "red",
-        mb: "3",
-        children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_callout.Text, {
-          children: error61
-        }, undefined, false, undefined, this)
+      PLACES.map((place) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Item5, {
+        mark: placeMark(place),
+        active: place.kinds.includes(route.kind),
+        open: () => navigate(place.route)
+      }, place.id, false, undefined, this)),
+      apps.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("span", {
+        className: "shell-dock-divider",
+        role: "separator",
+        "aria-label": "Apps"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV("div", {
-        className: "view-fill",
-        ref
-      }, undefined, false, undefined, this)
+      apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Item5, {
+        mark: markOf(entry),
+        active: (route.kind === "app" || route.kind === "app-settings") && route.id === entry.id,
+        open: () => navigate(appRoute(entry.id))
+      }, entry.id, false, undefined, this))
     ]
   }, undefined, true, undefined, this);
 };
@@ -55312,49 +56913,11 @@ var loadStatusLine = async () => {
 };
 
 // src/client/console-shell.tsx
-var jsx_dev_runtime23 = __toESM(require_jsx_dev_runtime(), 1);
-var isDesktop = (route) => route.kind === "home" || route.kind === "settings" || route.kind === "settings-config";
-var titleOf = (route, plan) => {
-  if (route.kind === "settings" || route.kind === "settings-config")
-    return "Settings";
-  if (route.id === undefined)
-    return "effect-agent";
-  return plan.find((entry) => entry.id === route.id)?.title ?? "effect-agent";
-};
-var Content6 = ({ route, plan, surfaces }) => {
-  if (route.kind === "home")
-    return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ConsoleHome, {
-      plan
-    }, undefined, false, undefined, this);
-  if (route.kind === "settings" || route.kind === "settings-config") {
-    return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ConsoleSettings, {
-      plan,
-      selected: route.kind === "settings-config" ? route.id : undefined,
-      config: surfaces.config
-    }, undefined, false, undefined, this);
-  }
-  if (route.id === undefined)
-    return null;
-  if (route.id === "activity" && route.kind === "view")
-    return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ConsoleActivity, {}, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(MountedSurface, {
-    id: route.id,
-    open: surfaces.view
-  }, undefined, false, undefined, this);
-};
-var ConsoleShell = ({ surfaces }) => {
-  const [catalogue, setCatalogue] = React75.useState(undefined);
-  const [status, setStatus] = React75.useState("Loading system status…");
-  const [failure, setFailure] = React75.useState(undefined);
-  React75.useEffect(() => {
+var jsx_dev_runtime32 = __toESM(require_jsx_dev_runtime(), 1);
+var useStatusLine = () => {
+  const [status, setStatus] = React74.useState("Loading system status…");
+  React74.useEffect(() => {
     let live = true;
-    loadCatalogue().then((value) => {
-      if (live)
-        setCatalogue(value);
-    }, (cause) => {
-      if (live)
-        setFailure(cause.message);
-    });
     loadStatusLine().then((value) => {
       if (live)
         setStatus(value);
@@ -55363,74 +56926,70 @@ var ConsoleShell = ({ surfaces }) => {
       live = false;
     };
   }, []);
-  const plan = React75.useMemo(() => planConsole(catalogue ?? {}), [catalogue]);
-  const route = useRoute(plan);
-  useAddressTruth(route, catalogue !== undefined);
-  const desktop = isDesktop(route);
-  const notice = failure === undefined ? null : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Root, {
-    color: "red",
-    mb: desktop ? "5" : "3",
-    children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Text, {
-      children: failure
-    }, undefined, false, undefined, this)
-  }, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ConsoleTheme, {
-    children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+  return status;
+};
+var ConsoleShell = ({ surfaces }) => {
+  const catalogue = useSource("catalogue", loadCatalogue);
+  const status = useStatusLine();
+  const plan = React74.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
+  const hash2 = useAddress();
+  const route = React74.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
+  const surface = surfaceFor(route);
+  const context = React74.useMemo(() => ({
+    plan,
+    surfaces,
+    status,
+    catalogue: {
+      ...catalogue.state.status === "failed" ? { failure: catalogue.state.error } : {},
+      retry: catalogue.retry
+    }
+  }), [plan, surfaces, status, catalogue.state, catalogue.retry]);
+  const home = route.kind === "home";
+  const body = surface?.view(route, context) ?? null;
+  return /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(ConsoleTheme, {
+    children: /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p12, {
       direction: "column",
       height: "100dvh",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ConsoleStatusBar, {
+        /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(ConsoleStatusBar, {
           status,
           title: titleOf(route, plan),
-          home: route.kind === "home"
+          home
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime23.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime32.jsxDEV("div", {
           className: "shell-body",
-          "data-shell-view": desktop ? "home" : "app",
-          children: desktop ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r35, {
-            size: "1",
-            px: "4",
-            children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p18, {
-              children: [
-                notice,
-                /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Content6, {
-                  route,
-                  plan,
-                  surfaces
-                }, undefined, false, undefined, this)
-              ]
-            }, undefined, true, undefined, this)
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+          "data-shell-view": surface?.chrome ?? "page",
+          "data-dock": home ? "off" : "on",
+          children: surface?.chrome === "fill" ? /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p12, {
             className: "view-fill",
             direction: "column",
             p: "4",
-            children: [
-              notice,
-              /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Content6, {
-                route,
-                plan,
-                surfaces
-              }, undefined, false, undefined, this)
-            ]
-          }, undefined, true, undefined, this)
+            children: body
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(r35, {
+            size: "1",
+            px: "4",
+            children: /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p18, {
+              children: body
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
-        desktop && route.kind !== "home" ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ConsoleDock, {
+        home ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(ConsoleDock, {
           plan,
           route
-        }, undefined, false, undefined, this) : null
+        }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this)
   }, undefined, false, undefined, this);
 };
 
 // src/client/effect-ui-client.tsx
-var jsx_dev_runtime24 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
 var own2 = { Preview };
 window.effectUi = {
   mount: (container, runtime) => {
     container.replaceChildren();
-    const root = import_client3.createRoot(container);
-    root.render(/* @__PURE__ */ jsx_dev_runtime24.jsxDEV(EffectUiRuntime, {
+    const root = import_client2.createRoot(container);
+    root.render(/* @__PURE__ */ jsx_dev_runtime33.jsxDEV(EffectUiRuntime, {
       ours: own2,
       runtime
     }, undefined, false, undefined, this));
@@ -55449,10 +57008,9 @@ var start = () => {
   if (root === null)
     return;
   const surfaces = {
-    view: createConsoleViews(),
     config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(configComponents) }
   };
-  import_client3.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime24.jsxDEV(ConsoleShell, {
+  import_client2.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime33.jsxDEV(ConsoleShell, {
     surfaces
   }, undefined, false, undefined, this));
 };
