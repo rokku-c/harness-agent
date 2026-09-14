@@ -2,48 +2,61 @@
  * The screen one machine is opened on: what its node is bound to run, and what a
  * push would change about it.
  *
- * It is a screen rather than the tail of the machine's row because it is a job —
- * read the binding, plan the push — and it is filled by its own read, run on
+ * It is a screen rather than the tail of the machine's row because it is a job
+ * (read the binding, plan the push), and it is filled by its own read, run on
  * entry from the id the address carries. So a row's Open and an address pasted
- * into the bar are one arrival, and an address naming no machine makes no call
- * at all rather than asking about a node nobody chose.
+ * into the bar are one arrival, and an address naming no machine makes no call at
+ * all rather than asking about a node nobody chose.
  *
- * The plan is the node's own, not the agent's above it in the other room: the
- * two are different answers about different things, kept in different places, so
- * neither screen can read the other's.
+ * The plan here is the node's own and not the fleet agent's in the other room:
+ * the two are different answers about different subjects, they land under
+ * different roots, and neither screen can read the other's. The plan also runs
+ * for the node the address names, so a pasted link plans what it names rather
+ * than what was last drawn.
  */
-import { NAV_ROOT, failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { boundChip, chip, stringEntry } from "./effect-ui-cells.ts"
-import { field } from "./effect-ui-nodes.ts"
-import { answer, answered, request } from "./effect-ui-request.ts"
+import { NAV_ROOT, field, press, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { answer, answered, answeredChip } from "./effect-ui-answer.ts"
+import { MACHINE_BINDING, MACHINE_PLAN } from "./effect-ui-paths.ts"
+import { pending, readFailed, readFailure, readPending } from "./effect-ui-read.ts"
 
-/** A node nothing was bound to has no kernel; the row says nothing rather than an empty chip. */
-const kernel: UiNodeSpec = {
-  ...field("Kernel", row([
-    boundChip("/inspect/node/desired/kernel/bundleId"), boundChip("/inspect/node/desired/kernel/version"),
-  ])),
-  visible: { source: { state: "/inspect/node/desired/kernel" } },
-}
+const binding = `${MACHINE_BINDING}/desired`
 
 /**
- * What the node is asked to run. The plan runs for the node this answer names,
- * and the action that loaded it blanks the previous plan.
+ * A node nothing was bound to has no kernel, and a cell that is blank for one
+ * reads as a column the read did not carry. The field is absent rather than
+ * empty, so the row states that instead of drawing an empty chip.
  */
-const nodeAnswer: UiNodeSpec = answer("/inspect/node/ok", [
-  field("Node", row([boundChip("/inspect/node/desired/node/machineId")])),
+const kernel: UiNodeSpec = {
+  ...field("Kernel", row([
+    { component: "Code", props: { size: "2" }, bind: `${binding}/kernel/bundleId` },
+    { component: "Code", props: { size: "2" }, bind: `${binding}/kernel/version` },
+  ])),
+  visible: { source: { state: `${binding}/kernel` } },
+}
+
+const bindingAnswer: UiNodeSpec = answer(`${MACHINE_BINDING}/ok`, [
+  answeredChip("Machine", `${binding}/node/machineId`),
+  answeredChip("Revision", `${binding}/revision`),
   kernel,
-  answered("Placements", "/inspect/node/desired/apps", [chip("bundleId"), chip("version")]),
-  row([request("Plan the push", "agentd.nodePlan", "nodeId", "/inspect/node/desired/node/machineId")]),
+  answered("Placements", `${binding}/apps`, [
+    { component: "Code", props: { size: "2" }, item: "bundleId" },
+    { component: "Code", props: { size: "2" }, item: "version" },
+  ]),
+  row([press("Plan the push", "agentd.nodePlan", undefined, { variant: "soft", size: "2" })]),
 ])
 
-const planAnswer: UiNodeSpec = answer("/inspect/nodePlan/ok", [
-  answered("Changes", "/inspect/nodePlan/changes", [stringEntry()], "Nothing to push: already on this revision."),
+const planAnswer: UiNodeSpec = answer(`${MACHINE_PLAN}/ok`, [
+  answered("Changes", `${MACHINE_PLAN}/changes`,
+    { component: "Badge", props: { variant: "soft" }, item: "" }, "Nothing to push: already on this revision."),
 ])
 
 export const machineRoom: readonly UiNodeSpec[] = [
-  { component: "Text", props: { value: "No machine is open. Open one from the list.", size: "2", color: "gray" },
+  { component: "Text",
+    props: { value: "No machine is open. Open one from the fleet list.", size: "2", color: "gray" },
     visible: { source: { state: `${NAV_ROOT}/nodeId` }, not: true } },
-  nodeAnswer,
+  pending(readPending(MACHINE_BINDING)),
+  readFailure(readFailed(`${MACHINE_BINDING}/error`), "Could not read this machine.", `${MACHINE_BINDING}/error`, "agentd.node"),
+  bindingAnswer,
+  readFailure(readFailed(`${MACHINE_PLAN}/error`), "Could not plan this push.", `${MACHINE_PLAN}/error`, "agentd.nodePlan"),
   planAnswer,
-  row([failureBadge("/inspect/node/error"), failureBadge("/inspect/nodePlan/error")]),
 ]

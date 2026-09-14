@@ -2,41 +2,46 @@
  * The agentd console: the fleet on the first screen, and the four places an
  * operator goes from it.
  *
- * The first screen is the fleet itself — every agent, the machine each runs on,
- * and what the server has observed of those machines — because that is what an
- * operator comes back to read, and a fleet behind a menu door is a fleet that
- * costs a press to see. The four others are jobs: work one agent, work one
- * machine, read the queue those jobs feed, and read the registry they are
- * assembled from. Each is entered and come back from (Journey 3,
- * `docs/flows.md`), and each states the verdict of the read behind it once,
- * above every list that read feeds.
+ * The first screen is the fleet itself, because that is what an operator comes
+ * back to read; the four others are jobs. Work one fleet agent (read what it
+ * resolves to, plan the push, ask for a turn), work one machine (read what its
+ * node is bound to, plan that push), read the queue those jobs feed, and read
+ * the servers they are assembled from. Each is entered and come back from, and
+ * each states the verdict of the read behind it once, above every list that read
+ * feeds.
  *
- * The two rooms carry the id they were entered with in the address, so a row's
- * Open and an address pasted into the bar are the same arrival — and the read
- * that fills a room is the room's own, which is what keeps one agent's answer
- * from being written under the list of all of them.
+ * A room is filled by its own read, named as the screen's `onEnter`, so a row's
+ * Open and an address pasted into the bar are one arrival with one read behind
+ * both. That read takes its id from `/_nav`, which is where the press that
+ * entered the screen put it, so an address naming no agent makes no call at all
+ * rather than asking about an agent nobody chose. The *plan* takes its id from
+ * the same place and never from the answer above it: an answer is a record of
+ * one moment, and a plan computed from it would plan whatever was on screen at
+ * the time, while an address carries the id and so reproduces the plan.
+ *
+ * A retry is an action with no call of its own: `refresh` and nothing else. The
+ * read is a name, so the press that fetches a list again is the same declaration
+ * the runtime already runs, and not a second copy of it free to drift.
  */
-import type { EffectUiView } from "@effect-agent/effect-ui"
-import { NAV_ROOT, failureNotice, loadingRows, region } from "@effect-agent/effect-ui"
+import { NAV_ROOT, type EffectUiView } from "@effect-agent/effect-ui"
 import { agentRoom } from "./effect-ui-agent-room.ts"
-import { agentsSection } from "./effect-ui-agents.ts"
-import { agentdHeader } from "./effect-ui-header.ts"
-import { launchesScreen } from "./effect-ui-launch.ts"
-import { livenessSection } from "./effect-ui-liveness.ts"
+import { fleetScreen } from "./effect-ui-fleet.ts"
+import { launchesScreen } from "./effect-ui-launches.ts"
 import { machineRoom } from "./effect-ui-machine-room.ts"
-import { machinesSection } from "./effect-ui-machines.ts"
-import { STATUS_SOURCE } from "./effect-ui-nodes.ts"
-import { registryNodes } from "./effect-ui-registry.ts"
+import {
+  AGENT_LAUNCH, AGENT_PLAN, AGENT_RESOLUTION, AGENT_SCREEN, LAUNCHES_SCREEN, LAUNCHES_SOURCE, MACHINE_BINDING,
+  MACHINE_PLAN, MACHINE_SCREEN, PROMPT, SERVERS_SCREEN, STATUS_SOURCE, WORKDIR,
+} from "./effect-ui-paths.ts"
+import { serversScreen } from "./effect-ui-servers.ts"
 
-/** The queue's own read. A launch moves it, so the press that queued one re-runs it. */
-const LAUNCHES_SOURCE = "launches"
+/** The id an entered room was opened with, which is where its own read takes it from. */
+const opened = (name: string) => ({ [name]: { state: `${NAV_ROOT}/${name}` } }) as const
 
 export const effectUiView: EffectUiView = {
   viewId: "agentd-console",
   title: "agentd",
   state: {
     status: { machines: [], agents: [], servers: [], sets: [] },
-    inspect: {},
     launch: { workdir: "", prompt: "" },
     launches: { launches: [] },
   },
@@ -45,46 +50,42 @@ export const effectUiView: EffectUiView = {
     { id: LAUNCHES_SOURCE, url: "/agentd/launch", state: "/launches", refreshMs: 8000 },
   ],
   actions: [
-    // Both rows of the fleet open a room and nothing else: a room is filled by
-    // the read it names below, so a press that picks an entity only picks it.
-    { name: "agentd.openAgent", opens: "agent" },
-    { name: "agentd.openMachine", opens: "machine" },
-    { name: "agentd.openLaunches", opens: "launches" },
-    { name: "agentd.openRegistry", opens: "registry" },
-    // A room's own read. The id comes from the address, which is where a press
-    // put it, so a row's Open and a pasted address are one read with two doors
-    // (`Formal/Door.lean`) — and it is the path that names the entity, so an
-    // address naming none makes no call at all rather than asking about an
-    // agent nobody chose.
-    { name: "agentd.desired", method: "GET", url: "/agentd/desired?agentId={agentId}", result: "/inspect/desired",
-      params: { agentId: { state: `${NAV_ROOT}/agentId` } }, clear: ["/inspect/plan", "/inspect/launch"] },
-    { name: "agentd.plan", method: "GET", url: "/agentd/plan", result: "/inspect/plan" },
-    // The draft the press consumed is emptied and the queue is read again; the
-    // workdir stays, because it is a place the operator is working in rather
-    // than a value the turn took with it.
-    { name: "agentd.launch", method: "POST", url: "/agentd/launch", result: "/inspect/launch", clear: ["/launch/prompt"], refresh: [LAUNCHES_SOURCE] },
-    { name: "agentd.node", method: "GET", url: "/agentd/node?nodeId={nodeId}", result: "/inspect/node",
-      params: { nodeId: { state: `${NAV_ROOT}/nodeId` } }, clear: ["/inspect/nodePlan"] },
-    { name: "agentd.nodePlan", method: "GET", url: "/agentd/node/plan", result: "/inspect/nodePlan" },
+    // A row that opens a room picks the record and nothing else: what fills the
+    // room is the read the screen names, run on arrival.
+    { name: "agentd.openAgent", opens: AGENT_SCREEN },
+    { name: "agentd.openMachine", opens: MACHINE_SCREEN },
+    { name: "agentd.openLaunches", opens: LAUNCHES_SCREEN },
+    { name: "agentd.openServers", opens: SERVERS_SCREEN },
+    // A room's own read. The answers to the last room's presses are cleared with
+    // it, because a plan or a launch about the agent that was open before this
+    // one is not about this one, and a room that kept it would show the previous
+    // agent's push under this agent's name.
+    { name: "agentd.desired", method: "GET", url: "/agentd/desired?agentId={agentId}", params: opened("agentId"),
+      result: AGENT_RESOLUTION, clear: [AGENT_PLAN, AGENT_LAUNCH] },
+    { name: "agentd.plan", method: "GET", url: "/agentd/plan?agentId={agentId}", params: opened("agentId"),
+      result: AGENT_PLAN },
+    // The draft is consumed and the queue is read again; the working directory
+    // stays, because it is a place the operator is working in rather than a
+    // value the turn took with it.
+    { name: "agentd.launch", method: "POST", url: "/agentd/launch",
+      params: { ...opened("agentId"), workdir: { state: WORKDIR }, prompt: { state: PROMPT } },
+      result: AGENT_LAUNCH, clear: [PROMPT], refresh: [LAUNCHES_SOURCE] },
+    { name: "agentd.node", method: "GET", url: "/agentd/node?nodeId={nodeId}", params: opened("nodeId"),
+      result: MACHINE_BINDING, clear: [MACHINE_PLAN] },
+    { name: "agentd.nodePlan", method: "GET", url: "/agentd/node/plan?nodeId={nodeId}", params: opened("nodeId"),
+      result: MACHINE_PLAN },
+    // The two retries. Each has no call of its own: the read it names is the
+    // whole of the press, so the list is fetched again by the declaration that
+    // fetched it and the verdict the failure notice reports is the one that
+    // notice belongs to.
+    { name: "agentd.retryStatus", refresh: [STATUS_SOURCE] },
+    { name: "agentd.retryLaunches", refresh: [LAUNCHES_SOURCE] },
   ],
-  nodes: [
-    agentdHeader,
-    // The fleet is three inventories, each as long as the fleet is, and how long
-    // that is is not the surface's business: they scroll in their own box, under
-    // a header that holds the doors and stays where it was.
-    region([
-      // the read behind all three lists, stated once above them
-      loadingRows(STATUS_SOURCE, 3),
-      failureNotice(STATUS_SOURCE),
-      agentsSection,
-      machinesSection,
-      livenessSection,
-    ]),
-  ],
+  nodes: fleetScreen,
   screens: [
-    { id: "agent", title: "Agent", onEnter: "agentd.desired", nodes: agentRoom },
-    { id: "machine", title: "Machine", onEnter: "agentd.node", nodes: machineRoom },
-    { id: "launches", title: "Launches", nodes: launchesScreen },
-    { id: "registry", title: "MCP registry", nodes: registryNodes },
+    { id: AGENT_SCREEN, title: "Fleet agent", onEnter: "agentd.desired", nodes: agentRoom },
+    { id: MACHINE_SCREEN, title: "Machine", onEnter: "agentd.node", nodes: machineRoom },
+    { id: LAUNCHES_SCREEN, title: "Launches", nodes: launchesScreen },
+    { id: SERVERS_SCREEN, title: "MCP servers", nodes: serversScreen },
   ],
 }
