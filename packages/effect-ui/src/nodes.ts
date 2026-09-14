@@ -11,13 +11,13 @@
  * component name with that component's own props.
  */
 
-import type { UiNodeSpec } from "./spec.ts"
+import type { UiNodeSpec, UiProps } from "./spec.ts"
 import type { UiRepeatSpec } from "./value-spec.ts"
 import { emptyRows, stateRows, whenRows } from "./empty-rows.ts"
 
-export const text = (value: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
+export const text = (value: string, props: UiProps = {}): UiNodeSpec =>
   ({ component: "Text", props: { value, ...props } })
-export const heading = (value: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
+export const heading = (value: string, props: UiProps = {}): UiNodeSpec =>
   ({ component: "Heading", props: { value, ...props } })
 /** A field is its label above the control, never beside it. */
 export const field = (name: string, control: UiNodeSpec): UiNodeSpec =>
@@ -51,7 +51,7 @@ export const cellOf = (content: UiNodeSpec | readonly UiNodeSpec[]): UiNodeSpec 
 /** A list held in one field: a column of one-line entries. An empty item path is the element itself. */
 export const list = (repeat: UiRepeatSpec, line: UiNodeSpec): UiNodeSpec =>
   ({ component: "Flex", props: { direction: "column", gap: "1" }, repeat, children: [line] })
-export const line = (item: string, props: Readonly<Record<string, unknown>> = {}): UiNodeSpec =>
+export const line = (item: string, props: UiProps = {}): UiNodeSpec =>
   ({ component: "Text", props, item })
 /**
  * An identifier that is a row's content rather than its name — a server a set

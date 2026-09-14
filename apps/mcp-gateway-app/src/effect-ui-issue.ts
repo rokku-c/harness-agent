@@ -1,87 +1,77 @@
 /**
- * Issuing a credential: the form, and the one moment the token is readable.
+ * Issuing a credential, and holding the one look at it.
  *
- * What the token will be is said *before* the press rather than beside the
- * answer. "Shown once" is the expectation the operator acts on — whether to have
- * somewhere to paste it ready — and a warning that arrives with the token
- * arrives after the decision it was there to inform.
+ * The reveal is the dead end M3 fixes, and its shape follows from what the
+ * gateway can honestly promise. The token is answered once and stored only as
+ * its hash, so there is no second read of it and no screen that could show it
+ * again: the reveal is not a view of a record, it is the record's only
+ * appearance, and everything about the card says so before the operator leaves
+ * it.
  *
- * The token itself is a read-only field rather than a block of code, because the
- * one thing to do with it is copy it, and a field is the design system's own
- * control that selects and copies. The fingerprint beside it is the same eight
- * characters the list below shows on the record, so a token in hand can be
- * matched with the row it belongs to.
+ * It lives at a path of its own instead of beside the form because the form is
+ * cleared on success — `clear` empties the draft the press consumed — and a
+ * reveal kept in the draft would vanish with it. It survives every screen change
+ * for the same reason the choice on the question does: it is view state, and the
+ * store outlives the screen the press happened on. Changing app unmounts the
+ * view and takes it, which is why the sentence names the recovery rather than
+ * claiming the token is safe.
  *
- * The id is cleared once a token has been issued, and nothing else is: the press
- * consumed that id — an identity now exists — while a kind and a lifetime are
- * settings the next identity is likely to share. It is also what makes a stray
- * second press impossible rather than merely unlikely, and a second token nobody
- * saw would be a credential that is live and unholdable.
+ * `Copy` is not a control here, and its absence is deliberate: a press runs a
+ * declared action, the console has no clipboard action, and a button that
+ * claimed to copy and did not would be worse than a mono value the operator
+ * selects. The sentence says which gesture it wants.
+ *
+ * Dismissing means what it says — the next press of `Issue` answers a new token
+ * — so the copy under the value states the consequence rather than the action.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { draft, failureCallout, field, issueResult, press, row, section, text } from "./effect-ui-nodes.ts"
+import { field, press, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { refused, retry } from "./effect-ui-refusal.ts"
+import { DRAFT_DAYS, DRAFT_ID, DRAFT_KIND, DRAFT_NAME, ISSUE_DISMISSED, ISSUE_RESULT } from "./effect-ui-paths.ts"
 
-/** Most identities are apps; the other two are offered because the door verifies them too. */
-const kinds = ["app", "user", "system"] as const
+const KINDS = ["app", "user", "system"]
 
+/** The kinds on offer are the three the engine knows, and they are literal: nothing serves a list of them. */
 const kindPicker: UiNodeSpec = {
   component: "Select.Root",
-  bind: draft("kind"),
+  bind: DRAFT_KIND,
   children: [
     { component: "Select.Trigger", props: { placeholder: "Select a kind" } },
-    { component: "Select.Content", children: kinds.map((kind): UiNodeSpec => ({
-      component: "Select.Item", props: { value: kind }, children: [text(kind)],
-    })) },
+    { component: "Select.Content", children: KINDS.map((kind): UiNodeSpec =>
+      ({ component: "Select.Item", props: { value: kind }, children: [{ component: "Text", props: { value: kind } }] })) },
   ],
 }
 
-/** Two fields to a line where there is room: the four answers are short, and the list below wants the height. */
-const form: UiNodeSpec = {
-  component: "Grid",
-  props: { columns: { initial: "1", sm: "2" }, gap: "3" },
-  children: [
-    field("Kind", kindPicker),
-    field("Id", { component: "TextField.Root", props: { placeholder: "builder-2" }, bind: draft("id") }),
-    field("Name (optional)", { component: "TextField.Root", bind: draft("name") }),
-    field("Expires in days (optional)", { component: "TextField.Root", props: { placeholder: "never" }, bind: draft("days") }),
-  ],
-}
-
-/** Where the deadline is shown only when there is one: a lone label over nothing reads as a value that failed to load. */
-const expires: UiNodeSpec = {
-  ...row([
-    text("Expires", { size: "1", color: "gray" }),
-    { component: "Text", props: { size: "1", color: "gray" }, bind: `${issueResult}/expires` },
-  ]),
-  visible: { source: { state: `${issueResult}/expires` } },
-}
-
-/**
- * The answer, and it is guarded on the token rather than on the action's `ok`:
- * the token is the only thing this card has to show that a read of the same path
- * could not also be, so the guard is the thing itself rather than a verdict
- * about it.
- */
-const issued: UiNodeSpec = {
-  component: "Flex",
-  props: { direction: "column", gap: "2" },
-  visible: { source: { state: `${issueResult}/token` } },
-  children: [
-    row([
-      { component: "Code", props: { size: "2" }, bind: `${issueResult}/principalKey` },
-      { component: "Code", props: { size: "1", color: "gray" }, bind: `${issueResult}/fingerprint` },
-    ]),
-    field("Token", { component: "TextField.Root", props: { readOnly: true }, bind: `${issueResult}/token` }),
-    expires,
-    { component: "Text", props: { value: "This identity had been turned off; it is active again.", size: "1", color: "amber" },
-      visible: { source: { state: `${issueResult}/reactivated` }, equals: true } },
-  ],
-}
-
-export const issueSection: UiNodeSpec = section("Issue a token", [
-  form,
-  text("A token is shown once, here, and stored only as its hash. Copy it before you leave this card.", { size: "1", color: "gray" }),
-  row([press("Issue token", "gateway.issueToken", undefined, { variant: "solid" })]),
-  failureCallout(`${issueResult}/error`),
-  issued,
+const entry: UiNodeSpec = section("Issue a token", [
+  text("Issuing registers the principal if it is new, and reactivates one that was turned off.", { size: "2", color: "gray" }),
+  field("Kind", kindPicker),
+  field("Id", { component: "TextField.Root", bind: DRAFT_ID, props: { placeholder: "writer" } }),
+  field("Display name", { component: "TextField.Root", bind: DRAFT_NAME, props: { placeholder: "Optional" } }),
+  field("Days until expiry", { component: "TextField.Root", bind: DRAFT_DAYS, props: { placeholder: "Leave empty for a token that does not expire" } }),
+  row([press("Issue", "gateway.issueToken", undefined, { variant: "solid", size: "2" })]),
 ])
+
+/** A labelled value, shown only where the answer carried one — an expiry the token does not have leaves no label behind. */
+const named = (label: string, path: string, visible?: UiNodeSpec["visible"]): UiNodeSpec =>
+  ({ ...row([text(label, { size: "1", color: "gray" }), { component: "Code", bind: path }]),
+    ...(visible === undefined ? {} : { visible }) })
+
+const reveal: UiNodeSpec = {
+  ...section("The token", [
+    named("Principal", `${ISSUE_RESULT}/principalKey`),
+    { component: "Code", bind: `${ISSUE_RESULT}/token` },
+    named("Listed as", `${ISSUE_RESULT}/fingerprint`),
+    named("Expires", `${ISSUE_RESULT}/expires`, { source: { state: `${ISSUE_RESULT}/expires` } }),
+    { ...text("This principal was turned off and is active again.", { size: "2", color: "gray" }),
+      visible: { source: { state: `${ISSUE_RESULT}/reactivated` }, equals: true } },
+    text("Select the token to copy it. You will not see this token again. Revoke and re-issue if you lose it.", { size: "2" }),
+    row([press("Dismiss", "gateway.dismissToken", undefined, { variant: "soft", size: "2" })]),
+    refused("The token is still on screen; it was not dismissed.", `${ISSUE_DISMISSED}/error`, retry("gateway.dismissToken")),
+  ]),
+  visible: { source: { state: `${ISSUE_RESULT}/token` } },
+}
+
+export const issueNodes: readonly UiNodeSpec[] = [
+  entry,
+  refused("Issue was refused.", `${ISSUE_RESULT}/error`, retry("gateway.issueToken")),
+  reveal,
+]

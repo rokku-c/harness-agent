@@ -16,11 +16,28 @@ import type { UiActionSpec, UiSourceSpec } from "./data-spec.ts"
 import type { UiActionParam, UiRepeatSpec, UiVisibilitySpec } from "./value-spec.ts"
 import type { UiScreen } from "./screen-spec.ts"
 
+/**
+ * The names a node keeps for itself. `schema.ts` refuses these inside a `props`
+ * bag at load time; saying the same thing here refuses them at build time, which
+ * is where it costs nothing. The mistake this prevents is one character wide —
+ * `text("any tool", { visible })` instead of `{ ...text("any tool"), visible }` —
+ * and it reads as correct, so the compiler is the right place to catch it.
+ */
+export type UiNodeField =
+  | "component" | "props" | "children" | "id" | "bind" | "item" | "as" | "repeat" | "visible" | "onPress" | "params"
+
+/**
+ * A component's own props, less the names that belong to the node. The bag stays
+ * open otherwise: the props of a node are the props of a `@radix-ui/themes`
+ * component, and that library — not this file — is what says which ones exist.
+ */
+export type UiProps = Readonly<Record<string, unknown> & { [K in UiNodeField]?: never }>
+
 export interface UiNode {
   /** A `@radix-ui/themes` export, dotted for a subcomponent: `"Card"`, `"Table.Row"`. */
   readonly component: string
   /** That component's own props, passed through. */
-  readonly props?: Readonly<Record<string, unknown>>
+  readonly props?: UiProps
   readonly children?: readonly UiNode[]
   readonly id?: string
   /** Live value read from view state, written to the prop named by `as`. */

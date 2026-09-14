@@ -29,10 +29,10 @@ const toned = (field: string, badge: UiNodeSpec, value: UiNodeSpec): UiNodeSpec 
   ({ component: "Flex", props: { gap: "2", align: "center" }, visible: has(field), children: [badge, value] })
 
 export const taskSignals: UiNodeSpec = row([
-  labelled("in", "parentTitle", { component: "Text", props: { size: "1", item: "parentTitle" } }),
+  labelled("in", "parentTitle", { component: "Text", props: { size: "1" }, item: "parentTitle" }),
   // What this row is blocked on is a pending step, and the titles it names are
   // the server's own list rather than a count this view would have to make up.
-  toned("waits", pendingBadge("Waiting", has("waits")), { component: "Text", props: { size: "1", item: "waits" } }),
+  toned("waits", pendingBadge("Waiting", has("waits")), { component: "Text", props: { size: "1" }, item: "waits" }),
   // A reason is a value the server wrote, so it is set in mono like every other
   // one, and it is stated on the row rather than saved for a tooltip.
   toned("failure", failedBadge("Failed", has("failure")), { component: "Code", props: { size: "1" }, item: "failure" }),

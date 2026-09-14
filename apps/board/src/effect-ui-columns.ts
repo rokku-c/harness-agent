@@ -29,9 +29,9 @@ const entry: UiNodeSpec = {
   props: { direction: "column", gap: "2" },
   children: [
     { component: "Flex", props: { direction: "column", gap: "1" }, children: [
-      { component: "Text", props: { size: "2", weight: "medium", item: "title" } },
+      { component: "Text", props: { size: "2", weight: "medium" }, item: "title" },
       // drawn only when the task has one: an empty paragraph is a gap, not a fact
-      { component: "Text", props: { size: "1", color: "gray", item: "body", visible: { source: { item: "body" } } } },
+      { component: "Text", props: { size: "1", color: "gray" }, item: "body", visible: { source: { item: "body" } } },
       taskSignals,
     ] },
     // the press is the entry's own, so it sits in a row: laid straight into the

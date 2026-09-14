@@ -8,12 +8,12 @@
  * of its parameters comes from only when a press does not supply it.
  */
 
-import type { UiNodeSpec } from "./spec.ts"
+import type { UiNodeSpec, UiProps } from "./spec.ts"
 import type { UiActionParam } from "./value-spec.ts"
 
 export const press = (
   label: string, onPress: string,
   params?: Readonly<Record<string, UiActionParam>>,
-  props: Readonly<Record<string, unknown>> = {},
+  props: UiProps = {},
 ): UiNodeSpec =>
   ({ component: "Button", props: { value: label, ...props }, onPress, ...(params === undefined ? {} : { params }) })

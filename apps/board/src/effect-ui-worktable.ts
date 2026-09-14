@@ -27,7 +27,7 @@ const heading = (value: string): UiNodeSpec =>
 const workItem: UiNodeSpec = cellOf({
   component: "Flex",
   props: { direction: "column", gap: "1" },
-  children: [{ component: "Text", props: { size: "2", weight: "medium", item: "title" } }, taskSignals],
+  children: [{ component: "Text", props: { size: "2", weight: "medium" }, item: "title" }, taskSignals],
 })
 
 /** State is an enumeration, so its badge is the colourless one: colour is for signals. */
