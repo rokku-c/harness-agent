@@ -13,7 +13,7 @@ import { keyedSerial } from "./serial.ts"
 const refusal = (id: string, out: ConfigOutcome, storeFile?: string): string => {
   const message = `Invalid config for ${id}: ${out.error}`
   if (out.reason !== "rebuild-required" || storeFile === undefined) return message
-  return `${message} — store: ${storeFile}; rebuild it with: bun run config:rebuild ${out.appId}`
+  return `${message}; store: ${storeFile}; rebuild it with: bun run config:rebuild ${out.appId}`
 }
 
 /** Saved values are durable; active values change only at boot or explicit apply. */

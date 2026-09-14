@@ -35,7 +35,7 @@ export const factsOperations = ({ facts }: AgentdSurfaces): readonly Operation[]
   }),
   operation({
     name: "agentd_session_read",
-    description: "Read the tail of one session — what the agent before you actually did, on any machine that reported it",
+    description: "Read the tail of one session: what the agent before you actually did, on any machine that reported it",
     access: "read", input: z.object({
       machineId: z.string().min(1), kind: z.string().min(1), sessionId: z.string().min(1),
     }).strict(),

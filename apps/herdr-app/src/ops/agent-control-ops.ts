@@ -18,7 +18,7 @@ import { typed } from "./surfaces.ts"
 export const agentControlOperations = ({ client }: HerdrSurfaces): readonly Operation[] => [
   operation({
     name: "herdr_agent_output",
-    description: "Read what an agent has printed — the screen as it stands, or the scrollback behind it",
+    description: "Read what an agent has printed: the screen as it stands, or the scrollback behind it",
     access: "read",
     // a query arrives as text, so the count of lines has to be read as one
     input: z.object({ target, source: readSource.default("recent"), lines: z.coerce.number().int().positive().max(2000).optional() }).strict(),
@@ -33,7 +33,7 @@ export const agentControlOperations = ({ client }: HerdrSurfaces): readonly Oper
   }),
   operation({
     name: "herdr_agent_keys",
-    description: "Send raw keys to an agent that is waiting on a prompt Herdr could not classify — the escape hatch when an approval UI is not being recognized",
+    description: "Send raw keys to an agent that is waiting on a prompt Herdr could not classify; the escape hatch when an approval UI is not being recognized",
     input: z.object({ target, keys: z.array(z.string().min(1)).min(1) }).strict(),
     http: { method: "POST", path: "/herdr/agents/:target/keys" },
     handler: async (input) => ({ ok: true, sent: await client.call("agent.send_keys", { target: input.target, keys: input.keys }) }),

@@ -41,6 +41,6 @@ export const action = z.object({
   refresh: z.array(z.string()).optional(),
 }).superRefine((value, ctx) => {
   if (value.url === undefined && value.opens === undefined) {
-    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url or opens a screen — this one has neither" })
+    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url or opens a screen; this one has neither" })
   }
 })

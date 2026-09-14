@@ -33,7 +33,7 @@ export const registryOperations = ({ control }: AgentdSurfaces): readonly Operat
   // agent that presents it is named here so the two spell the key the same way.
   operation({
     name: "agentd_credential",
-    description: "The credential one agent presents at the MCP Gateway's door — issue it for the identity the agent is named by",
+    description: "The credential one agent presents at the MCP Gateway's door; issue it for the identity the agent is named by",
     input: z.object({ agentId: z.string().min(1), token: z.string().min(1) }).strict(),
     http: { method: "POST", path: "/agentd/credential" },
     handler: (input) => ({ ok: true, ...control.setCredential(input.agentId, input.token) }),

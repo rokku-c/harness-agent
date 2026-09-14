@@ -23,7 +23,7 @@ const chosen = (value: string | undefined): string | undefined =>
 export const agentStartOperations = ({ client }: HerdrSurfaces): readonly Operation[] => [
   operation({
     name: "herdr_agent_start",
-    description: "Start a coding agent under a unique live name, in a free shell pane of the workspace you name — or of the focused workspace when you name none; Herdr validates the kind and starts tracking the agent's lifecycle",
+    description: "Start a coding agent under a unique live name, in a free shell pane of the workspace you name, or of the focused workspace when you name none; Herdr validates the kind and starts tracking the agent's lifecycle",
     input: z.object({
       name: liveName,
       kind: z.string().min(1),

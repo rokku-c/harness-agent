@@ -53185,7 +53185,7 @@ var action = exports_external.object({
   refresh: exports_external.array(exports_external.string()).optional()
 }).superRefine((value, ctx) => {
   if (value.url === undefined && value.opens === undefined) {
-    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url or opens a screen — this one has neither" });
+    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url or opens a screen; this one has neither" });
   }
 });
 
@@ -53194,7 +53194,7 @@ var NODE_FIELDS = ["component", "props", "children", "id", "bind", "item", "as",
 var nodeProps = exports_external.record(exports_external.string(), exports_external.unknown()).superRefine((value, ctx) => {
   for (const field of NODE_FIELDS) {
     if (field in value) {
-      ctx.addIssue({ code: "custom", path: [field], message: `"${field}" is a node field, not a prop — write it beside props, not inside them` });
+      ctx.addIssue({ code: "custom", path: [field], message: `"${field}" is a node field, not a prop. Write it beside props, not inside them.` });
     }
   }
 });
@@ -54422,7 +54422,7 @@ var InspectorDetail = ({ id, tool }) => {
               /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p16, {
                 children: tool.name
               }, undefined, false, undefined, this),
-              tool.description === undefined ? "" : ` — ${tool.description}`
+              tool.description === undefined ? "" : `: ${tool.description}`
             ]
           }, undefined, true, undefined, this)
         ]
@@ -54639,7 +54639,7 @@ var ConsoleStatusBar = ({ status, title, home }) => {
 
 // src/client/console-dock.tsx
 var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
-var palette = (color) => ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)` });
+var palette = (color) => ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)`, "--tile-contrast": `var(--${color}-contrast)` });
 var Item5 = ({ entry, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV("button", {
   type: "button",
   className: "shell-dock-item",
@@ -55148,7 +55148,7 @@ var Snapshot = ({ snapshot }) => {
           /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(ActivityCard, {
             title: `Services (${String(enabled)}/${String(snapshot.services.length)})`,
             empty: "Nothing reported yet.",
-            rows: snapshot.services.map((service) => [service.id, service.enabled ? `enabled — priority ${String(service.priority)}` : "disabled"])
+            rows: snapshot.services.map((service) => [service.id, service.enabled ? `enabled, priority ${String(service.priority)}` : "disabled"])
           }, undefined, false, undefined, this),
           /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(ActivityCard, {
             title: "Apps",

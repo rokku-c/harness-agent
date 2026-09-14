@@ -80,7 +80,7 @@ const issued: UiNodeSpec = {
 
 export const issueSection: UiNodeSpec = section("Issue a token", [
   form,
-  text("A token is shown once, here, and stored only as its hash — copy it before you leave this card.", { size: "1", color: "gray" }),
+  text("A token is shown once, here, and stored only as its hash. Copy it before you leave this card.", { size: "1", color: "gray" }),
   row([press("Issue token", "gateway.issueToken", undefined, { variant: "solid" })]),
   failureCallout(`${issueResult}/error`),
   issued,

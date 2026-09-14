@@ -83,7 +83,12 @@
 .shell-dock-icon {
   display: grid; place-items: center; width: 68px; height: 68px; border-radius: var(--radius-5);
   background-image: linear-gradient(180deg, var(--tile-9, var(--accent-9)), var(--tile-10, var(--accent-10)));
-  color: #fff; font-size: 27px; font-weight: 700; line-height: 1; box-shadow: var(--shadow-3);
+  /* The mark's colour is the palette's own answer to "what reads on step 9", which is
+     not always white: `amber` and `sky` take a dark ink, and white on `orange` or
+     `gray` is under AA. The design system already decides this per palette and the
+     avatar on the springboard already asks it; the tile is the one place that did not. */
+  color: var(--tile-contrast, var(--accent-contrast));
+  font-size: 27px; font-weight: 700; line-height: 1; box-shadow: var(--shadow-3);
 }
 .shell-dock-label {
   max-width: 86px; font-size: var(--font-size-2); font-weight: 600; line-height: 1.15;

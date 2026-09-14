@@ -64,7 +64,10 @@ const agentCell: UiNodeSpec = cellOf([
 /** What the machine said when it settled, or the fact that it has not said anything yet. */
 const resultCell: UiNodeSpec = cellOf([
   { component: "Text", props: { size: "2" }, item: "detail" },
-  { component: "Text", props: { value: "—", size: "2", color: "gray" },
+  // "pending" rather than a dash: a dash is a decoration over an absence, and the
+  // absence has a name in this journey — the launch is queued and the machine has
+  // not answered yet.
+  { component: "Text", props: { value: "pending", size: "2", color: "gray" },
     visible: { source: { item: "detail" }, not: true } },
 ])
 

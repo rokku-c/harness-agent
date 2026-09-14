@@ -15,9 +15,15 @@ import * as React from "react"
 import { navigate } from "./console-nav.ts"
 import { appRoute, type ConsoleEntry, type ConsoleRoute } from "./console-plan.ts"
 
-/** The palette the app declared, as the two steps a tile's gradient is made of. */
+/**
+ * The palette the app declared, as the three things a tile is made of: the two
+ * steps its gradient runs between, and the colour that reads on top of them.
+ * The third is not decoration — `amber` and `sky` answer with a dark ink and the
+ * rest with white, so a tile that assumes white is unreadable on two palettes
+ * and under AA on four more.
+ */
 const palette = (color: string): React.CSSProperties =>
-  ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)` }) as React.CSSProperties
+  ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)`, "--tile-contrast": `var(--${color}-contrast)` }) as React.CSSProperties
 
 const Item = ({ entry, active, open }: {
   readonly entry: ConsoleEntry

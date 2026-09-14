@@ -27,7 +27,7 @@ const NODE_FIELDS = ["component", "props", "children", "id", "bind", "item", "as
 const nodeProps = z.record(z.string(), z.unknown()).superRefine((value, ctx) => {
   for (const field of NODE_FIELDS) {
     if (field in value) {
-      ctx.addIssue({ code: "custom", path: [field], message: `"${field}" is a node field, not a prop — write it beside props, not inside them` })
+      ctx.addIssue({ code: "custom", path: [field], message: `"${field}" is a node field, not a prop. Write it beside props, not inside them.` })
     }
   }
 })
@@ -60,7 +60,7 @@ export const viewSpecSchema = (): z.ZodType<EffectUiView> => {
   const screens = z.array(screenSchema).superRefine((value, ctx) => {
     value.forEach((screen, index) => {
       if (screen.id === ROOT_SCREEN) {
-        ctx.addIssue({ code: "custom", path: [index, "id"], message: `"${ROOT_SCREEN}" is the screen \`nodes\` already is — this one needs its own id` })
+        ctx.addIssue({ code: "custom", path: [index, "id"], message: `"${ROOT_SCREEN}" is the screen \`nodes\` already is; this one needs its own id` })
       }
     })
   })

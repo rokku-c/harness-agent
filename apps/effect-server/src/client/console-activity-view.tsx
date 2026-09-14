@@ -25,7 +25,7 @@ const Snapshot = ({ snapshot }: { readonly snapshot: ActivitySnapshot }) => {
   return <Flex direction="column" gap="4">
     <Grid columns={{ initial: "1", md: "2" }} gap="4" align="start">
       <ActivityCard title={`Services (${String(enabled)}/${String(snapshot.services.length)})`} empty="Nothing reported yet."
-        rows={snapshot.services.map((service): Row => [service.id, service.enabled ? `enabled — priority ${String(service.priority)}` : "disabled"])} />
+        rows={snapshot.services.map((service): Row => [service.id, service.enabled ? `enabled, priority ${String(service.priority)}` : "disabled"])} />
       <ActivityCard title="Apps" empty="Nothing reported yet." rows={[
         ["catalogued apps", String(snapshot.appCount)],
         ["app operations", String(snapshot.appOperations)],

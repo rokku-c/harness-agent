@@ -33,7 +33,7 @@ const desiredAnswer: UiNodeSpec = answer("/inspect/desired/ok", [
   // What it presents at the door, stated and not shown (§F10): the credential
   // itself is declared on Settings, which is the surface that writes it.
   field("MCP Gateway credential", stated({ state: "/inspect/desired/desired/credentialHeld" },
-    "held — the door names this agent by it", "none — the door refuses it; declare one in agentd's configuration")),
+    "held: the door names this agent by it", "none: the door refuses it; declare one in agentd's configuration")),
   row([request("Plan the push", "agentd.plan", "agentId", "/inspect/desired/desired/agent/agentId")]),
   ...launchForm,
 ])

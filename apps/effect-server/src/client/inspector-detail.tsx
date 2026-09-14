@@ -41,7 +41,7 @@ export const InspectorDetail = ({ id, tool }: { readonly id: string; readonly to
   return <Flex direction="column" gap="4">
     <Flex direction="column" gap="1">
       <Heading size="4">{tool.title ?? tool.name}</Heading>
-      <Text size="2" color="gray"><Code>{tool.name}</Code>{tool.description === undefined ? "" : ` — ${tool.description}`}</Text>
+      <Text size="2" color="gray"><Code>{tool.name}</Code>{tool.description === undefined ? "" : `: ${tool.description}`}</Text>
     </Flex>
     <Separator size="4" />
     <Heading size="3">Arguments</Heading>

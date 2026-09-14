@@ -47,7 +47,7 @@ const missing = (notice: string, options: string): UiNodeSpec => ({
 
 export const identityChooser = chooser("/access/agent", principalsPath, "key", "Choose an identity")
 export const emptyIdentities = missing(
-  "No identity yet. The door names whoever holds a credential — issue one on Identities.", principalsPath)
+  "No identity yet. The door names whoever holds a credential; issue one on Identities.", principalsPath)
 export const toolChooser = chooser("/access/tool", "/gateway/tools", "advertised", "Any tool")
 export const emptyTools = missing(
-  "No tool yet. A server registers and answers a listing before the gateway can offer one — Topology names what each server answered.", "/gateway/tools")
+  "No tool yet. A server registers and answers a listing before the gateway can offer one. Topology names what each server answered.", "/gateway/tools")
