@@ -236,9 +236,31 @@ rather than by the directory it sits in.
 | `source-status.ts` | `sourceStateOf`, kept by the 6 surviving `Readout` theorems |
 | `index.ts` | the declared export entry, `package.json:6` |
 
-**10 go as presentation**: `nodes.ts`, `empty-rows.ts`, `html-renderer.ts`,
-`region.ts`, `readout.ts`, `form/mount.ts`, `form/render.ts`, `form/controls.ts`,
-`row.ts`, `press.ts`.
+**10 go as presentation**: `html-renderer.ts`, `form/mount.ts`, `form/render.ts`,
+`form/controls.ts` (as a whole — its schema decision survives as `formInputType`,
+see below), and the six with no consumer at all.
+
+**Correction, made when the act was executed: five of this table's "presentation"
+files are not presentation.** `nodes.ts`, `empty-rows.ts`, `region.ts`, `row.ts`,
+`press.ts` and `readout.ts` are the **shared node vocabulary**: `nodes.ts` is the
+file whose own header says "seven consoles had each grown a copy of exactly this
+file, so the opinion lives here once". Their consumers are the nine apps' own view
+declarations — `row` 31 uses, `press` 14, `text` 34, `emptyRows` 17, and
+`failureCallout`/`failureBadge` in 22 files — which makes the builders and the
+views **one mechanism split across `packages/` and `apps/`**, not two layers.
+
+Deleting them would not delete a UI; it would delete the thing that makes *one*
+UI possible, and each app would grow its copy back. That is precisely the problem
+this redesign exists to fix, so they stay, and the redesign happens in the views
+that declare against them: the 73 `apps/*/src/effect-ui*.ts` files. `plan.md` §4's
+file list is a list of *subjects*, and "this file is UI" and "this file is a UI
+*vocabulary*" are different claims — the same lesson as §2's and §3's, applied to
+the builders.
+
+`form/controls.ts` is the one file here that was genuinely both, and it is split
+on its seam: deciding which control a schema field is edited with is a decision
+about the schema and survives as `formInputType`; emitting the HTML for that
+control was the html renderer's job and goes with it.
 
 **3 more go, as dead code rather than as presentation**: `ui.ts` (`defineUi`),
 `renderer.ts` (`UiRenderer`) and `document.ts` (`specOf`/`htmlOf`/`languagesOf`)
