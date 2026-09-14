@@ -1,89 +1,63 @@
 /**
- * The Herdr console: the agents of one running server, live.
+ * The herdr console: the terminal agents a running Herdr server owns, and the one
+ * screen where an operator works one of them.
  *
- * Two reads, each on its own timer, because they change on different clocks — a
- * workspace is opened once an hour, and an agent's state changes while you are
- * reading its card. Everything on the page is drawn from those two answers; the
- * only other state is what a form has been typed and what the last press
- * answered, and both are named for what they are.
+ * The first screen is the fleet, because that is the question this app answers —
+ * what is running on this server and what state is it in — and a fleet behind a
+ * door costs a press to see. The other three are jobs: start an agent, read the
+ * workspaces one can be started in, and work the agent picked out of the fleet.
  *
- * The agent read carries a tail, which is what makes the fleet itself live: a
- * view source fetches a fixed url, so a source pointed at one agent would be
- * pointed at whichever agent was selected when the page loaded and never
- * another. The tail rides on the listing instead. That is also why the listing
- * polls faster than the workspaces do — it is the thing being watched.
- *
- * The console is four screens, one per function: the fleet, the agent you picked
- * out of it, starting one, and the workspaces this server has open. The first is
- * `nodes`, and the rest are entered from it by a press that says which screen it
- * opens. On a laptop two of them sit side by side, and on a phone each takes the
- * whole area — the same view, laid out by the width rather than restated for it.
- *
- * The socket is named in the header rather than left implicit: this console can
- * be pointed at any Herdr server on the machine, and a page listing agents
- * should say which server it is listing.
+ * Two reads cover the whole view rather than one per screen. The fleet carries
+ * each agent's last lines, which is what makes the agent screen live without a
+ * read of its own, and the workspaces are what the fleet's rows and the start
+ * form both name. A source is a fixed url (`schema-parts.ts:25`) fetched verbatim,
+ * so which agent a read is about cannot ride in the url — the agent's own screen
+ * reads that one on arrival, addressed by the id the press put in the address.
  */
 import type { EffectUiView } from "@effect-agent/effect-ui"
-import { failureNotice, heading, loadingRows, region, row, text } from "@effect-agent/effect-ui"
 import { herdrActions } from "./effect-ui-actions.ts"
-import { agentNodes } from "./effect-ui-card.ts"
-import { agentsSource, keys, press, sourcePath, workspacesSource } from "./effect-ui-nodes.ts"
-import { openedNodes } from "./effect-ui-opened.ts"
-import { startNodes } from "./effect-ui-start.ts"
-import { workspaceNodes } from "./effect-ui-workspaces.ts"
+import { agentScreen } from "./effect-ui-agent.ts"
+import { readFailure, retry } from "./effect-ui-failures.ts"
+import { fleetCard } from "./effect-ui-fleet.ts"
+import { consoleHeader } from "./effect-ui-header.ts"
+import { AGENTS_SOURCE, WORKSPACES_SOURCE, loadingRows, region } from "./effect-ui-nodes.ts"
+import { AGENTS_REFRESH_MS, FLEET_URL, WORKSPACES_REFRESH_MS, WORKSPACES_URL } from "./effect-ui-reads.ts"
+import { startScreen } from "./effect-ui-start.ts"
+import { workspacesScreen } from "./effect-ui-workspaces.ts"
 
-/** Where the server this page read is named. `server` is written by the workspaces read. */
-const socket = `${sourcePath(workspacesSource)}/server/socketPath`
-
-/** The two screens the fleet itself does not lead to: neither is about an agent that already exists. */
-const doors = row([
-  press("Start an agent", "herdr.openStart", undefined, { variant: "solid" }),
-  press("Workspaces", "herdr.openWorkspaces"),
-])
-
-/**
- * The fleet is what its screen scrolls, and it is the *only* thing that screen
- * scrolls: the region takes the room the header left, so the reads above it —
- * the socket, the failure, the doors — keep their place while twenty cards go by.
- */
 export const effectUiView: EffectUiView = {
   viewId: "herdr-console",
   title: "Herdr",
   state: {
     herdr: {
-      workspaces: { workspaces: [] },
+      // where the two reads land, so a list has a shape to render before the first
+      // answer rather than a path nothing has written yet
       agents: { agents: [] },
+      workspaces: { workspaces: [] },
       draft: { startName: "", startKind: "", startWorkspace: "", message: "" },
-      keys,
+      // The key sequences are state because an action's parameter cannot be an
+      // array (`value-spec.ts:4`) and the wire wants one; this is the one place
+      // they are written down, and a press reads them by path.
+      keys: { escape: ["esc"], interrupt: ["ctrl+c"] },
       result: {},
     },
   },
   sources: [
-    { id: workspacesSource, url: "/herdr/workspaces", state: sourcePath(workspacesSource), refreshMs: 30_000 },
-    { id: agentsSource, url: "/herdr/agents?tail=12", state: sourcePath(agentsSource), refreshMs: 5000 },
+    { id: AGENTS_SOURCE, url: FLEET_URL, state: "/herdr/agents", refreshMs: AGENTS_REFRESH_MS },
+    { id: WORKSPACES_SOURCE, url: WORKSPACES_URL, state: "/herdr/workspaces", refreshMs: WORKSPACES_REFRESH_MS },
   ],
   actions: herdrActions,
   nodes: [
-    heading("Herdr", { size: "6" }),
-    text("The agents of a running Herdr server, read over its socket API: watch them work, talk to them, start one.", { size: "2", color: "gray" }),
-    row([
-      text("Socket", { size: "2", color: "gray" }),
-      { component: "Code", props: { size: "2" }, bind: socket, visible: { source: { state: socket } } },
+    consoleHeader,
+    region([
+      loadingRows(AGENTS_SOURCE, 6),
+      readFailure(AGENTS_SOURCE, "Could not read the terminal agents.", retry("herdr.readFleet")),
+      fleetCard,
     ]),
-    doors,
-    failureNotice(agentsSource),
-    loadingRows(agentsSource, 2),
-    region(agentNodes),
   ],
-  /**
-   * One screen per act. `agent` is where a press on a card lands, and it is the
-   * only place holding that agent's controls — which is the point: a press and
-   * the line saying what it did are on the same screen, so nothing an operator
-   * does reports below the fold.
-   */
   screens: [
-    { id: "agent", title: "Agent", onEnter: "herdr.agentOutput", nodes: openedNodes },
-    { id: "start", title: "Start an agent", nodes: startNodes },
-    { id: "workspaces", title: "Workspaces", nodes: workspaceNodes },
+    { id: "agent", title: "Terminal agent", onEnter: "herdr.agentOutput", nodes: agentScreen },
+    { id: "start", title: "Start an agent", nodes: startScreen },
+    { id: "workspaces", title: "Workspaces", nodes: workspacesScreen },
   ],
 }

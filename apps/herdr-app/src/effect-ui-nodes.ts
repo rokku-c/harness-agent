@@ -1,87 +1,63 @@
 /**
- * The view vocabulary that is Herdr's own.
+ * What the herdr console calls its own: the two reads behind every screen, and
+ * the paths a press writes its answer to.
  *
- * Everything a console has an opinion about in general — a field is its label
- * above its control, a section is a card, a state name is a badge — is
- * `@effect-agent/effect-ui`'s and is used from there rather than restated. What
- * is here is what only this console needs: where its two reads keep their
- * answers, how a press's outcome is shown, and the key sequences a press sends.
+ * A list and its verdict are one read, so both halves are written down once: the
+ * rows a screen draws come from `/herdr/agents/agents`, and whether that read is
+ * still running, came back empty or failed comes from `/_sources/agents`. A
+ * second spelling of either is how a screen ends up saying a read failed while
+ * the rows under it are that read's last good answer.
+ *
+ * The rest is the framework's vocabulary, re-exported so a screen imports this
+ * console and one package rather than both.
  */
-import { NAV_ROOT, failureBadge, row, type UiActionParam, type UiNodeSpec, type UiVisibilitySpec } from "@effect-agent/effect-ui"
+
+export {
+  cell, cellOf, emptyRows, field, heading, listCard, loadingRows, press, region, row, section, sourceStatusPath, text,
+} from "@effect-agent/effect-ui"
+
+/** The fleet read: every agent Herdr has recognized, each with the last lines it printed. */
+export const AGENTS_SOURCE = "agents"
+/** The workspaces read: where an agent may be started, and which server answered. */
+export const WORKSPACES_SOURCE = "workspaces"
 
 /**
- * The two reads. A source's body lands at `/herdr/<id>` and the list inside it
- * at `/herdr/<id>/<id>`: Herdr names its own answer's list after the thing it
- * lists (`{agents: [...]}`), and a source named after its list is the one naming
- * that cannot drift from what is read.
+ * A source's rows. The answer lands at the state path the view declares for the
+ * source and the list is one field of that answer, so the path names the source
+ * twice: reading `/herdr/agents` would be reading the envelope, not the agents.
  */
-export const agentsSource = "agents"
-export const workspacesSource = "workspaces"
-
-/** Where a source's whole answer is. */
-export const sourcePath = (id: string): string => `/herdr/${id}`
-/** Where the list inside it is — what a grid repeats. */
 export const rowsPath = (id: string): string => `/herdr/${id}/${id}`
-/** Where a form keeps what has been typed but not sent. */
-export const draft = (name: string): string => `/herdr/draft/${name}`
 
 /**
- * The message being typed, wherever it is typed. One box, several destinations:
- * a card sends to its own agent and the opened panel sends to the one it holds,
- * but there is only ever one thing being typed.
+ * The agent a screen was entered for. A press that enters a screen puts its
+ * parameters under `/_nav` (`screen.ts:15`) and the screen reads them as ordinary
+ * state, so a row's Open and an address pasted into the bar are one arrival — and
+ * the read that fills the screen is addressed by this path, which is why a link
+ * naming no agent makes no call rather than asking about an agent nobody chose.
  */
-export const message = draft("message")
-/** Where one press's answer lands. */
-export const outcome = (name: string): string => `/herdr/result/${name}`
+export const navTarget = "/_nav/target"
+
+/** The message being typed at an agent, and the three values a start form sends. */
+export const draft = (name: "message" | "startName" | "startKind" | "startWorkspace"): string =>
+  `/herdr/draft/${name}`
 
 /**
- * The agent this screen is about: the pane the address names.
+ * A key sequence, read out of view state.
  *
- * Not the pane the last read came from. The address is what a press and a
- * pasted link both carry, so it is the one thing the screen's controls can be
- * pointed at before any read has answered — and pointed at after one failed.
- * Reading the identity off the answer instead left every control on the screen
- * addressing nothing until the read succeeded, and addressing the previous
- * agent's pane whenever it did not.
+ * The sequence is an array on the wire and an action's parameter cannot be one
+ * (`value-spec.ts:4`), so a press hands over the path that holds it rather than
+ * spelling it — and the sequences themselves are state, in `effect-ui.ts`.
  */
-export const navTarget = `${NAV_ROOT}/target`
-/** One field of that read, for the panel that shows it whole. */
-export const readPart = (field: string): string => `${outcome("agentOutput")}/read/${field}`
+export const keySeq = (name: "escape" | "interrupt"): string => `/herdr/keys/${name}`
 
 /**
- * The key sequences the console can send, held in view state because a press
- * carries scalars and `agent.send_keys` takes a list. The names are the
- * terminal's, not this page's — Herdr recognizes these keys itself.
+ * Where one press's answer lands, named for the press that wrote it. One path per
+ * action, so two presses can never overwrite each other's answer: the failure of
+ * the press an operator did not make cannot appear under the one they did.
  */
-export const keys = { escape: ["esc"], interrupt: ["ctrl+c"] }
-export const keySeq = (name: keyof typeof keys): string => `/herdr/keys/${name}`
+export const outcome = (action: string): string => `/herdr/result/${action.replace(/^herdr\./, "")}`
+export const outcomeOk = (action: string): string => `${outcome(action)}/ok`
+export const outcomeError = (action: string): string => `${outcome(action)}/error`
 
-/** A press, sized to its label rather than to the column it was put in. */
-export const press = (
-  label: string, onPress: string,
-  params?: Readonly<Record<string, UiActionParam>>,
-  props: Readonly<Record<string, unknown>> = {},
-): UiNodeSpec =>
-  ({ component: "Button", props: { value: label, size: "1", variant: "soft", ...props }, onPress,
-    ...(params === undefined ? {} : { params }) })
-
-/** A press that failed: the runtime's own shape, which always carries a readable `error`. */
-export const failure = (name: string): UiNodeSpec => failureBadge(`${outcome(name)}/error`)
-
-/** A press the app accepted. It either happened or it did not, so it can carry a colour. */
-const accepted = (name: string, label: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "green", value: label },
-    visible: { source: { state: `${outcome(name)}/ok` }, equals: true } })
-
-/** One press's outcome, both ways round, in a row that takes no height while it is empty. */
-export const outcomeRow = (name: string, label: string): UiNodeSpec => row([accepted(name, label), failure(name)])
-
-/**
- * An agent's tail, shown only once there is one. A card that reserved the space
- * before a read had answered would be showing a blank terminal as a fact.
- */
-export const hasTail: UiVisibilitySpec = { source: { item: "tail/text" } }
-
-/** Terminal text is the one text on this page whose spacing carries meaning. */
-export const terminal = (maxHeight: string): Readonly<Record<string, unknown>> =>
-  ({ size: "1", style: { whiteSpace: "pre-wrap", maxHeight, overflow: "auto" } })
+/** One field of a read's answer — a pane read answers with a `read` record. */
+export const readField = (action: string, field: string): string => `${outcome(action)}/read/${field}`
