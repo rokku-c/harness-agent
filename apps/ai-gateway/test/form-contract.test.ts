@@ -1,8 +1,12 @@
 import { expect, test } from "bun:test"
 import { toJsonSchema } from "@effect-agent/effect-config"
-import { createFormModel, parseConfigForm, type JsonSchema } from "../../../packages/effect-ui/src/form.ts"
+import { createFormModel } from "../../../packages/effect-ui/src/form/model.ts"
+import { createFormParser } from "../../../packages/effect-ui/src/form/parse.ts"
+import type { JsonSchema } from "../../../packages/effect-ui/src/form/types.ts"
 import { effectConfig } from "../src/effect-config.ts"
 import { providers } from "./helpers.ts"
+
+const parseConfigForm = createFormParser().parse
 
 test("actual gateway schema supports repeated-type form rows without inventing URL/key", () => {
   const schema = toJsonSchema(effectConfig.schema) as JsonSchema

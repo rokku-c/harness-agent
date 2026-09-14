@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test"
-import { createFormModel, parseConfigForm } from "../src/form.ts"
+import { createFormModel } from "../src/form/model.ts"
+import { createFormParser } from "../src/form/parse.ts"
 import { scalarSchema } from "./form-fixture.ts"
 
 const model = createFormModel()
+const parseConfigForm = createFormParser().parse
 test("scalar parsing preserves numbers, zero, false, typed enums and optional absence", () => {
   const form = model.create("board", scalarSchema)
   const set = (key: string, value: unknown) => { form.root.fields.find(field => field.key === key)!.value = value }

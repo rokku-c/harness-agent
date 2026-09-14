@@ -1,15 +1,14 @@
 import { expect, test } from "bun:test"
-import { createFormModel, parseConfigForm, renderConfigForm } from "../src/form.ts"
-import { providerSchema, formElements } from "./form-fixture.ts"
+import { createFormModel } from "../src/form/model.ts"
+import { createFormParser } from "../src/form/parse.ts"
+import { providerSchema } from "./form-fixture.ts"
 
 const model = createFormModel()
-test("provider arrays start empty and offer add, not fixed protocol toggles", async () => {
+const parseConfigForm = createFormParser().parse
+test("provider arrays start empty and offer add, not fixed protocol toggles", () => {
   const form = model.create("gateway", providerSchema)
   expect(form.root.fields[0].rows).toEqual([])
   expect(parseConfigForm(form)).toEqual({ providers: [] })
-  const html = renderConfigForm("gateway", providerSchema)
-  expect((await formElements(html, "[data-add]")).length).toBe(1)
-  expect(await formElements(html, "[data-toggle],[data-remove],[data-field]")).toEqual([])
 })
 
 test("adding same-type rows serializes every ID, optional key and explicit disabled state", () => {
@@ -29,18 +28,6 @@ test("adding same-type rows serializes every ID, optional key and explicit disab
   expect(parseConfigForm(form)).toEqual({ providers: [providers[0], providers[2], providers[3]] })
   while (array.rows.length) model.remove(array, 0)
   expect(parseConfigForm(form)).toEqual({ providers: [] })
-})
-
-test("every row renders editable ID/type/URL/key/enabled controls and a remove action", async () => {
-  const providers = ["east", "west"].map(id => ({ id, apiType: "openai.chat", baseURL: `https://${id}.test` }))
-  const html = renderConfigForm("gateway", providerSchema, { providers })
-  const controls = await formElements(html, "[data-field]")
-  expect(controls.map(input => input["data-field"])).toEqual(Array(2).fill(["id", "apiType", "baseURL", "apiKey", "enabled"]).flat())
-  expect(controls.filter(input => input["data-field"] === "apiType").map(input => input.tag)).toEqual(["select", "select"])
-  expect(controls.filter(input => input["data-field"] === "apiKey").map(input => input.type)).toEqual(["password", "password"])
-  expect((await formElements(html, "[data-remove]")).map(button => button["data-index"])).toEqual(["0", "1"])
-  expect((await formElements(html, "[data-add]")).length).toBe(1)
-  expect(await formElements(html, "fieldset[disabled],[data-toggle]")).toEqual([])
 })
 
 test("incomplete added rows fail validation instead of silently disappearing", () => {

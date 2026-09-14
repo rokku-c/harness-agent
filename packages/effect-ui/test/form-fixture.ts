@@ -1,4 +1,4 @@
-import type { JsonSchema } from "../src/form.ts"
+import type { JsonSchema } from "../src/form/types.ts"
 
 export const scalarSchema: JsonSchema = {
   type: "object",
@@ -24,11 +24,4 @@ export const providerSchema: JsonSchema = {
       },
     } },
   },
-}
-export const formElements = async (html: string, selector: string) => {
-  const result: Record<string, string>[] = []
-  await new HTMLRewriter().on(selector, { element(element) {
-    result.push({ tag: element.tagName, ...Object.fromEntries(element.attributes) })
-  } }).transform(new Response(html)).text()
-  return result
 }

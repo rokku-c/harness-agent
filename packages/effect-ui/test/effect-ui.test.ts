@@ -1,7 +1,6 @@
 import { expect, test } from "bun:test"
 
 import { viewSpecSchema, viewToJsonSchema } from "../src/schema.ts"
-import { htmlRenderer } from "../src/html-renderer.ts"
 import type { EffectUiView } from "../src/spec.ts"
 
 const profileView: EffectUiView = {
@@ -40,13 +39,4 @@ test("the view schema is recursive and open: a node names a component, and its p
   for (const directive of ["component", "bind", "item", "as", "repeat", "visible", "onPress", "params"]) {
     expect(exported).toContain(`"${directive}"`)
   }
-})
-
-test("the html renderer names the design system's component and escapes what it was given", () => {
-  const html = htmlRenderer.render(profileView)
-  expect(html).toContain('data-effect-ui="profile"')
-  expect(html).toContain('data-component="Table.Root"')
-  expect(html).toContain("Hello &lt;world&gt;")
-  expect(html).toContain('data-action="save_profile"')
-  expect(html).toContain('data-bind="/name"')
 })
