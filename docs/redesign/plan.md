@@ -84,8 +84,8 @@ prove, and does the thing it proves still exist"**:
 
 | module | what it actually proves | disposition |
 |---|---|---|
-| `Adapt.lean` | React handler/prop wiring (`attributes`, `read`, `wired`) for the conversion layer | **goes** — 13 theorems about a deleted file |
-| `Stack.lean` | browser history (`backTarget`, `canGoBack`, `reconcile`) | **goes** — pure navigation, no surviving consumer |
+| `Adapt.lean` | React handler/prop wiring (`attributes`, `read`, `wired`) for the conversion layer | **stays, rewritten in place** — see below |
+| `Stack.lean` | browser history (`backTarget`, `canGoBack`, `reconcile`) | **stays, rewritten in place** — see below |
 | `Screen.lean` | `walk`/`chainOf` soundness and termination (`mem_chainOf`, `walk_eq_nil_iff`, `walk_link`) | **stays** — see the `chainOf` note below |
 | `Chain.lean` | `chainOf` repeats no screen and no id (`chainOf_nodup`, `chainOf_ids_nodup`) | **stays** — same subject as `Screen.lean` |
 | `Derive.lean` | id minting (`slug()` at `screen-derive.ts:50-56`, the `[ROOT_SCREEN]` seed at `screen.ts:38`) | **stays** — fully live. The first table had this backwards. |
@@ -106,11 +106,35 @@ the ancestor stack from each screen's declared `parent`, and that walk is exactl
 something real, and deleting it to save eight theorems would mean re-deriving the
 same walk, unproved, in the new client.
 
-So the corrected figure is **460 theorems in 55 files**: 493 less the 13 dead
-`Adapt` theorems, the 16 dead `Stack` ones, and the 4 `Readout` theorems that
-model a deleted file. The reimplementation is obliged to prove its own mechanisms
-and to bring this back up; that obligation is the house rule and is not waived by
-a redesign.
+**`Adapt` and `Stack` are the second reversal, and for the same reason as the
+first.** Both were sent to "goes" on the reasoning that their files are deleted.
+Their files *are* deleted — `client/adapt/**` and `client/console-stack.ts` are
+in the deletion set and are rewritten at L1 and L2. But a rewrite **under the
+same file name** leaves the header true and the theorems real, and both design
+documents make exactly that the outcome:
+
+- `design-system.md` §11 binds every mechanism `Adapt.lean` proves, and addresses
+  a reimplementation by name: the handler derivation "does not write it down",
+  and the render cache must survive because "a reimplementation that cleans up
+  the cache breaks typing into every field in a view". §11.1's own heading is
+  *unchanged, and binding*. The reimplemented `adapt/contract.ts` and
+  `adapt/controls.ts` carry the same names and the same contracts, so the 13
+  theorems keep their subject.
+- `flows.md` H4 and H5 keep the distinction `Stack.lean` proves: whether this
+  session walked to a screen or the address was pasted decides where the return
+  control goes, and "that behaviour is kept". `design-system.md` §10.2 keeps the
+  back bar that reads it. The reimplemented `console-stack.ts` is the same
+  mechanism under the same name, so the 16 theorems keep theirs.
+
+This is the same lesson as §2's, applied to proofs instead of to lines: **a file
+name is not a unit of intent either.** "The file is deleted" and "the mechanism
+is deleted" are different claims, and only the second one costs a theorem.
+
+So the corrected figure is **489 theorems in 57 files**: 493 less only the 4
+`Readout` theorems that model `packages/effect-ui/src/readout.ts`, the one file
+that genuinely disappears rather than being rewritten. The reimplementation is
+obliged to prove its **new** mechanisms and to bring this back up; that
+obligation is the house rule and is not waived by a redesign.
 
 Three modules are kept with a debt attached, and the debt is not optional:
 `Door`, `Entry` and `Refresh` keep their headers naming a file that will be gone
@@ -307,12 +331,12 @@ moved it.
 
 | # | layer | deleted | rebuilt as | its gate |
 |---|---|---|---|---|
-| L1 | **the render contract** — what an app declares and how a node becomes an element | the 10 presentation files and 3 dead files in `packages/effect-ui/src`, `console/view-route.ts`, all of `client/adapt/**` | the new node vocabulary, the new lowerer (§4's extension), the new adaptation layer | `typecheck:client` clean; the client bundle stays near 2.46 MB, not 5.0 |
-| L2 | **the shell** — chrome, routing, theme, keyboard | the rest of `apps/effect-server/src/client/**`; `Adapt.lean` and `Stack.lean`, which are dead | per `design-system.md` §10–11 and `flows.md` §6 | the console loads at `/console` and every address in `console-surface.md` §2 still resolves |
+| L1 | **the render contract** — what an app declares and how a node becomes an element | the 10 presentation files and 3 dead files in `packages/effect-ui/src`, `console/view-route.ts`, all of `client/adapt/**`, and the second renderer in `ui-renderer`/`ui-runtime` (group D) | the new node vocabulary, the new lowerer (§4's extension), and `adapt/**` rewritten **under its existing names**, because §3 keeps `Adapt.lean` and its 13 theorems | `typecheck:client` clean; the client bundle stays near 2.46 MB, not 5.0 |
+| L2 | **the shell** — chrome, routing, theme, keyboard | the rest of `apps/effect-server/src/client/**`, rewritten under its existing names where §3 keeps its proof (`console-stack.ts`) | per `design-system.md` §10–11 and `flows.md` §6 | the console loads at `/console` and every address in `console-surface.md` §2 still resolves |
 | L3 | **the nine app views** | `apps/*/src/effect-ui*.ts` (73 files) | one view per app against the new vocabulary, per `flows.md` §7; `check-ui.ts` updated to the new naming | every app's entry flow walks end to end in a browser; each app's `effect-app.ts` registers cleanly |
 | L4 | **the auxiliary hosts** | `mantis/src/hosts/webui/panel` + its `public/`, board `hosts/web/public`, `deckconsole/public` | the board's UI is the board's app view; mantis keeps its HTTP API and loses its panel | mantis and the board still answer over MCP; the board's UI is reachable from the console |
 | L5 | **dependencies** | `@mantine/core`, `@tabler/icons-react` | the one icon family chosen in `design-system.md` §8 | `bun run check:boundary` at 0/0 with the packages gone |
-| L6 | **proofs** | the dead `Adapt` and `Stack` modules and the 4 `Readout` theorems that model a deleted file | one module per new mechanism, house style | `check:proofs` at **no fewer than 493 in 57** — the pre-deletion figure, not the 460-in-55 floor the deletion leaves |
+| L6 | **proofs** | the 4 `Readout` theorems that model `readout.ts`, a file that genuinely disappears | one module per new mechanism, house style | `check:proofs` at **no fewer than 493 in 57** — the pre-deletion figure. The deletion itself leaves **489**: `Adapt` and `Stack` are rewritten under their own names, not removed |
 
 The `Door`, `Entry` and `Refresh` headers are re-pointed **inside L2**, the layer
 that gives them their new subject, not at the end. A module header names the file
@@ -419,3 +443,44 @@ makes deliberately and visibly rather than one the reimplementation discovers:
 9. `#view/<app>` splits into a view address and a tools address, so an app with
    both stops losing its tools — verified in source at `view-route.ts:32`,
    where the `kind: "view"` branch returns before the tools branch is reached.
+
+---
+
+## 9. Where the two design documents disagree
+
+Two documents were written in parallel and each claims the keyboard.
+`flows.md` §6 says it "owns what the keyboard does and which commands exist" and
+cedes only what the chrome looks like (§6.7); `design-system.md` §10.3 says
+"Every key the console owns" and lists eight. The lists differ in size, about
+twenty-five against eight, and §10.2's palette contents hardcode a pre-flows IA —
+apps, screens, Settings, Activity, appearance — with **no Inbox and no Tools**,
+which the five places require. Left alone, an implementer would pick one document
+and silently drop the other's work.
+
+Resolution, and it is not a coin flip:
+
+1. **`flows.md` §6 owns the key map and the command set.** It is the specific
+   mechanism: a command registry, a shortcut sheet generated from that registry so
+   the sheet cannot drift from the behaviour, a rule that no destructive action is
+   one keystroke, and a rule that an action needing arguments never runs from the
+   palette. `design-system.md` §10.3's table is a strict subset of it.
+2. **`design-system.md` §10 owns the chrome's presentation**: the 48 px bar and
+   its parts, the springboard grid, the dock at 80 px, the palette's geometry and
+   component composition, the skip link, and focus-on-route-change. `flows.md`
+   §6.7 cedes exactly this and no more.
+3. **The palette's contents are `flows.md` §6.4's**, presented per §10.2. A
+   palette that cannot reach Inbox cannot reach the thing the flows design exists
+   for.
+4. **The one outright contradiction is `Escape`.** §10.3 says "`Escape` never
+   navigates"; `flows.md` §6.3 and H5 make it close the top layer and, with none
+   open, return to the parent screen. Neither is adopted whole, because they
+   compose into the rule both were reaching for:
+
+   > `Escape` closes the topmost layer. With no layer open **and no text field,
+   > textarea, select or slider focused**, it returns to the parent screen.
+
+   §10.3's real concern is stated in its own next line — the console "does not
+   hijack `Escape` ... while a text field has focus" — and the composed rule
+   honours it while keeping the return key `flows.md` H5 gives the operator. A
+   rule making `Escape` do nothing at all would leave the console's most-used
+   escape hatch unbound, which is the one outcome both documents reject.
