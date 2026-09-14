@@ -9,7 +9,7 @@ const context = { fetch: mock(() => Promise.reject(new Error("unused egress"))) 
 test("SDK routes UI handlers without listening; reload reads active config and closes each instance", async () => {
   expect(effectApp.createPlugin).toBe(createUiHostPlugin)
   expect(effectApp.plugin).toBeUndefined()
-  let active = { host: "0.0.0.0", port: 4880, theme: "dusk", renderer: "json-render-react", databaseFile: ":memory:" }
+  let active = { host: "0.0.0.0", port: 4880, theme: "dusk", databaseFile: ":memory:" }
   const created: WebHandlerOptions[] = [], stops: ReturnType<typeof mock>[] = []
   const read = mock(() => active)
   const make = (options: WebHandlerOptions) => {
@@ -24,16 +24,16 @@ test("SDK routes UI handlers without listening; reload reads active config and c
     const dispose = await registerEffectApp({ host, activeConfig: read }, {
       ...effectApp, createPlugin: (get, ctx) => createUiHostPlugin(get, ctx, make),
     })
-    expect(created).toEqual([{ theme: "dusk", renderer: "json-render-react", databaseFile: ":memory:", basePath: "/ui" }])
+    expect(created).toEqual([{ theme: "dusk", databaseFile: ":memory:", basePath: "/ui" }])
     expect(host.routes()).toEqual([{ appId: "ui-host", path: "/ui", match: "prefix" }])
     const response = await host.handle(new Request("http://ui/ui/api/runtime"))
-    expect(await response.json()).toMatchObject({ theme: "dusk", renderer: "json-render-react" })
+    expect(await response.json()).toMatchObject({ theme: "dusk" })
     for (const path of ["/api/runtime", "/ui-other"]) expect((await host.handle(new Request("http://ui" + path))).status).toBe(404)
-    active = { ...active, theme: "warm-paper", renderer: "web-html" }
+    active = { ...active, theme: "warm-paper" }
     await host.disable("ui-host")
     await host.enable("ui-host")
     expect(await (await host.handle(new Request("http://ui/ui/api/runtime"))).json())
-      .toMatchObject({ theme: "warm-paper", renderer: "web-html" })
+      .toMatchObject({ theme: "warm-paper" })
     expect(read).toHaveBeenCalledTimes(2)
     await dispose()
     expect(host.routes()).toEqual([])
@@ -48,10 +48,10 @@ test("defaults do not consult environment providers; invalid config allocates no
   const make = mock((_options: WebHandlerOptions) => ({ handle: async () => new Response(), close: () => {} }))
   try {
     const plane = await createUiHostPlugin(() => ({}), context, make).load()
-    expect(make.mock.calls[0][0]).toEqual({ theme: "warm-paper", renderer: "web-html", databaseFile: ".effect-agent/ui.sqlite", basePath: "/ui" })
+    expect(make.mock.calls[0][0]).toEqual({ theme: "warm-paper", databaseFile: ".effect-agent/ui.sqlite", basePath: "/ui" })
     await plane.stop?.()
     make.mockClear()
-    await expect(createUiHostPlugin(() => ({ renderer: "missing" }), context, make).load()).rejects.toThrow()
+    await expect(createUiHostPlugin(() => ({ theme: "not-a-theme" }), context, make).load()).rejects.toThrow()
     expect(make).not.toHaveBeenCalled()
     expect(context.fetch).not.toHaveBeenCalled()
   } finally {

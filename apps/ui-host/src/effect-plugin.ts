@@ -17,8 +17,8 @@ export const createUiHostPlugin = (
   id: "ui-host",
   priority: 30,
   load: async () => {
-    const { theme, renderer, databaseFile } = effectConfig.schema.parse(getConfig())
-    const app = make({ theme, renderer, databaseFile, basePath: "/ui" })
+    const { theme, databaseFile } = effectConfig.schema.parse(getConfig())
+    const app = make({ theme, databaseFile, basePath: "/ui" })
     return {
       ...(app.tools === undefined ? {} : { tools: app.tools }),
       handle: async (request) => {

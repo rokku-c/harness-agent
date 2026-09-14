@@ -11,7 +11,7 @@ test("handler serves shell, catalog, canvas navigation, status and runtime comma
     expect(shell.status).toBe(200)
     expect(shell.headers.get("content-type")).toBe("text/html")
     expect(await get("/api/canvas?canvasId=root")).toMatchObject({ canvasId: "root" })
-    expect(await get("/api/runtime")).toMatchObject({ renderer: "web-html" })
+    expect(await get("/api/runtime")).toMatchObject({ theme: "default", navigation: { current: "root" } })
     const catalog = await get("/api/components")
     expect(catalog.map((c: { type: string }) => c.type)).toContain("Text")
     expect(await get("/api/extensions")).toEqual([])
@@ -20,7 +20,6 @@ test("handler serves shell, catalog, canvas navigation, status and runtime comma
     const command = (body: unknown) => request("/api/command", body)
     expect(await (await command({ kind: "create-canvas", canvasId: "details", title: "Details" })).json()).toMatchObject({ ok: true })
     await command({ kind: "set-theme", theme: "contrast" })
-    await command({ kind: "set-renderer", renderer: "json-render-react" })
-    expect(await get("/api/runtime")).toMatchObject({ theme: "contrast", renderer: "json-render-react" })
+    expect(await get("/api/runtime")).toMatchObject({ theme: "contrast" })
   } finally { app.close() }
 })

@@ -1,30 +1,48 @@
-import type { UiNodeSpec, UiRepeatSpec } from "@effect-agent/effect-ui"
-import { sourceStates } from "@effect-agent/effect-ui"
-import { cell, section, table, text } from "./effect-ui-nodes.ts"
-
 /**
- * What the runtime can draw with: the component types its definition store
- * carries, and the extensions registered beside them.
+ * What a canvas can be built from: the component types the host's definition
+ * store carries, and the extensions registered beside them.
  *
- * One card, because the two tables answer one question an operator asks once —
- * what is available to put on a canvas — and a page of two adjacent headings
- * over two static inventories reads as two subjects. Each list keeps its own
- * source verdicts and its own empty notice: either one can be empty while the
- * other is not.
+ * Both on one screen, because the two tables answer one question an operator
+ * asks once — what is available to put on a canvas. Each list keeps its own read
+ * state and its own empty sentence, since either can be empty while the other is
+ * full, and a verdict shared between them would have to be wrong about one.
+ *
+ * Neither is a card: a table carries its own surface and its own hairlines, and
+ * a card around a table is the composition the design system names as a defect
+ * (design-system §7).
  */
-const inventory = (title: string, id: string, empty: string, headings: readonly string[], cells: readonly UiNodeSpec[], repeat: UiRepeatSpec): UiNodeSpec =>
-  ({ component: "Flex", props: { direction: "column", gap: "2" }, children: [
-    text(title, { size: "2", weight: "medium" }),
-    ...sourceStates(id, empty),
-    table(headings, cells, repeat),
-  ] })
+import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { cellOf, chip, emptyRows, heading, loadingRows, stateRows, table, whenRows } from "@effect-agent/effect-ui"
+import { readFailed, type UiHostSource } from "./effect-ui-sources.ts"
 
-export const catalogSection: UiNodeSpec = section("Catalog", [
-  inventory("Components", "components", "No component types are registered yet.",
-    ["Type", "Version"], [cell("type"), cell("version")], { source: { state: "/components" }, key: "type" }),
-  inventory("Extensions", "extensions", "No extensions are registered yet.",
-    ["Name", "Version"], [cell("name"), cell("version")], { source: { state: "/extensions" }, key: "name" }),
-])
+interface Inventory {
+  readonly title: string
+  /** The source's declared id, where its read verdict is kept. */
+  readonly id: UiHostSource
+  /** The list's own path inside that source. */
+  readonly path: string
+  readonly column: string
+  /** The field a row is addressed by, which is also the repeat's key. */
+  readonly key: string
+  readonly empty: string
+  /** What this list's failed read says, with the press that reads it again. */
+  readonly failed: string
+}
 
-/** The catalog as a destination: what the runtime can draw with, entered from what it is drawing. */
-export const catalogNodes: readonly UiNodeSpec[] = [catalogSection]
+const inventory = ({ title, id, path, column, key, empty, failed }: Inventory): readonly UiNodeSpec[] => [
+  heading(title, { size: "3" }),
+  loadingRows(id, 2),
+  readFailed(id, failed),
+  emptyRows(id, path, empty),
+  whenRows(stateRows(path), table([column, "Version"], [cellOf(chip(key)), cellOf(chip("version"))],
+    { source: { state: path }, key })),
+]
+
+export const catalogNodes: readonly UiNodeSpec[] = [
+  ...inventory({ title: "Components", id: "components", path: "/components", column: "Type", key: "type",
+    empty: "No component type is registered. One appears here once an agent registers it.",
+    failed: "Could not read the component catalog." }),
+  ...inventory({ title: "Extensions", id: "extensions", path: "/extensions", column: "Name", key: "name",
+    empty: "No extension is enabled. One appears here once its manifest is loaded.",
+    failed: "Could not read the extension catalog." }),
+]

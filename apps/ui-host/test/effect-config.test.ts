@@ -18,13 +18,11 @@ test("ui-host config merges effect.yaml config with defaults and per-key provena
   expect(value.theme).toBe("dusk")
   // defaults applied for unset fields
   expect(value.host).toBe("127.0.0.1")
-  expect(value.renderer).toBe("web-html")
 
   expect(out.sources).toEqual({
     port: "yaml",
     theme: "yaml",
     host: "default",
-    renderer: "default",
     databaseFile: "default",
   })
 })
@@ -35,7 +33,9 @@ test("ui-host config schema exports as an object JSON schema with all fields", (
     properties: Record<string, unknown>
   }
   expect(schema.type).toBe("object")
-  for (const key of ["host", "port", "theme", "renderer", "databaseFile"]) {
+  for (const key of ["host", "port", "theme", "databaseFile"]) {
     expect(schema.properties[key]).toBeDefined()
   }
+  // there is one renderer, so there is no field choosing between them
+  expect(schema.properties.renderer).toBeUndefined()
 })

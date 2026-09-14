@@ -5,12 +5,15 @@
  * agent are looking at one answer rather than two that have to be kept in step.
  * Those paths are the console's own and are kept as they were: a page is
  * already loaded when a request arrives, and a rename here would break it.
+ *
+ * There is no read for the renderer: the host draws with one, so a list of one
+ * name that nothing may switch between is a control surface with no control.
  */
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { UiSurfaces } from "./surfaces.ts"
 
-export const readOperations = ({ runtime, definitions, renderers, extensions }: UiSurfaces): readonly Operation[] => [
+export const readOperations = ({ runtime, definitions, extensions }: UiSurfaces): readonly Operation[] => [
   operation({
     name: "ui_get_canvas",
     description: "Read a canvas as resolved, or the active canvas when no id is given",
@@ -20,9 +23,9 @@ export const readOperations = ({ runtime, definitions, renderers, extensions }: 
   }),
   operation({
     name: "ui_get_runtime_state",
-    description: "Read the active canvas navigation, the theme in force, and the renderer serving it",
+    description: "Read the active canvas navigation and the theme in force",
     access: "read", input: noInput, http: { method: "GET", path: "/api/runtime" },
-    handler: () => ({ navigation: runtime.navigation(), theme: runtime.theme(), renderer: runtime.renderer() }),
+    handler: () => ({ navigation: runtime.navigation(), theme: runtime.theme() }),
   }),
   operation({
     name: "ui_list_canvases",
@@ -36,12 +39,6 @@ export const readOperations = ({ runtime, definitions, renderers, extensions }: 
     description: "List the component definitions a canvas may be built from",
     access: "read", input: noInput, http: { method: "GET", path: "/api/components" },
     handler: () => definitions.listComponents(),
-  }),
-  operation({
-    name: "ui_list_renderers",
-    description: "List the renderer implementations this host serves",
-    access: "read", input: noInput, http: { method: "GET", path: "/api/renderers" },
-    handler: () => renderers.list(),
   }),
   operation({
     name: "ui_list_extensions",
