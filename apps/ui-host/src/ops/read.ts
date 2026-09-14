@@ -1,13 +1,14 @@
 /**
  * The reads: what the canvas is, and what it is made of.
  *
- * Each carries the route the console already reads it at, so the browser and an
+ * Each carries the route the console already reads it at, so a screen and an
  * agent are looking at one answer rather than two that have to be kept in step.
- * Those paths are the console's own and are kept as they were: a page is
- * already loaded when a request arrives, and a rename here would break it.
+ * Those paths are the console's own and are kept as they were: every declared
+ * screen of this app names one of them, and a rename here would have to be
+ * made in each declaration and in whatever an agent was told.
  *
- * There is no read for the renderer: the host draws with one, so a list of one
- * name that nothing may switch between is a control surface with no control.
+ * There is no read for the renderer: the console draws, so a list of one name
+ * that nothing may switch between is a control surface with no control.
  */
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"

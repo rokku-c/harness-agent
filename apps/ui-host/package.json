@@ -16,7 +16,6 @@
     "@effect-agent/effect-interface": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
     "@effect-agent/effect-apps": "workspace:*",
-    "@effect-agent/ui-renderer": "workspace:*",
     "@effect-agent/ui-protocol": "workspace:*"
   }
 }
