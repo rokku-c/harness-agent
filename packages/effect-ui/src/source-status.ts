@@ -75,10 +75,15 @@ export const emptyNotice = (id: string, message: string): UiNodeSpec => ({
 /**
  * The source could not be read, naming what it said. Any rows already on screen
  * are still on screen — this sits above them, not in place of them.
+ *
+ * `highContrast` is the builder's, not the view's: §3.4 forces it on every tone
+ * callout, because a soft red label on a light ground paints in step 11 and fails
+ * AA. Putting it here is what keeps a view from having to remember it, and what
+ * kept twenty-two call sites from each getting it wrong the same way.
  */
 export const failureNotice = (id: string): UiNodeSpec => ({
   component: "Callout.Root",
-  props: { color: "red", size: "1" },
+  props: { color: "red", highContrast: true, size: "1" },
   visible: when(id, "failed"),
   children: [{ component: "Callout.Text", bind: `${sourceStatusPath(id)}/error` }],
 })

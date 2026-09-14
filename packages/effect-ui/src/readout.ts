@@ -22,16 +22,22 @@ import type { UiNodeSpec } from "./spec.ts"
 /**
  * What a failed call said, at full width. The answer is the sentence, so nothing
  * is written here on the view's behalf.
+ *
+ * `highContrast` is set here rather than left to the view, because §3.4 forces it
+ * on every tone callout and a builder that omits it makes twenty-two call sites
+ * wrong in the same way. A tone the view cannot get wrong is the point of having
+ * the builder at all.
  */
 export const failureCallout = (bind: string): UiNodeSpec =>
-  ({ component: "Callout.Root", props: { color: "red", size: "1" },
+  ({ component: "Callout.Root", props: { color: "red", highContrast: true, size: "1" },
     visible: { source: { state: bind } }, children: [{ component: "Callout.Text", bind }] })
 
 /**
  * The same readout as a chip, for a row that has no room for a sentence. The
  * badge carries the message rather than a state name — that is the one job it is
- * asked to do here.
+ * asked to do here. §3.4's `failed` row is `Badge variant="soft" color="red"
+ * highContrast`, and the badge is a tone badge, so it takes all three.
  */
 export const failureBadge = (bind: string): UiNodeSpec =>
-  ({ component: "Badge", props: { variant: "soft", color: "red" },
+  ({ component: "Badge", props: { variant: "soft", color: "red", highContrast: true },
     bind, visible: { source: { state: bind } } })
