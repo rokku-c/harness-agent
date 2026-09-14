@@ -54712,7 +54712,7 @@ function createConfigApi(fetcher) {
 }
 
 // src/client/console-shell.tsx
-var React79 = __toESM(require_react(), 1);
+var React87 = __toESM(require_react(), 1);
 
 // src/client/theme-appearance.ts
 var React62 = __toESM(require_react(), 1);
@@ -54797,7 +54797,7 @@ var ConsoleTheme = ({ children, fill = false }) => {
 };
 
 // src/client/console-chrome.tsx
-var React78 = __toESM(require_react(), 1);
+var React86 = __toESM(require_react(), 1);
 // ../../packages/effect-ui/src/screen.ts
 var ROOT_SCREEN = "root";
 var NAV_ROOT = "/_nav";
@@ -56277,7 +56277,8 @@ var FilterBar = ({ filter, plan }) => {
             onValueChange: (value) => set2({ ...filter, actor: value }),
             children: [
               /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Trigger, {
-                "aria-label": "Actor"
+                "aria-label": "Actor",
+                "data-filter": ""
               }, undefined, false, undefined, this),
               /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Content, {
                 children: ACTORS.map((actor) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
@@ -56818,7 +56819,7 @@ var loadView = async (id) => {
 var isView = (read2) => !("kind" in read2);
 
 // src/client/effect-ui-runtime.tsx
-var React72 = __toESM(require_react(), 1);
+var React75 = __toESM(require_react(), 1);
 
 // src/client/effect-ui-source-runtime.ts
 var rowsIn = (body) => {
@@ -56970,7 +56971,7 @@ var Preview = (ctx) => {
   }, undefined, false, undefined, this);
 };
 
-// src/client/effect-ui-own-components.ts
+// src/client/effect-ui-own-components.tsx
 var ownComponents = { Preview };
 
 // src/client/effect-ui-screen-menu.tsx
@@ -57117,22 +57118,157 @@ var useScreenEnter = (handlers, screen2, params) => {
   }, [handlers, name, key]);
 };
 
-// src/client/effect-ui-view-state.tsx
+// src/client/effect-ui-screen-back.ts
 var React71 = __toESM(require_react(), 1);
+var useScreenBack = (appId, chain, screens) => {
+  const back = React71.useCallback(() => {
+    if (canGoBack()) {
+      window.history.back();
+      return;
+    }
+    const parent = chain[chain.length - 2]?.id;
+    navigate({ kind: "app", id: appId, ...parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent } });
+  }, [appId, chain]);
+  const returnTo = React71.useMemo(() => {
+    const parent = chain[chain.length - 2];
+    if (!canGoBack())
+      return parent;
+    const screen2 = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN;
+    return screens.find((candidate) => candidate.id === screen2) ?? parent;
+  }, [chain, screens]);
+  return { back, returnTo };
+};
+
+// src/client/effect-ui-mount.ts
+var React73 = __toESM(require_react(), 1);
+
+// src/client/console-escape.ts
+var React72 = __toESM(require_react(), 1);
+
+// src/client/console-keys.ts
+var isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
+var modKey = () => isMac() ? "⌘" : "Ctrl";
+var MOD = modKey();
+var BACK = isMac() ? "⌘" : "Alt";
+var KEY_MAP = [
+  { keys: `${MOD}+K`, action: "Open the command palette, in command mode", scope: "Global" },
+  { keys: `${MOD}+P`, action: "Open the command palette, in Go to mode: destinations only", scope: "Global" },
+  { keys: "/", action: "Focus the current place's filter or search", scope: "Global, not while a text field has focus" },
+  { keys: "?", action: "Open the shortcut sheet", scope: "Global, not while a text field has focus" },
+  { keys: "g then h", action: "Go Home", scope: "Global, not while a text field has focus. The g prefix expires after 1500 ms" },
+  { keys: "g then i", action: "Go Inbox", scope: "Global, not while a text field has focus" },
+  { keys: "g then a", action: "Go Activity", scope: "Global, not while a text field has focus" },
+  { keys: "g then t", action: "Go Tools", scope: "Global, not while a text field has focus" },
+  { keys: "g then s", action: "Go Settings", scope: "Global, not while a text field has focus" },
+  { keys: "g then l", action: "Go to the last app you were in, at the screen you left", scope: "Global, not while a text field has focus" },
+  { keys: `${BACK}+Left`, action: "Return to the parent screen", scope: "App routes and the places with a second level" },
+  { keys: "Alt+Right", action: "Forward one screen, when this session walked there", scope: "Global" },
+  {
+    keys: "Esc",
+    action: "Close the topmost layer. With none open, return to the parent screen",
+    scope: "Global, not while a text field, textarea, select or slider has focus"
+  },
+  { keys: `${MOD}+Shift+C`, action: "Copy a deep link to exactly what is on screen", scope: "Global" },
+  { keys: `${MOD}+Shift+R`, action: "Refresh every source on the current screen", scope: "Global" },
+  { keys: "Tab", action: "The browser's own order, with the focus scope inside an open dialog and nowhere else", scope: "Global" },
+  { keys: "Enter", action: "Run the focused control", scope: "Any focusable control" }
+];
+
+// src/client/console-key-press.ts
+var UNTYPED = new Set(["checkbox", "radio", "button", "submit", "reset", "file", "image", "color", "hidden"]);
+var isTypingTarget = (target) => {
+  if (!(target instanceof Element))
+    return false;
+  if (target.closest("[contenteditable]:not([contenteditable='false']), [role='slider']") !== null)
+    return true;
+  const field = target.closest("input, textarea, select");
+  return field === null ? false : !(field instanceof HTMLInputElement) || !UNTYPED.has(field.type);
+};
+var isMod = (event) => (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
+var isModShift = (event, key) => (event.metaKey || event.ctrlKey) && event.shiftKey && !event.altKey && event.key.toLowerCase() === key;
+var isReturnKey = (event, arrow4) => event.key === arrow4 && (isMac() ? event.metaKey : event.altKey);
+var isBackKey = (event) => isReturnKey(event, "ArrowLeft");
+var isForwardKey = (event) => isReturnKey(event, "ArrowRight");
+
+// src/client/console-escape.ts
+var LAYER = [
+  '[role="dialog"][data-state="open"]',
+  '[role="alertdialog"][data-state="open"]',
+  '[role="menu"][data-state="open"]',
+  '[role="listbox"][data-state="open"]'
+].join(", ");
+var layerOpen = () => document.querySelector(LAYER) !== null;
+var leave = null;
+var setScreenLeave = (handler) => {
+  leave = handler;
+};
+var leaveScreen = () => {
+  if (leave === null)
+    return false;
+  leave();
+  return true;
+};
+var useConsoleEscape = (onParent) => {
+  const latest = React72.useRef(onParent);
+  React72.useEffect(() => {
+    latest.current = onParent;
+  });
+  React72.useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== "Escape" || isTypingTarget(event.target) || layerOpen())
+        return;
+      event.preventDefault();
+      if (!leaveScreen())
+        latest.current();
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+};
+
+// src/client/console-action-registry.ts
+var mounted = null;
+var setMountedActions = (app, handlers) => {
+  mounted = { app, handlers };
+};
+var clearMountedActions = (app) => {
+  if (mounted?.app === app)
+    mounted = null;
+};
+var runMountedAction = (app, name) => {
+  if (mounted === null || mounted.app !== app)
+    return;
+  mounted.handlers[name]?.({});
+};
+
+// src/client/effect-ui-mount.ts
+var useMountedView = (appId, back, handlers) => {
+  React73.useEffect(() => {
+    setScreenLeave(back);
+    return () => setScreenLeave(null);
+  }, [back]);
+  React73.useEffect(() => {
+    setMountedActions(appId, handlers);
+    return () => clearMountedActions(appId);
+  }, [appId, handlers]);
+};
+
+// src/client/effect-ui-view-state.tsx
+var React74 = __toESM(require_react(), 1);
 var seeded = (state, sources) => ({
   ...state,
   [NAV_ROOT]: {},
   _sources: Object.fromEntries(sources.map((source2) => [source2.id, initialStatus()]))
 });
 var useViewStore = (state, sources) => {
-  const ref = React71.useRef(null);
+  const ref = React74.useRef(null);
   if (ref.current === null)
     ref.current = createStateStore(seeded(state, sources));
   return ref.current;
 };
 var SourceLoader = ({ sources, store, fetcher }) => {
   const read2 = useReadNow();
-  React71.useEffect(() => {
+  React74.useEffect(() => {
     const timers = [];
     for (const source2 of sources) {
       const load = () => void loadSource(source2, store, fetcher);
@@ -57149,32 +57285,19 @@ var SourceLoader = ({ sources, store, fetcher }) => {
 var jsx_dev_runtime28 = __toESM(require_jsx_dev_runtime(), 1);
 var asParams = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]));
 var EffectUiRuntime = ({ runtime }) => {
-  const screens = React72.useMemo(() => runtime?.screens ?? [], [runtime]);
-  const sources = React72.useMemo(() => runtime?.sources ?? [], [runtime]);
+  const screens = React75.useMemo(() => runtime?.screens ?? [], [runtime]);
+  const sources = React75.useMemo(() => runtime?.sources ?? [], [runtime]);
   const appId = runtime?.appId ?? "";
-  const registry2 = React72.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ownComponents))), [screens]);
+  const registry2 = React75.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ownComponents))), [screens]);
   const store = useViewStore(screens[0]?.spec.state, sources);
-  const fetcher = React72.useMemo(() => window.fetch.bind(window), []);
+  const fetcher = React75.useMemo(() => window.fetch.bind(window), []);
   const { chain, current: current2, params } = useScreenView(screens);
   useNavState(store, current2?.id, params);
-  const open2 = React72.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
-  const back = React72.useCallback(() => {
-    if (canGoBack()) {
-      window.history.back();
-      return;
-    }
-    const parent = chain[chain.length - 2]?.id;
-    navigate({ kind: "app", id: appId, ...parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent } });
-  }, [appId, chain]);
-  const returnTo = React72.useMemo(() => {
-    const parent = chain[chain.length - 2];
-    if (!canGoBack())
-      return parent;
-    const screen2 = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN;
-    return screens.find((candidate) => candidate.id === screen2) ?? parent;
-  }, [chain, screens]);
-  const handlers = React72.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
+  const open2 = React75.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
+  const { back, returnTo } = useScreenBack(appId, chain, screens);
+  const handlers = React75.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
   useScreenEnter(handlers, current2, params);
+  useMountedView(appId, back, handlers);
   if (current2 === undefined)
     return null;
   const menu = runtime?.menu === true && current2.id === ROOT_SCREEN ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ScreenMenu, {
@@ -57299,13 +57422,6 @@ var NOT_FOUND = {
 };
 var SURFACES = [...PLACES, APP, NOT_FOUND];
 var surfaceFor = (route) => SURFACES.find((surface) => surface.kinds.includes(route.kind));
-var placeFor = (route) => PLACES.find((place) => place.kinds.includes(route.kind));
-var titleOf = (route, plan) => {
-  if (route.kind === "app" || route.kind === "app-settings") {
-    return plan.find((entry) => entry.id === route.id)?.title ?? route.id;
-  }
-  return placeFor(route)?.title ?? "Not found";
-};
 var parseConsoleHash = (hash2, plan) => {
   const address = parseAddress(hash2);
   for (const surface of SURFACES) {
@@ -57316,35 +57432,17 @@ var parseConsoleHash = (hash2, plan) => {
   return unresolved(address, "place", address.parts[0] ?? "");
 };
 
-// src/client/console-status-bar.tsx
-var React73 = __toESM(require_react(), 1);
-
-// src/client/console-keys.ts
-var modKey = () => typeof navigator === "undefined" || !/Mac|iPhone|iPad/.test(navigator.userAgent) ? "Ctrl" : "⌘";
-var MOD = modKey();
-var KEY_MAP = [
-  { keys: `${MOD}+K`, action: "Open the command palette", scope: "Global" },
-  { keys: "Escape", action: "Close the topmost overlay. With none open it does nothing, and it never navigates", scope: "Global" },
-  { keys: "?", action: "Open the palette showing the keyboard list", scope: "Global, not while a text field has focus" },
-  { keys: "g then h", action: "Go Home", scope: "Global, not while a text field has focus. The g prefix expires after 1500 ms" },
-  { keys: "g then s", action: "Go Settings", scope: "Global, not while a text field has focus" },
-  { keys: "r", action: "Read the current screen's sources again, now", scope: "Global, not while a text field has focus" },
-  { keys: "Tab", action: "The browser's own order, with the focus scope inside an open dialog and nowhere else", scope: "Global" },
-  { keys: "Enter", action: "Run the focused control", scope: "Any focusable control" }
-];
-var CHORD_MS = 1500;
-var UNTYPED = new Set(["checkbox", "radio", "button", "submit", "reset", "file", "image", "color", "hidden"]);
-var isTypingTarget = (target) => {
-  if (!(target instanceof Element))
-    return false;
-  if (target.closest("[contenteditable]:not([contenteditable='false']), [role='slider']") !== null)
-    return true;
-  const field = target.closest("input, textarea, select");
-  return field === null ? false : !(field instanceof HTMLInputElement) || !UNTYPED.has(field.type);
+// src/client/console-titles.ts
+var placeFor = (route, places) => places.find((place) => place.kinds.includes(route.kind));
+var titleOf = (route, plan, places) => {
+  if (route.kind === "app" || route.kind === "app-settings") {
+    return plan.find((entry) => entry.id === route.id)?.title ?? route.id;
+  }
+  return placeFor(route, places)?.title ?? "Not found";
 };
-var isMod = (event) => (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
 
 // src/client/console-status-bar.tsx
+var React76 = __toESM(require_react(), 1);
 var jsx_dev_runtime31 = __toESM(require_jsx_dev_runtime(), 1);
 var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
 var AppearanceButton = () => {
@@ -57381,8 +57479,8 @@ var PaletteButton = ({ onPalette }) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(
   ]
 }, undefined, true, undefined, this);
 var ConsoleStatusBar = ({ status, title, home, onPalette }) => {
-  const [clock, setClock] = React73.useState(clockText);
-  React73.useEffect(() => {
+  const [clock, setClock] = React76.useState(clockText);
+  React76.useEffect(() => {
     const timer = setInterval(() => setClock(clockText()), 30000);
     return () => clearInterval(timer);
   }, []);
@@ -57436,7 +57534,7 @@ var ConsoleStatusBar = ({ status, title, home, onPalette }) => {
 };
 
 // src/client/console-palette.tsx
-var React75 = __toESM(require_react(), 1);
+var React80 = __toESM(require_react(), 1);
 
 // src/client/console-command-row.tsx
 var jsx_dev_runtime32 = __toESM(require_jsx_dev_runtime(), 1);
@@ -57464,6 +57562,12 @@ var CommandRowButton = ({ row: row2, active, onPress }) => /* @__PURE__ */ jsx_d
     /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p9, {
       flexGrow: "1"
     }, undefined, false, undefined, this),
+    row2.address === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      className: "command-palette-address",
+      children: row2.address
+    }, undefined, false, undefined, this),
     row2.shortcut === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(r30, {
       size: "1",
       children: row2.shortcut
@@ -57471,141 +57575,8 @@ var CommandRowButton = ({ row: row2, active, onPress }) => /* @__PURE__ */ jsx_d
   ]
 }, undefined, true, undefined, this);
 
-// src/client/console-commands.ts
-var commandRows = ({ plan, route, screens, places }) => {
-  const byKind = (kind2) => places.find((place) => place.kinds.includes(kind2));
-  const settings = byKind("settings"), activity = byKind("activity");
-  const rows = [];
-  for (const entry of plan)
-    if (entry.hasView)
-      rows.push({
-        id: `app/${entry.id}`,
-        label: `Open ${entry.title}`,
-        glyph: entry.icon,
-        action: { kind: "go", route: appRoute(entry.id) }
-      });
-  const open2 = route.kind === "app" ? route.id : undefined;
-  const app = plan.find((entry) => entry.id === open2);
-  if (open2 !== undefined)
-    for (const screen2 of screens)
-      rows.push({
-        id: `screen/${open2}/${screen2.id}`,
-        label: screen2.title,
-        caption: app?.title ?? open2,
-        glyph: "AppWindow",
-        action: { kind: "go", route: { kind: "app", id: open2, screen: screen2.id } }
-      });
-  if (settings !== undefined)
-    rows.push({
-      id: "place/settings",
-      label: `Open ${settings.title}`,
-      glyph: settings.mark,
-      shortcut: "g s",
-      action: { kind: "go", route: settings.route }
-    });
-  for (const entry of configApps(plan))
-    rows.push({
-      id: `configure/${entry.id}`,
-      label: `Configure ${entry.title}`,
-      glyph: entry.icon,
-      action: { kind: "go", route: { kind: "settings", app: entry.id } }
-    });
-  if (activity !== undefined)
-    rows.push({
-      id: "place/activity",
-      label: `Open ${activity.title}`,
-      glyph: activity.mark,
-      action: { kind: "go", route: activity.route }
-    });
-  for (const mode of THEME_MODES)
-    rows.push({
-      id: `appearance/${mode}`,
-      label: `Appearance: ${themeLabel(mode)}`,
-      glyph: "CircleHalf",
-      action: { kind: "appearance", mode }
-    });
-  rows.push({ id: "read", label: "Read now", glyph: "ArrowClockwise", shortcut: "r", action: { kind: "read" } });
-  rows.push({ id: "shortcuts", label: "Keyboard shortcuts", glyph: "Keyboard", shortcut: "?", action: { kind: "shortcuts" } });
-  return rows;
-};
-var matches2 = (text2, query2) => {
-  const needle = query2.trim().toLowerCase();
-  return needle === "" || text2.toLowerCase().includes(needle);
-};
-var filterCommands = (rows, query2) => rows.filter((row2) => matches2(`${row2.label} ${row2.caption ?? ""}`, query2));
-
-// src/client/console-shortcuts.tsx
-var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
-var ConsoleShortcuts = ({ search }) => {
-  const rows = KEY_MAP.filter((binding2) => matches2(`${binding2.keys} ${binding2.action} ${binding2.scope}`, search));
-  if (rows.length === 0)
-    return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
-      size: "2",
-      color: "gray",
-      m: "2",
-      children: "No key matches that."
-    }, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
-    direction: "column",
-    gap: "3",
-    p: "2",
-    children: rows.map((binding2) => /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
-      align: "start",
-      gap: "3",
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p9, {
-          style: { flex: "none", minWidth: "6rem" },
-          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(r30, {
-            size: "1",
-            children: binding2.keys
-          }, undefined, false, undefined, this)
-        }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
-          direction: "column",
-          gap: "1",
-          style: { flex: "1 1 auto", minWidth: 0 },
-          children: [
-            /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
-              size: "2",
-              children: binding2.action
-            }, undefined, false, undefined, this),
-            /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
-              size: "1",
-              color: "gray",
-              children: binding2.scope
-            }, undefined, false, undefined, this)
-          ]
-        }, undefined, true, undefined, this)
-      ]
-    }, binding2.keys, true, undefined, this))
-  }, undefined, false, undefined, this);
-};
-
-// src/client/console-app-screens.ts
-var React74 = __toESM(require_react(), 1);
-var useAppScreens = (id) => {
-  const [screens, setScreens] = React74.useState([]);
-  React74.useEffect(() => {
-    if (id === undefined)
-      return;
-    let live = true;
-    loadView(id).then((read2) => {
-      if (live)
-        setScreens(isView(read2) ? read2.screens : []);
-    }, () => {
-      if (live)
-        setScreens([]);
-    });
-    return () => {
-      live = false;
-    };
-  }, [id]);
-  return screens;
-};
-
-// src/client/console-palette.tsx
-var jsx_dev_runtime34 = __toESM(require_jsx_dev_runtime(), 1);
-var BOX = {
+// src/client/console-layer-box.ts
+var LAYER_BOX = {
   position: "fixed",
   top: "12vh",
   left: "50%",
@@ -57616,16 +57587,256 @@ var BOX = {
   borderRadius: "var(--radius-5)",
   boxShadow: "var(--shadow-3)"
 };
-var ConsolePalette = ({ mode, plan, route, places, onClose, restore }) => {
-  const [view, setView] = React75.useState(mode);
-  const [search, setSearch] = React75.useState("");
-  const [cursor, setCursor] = React75.useState(0);
-  const list = React75.useRef(null);
-  const navigated = React75.useRef(false);
-  const screens = useAppScreens(route.kind === "app" ? route.id : undefined);
-  const [, setTheme] = useThemeMode();
-  const rows = React75.useMemo(() => filterCommands(commandRows({ plan, route, screens, places }), search), [plan, route, screens, places, search]);
-  const run = React75.useCallback((row2) => {
+
+// src/client/console-chords.ts
+var CHORD_ROUTES = {
+  h: { kind: "home" },
+  i: { kind: "inbox" },
+  a: { kind: "activity", filter: {} },
+  t: { kind: "tools" },
+  s: { kind: "settings" }
+};
+var CHORD_MS = 1500;
+
+// src/client/console-command-destinations.ts
+var chordFor = (route) => {
+  const found = Object.entries(CHORD_ROUTES).find(([, chord]) => chord.kind === route.kind);
+  return found === undefined ? undefined : `g ${found[0]}`;
+};
+var landOn = (entry) => entry.hasView ? appRoute(entry.id) : entry.hasTools ? { kind: "tools", app: entry.id } : { kind: "settings", app: entry.id };
+var where = (route) => route.kind === "tools" ? "operations" : "configuration";
+var placeRows = (places) => places.map((place) => {
+  const shortcut = chordFor(place.route);
+  return {
+    id: `place/${place.id}`,
+    label: place.title,
+    caption: "Place",
+    glyph: place.mark,
+    ...shortcut === undefined ? {} : { shortcut },
+    address: hashOf(place.route),
+    action: { kind: "go", route: place.route }
+  };
+});
+var appRows = (plan) => plan.map((entry) => {
+  const route = landOn(entry);
+  return {
+    id: `app/${entry.id}`,
+    label: entry.title,
+    caption: entry.hasView ? "App" : `App · ${where(route)}`,
+    glyph: entry.icon,
+    address: hashOf(route),
+    owner: entry.id,
+    action: { kind: "go", route }
+  };
+});
+var appTitle = (plan, id) => plan.find((entry) => entry.id === id)?.title ?? id;
+var screenRows = (view, plan) => view === undefined ? [] : view.screens.map((screen2) => ({
+  id: `screen/${view.id}/${screen2.id}`,
+  label: screen2.title,
+  caption: `Screen · ${appTitle(plan, view.id)}`,
+  glyph: "AppWindow",
+  owner: view.id,
+  address: hashOf({ kind: "app", id: view.id, ...screen2.id === ROOT_SCREEN ? {} : { screen: screen2.id } }),
+  action: {
+    kind: "go",
+    route: { kind: "app", id: view.id, ...screen2.id === ROOT_SCREEN ? {} : { screen: screen2.id } }
+  }
+}));
+var configRows = (plan) => configApps(plan).map((entry) => ({
+  id: `configure/${entry.id}`,
+  label: entry.title,
+  caption: "Configuration",
+  glyph: entry.icon,
+  address: hashOf({ kind: "settings", app: entry.id }),
+  owner: entry.id,
+  action: { kind: "go", route: { kind: "settings", app: entry.id } }
+}));
+var destinationRows = ({ plan, places, view }) => [
+  ...placeRows(places),
+  ...appRows(plan),
+  ...screenRows(view, plan),
+  ...configRows(plan)
+];
+
+// src/client/console-command-host.ts
+var operationRows = ({ operations }) => operations.flatMap((app) => app.tools.map((tool) => ({
+  id: `operation/${app.id}/${tool.name}`,
+  label: tool.title ?? tool.name,
+  caption: `Operation · ${app.title}`,
+  glyph: "Wrench",
+  address: hashOf({ kind: "tools", app: app.id, operation: tool.name }),
+  owner: app.id,
+  action: { kind: "go", route: { kind: "tools", app: app.id, operation: tool.name } }
+})));
+var decisionRows = ({ decisions }) => decisions.filter((decision) => decision.state === "waiting").map((decision) => ({
+  id: `decision/${decision.id}`,
+  label: decision.subject,
+  caption: `Decision · ${decision.raisedBy}`,
+  glyph: "Tray",
+  address: hashOf({ kind: "inbox", decisionId: decision.id }),
+  action: { kind: "go", route: { kind: "inbox", decisionId: decision.id } }
+}));
+
+// src/client/console-command-console.ts
+var runsFromHere = (action2) => (action2.params === undefined || Object.keys(action2.params).length === 0) && (action2.url === undefined || action2.method === "GET");
+var pressedBy = (element) => {
+  const on = element.on;
+  return typeof on?.press?.action === "string" ? on.press.action : undefined;
+};
+var holderOf = (view, name) => view.screens.find((screen2) => Object.values(screen2.spec.elements).some((element) => pressedBy(element) === name))?.id;
+var actionRows = ({ plan, view, open: open2 }) => {
+  if (view === undefined || open2 === undefined || view.id !== open2)
+    return [];
+  const title = plan.find((entry) => entry.id === view.id)?.title ?? view.id;
+  return (view.actions ?? []).flatMap((action2) => {
+    const row2 = { id: `action/${view.id}/${action2.name}`, label: action2.name, caption: `Action · ${title}`, glyph: "Check", owner: view.id };
+    if (runsFromHere(action2))
+      return [{ ...row2, action: { kind: "run", app: view.id, name: action2.name } }];
+    const screen2 = holderOf(view, action2.name);
+    if (screen2 === undefined)
+      return [];
+    const route = { kind: "app", id: view.id, ...screen2 === ROOT_SCREEN ? {} : { screen: screen2 } };
+    return [{ ...row2, address: hashOf(route), action: { kind: "go", route } }];
+  });
+};
+var consoleRows = ({ decisions }) => {
+  const rows = THEME_MODES.map((mode) => ({
+    id: `appearance/${mode}`,
+    label: `Appearance: ${themeLabel(mode)}`,
+    caption: "Console",
+    glyph: "CircleHalf",
+    action: { kind: "appearance", mode }
+  }));
+  rows.push({
+    id: "read",
+    label: "Read now",
+    caption: "Console",
+    glyph: "ArrowClockwise",
+    shortcut: `${modKey()}+Shift+R`,
+    action: { kind: "read" }
+  });
+  rows.push({
+    id: "copy",
+    label: "Copy a link to this screen",
+    caption: "Console",
+    glyph: "ArrowSquareOut",
+    shortcut: `${modKey()}+Shift+C`,
+    action: { kind: "copy" }
+  });
+  rows.push({ id: "shortcuts", label: "Keyboard shortcuts", caption: "Console", glyph: "Keyboard", shortcut: "?", action: { kind: "shortcuts" } });
+  const newest = decisions.find((decision) => decision.state === "waiting");
+  if (newest !== undefined)
+    rows.push({
+      id: "newest",
+      label: `Newest waiting decision: ${newest.subject}`,
+      caption: "Console",
+      glyph: "Tray",
+      address: hashOf({ kind: "inbox", decisionId: newest.id }),
+      action: { kind: "go", route: { kind: "inbox", decisionId: newest.id } }
+    });
+  return rows;
+};
+
+// src/client/console-commands.ts
+var commandRows = (input2) => [
+  ...destinationRows(input2),
+  ...operationRows(input2),
+  ...decisionRows(input2),
+  ...input2.mode === "commands" ? [...actionRows(input2), ...consoleRows(input2)] : []
+];
+
+// src/client/console-command-search.ts
+var matches2 = (text2, query2) => {
+  const terms = query2.trim().toLowerCase().split(/\s+/).filter((term) => term !== "");
+  const haystack = text2.toLowerCase();
+  return terms.every((term) => haystack.includes(term));
+};
+var textOf = (row2) => `${row2.label} ${row2.caption} ${row2.address ?? ""} ${row2.shortcut ?? ""}`;
+var filterCommands = (rows, query2, open2) => {
+  const matched = rows.filter((row2) => matches2(textOf(row2), query2));
+  return open2 === undefined ? matched : [...matched.filter((row2) => row2.owner === open2), ...matched.filter((row2) => row2.owner !== open2)];
+};
+
+// src/client/console-palette-address.tsx
+var addressRow = (query2, plan, places) => {
+  const text2 = query2.trim();
+  if (!text2.startsWith("#"))
+    return;
+  const route = parseConsoleHash(text2, plan);
+  const known = route.kind !== "not-found";
+  return {
+    id: "address",
+    label: known ? `Go to ${titleOf(route, plan, places)}` : "Go to this address",
+    caption: known ? "Address" : "Not found",
+    glyph: "ArrowSquareOut",
+    address: hashOf(route),
+    action: { kind: "go", route }
+  };
+};
+
+// src/client/console-palette-reads.ts
+var React77 = __toESM(require_react(), 1);
+var NO_APPS = [];
+var NO_DECISIONS = [];
+var useRead = (load, empty) => {
+  const [value, setValue] = React77.useState(empty);
+  React77.useEffect(() => {
+    let live = true;
+    load().then((read2) => {
+      if (live)
+        setValue(read2);
+    }, () => {
+      if (live)
+        setValue(empty);
+    });
+    return () => {
+      live = false;
+    };
+  }, [load, empty]);
+  return value;
+};
+var useOpenView = (id) => {
+  const [view, setView] = React77.useState(undefined);
+  React77.useEffect(() => {
+    if (id === undefined) {
+      setView(undefined);
+      return;
+    }
+    let live = true;
+    loadView(id).then((read2) => {
+      if (live)
+        setView(isView(read2) ? read2 : undefined);
+    }, () => {
+      if (live)
+        setView(undefined);
+    });
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  return view;
+};
+var useOperations = () => useRead(React77.useCallback(() => loadTools().then((catalogue) => catalogue.apps), []), NO_APPS);
+var useWaitingDecisions = () => useRead(React77.useCallback(() => loadInbox().then((snapshot) => snapshot.decisions), []), NO_DECISIONS);
+
+// src/client/console-command-run.ts
+var React78 = __toESM(require_react(), 1);
+
+// src/client/console-deep-link.ts
+var deepLink = () => window.location.href;
+var copyDeepLink = async () => {
+  try {
+    await navigator.clipboard.writeText(deepLink());
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// src/client/console-command-run.ts
+var useCommandRun = (onClose, onShortcuts, setTheme) => {
+  const navigated = React78.useRef(false);
+  const run = React78.useCallback((row2) => {
     switch (row2.action.kind) {
       case "go":
         navigated.current = true;
@@ -57640,19 +57851,34 @@ var ConsolePalette = ({ mode, plan, route, places, onClose, restore }) => {
         readNow();
         onClose();
         return;
+      case "copy":
+        copyDeepLink().then(() => onClose());
+        return;
+      case "run":
+        runMountedAction(row2.action.app, row2.action.name);
+        onClose();
+        return;
       case "shortcuts":
-        setView("shortcuts");
-        setSearch("");
-        setCursor(0);
+        onShortcuts();
         return;
     }
-  }, [onClose, setTheme]);
-  React75.useEffect(() => {
+  }, [onClose, onShortcuts, setTheme]);
+  return { run, navigated };
+};
+
+// src/client/console-command-cursor.ts
+var React79 = __toESM(require_react(), 1);
+var within = (index2, length) => length === 0 ? 0 : Math.min(index2, length - 1);
+var useCommandCursor = (rows, run) => {
+  const [cursor, setCursor] = React79.useState(0);
+  const list = React79.useRef(null);
+  React79.useEffect(() => {
+    setCursor((current2) => within(current2, rows.length));
+  }, [rows.length]);
+  React79.useEffect(() => {
     list.current?.querySelector('[data-active="on"]')?.scrollIntoView({ block: "nearest" });
   }, [cursor, rows]);
   const onKeyDown = (event) => {
-    if (view !== "commands")
-      return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       if (rows.length === 0)
         return;
@@ -57669,6 +57895,91 @@ var ConsolePalette = ({ mode, plan, route, places, onClose, restore }) => {
     event.preventDefault();
     run(row2);
   };
+  return {
+    reset: React79.useCallback(() => setCursor(0), []),
+    list,
+    onKeyDown,
+    activeAt: React79.useCallback((index2) => index2 === cursor, [cursor])
+  };
+};
+
+// src/client/console-palette.tsx
+var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
+var openApp = (route) => route.kind === "app" || route.kind === "app-settings" ? route.id : undefined;
+var ConsolePalette = ({ mode, plan, route, places, onClose, onShortcuts, restore }) => {
+  const [search, setSearch] = React80.useState("");
+  const open2 = openApp(route);
+  const view = useOpenView(open2);
+  const operations = useOperations();
+  const decisions = useWaitingDecisions();
+  const [, setTheme] = useThemeMode();
+  const { run, navigated } = useCommandRun(onClose, onShortcuts, setTheme);
+  const rows = React80.useMemo(() => {
+    const ranked = filterCommands(commandRows({ plan, route, places, open: open2, view, operations, decisions, mode }), search, open2);
+    const address = addressRow(search, plan, places);
+    return address === undefined ? ranked : [address, ...ranked];
+  }, [plan, route, places, open2, view, operations, decisions, mode, search]);
+  const cursor = useCommandCursor(rows, run);
+  return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_dialog.Root, {
+    open: true,
+    onOpenChange: (next) => {
+      if (!next)
+        onClose();
+    },
+    children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_dialog.Content, {
+      style: LAYER_BOX,
+      onKeyDown: cursor.onKeyDown,
+      onCloseAutoFocus: (event) => {
+        event.preventDefault();
+        if (!navigated.current)
+          restore();
+      },
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(d4, {
+          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_dialog.Title, {
+            children: "Command palette"
+          }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_text_field.Root, {
+          size: "3",
+          variant: "soft",
+          placeholder: "Search apps, screens and settings",
+          value: search,
+          onChange: (event) => {
+            setSearch(event.target.value);
+            cursor.reset();
+          }
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(c3, {
+          ref: cursor.list,
+          className: "command-palette-list",
+          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
+            direction: "column",
+            gap: "1",
+            p: "1",
+            children: rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
+              size: "2",
+              color: "gray",
+              m: "2",
+              children: "No command matches that."
+            }, undefined, false, undefined, this) : rows.map((row2, index2) => /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(CommandRowButton, {
+              row: row2,
+              active: cursor.activeAt(index2),
+              onPress: () => run(row2)
+            }, row2.id, false, undefined, this))
+          }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this);
+};
+
+// src/client/console-shortcuts.tsx
+var React81 = __toESM(require_react(), 1);
+var jsx_dev_runtime34 = __toESM(require_jsx_dev_runtime(), 1);
+var ConsoleShortcuts = ({ onClose, restore }) => {
+  const [search, setSearch] = React81.useState("");
+  const rows = KEY_MAP.filter((binding2) => matches2(`${binding2.keys} ${binding2.action} ${binding2.scope}`, search));
   return /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Root, {
     open: true,
     onOpenChange: (next) => {
@@ -57676,48 +57987,64 @@ var ConsolePalette = ({ mode, plan, route, places, onClose, restore }) => {
         onClose();
     },
     children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Content, {
-      style: BOX,
-      onKeyDown,
+      style: LAYER_BOX,
       onCloseAutoFocus: (event) => {
         event.preventDefault();
-        if (!navigated.current)
-          restore();
+        restore();
       },
       children: [
         /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(d4, {
           children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Title, {
-            children: view === "shortcuts" ? "Keyboard shortcuts" : "Command palette"
+            children: "Keyboard shortcuts"
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
         /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_text_field.Root, {
           size: "3",
           variant: "soft",
-          placeholder: "Search apps, screens and settings",
+          placeholder: "Search keys",
           value: search,
-          onChange: (event) => {
-            setSearch(event.target.value);
-            setCursor(0);
-          }
+          onChange: (event) => setSearch(event.target.value)
         }, undefined, false, undefined, this),
         /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(c3, {
-          ref: list,
           className: "command-palette-list",
-          children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+          children: rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            m: "2",
+            children: "No key matches that."
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
             direction: "column",
-            gap: "1",
-            p: "1",
-            children: view === "shortcuts" ? /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(ConsoleShortcuts, {
-              search
-            }, undefined, false, undefined, this) : rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
-              size: "2",
-              color: "gray",
-              m: "2",
-              children: "No command matches that."
-            }, undefined, false, undefined, this) : rows.map((row2, index2) => /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(CommandRowButton, {
-              row: row2,
-              active: index2 === cursor,
-              onPress: () => run(row2)
-            }, row2.id, false, undefined, this))
+            gap: "3",
+            p: "2",
+            children: rows.map((binding2) => /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+              align: "start",
+              gap: "3",
+              children: [
+                /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p9, {
+                  style: { flex: "none", minWidth: "6rem" },
+                  children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(r30, {
+                    size: "1",
+                    children: binding2.keys
+                  }, undefined, false, undefined, this)
+                }, undefined, false, undefined, this),
+                /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+                  direction: "column",
+                  gap: "1",
+                  style: { flex: "1 1 auto", minWidth: 0 },
+                  children: [
+                    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+                      size: "2",
+                      children: binding2.action
+                    }, undefined, false, undefined, this),
+                    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+                      size: "1",
+                      color: "gray",
+                      children: binding2.scope
+                    }, undefined, false, undefined, this)
+                  ]
+                }, undefined, true, undefined, this)
+              ]
+            }, binding2.keys, true, undefined, this))
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       ]
@@ -57737,13 +58064,13 @@ var SkipLink = ({ target }) => /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(d4, {
 }, undefined, false, undefined, this);
 
 // src/client/console-keyboard.ts
-var React76 = __toESM(require_react(), 1);
+var React82 = __toESM(require_react(), 1);
 var useConsoleKeys = (keys) => {
-  const latest = React76.useRef(keys);
-  React76.useEffect(() => {
+  const latest = React82.useRef(keys);
+  React82.useEffect(() => {
     latest.current = keys;
   });
-  React76.useEffect(() => {
+  React82.useEffect(() => {
     let chord = 0;
     const onKeyDown = (event) => {
       const keys2 = latest.current;
@@ -57752,7 +58079,25 @@ var useConsoleKeys = (keys) => {
         if (keys2.paletteOpen)
           keys2.closePalette();
         else
-          keys2.openPalette();
+          keys2.openPalette("commands");
+        return;
+      }
+      if (isMod(event) && event.key.toLowerCase() === "p") {
+        event.preventDefault();
+        if (keys2.paletteOpen)
+          keys2.closePalette();
+        else
+          keys2.openPalette("goto");
+        return;
+      }
+      if (isModShift(event, "c")) {
+        event.preventDefault();
+        keys2.copyLink();
+        return;
+      }
+      if (isModShift(event, "r")) {
+        event.preventDefault();
+        readNow();
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey)
@@ -57761,34 +58106,42 @@ var useConsoleKeys = (keys) => {
         chord = 0;
         return;
       }
+      if (event.key === "g") {
+        chord = Date.now();
+        return;
+      }
       const prefixed = chord !== 0 && Date.now() - chord <= CHORD_MS;
       chord = 0;
-      switch (event.key) {
-        case "h":
-          if (prefixed) {
-            event.preventDefault();
-            keys2.goHome();
-          }
-          return;
-        case "s":
-          if (prefixed) {
-            event.preventDefault();
-            keys2.goSettings();
-          }
-          return;
-        case "g":
-          chord = Date.now();
-          return;
-        case "?":
-          event.preventDefault();
-          keys2.openShortcuts();
-          return;
-        case "r":
-          event.preventDefault();
-          readNow();
-          return;
-        default:
-          return;
+      if (prefixed && event.key === "l") {
+        event.preventDefault();
+        keys2.goLast();
+        return;
+      }
+      const route = prefixed ? CHORD_ROUTES[event.key] : undefined;
+      if (route !== undefined) {
+        event.preventDefault();
+        keys2.go(route);
+        return;
+      }
+      if (event.key === "/") {
+        event.preventDefault();
+        keys2.focusFilter();
+        return;
+      }
+      if (event.key === "?") {
+        event.preventDefault();
+        keys2.openShortcuts();
+        return;
+      }
+      if (isBackKey(event)) {
+        event.preventDefault();
+        keys2.back();
+        return;
+      }
+      if (isForwardKey(event)) {
+        event.preventDefault();
+        keys2.forward();
+        return;
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -57796,12 +58149,87 @@ var useConsoleKeys = (keys) => {
   }, []);
 };
 
+// src/client/console-actions.ts
+var React83 = __toESM(require_react(), 1);
+
+// src/client/console-goto.ts
+var last = null;
+var rememberApp = (route) => {
+  if (route.kind === "app")
+    last = route;
+};
+var lastApp = () => last ?? undefined;
+
+// src/client/console-parent.ts
+var parentRoute = (route) => {
+  switch (route.kind) {
+    case "inbox":
+      return route.decisionId === undefined ? undefined : { kind: "inbox" };
+    case "tools":
+      return route.operation === undefined ? undefined : { kind: "tools", ...route.app === undefined ? {} : { app: route.app } };
+    case "settings":
+      return route.app === undefined ? undefined : { kind: "settings" };
+    case "app-settings":
+      return { kind: "app", id: route.id };
+    default:
+      return;
+  }
+};
+
+// src/client/console-actions.ts
+var useConsoleMoves = (route, body) => {
+  const back = React83.useCallback(() => {
+    if (canGoBack()) {
+      window.history.back();
+      return;
+    }
+    const parent = parentRoute(route);
+    if (parent !== undefined)
+      navigate(parent);
+  }, [route]);
+  return {
+    go: React83.useCallback((target) => navigate(target), []),
+    goLast: React83.useCallback(() => {
+      const last2 = lastApp();
+      if (last2 !== undefined)
+        navigate(last2);
+    }, []),
+    back,
+    forward: React83.useCallback(() => window.history.forward(), []),
+    focusFilter: React83.useCallback(() => {
+      body.current?.querySelector("[data-filter]")?.focus({ preventScroll: true });
+    }, [body]),
+    copyLink: React83.useCallback(() => void copyDeepLink(), [])
+  };
+};
+
+// src/client/console-layers.ts
+var React84 = __toESM(require_react(), 1);
+var useLayer = (body) => {
+  const [layer, setLayer] = React84.useState(null);
+  const opener = React84.useRef(null);
+  const open2 = React84.useCallback((next) => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setLayer(next);
+  }, []);
+  const replace = React84.useCallback((next) => setLayer(next), []);
+  const close = React84.useCallback(() => setLayer(null), []);
+  const restore = React84.useCallback(() => {
+    const control2 = opener.current;
+    if (control2 !== null && control2.isConnected)
+      control2.focus({ preventScroll: true });
+    else
+      body.current?.focus({ preventScroll: true });
+  }, [body]);
+  return { layer, open: open2, replace, close, restore };
+};
+
 // src/client/console-route-focus.ts
-var React77 = __toESM(require_react(), 1);
+var React85 = __toESM(require_react(), 1);
 var headingIn = (body) => body.querySelector("[data-route-heading]") ?? body.querySelector("h1, h2, h3, h4, h5, h6");
 var useRouteFocus = (route, body) => {
   const address = hashOf(route);
-  React77.useEffect(() => {
+  React85.useEffect(() => {
     const node2 = body.current;
     if (node2 === null || isTypingTarget(document.activeElement))
       return;
@@ -57821,29 +58249,32 @@ var useRouteFocus = (route, body) => {
 // src/client/console-chrome.tsx
 var jsx_dev_runtime36 = __toESM(require_jsx_dev_runtime(), 1);
 var ConsoleChrome = ({ plan, route, status, home, body }) => {
-  const [palette, setPalette] = React78.useState(null);
-  const opener = React78.useRef(null);
-  const openPalette = React78.useCallback((mode) => {
-    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setPalette(mode);
-  }, []);
-  const closePalette = React78.useCallback(() => setPalette(null), []);
-  const restore = React78.useCallback(() => {
-    const control2 = opener.current;
-    if (control2 !== null && control2.isConnected)
-      control2.focus({ preventScroll: true });
-    else
-      body.current?.focus({ preventScroll: true });
-  }, [body]);
+  const { layer, open: open2, replace, close, restore } = useLayer(body);
+  const moves = useConsoleMoves(route, body);
+  React86.useEffect(() => {
+    rememberApp(route);
+  }, [route]);
   useConsoleKeys({
-    paletteOpen: palette !== null,
-    openPalette: React78.useCallback(() => openPalette("commands"), [openPalette]),
-    openShortcuts: React78.useCallback(() => openPalette("shortcuts"), [openPalette]),
-    closePalette,
-    goHome: React78.useCallback(() => navigate({ kind: "home" }), []),
-    goSettings: React78.useCallback(() => navigate({ kind: "settings" }), [])
+    paletteOpen: layer?.kind === "palette",
+    openPalette: React86.useCallback((mode) => open2({ kind: "palette", mode }), [open2]),
+    closePalette: close,
+    openShortcuts: React86.useCallback(() => open2({ kind: "shortcuts" }), [open2]),
+    ...moves
   });
+  useConsoleEscape(moves.back);
   useRouteFocus(route, body);
+  const drawer = layer === null ? null : layer.kind === "shortcuts" ? /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsoleShortcuts, {
+    onClose: close,
+    restore
+  }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsolePalette, {
+    mode: layer.mode,
+    plan,
+    route,
+    places: PLACES,
+    onClose: close,
+    restore,
+    onShortcuts: () => replace({ kind: "shortcuts" })
+  }, layer.mode, false, undefined, this);
   return /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(jsx_dev_runtime36.Fragment, {
     children: [
       /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(SkipLink, {
@@ -57851,18 +58282,11 @@ var ConsoleChrome = ({ plan, route, status, home, body }) => {
       }, undefined, false, undefined, this),
       /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsoleStatusBar, {
         status,
-        title: titleOf(route, plan),
+        title: titleOf(route, plan, PLACES),
         home,
-        onPalette: () => openPalette("commands")
+        onPalette: () => open2({ kind: "palette", mode: "commands" })
       }, undefined, false, undefined, this),
-      palette === null ? null : /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsolePalette, {
-        mode: palette,
-        plan,
-        route,
-        places: PLACES,
-        onClose: closePalette,
-        restore
-      }, palette, false, undefined, this)
+      drawer
     ]
   }, undefined, true, undefined, this);
 };
@@ -57940,8 +58364,8 @@ var loadStatusLine = async () => {
 // src/client/console-shell.tsx
 var jsx_dev_runtime38 = __toESM(require_jsx_dev_runtime(), 1);
 var useStatusLine = () => {
-  const [status, setStatus] = React79.useState("Loading system status…");
-  React79.useEffect(() => {
+  const [status, setStatus] = React87.useState("Loading system status…");
+  React87.useEffect(() => {
     let live = true;
     loadStatusLine().then((value) => {
       if (live)
@@ -57956,11 +58380,11 @@ var useStatusLine = () => {
 var ConsoleShell = ({ surfaces }) => {
   const catalogue = useSource("catalogue", loadCatalogue);
   const status = useStatusLine();
-  const plan = React79.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
+  const plan = React87.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
   const hash2 = useAddress();
-  const route = React79.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
+  const route = React87.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
   const surface = surfaceFor(route);
-  const context = React79.useMemo(() => ({
+  const context = React87.useMemo(() => ({
     plan,
     surfaces,
     status,
@@ -57971,7 +58395,7 @@ var ConsoleShell = ({ surfaces }) => {
   }), [plan, surfaces, status, catalogue.state, catalogue.retry]);
   const home = route.kind === "home";
   const view = surface?.view(route, context) ?? null;
-  const main = React79.useRef(null);
+  const main = React87.useRef(null);
   return /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleTheme, {
     children: /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p12, {
       direction: "column",

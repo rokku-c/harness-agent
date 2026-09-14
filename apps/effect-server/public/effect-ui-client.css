@@ -32248,3 +32248,10 @@
 .command-palette-row[data-active="on"] {
   background: var(--gray-a3);
 }
+
+.command-palette-address {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
