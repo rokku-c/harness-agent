@@ -11,8 +11,6 @@ an additional "machine-equivalent view".
 - `packages/effect-parity`:
   - `fromCatalogEntry(AppEntry)` → `ParityAppView { ns, appId, view, state, actions }`, where
     actions come **only** from `entry.registry.tools` (nothing extra) → person = agent.
-  - `interactiveSpec(view)` → a textual read-out plus one form per action (inputs generated from
-    the input schema).
   - `submitAction(source, name, args)` → only the agent's action set is allowed; an unknown name
     is an error.
   - `parityFromSnapshot(snapshot)` → rebuild the interactive view from the state frozen in a
@@ -29,19 +27,26 @@ an additional "machine-equivalent view".
   - `GET /-/observe/tick` — sample the agent's perspective, storing a frame only on change (SQLite).
   - `GET /-/observe/frames?perspective=&target=` — frame list (the input to replay).
 
-## Three presentations of one description + data
+## Two presentations of one description + data
 
 | | who reads it | what it is |
 |---|---|---|
-| **webui** | a person (polished) | the real interface (existing board/console components kept) |
-| **lui** | the agent | the language form: UiDocument (with json-render) + state + actions (tools) |
-| **weblui** | a person (reading lui) | lui rendered back to a person: clickable/typable (an action = an agent tool call, same authorisation); arbitrary code only through an explicit resource-preview container |
+| **webui** | a person | the console: the one surface that draws a declared view, at `#view/<app>` |
+| **lui** | the agent | the language form: the contract + state + actions (tools), at `/-/lui/:app` |
 
-- `packages/effect-parity` `interactivePage(view, { submitUrl })` = the weblui page: a textual
-  view/state read-out plus one form per action (the same tool schema), submitting by POST to
-  `submitUrl`.
-- effect-server: `GET /-/weblui/:appId` (the weblui page), `POST /-/mirror/:appId/call` (executes
-  as the agent).
+There was a third. `packages/effect-parity` `interactivePage(view, { submitUrl })` served a
+hand-written HTML page — a textual view/state read-out, one `<form>` per action, and an inline
+`<style>` with its own hex colours — at `GET /-/weblui/:appId`, submitting to
+`POST /-/mirror/:appId/call`. It was lui rendered back to a person, and it was the second drawing
+of a fact the console already draws: the same view, the same actions, a second set of colours that
+nothing else in the product used. A person reads a canvas on the console now, so the page and the
+two files that built it (`interactive.ts`, `form.ts`) are gone, along with the route.
+
+The data projections stay, because they are the *other* reader's: `GET /-/mirror/:appId` returns
+the parity view as JSON, `GET /-/lui/:appId?fmt=json|toml|compact|token` returns the render
+contract in four notations, and `POST /-/mirror/:appId/call` runs an action the way the agent does
+(same authorisation). Those are notations of one contract rather than renderings of one, and an
+agent or a program is who reads them.
 
 ## RenderContract (the render-rule layer)
 
@@ -69,8 +74,8 @@ an additional "machine-equivalent view".
 ### Invisible to the app developer
 
 - A developer writes only "what to show + the data + what actions exist"; the contract,
-  abbreviation, symbolisation, reload targets, projection (json·toml·compact·token) and weblui
-  are **all derived by the engine**.
+  abbreviation, symbolisation, reload targets and the projection (json·toml·compact·token) are
+  **all derived by the engine**.
 - Entry point: `packages/effect-ui` `defineUi({ view, actions, data? })` →
   `{ contract, project(data?) => { json, toml, compact, token } }`; the only optional domain
   annotation (that some data is a long list, that some button corresponds to some action) still

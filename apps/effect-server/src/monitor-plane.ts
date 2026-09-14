@@ -15,10 +15,10 @@ export const makeMonitorPlane = (options: MonitorOptions): EffectPlugin => {
     const last = new Map<string, string>()
     return {
       stop: () => store.close(),
-      canHandle: (path) => /^\/-\/(mirror|weblui|lui|observe)(\/|$)/.test(path),
+      canHandle: (path) => /^\/-\/(mirror|lui|observe)(\/|$)/.test(path),
       handle: async (request) => {
         const url = new URL(request.url)
-        const match = url.pathname.match(/^\/-\/(mirror|weblui|lui)\/([^/]+)(\/call)?$/)
+        const match = url.pathname.match(/^\/-\/(mirror|lui)\/([^/]+)(\/call)?$/)
         if (match) {
           const id = decodeURIComponent(match[2])
           const app = catalog.find(options.namespace ?? "ops", id)

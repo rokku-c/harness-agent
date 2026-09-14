@@ -20,9 +20,9 @@ discovers apps from `effect.yaml`, renders each app's UI, and aggregates config.
 2. **One description path for every surface** — apps *and* the console/system itself — so
    the whole product is authored the same way.
 3. **Radix as the behaviour baseline**: our declarative UI descriptions are *interchangeable*
-   with headless primitives; the default renderer is React over `@radix-ui/react-*`. Other
-   description/authoring forms convert onto that baseline **automatically, registry-driven,
-   without bespoke adapters**.
+   with headless primitives; React over `@radix-ui/react-*` is what draws them, on the one surface
+   there is. Other description/authoring forms convert onto that baseline **automatically,
+   registry-driven, without bespoke adapters**.
 4. **Global style injection**: appearance lives only in one theme layer (tokens +
    per-role recipes). Swapping the theme restyles every app and the system; no inline
    magic values in components.
@@ -32,8 +32,7 @@ discovers apps from `effect.yaml`, renders each app's UI, and aggregates config.
 - Neutral description already exists: `packages/effect-ui/src/spec.ts` — a node is an
   interface naming a `component` (a `@radix-ui/themes` export path) with `props`, `children`,
   `bind` (state pointer), `onPress`/actions and `visible`. The role set is open and kept by
-  the registry, not by a union (`UiNodeSpec` is an alias of `UiNode`). Renderers can be
-  swapped behind the `UiRenderer` seam.
+  the registry, not by a union (`UiNodeSpec` is an alias of `UiNode`).
 - Conversions exist: `viewToJsonSpec` (EffectUiView → json-render Spec) and
   `formToJsonSpec` (zod config schema → json-render form Spec) in `packages/effect-ui`.
 - Rendering: `@json-render/react` `<Renderer spec registry/>`; the React catalog lives in
@@ -56,7 +55,9 @@ discovers apps from `effect.yaml`, renders each app's UI, and aggregates config.
  L2  roles        role registry:  zod props · bind/action contract · default headless primitive
  L3  behaviour    headless primitives, Radix-aligned (React) — state/focus/a11y/keyboard, zero chrome
  L4  theme        ONE token set (CSS custom properties) + per-role recipe · injected at root
- L5  renderers    React (@json-render/react, default) · html projection · lui/weblui text projections
+ L5  rendering    React (@json-render/react) over the console client's catalog — one surface;
+                  the json·toml·compact·token projections are notations an agent reads, not
+                  renderings a person does
 ```
 
 Rules that make it work:
@@ -182,8 +183,8 @@ to edge. Safe areas use `env(safe-area-inset-*)`.
 - `packages/effect-ui` — grow the role registry (the role set is open and registry-kept),
   keep `bind`/action/bridge semantics; keep neutral; export JSON Schema.
 - `@json-render/core` / `@json-render/react` — unchanged contracts; the catalog under
-  `apps/effect-server/src/client/effect-ui-catalog.tsx` + `packages/ui-renderer` grows from
-  `Stack/Text/Button/Input` to the full role set, implemented on `@radix-ui/react-*`. Flat
+  `apps/effect-server/src/client/effect-ui-catalog.tsx` grows from `Stack/Text/Button/Input` to
+  the full role set, implemented on `@radix-ui/react-*`. Flat
   config Specs use the same React bundle through `effectUi.mountConfig`.
 - `packages/effect-ui/src/schema.ts` + `src/schema-parts.ts` — the role schemas, shared by
   authoring and rendering, not per-renderer duplicates.
