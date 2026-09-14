@@ -1,8 +1,3 @@
-/**
- * The example runner: auto-discovers examples/*.ts, runs them in order.
- * Files containing "-live" only run with --live. A positional filter arg
- * matches by substring (e.g. "bun run examples 02").
- */
 const live = process.argv.includes("--live")
 const filter = process.argv.slice(2).find((arg) => !arg.startsWith("--"))
 
@@ -33,4 +28,3 @@ for (const file of files) {
 console.log("--- summary ---")
 for (const result of results) console.log(" ", result.status, result.file)
 if (failed > 0) process.exit(1)
-

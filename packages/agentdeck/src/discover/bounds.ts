@@ -1,12 +1,3 @@
-/**
- * How much of a machine's sessions to look at, and how many at once.
- *
- * Separate from the file readers because it is a policy, not a read: every
- * adapter wants "the newest N" and every walk wants a bounded number of files
- * open, and keeping that in one place is what stops an adapter from quietly
- * reading a whole store to answer a question about its newest few.
- */
-/** run `work` over items with bounded concurrency, preserving order */
 export const mapLimit = async <A, B>(
   items: ReadonlyArray<A>,
   limit: number,
@@ -26,7 +17,6 @@ export const mapLimit = async <A, B>(
   return out
 }
 
-/** newest first, capped - every adapter wants this before reading anything */
 export const newest = <T extends { readonly mtimeMs: number }>(
   files: ReadonlyArray<T>,
   limit: number

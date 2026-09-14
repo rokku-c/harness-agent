@@ -1,19 +1,9 @@
-/**
- * agentdeck/consent - the SESSION -> CONSENT MAP (ask 2).
- *
- * A normalized ledger per session: every ask (tool needing the operator) is
- * recorded once; resolves flip pending entries to allow/deny and stamp who
- * decided. The map is exposed directly so a caller (or the product layer on
- * top) can render "what is session X asking, and what did it get".
- */
 import type { ConsentEntry, ConsentLedger } from "./consent-types.ts"
 
 export interface ConsentLedgerOptions {
-  /** answer pending asks automatically when their tool is on this list */
   readonly autoApproveTools?: ReadonlyArray<string>
 }
 
-/** internal writable form; the public surface stays readonly */
 type MutableEntry = { -readonly [K in keyof ConsentEntry]: ConsentEntry[K] }
 
 export const makeConsentLedger = (options: ConsentLedgerOptions = {}): ConsentLedger => {

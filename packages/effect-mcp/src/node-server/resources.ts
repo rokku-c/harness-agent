@@ -10,13 +10,6 @@ const jsonResult = (uri: string, doc: unknown): ReadResult => ({
   contents: [{ uri, text: JSON.stringify(doc) ?? "null", mimeType: "application/json" }],
 })
 
-/**
- * One resource per view, read by its served name.
- *
- * A view id is not a URI: a slash cannot stay one, so the id is reduced the same
- * way a tool name is (`served-name.ts`). Two view ids that would share one
- * served name are refused, naming both, rather than one of them being dropped.
- */
 const registerViews = (register: any, ui: Readonly<Record<string, unknown>>): void => {
   const served = makeServedNames("views")
   for (const [viewId, doc] of Object.entries(ui)) {
@@ -26,7 +19,6 @@ const registerViews = (register: any, ui: Readonly<Record<string, unknown>>): vo
   }
 }
 
-/** The store as one resource template: `store://<key>`, listing what it holds. */
 const registerStore = (register: any, store: NodeStorePlane): void => {
   const record = store as unknown as Record<string, unknown>
   const keys = (): readonly string[] =>
@@ -47,7 +39,6 @@ const registerStore = (register: any, store: NodeStorePlane): void => {
   )
 }
 
-/** The planes a node server serves besides its tools: its views, and its store. */
 export const registerResources = (server: any, planes: NodeResourcePlanes): void => {
   const register = server.registerResource.bind(server) as any
   registerViews(register, planes.ui ?? {})

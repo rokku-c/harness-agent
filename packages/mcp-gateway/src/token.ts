@@ -1,14 +1,3 @@
-/**
- * mcp-gateway — opaque bearer tokens.
- *
- * A token is stored only as its SHA-256 hash, so a leaked store cannot be
- * replayed as credentials. Verification is a hash lookup plus an expiry and
- * revocation check, and every failure returns undefined — the caller denies.
- *
- * The store is a port: `makeTokenStore` is the in-memory implementation, and
- * the app is free to back the same interface with sqlite.
- */
-
 import { createHash, randomBytes } from "node:crypto"
 
 export interface TokenRecord {
@@ -22,7 +11,6 @@ export interface TokenRecord {
 
 export interface IssueTokenInput {
   readonly principalKey: string
-  /** Lifetime in milliseconds from `issuedAt`; omitted means no expiry. */
   readonly ttlMs?: number
 }
 
@@ -33,13 +21,7 @@ export interface IssuedToken {
 
 export interface TokenStore {
   issue(input: IssueTokenInput): IssuedToken
-  /** undefined when unknown, expired or revoked. */
   verify(token: string): TokenRecord | undefined
-  /**
-   * Revokes by record, taken as the hash a listing reports. The plaintext is
-   * held by whoever the token was issued to and by nobody else, so it cannot be
-   * the name of the record the operator is looking at.
-   */
   revoke(tokenHash: string): boolean
   list(): readonly TokenRecord[]
 }

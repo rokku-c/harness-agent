@@ -1,16 +1,3 @@
-/**
- * The host's long-lived services (docs/architecture-rework.md §6.1).
- *
- * §6.1 splits the running system in two: host invariants, and the kernel. This is
- * the host half — plugin host, registries, config store and runtime, egress router
- * and its listeners. The catalog is a live view over services that outlive every
- * kernel (§4), so it is built from these and handed to each revision rather than
- * owned by one.
- *
- * The reload callback arrives already built (reload-dispatch.ts): the host needs it
- * at construction, so it cannot be something this file creates.
- */
-
 import { makeRegistry, type Registry as McpRegistry } from "@effect-agent/mcp-registry"
 import { makeMcpSetSlot, type McpSetSlot } from "@effect-agent/mcp-gateway"
 import { makePluginHost, type EffectPluginHost } from "@effect-agent/effect-host"
@@ -32,18 +19,14 @@ export interface BootServices {
   readonly host: EffectPluginHost
   readonly registry: EffectRegistry
   readonly mcpRegistry: McpRegistry
-  /** Where the center says a set and a binding live; the door reads it from here. */
   readonly mcpSets: McpSetSlot
   readonly configs: ConfigRegistry
   readonly configRuntime: ConfigRuntime
-  /** Give an app its config layers — what its manifest declared. */
   readonly initializeConfig: (appId: string) => void
   readonly uiViews: Map<string, EffectUiView>
   readonly network: EgressRouter
   readonly listeners: ReturnType<typeof makeManagedListeners>
-  /** Each app's declared config, read once at boot. */
   readonly yaml: ReadonlyMap<string, unknown>
-  /** Close what this file opened. The caller owns *when*; the order is this file's. */
   readonly close: () => Promise<void>
 }
 
@@ -61,9 +44,6 @@ export const makeServices = (
   const configs = makeConfigRegistry({ store })
   configs.register(networkConfig)
 
-  // Saving a listener set rebinds the ports, and rebinding rereads the config, so
-  // the two reference each other. Neither exists when the other's callback is
-  // written, which is why both are read through the binding at call time.
   let networkRuntime: ReturnType<typeof makeNetworkRuntime>
   let listeners: ReturnType<typeof makeManagedListeners>
   const failedReloads = new Set<string>()

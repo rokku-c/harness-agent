@@ -1,8 +1,3 @@
-/**
- * Minimal type stub for the optional dingtalk-stream dependency (the SDK the
- * original clawyp uses for the robot channel). The channel loads it lazily -
- * install it with: bun add dingtalk-stream
- */
 declare module "dingtalk-stream" {
   export interface DWClientDownStream {
     text?: unknown

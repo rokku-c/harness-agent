@@ -1,11 +1,3 @@
-/**
- * groups/ops.ts - the GROUP OP SURFACE (what an agent can do).
- *
- * Concept: express the backend as effect-agent ops (create/post/read).
- * Delivery is composed HERE, on the op layer: posting a message also pushes
- * it into every member's signal box through the runtime's public send, so
- * members see it at their next step boundary.
- */
 import { Effect, Option, Schema } from "effect"
 import {
   AgentRuntime, AgentSession, Groups, notationText, Op
@@ -39,8 +31,6 @@ export const groupOps = () => [
         const author = yield* authorOf
         const { group, text } = input as { group: string; text: string }
         yield* groups.post(group, author, text)
-        // delivery through the runtime's public send: every member sees the
-        // post at its next step boundary
         const members = yield* groups.members(group)
         yield* Effect.forEach(
           members,

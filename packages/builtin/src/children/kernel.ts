@@ -1,8 +1,3 @@
-/**
- * children/kernel.ts - the child KERNEL: one registry-backed map of spawned
- * children (fiber + signal box + bus) and the supervisor's verbs over it.
- * Exit semantics live in types.ts - nothing else here.
- */
 import { Effect, Exit, Fiber, Option, PubSub, Queue, Ref } from "effect"
 import {
   AgentFailure, AgentRuntime, AgentRegistry, AgentSession, Boards, CheckpointStore, Groups,
@@ -10,10 +5,6 @@ import {
 } from "@effect-agent/core"
 import { childSummary, exitToResult, type ChildKernel, type ChildState } from "./types.ts"
 
-/**
- * Build a kernel over a registry. Requires the coordination services only so
- * that children can be handed the same surface their supervisor sees.
- */
 export const makeChildKernel = (registry: AgentRegistryService): Effect.Effect<ChildKernel, never, Boards | Groups | CheckpointStore> =>
   Effect.gen(function* () {
     const boards = yield* Boards

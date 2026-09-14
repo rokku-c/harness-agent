@@ -1,4 +1,3 @@
-/** The name a view used, which is the name the design system exports. */
 export type UiComponent = string
 
 export interface InteractionRule {

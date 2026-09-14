@@ -1,10 +1,3 @@
-/**
- * deckconsole acceptance - no-key reproducible smoke for the control room.
- * Core flows run headless over real HTTP (demo agent); REAL=1 additionally
- * drives a real claude-code session through the same API if the binary is
- * present and authorised.
- * Run: bun apps/deckconsole/scripts/acceptance.ts   (optionally REAL=1)
- */
 import { startDeckServer } from "../src/standalone.ts"
 
 const real = process.env.REAL === "1"

@@ -1,11 +1,3 @@
-/**
- * version/store.ts - the VERSION STORE and ref resolution.
- *
- * Concept: tool -> a version chain ordered by revision (parent points to the
- * previous version's hash). Commit appends; resolve turns a Ref (latest/
- * revision/hash/range) into the concrete Version it names; range matching
- * is skeleton semver (leading major/minor).
- */
 import type { Ref, Version } from "../model/version-refs.ts"
 import type { ToolDef } from "../model/tool.ts"
 import { hashVersion } from "./address.ts"
@@ -46,7 +38,6 @@ export class VersionStore {
   byRevision = (tool: string, n: number): Version | undefined =>
     this.versions(tool).find((version) => version.revision === n)
 
-  /** Resolve a version reference: latest / revision / hash (exact) / range (weak dep). */
   resolve = (tool: string, ref: Ref): Version | undefined => {
     switch (ref.kind) {
       case "latest":
@@ -60,7 +51,6 @@ export class VersionStore {
     }
   }
 
-  /** ^1.2 / >=1 - compatible range matching (skeleton: leading major/minor). */
   private matchRange(tool: string, spec: string): Version | undefined {
     const match = spec.match(/^[\^>=]*\s*(\d+)(?:\.(\d+))?/)
     const major = match !== null ? Number(match[1]) : undefined
@@ -82,7 +72,6 @@ export class VersionStore {
   }
 }
 
-/** Convert a ref into a displayable short label. */
 export const refLabel = (ref: Ref): string => {
   switch (ref.kind) {
     case "latest": return "latest"

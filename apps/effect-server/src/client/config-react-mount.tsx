@@ -15,12 +15,6 @@ const rowsOf = (spec: ConfigSpec, id: string): string[] => (spec.elements[id]?.c
 const syncRows = (spec: ConfigSpec, id: string): void => { const array = spec.elements[id]; rowsOf(spec, id).forEach((row, index) => rewriteArrayRowPaths(spec.elements, row, `${String(array?.props?.fieldPath ?? id)}.${index}`)); let index = 0; (array?.children ?? []).forEach(child => { const props = spec.elements[child]?.props; if (props?.arrayAction === "remove") props.arrayIndex = index++ }) }
 const addArrayControls = (spec: ConfigSpec): void => Object.entries(spec.elements).forEach(([id, element]) => { if (element.props?.role !== "array") return; const rows = rowsOf(spec, id), controls = rows.map((_, index) => { const control = `${id}-remove-${index}`; spec.elements[control] = { type: "Button", props: { value: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: index } }; return control }); const add = `${id}-add`; spec.elements[add] = { type: "Button", props: { value: "Add item", arrayAction: "add", arrayNode: id } }; element.children = [...rows, ...controls, add] })
 export const makeConfigMount = (ours: ComponentRegistry) => (container: HTMLElement, input: unknown): ConfigMount => {
-  /**
-   * The registry is built from the spec on every draw rather than once, because
-   * this form edits its own spec: adding a row appends elements, and a registry
-   * built before that would have nothing to draw them with. It is a walk over
-   * the elements, and this form redraws on a click rather than on a keystroke.
-   */
   const render = (root: Root, spec: ConfigSpec) => {
     const registry = adaptRegistry(spec as never, adaptComponent, ours)
     root.render(<JSONUIProvider registry={registry}><Renderer spec={spec as never} registry={registry} fallback={Unresolved} /></JSONUIProvider>)

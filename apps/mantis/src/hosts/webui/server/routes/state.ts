@@ -1,10 +1,3 @@
-/**
- * server/routes/state.ts - STATE + EVENTS HTTP routes.
- *
- * Concept: liveness (health for pm2/docker/LB), the whole-console snapshot
- * and the SSE event poll - each a read over the MCP server. The event poll
- * is stateless: every request advances its own cursor, so nothing replays.
- */
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { callText, json, parseJsonLines } from "../helpers.ts"
 

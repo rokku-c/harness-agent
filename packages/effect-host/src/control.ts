@@ -4,11 +4,6 @@ import { runHostOperation } from "./operation-run.ts"
 import { messageOf } from "@effect-agent/effect-interface"
 import { json } from "./response.ts"
 
-/**
- * The `/-/planes` control surface is the executor of the declared host
- * operations (operation-table.ts) — the path shapes live there, not here.
- * Existing control paths and success payloads remain unchanged.
- */
 export const controlRequest = async (
   request: Request, path: string, lifecycle: PluginLifecycle,
 ): Promise<Response | undefined> => {

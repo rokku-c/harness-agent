@@ -1,10 +1,3 @@
-/**
- * console/event-hook.ts - SESSION EVENTS -> bus + timeline.
- *
- * Concept: harness events stream tool steps to the observability bus AND the
- * active conversation's timeline. Attribution comes from the async context
- * (AsyncLocalStorage) of the turn that is running.
- */
 import { Effect } from "effect"
 import { Harness, type HarnessEvent, type HarnessHook } from "@effect-agent/core"
 import type { Bus } from "../bus.ts"

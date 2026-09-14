@@ -1,8 +1,3 @@
-/**
- * codex CLI facts, from `~/.codex/config.toml`. The active provider is named by
- * `model_provider` and defined in `[model_providers.<name>]`, so the endpoint is
- * only knowable by following that indirection.
- */
 import { join } from "node:path"
 import { fileExists, hostOf, mcpFactsFrom, readTomlFile, record, text } from "./read.ts"
 import type { AgentFacts, CredentialState, ProviderFacts } from "./types.ts"

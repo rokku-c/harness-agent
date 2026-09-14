@@ -1,11 +1,3 @@
-/**
- * effect-config registry — where apps declare their configuration.
- *
- * register(declaration) is reversible (returns a disposer), matching the
- * effect-host/interface registries. `apply(appId, layers)` merges defaults +
- * effect.yaml + override and validates, returning provenance per key.
- */
-
 import { z } from "zod"
 import { initializeConfig, readConfig, saveConfig } from "./persistence.ts"
 import { makeSqliteConfigStore } from "./sqlite.ts"
@@ -28,10 +20,8 @@ export interface ConfigRegistry {
   schemaFor(appId: string): unknown | undefined
   apply(appId: string, layers?: ConfigLayerInput): ConfigOutcome
   initialize(appId: string, layers?: ConfigLayerInput): ConfigOutcome
-  /** Validate the committed DB record without normalizing or rewriting it. */
   read(appId: string): ConfigOutcome
   save(appId: string, override: unknown, options?: ConfigSaveOptions): ConfigOutcome
-  /** Close only the lazily-created default store; injected stores belong to the caller. */
   close(): void
 }
 

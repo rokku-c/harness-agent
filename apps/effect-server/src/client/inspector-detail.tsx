@@ -1,13 +1,3 @@
-/**
- * One tool, opened: what it is, what it takes, and what it answered.
- *
- * The form is built from the tool's own schema every time the tool changes, so
- * switching tools cannot leave the previous tool's arguments in the fields. The
- * call goes to the app's own interface — the same registry MCP serves — so what
- * an operator sees here is what an agent gets, and an argument the tool refuses
- * says why in the callout below.
- */
-
 import * as React from "react"
 import { Button, Code, Flex, Heading, Separator, Text } from "@radix-ui/themes"
 import { InspectorField } from "./inspector-field.tsx"

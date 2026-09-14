@@ -1,18 +1,11 @@
-/**
- * What the machines reported about themselves. The center stores what it was
- * told and never reaches out: a machine that cannot be called pushes its facts,
- * its sessions and its notes on its own beat.
- */
 import { count, OperationFault, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
 const machine = z.object({ machineId: z.string().min(1) }).strict()
-/** Not strict: a field the center does not index is that agent's business, not a reason to lose the session. */
 const session = z.object({
   kind: z.string().min(1), sessionId: z.string().min(1), updatedAt: z.number(), bytes: z.number(),
   cwd: z.string().optional(), title: z.string().optional(), source: z.string().optional(),
-  /** The tail of the transcript, as the machine last reported it. */
   tail: z.string().optional(),
 })
 
@@ -45,8 +38,6 @@ export const factsOperations = ({ facts }: AgentdSurfaces): readonly Operation[]
       if (found === undefined) {
         throw new OperationFault(404, `machine "${input.machineId}" has no ${input.kind} session "${input.sessionId}" in its last report`)
       }
-      // A machine reports the tails of its most recent sessions, so a session it
-      // has but did not send is a real answer, not an empty one.
       if (found.tail === undefined) {
         throw new OperationFault(404, `${input.kind}/${input.sessionId} was listed without a transcript; the machine sends the tail of its most recent sessions`)
       }

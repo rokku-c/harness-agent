@@ -1,21 +1,3 @@
-/**
- * What an identity holds, and how it stops holding it.
- *
- * Issuing is one act rather than two: an operator who types an id is asking for
- * a credential to hand to an agent, and a directory entry with no token is an
- * identity that can never knock, so the principal is registered on the way past.
- * Registering reactivates — a second token for an identity that was turned off
- * is an operator asking for it back — and since that is more than the press
- * said, the answer carries it.
- *
- * The plaintext token is answered here once and written nowhere: every later
- * reading of the same record names it by the hash its listing reports, because
- * that is all that is left once the token has been handed over.
- *
- * Revoking is final, and is deliberately not what turning an identity off does.
- * Rotating a credential wants one token gone and the identity kept; cutting off
- * a compromised agent wants everything it holds to stop, and reversibly.
- */
 import { z } from "@effect-agent/effect-config"
 import { OperationFault, operation, type Operation } from "@effect-agent/effect-interface"
 import { principalKey } from "@effect-agent/effect-authz"

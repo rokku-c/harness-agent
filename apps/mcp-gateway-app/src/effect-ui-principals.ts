@@ -1,27 +1,3 @@
-/**
- * The principals screen: who the door can name, and what each of them presents.
- *
- * The screen is called Principals and not Identities because the API's URL is
- * the only place the losing word survives: a principal is anything that can be
- * identified and authorized, an identity is a second word for it that only this
- * app ever used, and a screen an operator reads must not carry the loser of that
- * argument (§1.7).
- *
- * The directory leads, and the two acts about one principal live in the row that
- * already names it — turning it off, and revoking the credential it holds. Only
- * issuing is about no principal in particular, because the act *creates* the one
- * it is about, which is why it is the form at the bottom rather than a press in
- * every row.
- *
- * Turning a principal off and revoking a token are deliberately two acts, drawn
- * as two: off keeps every token and refuses all of them at the door, and is
- * reversible; revocation is final. One control for both would make the
- * reversible thing look like the irreversible one.
- *
- * One read carries both tables, and each says its own emptiness — the runtime
- * decides "empty" from every array an answer holds, so a directory with nothing
- * in it reads `ready` while a token survives in the same body (`empty-rows.ts`).
- */
 import {
   cellOf, chip, heading, listCard, loadingRows, press, region, text, toneField, toneWhen, type UiNodeSpec,
 } from "@effect-agent/effect-ui"
@@ -39,12 +15,6 @@ const head: UiNodeSpec = {
   ],
 }
 
-/**
- * A press shown only on the row whose state it changes, so the two directions of
- * one flag are never both offered on one row. The subject travels with the press
- * — `kind` and `id` are the row's — and the declaration supplies only the literal
- * status, which is the half of the request a press must not be free to choose.
- */
 const turn = (state: string, action: string, label: string): UiNodeSpec =>
   ({ ...press(label, action, { kind: { item: "kind" }, id: { item: "id" } }, { size: "1", variant: "soft" }),
     visible: { source: { item: "status" }, equals: state } })
@@ -70,16 +40,6 @@ const directory = listCard({
   repeat: { source: { state: PRINCIPALS } },
 })
 
-/**
- * A refused change, and the read that says what actually happened. `Try again`
- * is not a retry of the write — the write read its subject off the row it was
- * pressed on, and no press here can name it — it is the one read that says
- * whether the refusal left the directory as it was.
- *
- * One of these per table, under the rows that caused it, because §9.4 writes a
- * refusal beside its own control and the two controls are in two tables: a
- * shared path would paint a failed revocation under the directory.
- */
 const refusalOf = (sentence: string, result: string): UiNodeSpec =>
   refused(sentence, `${result}/error`, retry("gateway.readDirectory"))
 

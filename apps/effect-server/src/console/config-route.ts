@@ -5,7 +5,6 @@ import type { ConfigRuntime } from "../config-runtime/types.ts"
 const record = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === "object" && !Array.isArray(v)
 
-/** Both read surfaces and the Config App use the same durable configuration. */
 export const configRoute = async (
   request: Request, id: string, configs: ConfigRegistry, runtime: ConfigRuntime, applyOnly = false,
 ): Promise<Response> => {

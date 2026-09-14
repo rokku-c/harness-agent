@@ -1,25 +1,3 @@
-/**
- * What the door did, newest first.
- *
- * The rows are the gateway's own records rather than a log the console keeps: a
- * preview on the access screen and a live call produce one record shape, which
- * is the property that lets a preview be trusted at all (M4 step 2), and the
- * host's Activity reads the same store with the actor filter applied rather than
- * a second account of it (M6, J3).
- *
- * One row per event, keyed by the call it belongs to. A call leaves several —
- * the call itself, the access decision, a rule, the response — and they are
- * separate rows rather than one wide row because the door writes them as they
- * happen and a call that never finished has no response row to fold into. `Call`
- * is therefore the column that groups them, and it is the id the caller was
- * given, so an agent's own report and this table are matched by a value and not
- * by a timestamp.
- *
- * `At` is rendered exactly as the record carries it. An epoch millisecond is
- * what the operation answers with, and reformatting it in the view would be a
- * second value behind a name an agent calling the same operation reads as a
- * number — the one disagreement a console for this door must not have.
- */
 import {
   cellOf, emptyRows, heading, loadingRows, region, section, stateBadge, stateRows, table, text, toneWhen, whenRows,
   type UiNodeSpec,

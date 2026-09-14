@@ -1,14 +1,3 @@
-/**
- * Tokenized projection — symbols + collapse to keep what an agent must read
- * short, while still carrying the same interaction/data rules.
- *
- *  - symbolization: long values repeated across the UI are defined once in a
- *    `symbols` legend and referenced as @s0 elsewhere (saves characters);
- *  - collapse: collapsible elements (rules.collapsibleIds) are shown as a
- *    single `[+]` marker when their data is large — expand on click
- *    (exclusive: expanding one collapses the others).
- */
-
 import type { ContractElement, RenderContract } from "./contract.ts"
 import { show, valueAt } from "./pointer.ts"
 
@@ -26,7 +15,6 @@ const renderElement = (e: ContractElement, data: unknown): string => {
   return `${base} value=${show(value)}` + (interactive !== "" ? ` ${interactive}` : "")
 }
 
-/** Intern long repeated values into symbols and shorten the text. */
 const symbolize = (lines: string[]): string[] => {
   const text = lines.join("\n")
   const tokens = new Map<string, number>()

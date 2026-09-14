@@ -15,7 +15,6 @@ export const dispatchRequest = async (
     const response = await controlRequest(request, path, lifecycle)
     if (response !== undefined) return response
   }
-  // Node routes retain precedence over loaded plugin planes.
   for (const route of routes) {
     if (!matchesHostRoute(route, request)) continue
     try { return await route.handle(request) } catch (error) {

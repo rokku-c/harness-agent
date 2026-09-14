@@ -1,8 +1,3 @@
-/**
- * Boards: a shared whiteboard backend over the pure core structures, plus
- * the op factories that surface them as an ordinary binding. An agent that
- * includes board ops can share findings with any child it spawns.
- */
 import { Effect, Layer, Option, Ref, Schema } from "effect"
 import {
   AgentFailure, AgentSession, Boards, boardPost, boardRead, eaUri, makeBoard,
@@ -75,4 +70,3 @@ export const boardOps = () => [
     execute: (input: unknown) => Effect.flatMap(Boards, (boards) => boards.read((input as { board: string }).board))
   })
 ]
-

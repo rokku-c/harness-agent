@@ -1,31 +1,9 @@
-/**
- * In-flight accounting for the dispatch point (docs/architecture-rework.md
- * §6.5-5): how many requests each target is answering, and who waits for one to
- * drain.
- *
- * The counting is what closes the switch window — the flip is one assignment,
- * but a retired implementation is only safe to stop once nothing is still
- * inside it. A waiter is resumed by the release that takes the last request out,
- * so a retire is woken by the event itself and never polls or misses it.
- */
 export interface InFlight<T> {
   acquire(target: T): void
   release(target: T): void
-  /** Requests in flight on `target`, or on every target when it is omitted. */
   inFlight(target?: T): number
-  /**
-   * Targets with a count, in acquisition order. A target that has drained stays
-   * listed at zero and `tracks` stays true for it — which is why `stats` can name
-   * a target it has never seen a request on without a second code path.
-   */
   entries(): ReadonlyArray<readonly [T, number]>
-  /**
-   * Has this target ever been acquired? A fresh one has not, a drained one has.
-   * A release with no acquire is the one case the count cannot tell apart from a
-   * request that has finished, which is what `run`'s `finally` rules out.
-   */
   tracks(target: T): boolean
-  /** Resolve once `target` has no request in flight; already zero resolves at once. */
   drained(target: T): Promise<void>
 }
 

@@ -2,7 +2,6 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { McpGatewayServer } from "./contract-sets.ts"
 import { makeUpstream, type McpUpstreamServer } from "./upstream-call.ts"
 
-/** Structural match for the SDK's FetchLike, which is not exported from streamableHttp.js. */
 export type FetchLike = (url: string | URL, init?: RequestInit) => Promise<Response>
 export interface McpHttpServer extends McpGatewayServer {
   readonly transport: "streamable-http" | "stdio"
@@ -11,8 +10,6 @@ export interface McpHttpServer extends McpGatewayServer {
 }
 export interface McpHttpUpstreamOptions { readonly servers: readonly McpHttpServer[]; readonly fetch?: FetchLike }
 
-/** Every request uses the platform-supplied fetch, so egress policy stays in
- *  one place rather than being re-decided inside the transport. */
 export const makeStreamableHttpUpstream = (options: McpHttpUpstreamOptions): McpUpstreamServer =>
   makeUpstream({
     servers: options.servers,

@@ -1,11 +1,3 @@
-/**
- * What the supervisor announces as it goes: the receipt trail for a boot, a swap
- * or a rebuild.
- *
- * A host that wants a line per decision subscribes here; nothing in the state
- * machine depends on anyone listening, so an event that nobody reads costs a
- * `?.` and nothing more.
- */
 import type { KernelAppIncompatibility } from "./kernel-matrix.ts"
 import type { KernelRevision } from "./repo.ts"
 

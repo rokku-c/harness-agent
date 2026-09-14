@@ -1,5 +1,3 @@
-/** One boundary violation, and the single line the checker prints for it. */
-
 export interface Finding {
   readonly severity: "error" | "warn"
   readonly rule: string

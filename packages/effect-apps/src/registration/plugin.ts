@@ -1,7 +1,6 @@
 import type { EffectPlugin, EffectPluginHost } from "@effect-agent/effect-host"
 import { asyncDisposer, rollback, type AsyncAppDisposer } from "./disposal.ts"
 
-/** Each registration owns a distinct identity, even when descriptors reuse a plugin. */
 export const registerAppPlugin = async (host: EffectPluginHost, plugin: EffectPlugin): Promise<AsyncAppDisposer> => {
   const registered: EffectPlugin = {
     id: plugin.id,

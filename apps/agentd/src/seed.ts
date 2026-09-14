@@ -1,22 +1,11 @@
 import type { AgentdControl } from "@effect-agent/agentd"
 import type { effectConfig } from "./effect-config.ts"
 
-/**
- * The config file's contents, written into the control plane in dependency
- * order: an artifact is published before it is placed, and a placement is bound
- * only after the artifact it names exists.
- *
- * Bundles may carry a `source` directory (§8.2, P6) — the compiled artifact's
- * bytes, so a node that has never seen this build can fetch it rather than being
- * told to run something it does not have.
- */
 export const seed = (control: AgentdControl, config: ReturnType<typeof effectConfig.schema.parse>): void => {
   for (const machine of config.machines) control.registerMachine(machine)
   for (const server of config.servers) control.registerServer(server)
   for (const set of config.sets) control.upsertSet(set)
   for (const agent of config.agents) control.registerAgent(agent)
-  // after the agents: a credential is a predicate about one, and the center
-  // refuses to hold one for an identity it has not been told about
   for (const { agentId, token } of config.credentials) control.setCredential(agentId, token)
   for (const binding of config.bindings) control.bindAgent(binding.agentId, binding.setIds)
   for (const bundle of config.bundles) {
@@ -24,8 +13,5 @@ export const seed = (control: AgentdControl, config: ReturnType<typeof effectCon
     control.publishBundle(artifact, source)
   }
   for (const binding of config.bundleBindings) control.bindBundles(binding.agentId, binding.bundleIds)
-  // Node deployments last: a placement may only name an artifact that was
-  // published above, and binding before publishing would be a seeding bug
-  // rather than a meaningful refusal.
   for (const binding of config.nodeBindings) control.bindNode(binding.nodeId, binding.kernelId, binding.apps)
 }

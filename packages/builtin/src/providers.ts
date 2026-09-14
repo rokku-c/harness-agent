@@ -1,12 +1,3 @@
-/**
- * The provider catalog: providers.toml (or config.toml) + .env resolve into
- * Models and, through EffectAgent, Drivers. Providers are configuration,
- * not architecture - the agent API never names a provider.
- *
- * The model half (config parsing, Model building) lives in @effect-agent/model;
- * this file only adds the driver-building step, so the builtin surface
- * (Providers/ProviderCatalog/loadProviders) is unchanged.
- */
 import { Context, Effect, Layer } from "effect"
 import { AgentFailure, type Driver } from "@effect-agent/core"
 import {
@@ -37,12 +28,10 @@ class ProviderCatalogImpl implements ProviderCatalog {
     EffectAgent.make({ ...options, model: this.base.model(name) })
 }
 
-/** The Providers service: the config-driven catalog behind Providers.agent(). */
 export class Providers extends Context.Tag("builtin/Providers")<Providers, ProviderCatalog>() {
   static layer = (options: LoadModelCatalogOptions = {}): Layer.Layer<Providers, ProviderConfigError> =>
     Layer.effect(Providers, loadProviders(options))
 
-  /** The default driver from the configured provider. */
   static agent = (name?: string, options?: Omit<EffectAgentOptions, "model">) =>
     Effect.map(Providers, (catalog) => catalog.agent(name, options))
 }

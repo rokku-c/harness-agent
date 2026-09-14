@@ -1,7 +1,6 @@
 import { createDeckApp, type DeckOptions } from "./app.ts"
 
 export interface DeckServerOptions extends DeckOptions { readonly host?: string; readonly port?: number }
-/** Explicitly self-managed listener; embedded plugins do not import this module. */
 export const startDeckServer = (options: DeckServerOptions = {}) => {
   const app = createDeckApp(options)
   try {

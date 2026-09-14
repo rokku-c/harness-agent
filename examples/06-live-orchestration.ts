@@ -1,9 +1,3 @@
-/**
- * Live: a real supervisor on a real provider orchestrating real subagents -
- * it creates a board, spawns workers (passing the board uri in the task),
- * waits for them, reads the board and merges. Requires config.toml + .env.
- * Run: bun run examples 06 --live
- */
 import { Effect, Layer } from "effect"
 import { Agent, AgentContext, ConsoleHook, Harness, Until } from "@effect-agent/core"
 import { EffectAgent, FiberAgentRuntime, Providers, childBinding, runtimeBinding } from "@effect-agent/builtin"
@@ -42,4 +36,3 @@ const answer = await Effect.runPromise(
   Effect.map(program, (value) => value).pipe(Effect.provide(Providers.layer()))
 )
 console.log("supervisor:", answer)
-

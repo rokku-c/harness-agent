@@ -5,13 +5,11 @@ import { registerMetadata } from "./metadata.ts"
 import { registerAppPlugin } from "./plugin.ts"
 import { withAppRuntime } from "./runtime.ts"
 
-/** Schema -> active config initialization -> metadata -> awaited plugin load. */
 export const registerEffectApp = async (host: EffectAppHost, app: EffectAppDescriptor): Promise<AsyncAppDisposer> => {
   const steps: Cleanup[] = []
   const dispose = asyncDisposer(steps)
   try {
     if (host.configs !== undefined && app.config !== undefined) {
-      // Distinct declarations make registry disposers safe even when descriptors are reused.
       steps.push(host.configs.register({ ...app.config as ConfigDeclaration }))
       host.initializeConfig?.(app.id)
     }

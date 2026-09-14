@@ -8,16 +8,10 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const failure = (appId: string, error: string, reason?: ConfigFailureReason): ConfigOutcome =>
   ({ ok: false, appId, value: {}, sources: {}, error, ...(reason === undefined ? {} : { reason }) })
 
-/**
- * The registry's error boundary. A package-raised refusal keeps its reason, so a
- * caller can still tell "rebuild the store" apart from a fault; anything else
- * came from storage and has no instruction to pass on.
- */
 export const storageFailure = (appId: string, error: unknown): ConfigOutcome =>
   error instanceof ConfigError ? failure(appId, error.message, error.reason)
     : failure(appId, "config storage operation failed")
 
-/** Reject unknown top-level keys, even when an app uses Zod's default stripping object. */
 export function validateConfig(
   decl: ConfigDeclaration,
   value: unknown,

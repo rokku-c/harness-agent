@@ -1,17 +1,10 @@
-/**
- * Sandbox set-up for 10-script-sandbox.ts: which runtime this host gets, and
- * the seed tool catalogue the scripts are allowed to call.
- */
 import { IsolatedVmRuntime, NodeVmRuntime, type ToolDef } from "@effect-agent/script"
 
-// Runtime probe: bun's V8 ABI cannot load isolated-vm (a native module) → fall back to the node:vm skeleton;
-// under node, use real isolation. Real deployments should ensure node + isolated-vm.
 export const Runtime =
   (await import("isolated-vm").then(() => true).catch(() => false))
     ? IsolatedVmRuntime
     : NodeVmRuntime
 
-/* ---------- 1. native tools (seed api) ---------- */
 export const weather: ToolDef = {
   name: "weather.lookup",
   description: "look up weather for a city",

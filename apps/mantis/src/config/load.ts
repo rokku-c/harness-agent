@@ -1,10 +1,3 @@
-/**
- * config/load.ts - the LOAD PIPELINE.
- *
- * Concept: find the document, read + env-expand it, audit every legacy key
- * into warnings, then map what is still honored. A missing file throws with
- * the searched paths so operators can fix it fast.
- */
 import { findConfigPath, readDocument, candidateConfigPaths, type Toml } from "./discovery.ts"
 import { mapToConfig } from "./map.ts"
 import type { MantisConfig } from "./types.ts"

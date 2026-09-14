@@ -1,10 +1,3 @@
-/**
- * agentdeck/adapters/claude-sdk - the claude-code agent driven IN-PROCESS by
- * this framework's own ClaudeCode driver (which wraps the anthropic
- * claude-agent-sdk). One unified config maps onto driver options; a session
- * send is one driver.run(until text). Flow control and transcripts are
- * identical to the other gateways, so products swap CLI/SDK freely.
- */
 import { Effect } from "effect"
 import { AgentContext, Until } from "@effect-agent/core"
 import { ClaudeCode, type ClaudeCodeOptions } from "@effect-agent/builtin"
@@ -13,9 +6,7 @@ import type { UnifiedAgentConfig } from "../config-types.ts"
 import { makeSessionTable, type SessionBox } from "./session-table.ts"
 
 export interface ClaudeSdkGatewayOptions {
-  /** SDK query fn (production: the real claude-agent-sdk query; tests inject a stub) */
   readonly query: NonNullable<ClaudeCodeOptions["query"]>
-  /** extra SDK option knobs merged under config.extra */
   readonly baseOptions?: ClaudeCodeOptions
 }
 

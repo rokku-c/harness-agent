@@ -4,13 +4,11 @@ import { dirname } from "node:path"
 import type { DefinitionSnapshot } from "@effect-agent/ui-definition"
 
 export interface CanvasStore {
-  /** Snapshot committed by the previous process, or undefined on a fresh store. */
   load(): DefinitionSnapshot | undefined
   save(snapshot: DefinitionSnapshot): void
   close(): void
 }
 
-/** One durable owner per definition store; the activity store keeps its own table. */
 export const makeCanvasStore = (file = ".effect-agent/ui.sqlite"): CanvasStore => {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true })
   const database = new Database(file, { create: true })

@@ -31,7 +31,6 @@ export const makeRegistryHttpUpstream = (options: McpRegistryHttpUpstreamOptions
     const upstream = server.transport === "stdio" ? makeStdioUpstream({ servers: [server] }) : makeStreamableHttpUpstream({ servers: [server], fetch: options.fetch })
     entries.set(serverId, { key, upstream }); return upstream
   }
-  /** The live transport, or undefined — one resolution, shared by a call and a listing. */
   const live = async (serverId: string): Promise<McpHttpServer | undefined> => {
     const server = await resolver.resolve(serverId)
     if (!server) await remove(serverId)
@@ -43,7 +42,6 @@ export const makeRegistryHttpUpstream = (options: McpRegistryHttpUpstreamOptions
       if (!server) return { status: 404, ok: false, detail: "MCP server unavailable", durationMs: 0 }
       return (await current(call.serverId, server)).call(call)
     },
-    /** A listing goes through the client a call would use, so the two cannot see different tools. */
     async list(server) {
       const found = await live(server.serverId)
       if (!found) throw new Error(`MCP server ${server.serverId} is unavailable`)

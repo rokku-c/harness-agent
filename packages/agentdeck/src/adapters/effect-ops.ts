@@ -1,11 +1,3 @@
-/**
- * agentdeck/adapters/effect-ops - the in-proc effect runtime where a WRITE op is
- * gated by the shared ConsentLedger, so ask-2 decisions steer real execution.
- *
- * The gate itself is `effect-ops-gate.ts`; this file is what the effect runtime
- * needs that no other gateway does — the write op declared against one session,
- * and the gate's verdict read back off the dead turn.
- */
 import { Effect } from "effect"
 import { AgentContext, Until, type Access } from "@effect-agent/core"
 import { EffectAgent } from "@effect-agent/builtin"
@@ -17,9 +9,7 @@ import { detailOf, makeSessionTable, type SessionBox } from "./session-table.ts"
 import { AWAIT, DENIED, writeOp } from "./effect-ops-gate.ts"
 
 export interface EffectOpsGatewayOptions {
-  /** model for the in-proc driver (scripted Model in tests) */
   readonly model: (config: UnifiedAgentConfig) => Model
-  /** shared ledger: every write raises an ask here; resolves steer execution */
   readonly ledger: ConsentLedger
 }
 
@@ -48,8 +38,6 @@ export const makeEffectOpsGateway = (options: EffectOpsGatewayOptions): SessionG
         )
         return { ok: true, text: String((raw as unknown as { text?: unknown })?.text ?? raw) }
       } catch (error) {
-        // the gate's own protocol: a pending or denied op is a readable refusal,
-        // anything else is a real failure and belongs to the caller above.
         const message = detailOf(error)
         if (message.startsWith(AWAIT)) return { ok: false, detail: "awaiting operator approval", awaiting: [message.slice(AWAIT.length)] }
         if (message.startsWith(DENIED)) return { ok: false, detail: "write denied by operator" }

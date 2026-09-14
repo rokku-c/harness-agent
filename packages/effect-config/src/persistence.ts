@@ -27,7 +27,6 @@ export function readConfig(store: ConfigStore, decl: ConfigDeclaration): ConfigO
   return old === undefined ? uninitialized(decl.appId) : validateStored(decl, old)
 }
 
-/** Validate both the existing authority and the patch before the only write. */
 export function saveConfig(
   store: ConfigStore, decl: ConfigDeclaration, patch: unknown, options: ConfigSaveOptions = {},
 ): ConfigOutcome {

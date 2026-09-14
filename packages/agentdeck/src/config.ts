@@ -1,15 +1,6 @@
-/**
- * agentdeck/config - the UNIFIED CONFIG MAP (ask 3).
- *
- * normalizeConfig(kind, raw) maps any agent's raw config object onto the
- * single UnifiedAgentConfig shape. Kind-level normalizers fill presets and
- * type-check their own declared fields; unknown keys flow into extra so the
- * mapping is lossless and declarative.
- */
 import { KNOWN_KINDS, type AgentKind } from "./kinds.ts"
 import type { UnifiedAgentConfig } from "./config-types.ts"
 
-/** pick a string or fail the mapping */
 const str = (raw: Record<string, unknown>, key: string): string | undefined => {
   const v = raw[key]
   return typeof v === "string" && v.length > 0 ? v : undefined
@@ -23,13 +14,11 @@ const num = (raw: Record<string, unknown>, key: string): number | undefined => {
   return typeof v === "number" && v >= 0 ? v : undefined
 }
 
-/** keys CONSUMED into unified fields (anything else stays lossless in extra) */
 const DECLARED_KEYS = new Set([
   "kind", "label", "cwd", "model", "command", "args", "env", "turnTimeoutMs",
   "consent", "autoApproveTools", "defaultDecision", "allowedTools"
 ])
 
-/** env objects arrive as objects or Maps - normalize to a Map */
 const envOf = (raw: Record<string, unknown>, key: string): ReadonlyMap<string, string> => {
   const v = raw[key]
   if (v instanceof Map) return v as ReadonlyMap<string, string>
@@ -62,12 +51,10 @@ const extraOf = (raw: Record<string, unknown>): Record<string, unknown> => {
   return out
 }
 
-/** raw -> unified mapping shared by every kind */
 const mapCommon = (kind: AgentKind, raw: Record<string, unknown>): UnifiedAgentConfig => ({
   kind,
   label: str(raw, "label"),
   cwd: str(raw, "cwd") ?? process.cwd(),
-  // dialect model fields resolve into the one unified model slot
   model: str(raw, "model") ?? str(raw, "codexModel") ?? str(raw, "geminiModel") ?? str(raw, "piModel"),
   command: str(raw, "command"),
   args: strList(raw, "args"),
@@ -77,7 +64,6 @@ const mapCommon = (kind: AgentKind, raw: Record<string, unknown>): UnifiedAgentC
   extra: extraOf(raw)
 })
 
-/** kind normalizers: fill declared dialect fields into the unified shape */
 const NORMALIZERS: Record<string, (raw: Record<string, unknown>) => Record<string, unknown>> = {
   "claude-code": (raw) => ({ ...raw, permissionMode: str(raw, "permissionMode"), allowedTools: strList(raw, "allowedTools"), disallowedTools: strList(raw, "disallowedTools") }),
   codex: (raw) => ({ ...raw, codexModel: str(raw, "codexModel") ?? str(raw, "model"), codexApprovalMode: str(raw, "codexApprovalMode"), sandbox: str(raw, "sandbox") }),
@@ -87,12 +73,10 @@ const NORMALIZERS: Record<string, (raw: Record<string, unknown>) => Record<strin
   custom: (raw) => raw
 }
 
-/** normalize one agent's raw config to the unified shape (lossless via extra) */
 export const normalizeConfig = (kind: AgentKind, rawConfig: unknown): UnifiedAgentConfig => {
   const raw = (typeof rawConfig === "object" && rawConfig !== null ? rawConfig : {}) as Record<string, unknown>
   const declared = NORMALIZERS[kind] ?? NORMALIZERS.custom
   return mapCommon(kind, declared(raw))
 }
 
-/** every agent kind normalizes to the same shape */
 export const unifiedKinds = (): ReadonlyArray<AgentKind> => [...KNOWN_KINDS]

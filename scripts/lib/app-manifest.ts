@@ -1,17 +1,8 @@
-/**
- * Which apps this repository can host alone, read from `apps/<dir>/effect.yaml`.
- *
- * An app is its manifest `id`, not its directory name — the two differ
- * (mcp-gateway-app -> mcp-gateway). The manifest is the same one the composition
- * root discovers; this reader takes `module`, `transport` and the `config:`
- * layer, and nothing else.
- */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { resolve } from "node:path"
 import { parse } from "yaml"
 import type { EffectAppDescriptor } from "@effect-agent/effect-apps"
 
-/** Two levels up from `scripts/lib`, and the reason this file is not free to move. */
 const APPS = resolve(import.meta.dir, "../../apps")
 
 const manifests = (): readonly { id: string; dir: string; file: string }[] =>

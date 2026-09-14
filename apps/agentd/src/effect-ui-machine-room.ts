@@ -1,19 +1,3 @@
-/**
- * The screen one machine is opened on: what its node is bound to run, and what a
- * push would change about it.
- *
- * It is a screen rather than the tail of the machine's row because it is a job
- * (read the binding, plan the push), and it is filled by its own read, run on
- * entry from the id the address carries. So a row's Open and an address pasted
- * into the bar are one arrival, and an address naming no machine makes no call at
- * all rather than asking about a node nobody chose.
- *
- * The plan here is the node's own and not the fleet agent's in the other room:
- * the two are different answers about different subjects, they land under
- * different roots, and neither screen can read the other's. The plan also runs
- * for the node the address names, so a pasted link plans what it names rather
- * than what was last drawn.
- */
 import { NAV_ROOT, field, press, row, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { answer, answered, answeredChip } from "./effect-ui-answer.ts"
 import { MACHINE_BINDING, MACHINE_PLAN } from "./effect-ui-paths.ts"
@@ -21,11 +5,6 @@ import { pending, readFailed, readFailure, readPending } from "./effect-ui-read.
 
 const binding = `${MACHINE_BINDING}/desired`
 
-/**
- * A node nothing was bound to has no kernel, and a cell that is blank for one
- * reads as a column the read did not carry. The field is absent rather than
- * empty, so the row states that instead of drawing an empty chip.
- */
 const kernel: UiNodeSpec = {
   ...field("Kernel", row([
     { component: "Code", props: { size: "2" }, bind: `${binding}/kernel/bundleId` },

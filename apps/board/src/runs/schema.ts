@@ -1,28 +1,15 @@
-/**
- * A run is one execution binding: an agent instance holds a task node while it
- * works, and board records the binding. Board never schedules a run - it records
- * what an agent declares and refuses declarations that contradict what it has
- * already recorded.
- *
- * `kind` is an open string, not a board enum: which agents exist is agentd's
- * vocabulary, and board must not need a release to learn a new one.
- */
 import { z } from "@effect-agent/effect-config"
 
-/** how the agent reached the board: a claim over MCP, a machine probe, or the in-process runtime */
 export const channels = ["mcp-self", "probe", "runtime"] as const
-/** what an agent may report; `orphan` is board's own finding after a restart, never an agent's claim */
 export const reportedStates = ["done", "failed"] as const
 export const runStates = ["running", ...reportedStates, "orphan"] as const
 
-/** hello/heartbeat: the identity an agent instance announces */
 export const announceSchema = z.object({
   agentId: z.string().min(1), kind: z.string().min(1), channel: z.enum(channels).default("mcp-self"),
   host: z.string().min(1).optional(), capabilities: z.array(z.string().min(1)).default([]),
 }).strict()
 export const startRunSchema = announceSchema.extend({
   nodeId: z.string().min(1), sessionRef: z.string().min(1).optional(),
-  /** Set when this run is the execution of a launch intent the machine collected. */
   intentId: z.string().min(1).optional(),
 }).strict()
 export const progressSchema = z.object({
@@ -45,7 +32,6 @@ export const runSchema = z.object({
 
 export type Agent = z.infer<typeof agentSchema>
 export type Run = z.infer<typeof runSchema>
-/** an announcement after parsing: defaults applied, unknown keys refused */
 export type Announcement = z.infer<typeof announceSchema>
 export type RunState = (typeof runStates)[number]
 export type ReportedState = (typeof reportedStates)[number]

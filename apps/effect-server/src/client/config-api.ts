@@ -19,7 +19,6 @@ export interface ConfigDescription extends ConfigState {
 export type ConfigFailure = Error & { status?: number; data?: Partial<ConfigState> }
 export type ConfigFetch = (url: string, init?: RequestInit) => Promise<Response>
 
-/** No HTTP error (including a misleading {ok:true}) may become a success. */
 export function createConfigApi(fetcher: ConfigFetch) {
   const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value)
   const request = async (url: string, init?: RequestInit): Promise<Record<string, unknown>> => {

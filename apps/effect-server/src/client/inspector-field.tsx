@@ -1,13 +1,3 @@
-/**
- * One argument, as the control its type calls for.
- *
- * The layout is the config form's: a label, the control, and a description the
- * tool's schema wrote. The control is the library's own, unchecked — a string
- * is a `TextField`, a choice is a `Select`, a flag is a `Switch`, and anything
- * with a shape inside (an object, an array) is JSON the operator writes, which
- * we do not pretend to be a form.
- */
-
 import * as React from "react"
 import { Flex, Select, Switch, Text, TextArea, TextField } from "@radix-ui/themes"
 import type { InspectorField as Field } from "./inspector-types.ts"

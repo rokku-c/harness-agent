@@ -1,9 +1,3 @@
-/**
- * The model contract: what a loop engine needs from a provider.
- * Providers are configuration, not architecture - the agent API never
- * names a provider. Wire types are plain data; the Model interface carries
- * declared capabilities so a replacement can be contract-checked (M3).
- */
 import { Effect } from "effect"
 
 export interface WireTool {
@@ -23,9 +17,6 @@ export interface WireToolCall {
   readonly input: unknown
 }
 
-/** The output budget when the config does not set one. Providers are
- *  interchangeable configuration, so one config must not mean a different
- *  budget depending on which one was selected. */
 export const DEFAULT_MAX_OUTPUT_TOKENS = 1024
 
 export interface GenerateResult {
@@ -33,7 +24,6 @@ export interface GenerateResult {
   readonly toolCalls: ReadonlyArray<WireToolCall>
 }
 
-/** Declared model capabilities - replacement safety net (M3). */
 export interface ModelCapabilities {
   readonly streaming: boolean
   readonly thinking: boolean
@@ -41,12 +31,6 @@ export interface ModelCapabilities {
   readonly usage: boolean
 }
 
-/**
- * The model surface a driver loops over. id/capabilities are optional so
- * bare generate-only fakes keep working; real providers declare them, and
- * ModelLayer.require treats an absent declaration as "no capability" -
- * the fail-loud direction (M3).
- */
 export interface Model {
   readonly id?: string
   readonly capabilities?: ModelCapabilities
@@ -55,7 +39,6 @@ export interface Model {
     messages: ReadonlyArray<WireMessage>,
     tools: ReadonlyArray<WireTool>
   ) => Effect.Effect<GenerateResult, unknown>
-  /** Optional streaming surface; drivers that need it check capabilities.streaming first. */
   readonly stream?: (
     systemPrompt: string,
     messages: ReadonlyArray<WireMessage>,

@@ -1,11 +1,3 @@
-/**
- * tools/build/appends.ts - GENERATED APPEND OPS per declared resource.
- *
- * Concept: one write op per workspace resource declaration (workspace.ts),
- * so adding a resource grows both the capability manifest and the op
- * surface from the same source. Each op is a Text write into that resource
- * kind with a bounded, explicit failure mode.
- */
 import { Effect } from "effect"
 import { Op, type Op as OpT } from "@effect-agent/core"
 import { resourceAppendCapabilities } from "../../capabilities.ts"

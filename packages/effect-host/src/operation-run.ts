@@ -1,15 +1,6 @@
-/**
- * Executing one declared host operation against a target.
- *
- * IO lives in the lifecycle, not here: the target answers and this shapes the
- * answer into the operation's declared output — including folding a reload's
- * error (and its absence) into the result object, so "refused, still serving"
- * is a payload rather than a thrown failure.
- */
 import type { HostOperation, HostOperationTarget } from "./operations.ts"
 import { messageOf } from "@effect-agent/effect-interface"
 
-/** Execute one declared operation. IO lives in the lifecycle, not here. */
 export const runHostOperation = async (
   operation: HostOperation,
   params: Readonly<Record<string, string>>,

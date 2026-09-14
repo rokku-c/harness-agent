@@ -1,10 +1,3 @@
-/**
- * supervisor/child-ops.ts - DIRECT-TO-CHILD ops.
- *
- * Concept: verbs over ONE running child - inject into its context, stop it
- * (cooperative or hard), or checkpoint it for later resume. Forking and
- * joining whole children live in supervisor/lifecycle.ts.
- */
 import { Effect, Schema } from "effect"
 import { AgentRuntime, notationText, Op } from "@effect-agent/core"
 

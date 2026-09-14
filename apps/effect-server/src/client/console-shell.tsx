@@ -1,30 +1,3 @@
-/**
- * The console shell.
- *
- * The surface the address names, framed the way that surface asked to be framed,
- * with the dock under every route except Home.
- *
- * The shell resolves an address by asking the registry which surface claims it,
- * and then draws whatever that surface returns. It holds no list of place names,
- * no branch per place, and no branch for the address that resolves to nothing:
- * the not-found pane registers like everything else (`console-places.tsx`), so
- * "what draws this route" is one lookup for all seven cases. That is `flows.md`
- * §9.9 and §9.10 in one line, and it is the difference between five places and
- * the old three-way special-casing with five names.
- *
- * The bar, the keyboard and the command palette are not here: they are about the
- * operator rather than about the address, so `console-chrome.tsx` owns them and
- * this file is the framing they explain themselves against.
- *
- * How a surface is framed is the surface's own declaration. A place is a document
- * — the design system's `Section` for vertical rhythm and `Container` for how
- * wide a page reads, so it stays as tall as what it holds. An app is not a page:
- * it is a tool, so it takes exactly the area the chrome leaves and says for
- * itself which part of itself scrolls. That is the whole difference between a
- * control and the answer it produced being visible together, and the answer being
- * somewhere below the fold.
- */
-
 import * as React from "react"
 import { Container, Flex, Section } from "@radix-ui/themes"
 import { ConsoleTheme } from "./console-theme.tsx"
@@ -38,11 +11,6 @@ import { parseConsoleHash, surfaceFor } from "./console-places.tsx"
 import type { ConsoleSurfaces } from "./console-surfaces.ts"
 import type { PlaceContext } from "./console-place.ts"
 
-/**
- * The host's own plane table, read once for the chrome. It is not a source with a
- * freshness marker: the status line is chrome, and chrome that says "stale" is
- * noise on every route — a failed read here says so in its own words.
- */
 const useStatusLine = (): string => {
   const [status, setStatus] = React.useState("Loading system status…")
   React.useEffect(() => {
@@ -58,9 +26,6 @@ export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces 
   const status = useStatusLine()
   const plan = React.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state])
   const hash = useAddress()
-  // Re-resolved when the plan changes, so a deep link to an app resolves the moment the catalogue
-  // lands rather than staying Not found until the next navigation. Resolution reads the plan and
-  // never rewrites the address on account of what it finds (§2.H13).
   const route = React.useMemo(() => parseConsoleHash(hash, plan), [hash, plan])
   const surface = surfaceFor(route)
   const context = React.useMemo<PlaceContext>(() => ({
@@ -72,8 +37,6 @@ export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces 
   }), [plan, surfaces, status, catalogue.state, catalogue.retry])
   const home = route.kind === "home"
   const view = surface?.view(route, context) ?? null
-  // The shell's own body. It is a real focus target rather than a plain div for two reasons §10.3
-  // gives it: a skip link moves focus here, and a route with no heading of its own lands here.
   const main = React.useRef<HTMLDivElement>(null)
   return <ConsoleTheme>
     <Flex direction="column" height="100dvh">

@@ -1,5 +1,3 @@
-/** Channel wire types: what crosses the boundary between the world and the agent. */
-
 export interface IncomingMessage {
   readonly id: string
   readonly conversationId: string

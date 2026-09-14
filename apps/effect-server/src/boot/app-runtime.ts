@@ -1,16 +1,3 @@
-/**
- * The app half of boot: what an app is loaded *into*, and the two load paths.
- *
- * One `LoadContext` serves both paths — `effect.yaml` boot and bundle
- * connect-back — so both register into one host, one registry and one view table.
- * The catalog is built here for the same reason the services are: §4's table is a
- * live view over services that outlive a kernel, so every revision shares it.
- *
- * `layer` is what §6.5-6 suspends and restores by name. The two reloaders are not
- * called directly — they are bound into the dispatch the host already holds
- * (reload-dispatch.ts), because the host is the one that routes a reload request.
- */
-
 import { resolve } from "node:path"
 import type { AppCatalog } from "@effect-agent/effect-apps"
 import { bootManifests } from "../load-manifest.ts"
@@ -50,9 +37,6 @@ export const makeAppRuntime = (
     roots, context: loadContext, loaded: layer.appIds,
     swap: (id, dispose) => layer.swap(id, dispose),
   })
-  // The second load path is owned here for the same reason the first is: an app
-  // the server compiles is still an app the server runs, and a reload has to reach
-  // it. Its context is the layer's, so both paths share one host and one registry.
   const bundles = options.bundles === undefined ? undefined : makeBundleReloader({
     apps: options.bundles,
     root: options.bundleRoot ?? resolve(".effect-bundles"),
@@ -64,8 +48,6 @@ export const makeAppRuntime = (
   dispatch.bind(reloader, bundles)
   return {
     catalog, loadContext, layer, bundles,
-    // Development only (watch.ts): the trigger that makes reloading part of saving
-    // a file rather than a command to remember.
     watcher: options.dev !== true ? undefined : makeSourceWatcher({
       roots, reload: dispatch.reload,
       onOutcome: (outcome) => console.error(`[effect-server] reload ${outcome.appId}: `

@@ -1,11 +1,3 @@
-/**
- * loop/decide.ts - TERMINATION SEMANTICS.
- *
- * Concept: a turn that produced no executable tool calls ends the run the
- * way the agent declared (until). Text/Stop return the text; ToolCall
- * returns the first call; Thinking is not exposed. Structured results must
- * arrive through the declared protocol tool, never through reply text.
- */
 import { Effect } from "effect"
 import { AgentFailure, type Until } from "@effect-agent/core"
 import type { WireToolCall } from "@effect-agent/model"

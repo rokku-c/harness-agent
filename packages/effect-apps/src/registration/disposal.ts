@@ -1,7 +1,6 @@
 export type AsyncAppDisposer = () => Promise<void>
 export type Cleanup = () => void | Promise<void>
 
-/** All callers share completion (including failure); every cleanup runs in reverse. */
 export const asyncDisposer = (steps: readonly Cleanup[]): AsyncAppDisposer => {
   let completion: Promise<void> | undefined
   return () => completion ??= Promise.resolve().then(async () => {

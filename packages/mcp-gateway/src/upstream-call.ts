@@ -1,25 +1,8 @@
-/**
- * What every MCP upstream owes, written once.
- *
- * A transport's `call` is a contract, not an implementation detail: the server
- * the caller named is either known (404 when it is not), answers (200, or 502
- * with the text it sent when it reports `isError`), or throws (502 with the
- * message). Two transports wrote that mapping out separately and the copies had
- * already drifted, in the string nobody reads until a call fails. What is left
- * here is the shared half; a transport supplies only how one server is wired.
- *
- * The same client answers both questions a server can be asked — what it
- * advertises, and one call — because they are the same conversation. Two
- * clients per server would be two processes for a stdio server and two views of
- * one tool list, which is exactly how a door comes to advertise something it
- * cannot carry.
- */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import type { CatalogTool, McpToolLister } from "./catalog.ts"
 import type { McpUpstream } from "./contract.ts"
 import type { McpGatewayServer } from "./contract-sets.ts"
 
-/** The readable text of a tool result: its text blocks, one per line. */
 const text = (result: { content?: readonly unknown[] }): string =>
   (result.content ?? []).map((item) => {
     const value = item as { type?: string; text?: string }
@@ -28,13 +11,11 @@ const text = (result: { content?: readonly unknown[] }): string =>
 
 export interface UpstreamOptions<S extends McpGatewayServer> {
   readonly servers: readonly S[]
-  /** Wire one server's transport onto its own client. At most once per server. */
   readonly connect: (server: S, client: Client) => Promise<void>
 }
 
 export type McpUpstreamServer = McpUpstream & McpToolLister & { close(): Promise<void> }
 
-/** A lazy client per server: nothing is started until a call or a listing names it. */
 export const makeUpstream = <S extends McpGatewayServer>(options: UpstreamOptions<S>): McpUpstreamServer => {
   const byId = new Map(options.servers.map((server) => [server.serverId, server]))
   const clients = new Map<string, Client>()

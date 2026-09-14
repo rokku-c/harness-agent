@@ -17,7 +17,7 @@ per-feature ops or per-feature copy twice (single-source rule).
   resource.append | resource.update | resource.delete | ui.render
 - The manifest is assembled from FRAMEWORK + generated resource capabilities
   (workspace.ts WORKSPACE_RESOURCES); supply registry, session ops and catalog
-  all derive from it (tests prove no drift: capabilities.test.ts).
+  all derive from it (the no-drift check was deleted with the suite).
 - Contract: adding a capability = one manifest entry + one impl branch in
   tools.ts; the surface (supply/catalog/MCP) updates itself.
 

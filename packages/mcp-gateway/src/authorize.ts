@@ -1,15 +1,3 @@
-/**
- * mcp-gateway — the authorization bridge.
- *
- * The gateway speaks in serverIds and tools; effect-authz speaks in resources
- * and principals. This file is the entire translation: one tool is the resource
- * `mcp://<serverId>/<tool>`, and calling it is the `call` action.
- *
- * A call that names no tool addresses the server itself (`mcp://<serverId>`),
- * which is a shallower resource than any of its tools: a grant of
- * `mcp://board/*` authorizes each board tool but not the tool-less call.
- */
-
 import type { Authz, Decision, Principal, Resource } from "@effect-agent/effect-authz"
 import { serverResource, serverToolResource } from "@effect-agent/effect-authz"
 
@@ -26,7 +14,6 @@ export interface CallAuthorization {
   readonly allowed: boolean
   readonly resource: Resource
   readonly decision?: Decision
-  /** Present exactly when `allowed` is false. */
   readonly refusal?: CallRefusal
 }
 

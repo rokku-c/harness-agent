@@ -1,4 +1,3 @@
-/** Anthropic Messages provider. */
 import { Effect, Layer } from "effect"
 import { ModelTag, type ModelService } from "./service.ts"
 import { DEFAULT_MAX_OUTPUT_TOKENS, type ModelCapabilities, type WireToolCall } from "./types.ts"
@@ -70,5 +69,4 @@ export const anthropicModel = (config: AnthropicConfig): ModelService => ({
     })
 })
 
-/** M1: the provider as a scoped Layer. */
 export const AnthropicLayer = (config: AnthropicConfig): Layer.Layer<ModelTag> => Layer.succeed(ModelTag, anthropicModel(config))

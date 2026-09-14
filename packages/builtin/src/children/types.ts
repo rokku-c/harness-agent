@@ -1,10 +1,3 @@
-/**
- * children/types.ts - the child kernel's SHAPES and exit semantics.
- *
- * Concept: what a spawned child IS (state: fiber + its signal box + event
- * bus) and how an exit translates into a result (running/completed/
- * interrupted/paused/failed). Pure logic + types: no registry access.
- */
 import { Cause, Effect, Exit, Fiber, Option, PubSub, Queue, type Scope } from "effect"
 import {
   AgentFailure, AgentPaused,
@@ -40,7 +33,6 @@ export const childSummary = (state: ChildState): Effect.Effect<ChildSummary> =>
   })
 
 export interface ChildKernel {
-  /** Fork a child; the runtime service handed down is what the child sees. A seed resumes from an archive. */
   readonly spawn: (agent: string, task: string, runtime: AgentRuntimeService, seed?: { readonly resume?: StoredCheckpoint }) => Effect.Effect<Spawned, AgentError, Scope.Scope>
   readonly join: (childId: string) => Effect.Effect<ChildResult, AgentError>
   readonly send: (childId: string, signal: Signal) => Effect.Effect<void, AgentError>

@@ -1,4 +1,3 @@
-/** Only a successful read advances the baseline; failed saves remain retryable. */
 export function createConfigEdits() {
   let initialKeys: string[] = []
   return {

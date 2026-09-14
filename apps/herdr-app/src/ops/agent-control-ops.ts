@@ -1,13 +1,3 @@
-/**
- * Reaching an agent that is already open: reading it, answering it, and waiting
- * on it.
- *
- * These are the three things an operator does to an agent they did not start
- * from here. Reading is a read; the other two are writes, because a keystroke
- * and an approval answer change what the agent will do next. `send_keys` is the
- * escape hatch — Herdr normally recognizes an approval UI itself, and this is
- * for the one it did not.
- */
 import { operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { holdDeadlineMs } from "../herdr-hold-deadline.ts"
@@ -20,7 +10,6 @@ export const agentControlOperations = ({ client }: HerdrSurfaces): readonly Oper
     name: "herdr_agent_output",
     description: "Read what an agent has printed: the screen as it stands, or the scrollback behind it",
     access: "read",
-    // a query arrives as text, so the count of lines has to be read as one
     input: z.object({ target, source: readSource.default("recent"), lines: z.coerce.number().int().positive().max(2000).optional() }).strict(),
     http: { method: "GET", path: "/herdr/agents/:target/output" },
     handler: async (input) => {

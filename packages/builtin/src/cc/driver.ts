@@ -1,12 +1,3 @@
-/**
- * cc/driver.ts - THE ClaudeCode DRIVER (facade, top layer).
- *
- * Concept: Claude Code is an external agent with its own loop - effect-agent
- * treats it as a black box and expresses it as just another Driver: binding
- * ops become native MCP tools (cc/mcp.ts), one SDK session is launched and
- * drained (cc/session.ts), and the until decides what comes back
- * (cc/result.ts). This file only composes those layers.
- */
 import { Effect, Runtime } from "effect"
 import { materialize, requireUntil, schemaJson, type Driver, type RunRequest } from "@effect-agent/core"
 import type { ClaudeCodeOptions } from "./options.ts"

@@ -1,10 +1,3 @@
-/**
- * server/routes/conversation.ts - the CONVERSATION TIMELINE HTTP route.
- *
- * Concept: one conversation's full timeline (messages AND tool steps,
- * oldest first) for a history view - one JSON object per line
- * from the MCP mantis_conversation tool.
- */
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { callText, json } from "../helpers.ts"
 

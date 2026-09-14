@@ -1,10 +1,3 @@
-/**
- * gate/policies.ts - SIMPLE DECISION POLICIES (no operator in the loop).
- *
- * Concept: gates that answer instantly. AllowAll is the open-box default;
- * DenyWrites protects every write unless a session flag allows it. Both are
- * pure judgement - they never Ask.
- */
 import { Effect } from "effect"
 import type { GateDecision, GateInput, GateService } from "./contract.ts"
 

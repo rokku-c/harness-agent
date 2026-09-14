@@ -1,20 +1,3 @@
-/**
- * The formal proofs, as a check.
- *
- * `formal/` is the Lean model of the mechanisms the product rests on, with the
- * invariants each one owes stated as theorems: a navigation chain that neither
- * invents a screen nor hangs, an id derivation that cannot mint a duplicate,
- * config layering whose provenance names the layer the value came from, and so
- * on — one module per mechanism, each naming the file it models at the top. A
- * proof nothing runs is a comment, so — like every other invariant here — it
- * gets a check.
- *
- * Usage:
- *   bun scripts/check-proofs.ts
- *
- * Lean is looked for on PATH, then where elan installs it. Exit 0 = the model
- * builds; exit 1 = a theorem no longer holds, or no Lean to check with.
- */
 import { existsSync, readdirSync, readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -26,7 +9,6 @@ const findLake = (): string | undefined => {
   return existsSync(elan) ? elan : undefined
 }
 
-/** What the model claims, so the summary says something. */
 const claims = (dir: string): { files: number; theorems: number } => {
   const sources = readdirSync(dir).filter((name) => name.endsWith(".lean"))
   const proofs = sources.map((name) => readFileSync(join(dir, name), "utf-8"))
@@ -36,16 +18,6 @@ const claims = (dir: string): { files: number; theorems: number } => {
   }
 }
 
-/**
- * The modules `formal/Formal.lean` does not import.
- *
- * `lake build` compiles that root module's import closure and nothing else — a
- * module sitting in the directory but absent from the list is never compiled. So
- * `claims` above would count theorems out of a file no build ever reached, and a
- * proof that had stopped holding would be reported as one that holds. This is
- * checked rather than assumed because adding the file is the step that gets
- * forgotten, and nothing else about the build says so.
- */
 const unimported = (dir: string): readonly string[] => {
   const root = readFileSync(join(dir, "..", "Formal.lean"), "utf-8")
   const imported = new Set([...root.matchAll(/^import Formal\.(\S+)/gm)].map((match) => match[1]))

@@ -1,7 +1,6 @@
 import type { EffectPlugin } from "@effect-agent/effect-host"
 import type { ConfigRegistry } from "@effect-agent/effect-config"
 
-/** Read-only configuration surface; initialization happens once, never as an overlay. */
 export const makeConfigPlugin = (
   configs: ConfigRegistry, yamlOf?: (id: string) => unknown, overrideOf?: (id: string) => unknown,
 ): EffectPlugin => ({

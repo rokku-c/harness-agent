@@ -22,8 +22,6 @@ const shutdown = async (probe: RunningProbe, nodeId: string, code: number): Prom
     process.stderr.write(`probe ${nodeId} withdrew\n`)
     process.exit(code)
   } catch (error) {
-    // Not a clean exit, and it is not reported as one: nobody received the goodbye,
-    // so the node stays listed as up until its lease happens to lapse.
     process.stderr.write(`probe ${nodeId} could not withdraw: ${message(error)}\n`)
     process.exit(1)
   }
@@ -35,13 +33,7 @@ const main = async (): Promise<void> => {
   const nodeId = given.id ?? fail("--id is required")
   const intervalMs = number(given, "interval", 1500)!
   const capabilities = csv(given.capabilities)
-  // The announcement is what the push side adjudicates every placement against:
-  // a machine that declares nothing gets everything refused, with no hint as to
-  // why. Refused here, at startup, rather than per plan.
   if (capabilities.length === 0) fail("--capabilities is required")
-  // Same reasoning for the allowlist (§8.3), and it is the *sharper* case: an
-  // empty namespace set is a valid declaration of "carries nothing", so a typo'd
-  // flag would be indistinguishable from a deliberate drain at plan time.
   const namespaces = csv(given.namespaces)
   if (namespaces.length === 0) fail("--namespaces is required")
   const maxApps = ceiling(given, "max-apps")
@@ -58,16 +50,12 @@ const main = async (): Promise<void> => {
     ...(given.token === undefined ? {} : { token: given.token }),
     ...(given.stage === undefined ? {} : { stage: given.stage }),
     ...(factsIntervalMs === undefined ? {} : { factsIntervalMs }),
-    // Both of these are the point of a machine's agentd, so both are on unless
-    // turned off: a machine that only holds a lease is present but of no use.
     ...(given["no-launch"] === undefined ? { launcher: makeLaunchRunner() } : {}),
     ...(given["no-collect"] === undefined
       ? { reporter: makeFactSource({ machineId: nodeId, ...(hosts.length === 0 ? {} : { hosts }), ...(sessionLimit === undefined ? {} : { limit: sessionLimit }) }) }
       : {}),
     onEvent: (event) => {
       process.stderr.write(`${line(event)}\n`)
-      // A refusal stops the loop for good, so staying up would be a process that
-      // looks like a running probe and is not one: it goes down and says why.
       if (event instanceof ProbeFault && event.kind === "refused") void shutdown(probe, nodeId, 1)
     },
     onLaunch: (report) => process.stderr.write(`launch ${launched(report)}\n`),

@@ -1,20 +1,3 @@
-/**
- * mcp-gateway — turning a request into a principal.
- *
- * Three sources, in strict order. An already-parsed claim bag (`authInfo.extra`)
- * is first because it is the strongest: the caller hands over claims, not
- * headers, so they were produced by a layer that already verified something.
- * A bearer token is verified against the token store — the only path an external
- * caller can take. Raw `x-*` headers are read only when the transport declares
- * itself trusted, because anyone who can reach the port can forge them.
- *
- * A request that presents a token but fails verification is denied outright
- * rather than falling through to the weaker sources — a fallback would let a
- * caller downgrade by sending a token it knows is bad. Claims cannot be
- * presented alongside a bad token: the door produces them from a verified one,
- * so a bad token produces none.
- */
-
 import { isPrincipalKind, parsePrincipalKey, principalKey, type Principal, type PrincipalKind } from "@effect-agent/effect-authz"
 
 import { type HeaderBag, headerValue } from "./identity.ts"
@@ -23,18 +6,15 @@ import type { TokenStore } from "./token.ts"
 
 export interface ResolvePrincipalInput {
   readonly headers?: HeaderBag
-  /** Declares the transport trustworthy, which is what lets bare headers count. */
   readonly trusted?: boolean
   readonly tokens?: TokenStore
   readonly principals?: PrincipalRegistry
-  /** Claims the transport already validated; trusted by construction. */
   readonly claims?: Readonly<Record<string, unknown>>
 }
 
 export interface PrincipalResolution {
   readonly principal?: Principal
   readonly via?: "token" | "claim"
-  /** Why resolution failed — present exactly when `principal` is absent. */
   readonly detail?: string
 }
 
@@ -42,13 +22,11 @@ const BEARER = "bearer "
 const KIND_CLAIM = "x-principal-kind"
 const ID_CLAIM = "x-principal-id"
 
-/** The claim bag a verified principal travels as: what a door hands its handlers. */
 export const principalClaims = (principal: Principal): Readonly<Record<string, string>> => ({
   [KIND_CLAIM]: principal.kind,
   [ID_CLAIM]: principal.id,
 })
 
-/** The credential a request presents, or `undefined` when it presents none. */
 export const bearerToken = (headers: HeaderBag): string | undefined => {
   const raw = headerValue(headers, "authorization")
   if (raw === undefined || raw.length <= BEARER.length) return undefined

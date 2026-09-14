@@ -5,10 +5,8 @@ import { deckOperations } from "./ops/index.ts"
 import type { DeckOptions } from "./domain/options.ts"
 
 export type { DeckOptions } from "./domain/options.ts"
-/** Owns state and SQLite, never a socket. Every load creates an independent app. */
 export const createDeckApp = (options: DeckOptions = {}) => {
   const domain = makeDeckDomain(options)
-  // one list, projected twice: the routes this app answers and the tools it offers
   const operations = deckOperations(domain)
   const router = makeRouter(operations)
   let closed = false

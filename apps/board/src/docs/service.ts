@@ -1,8 +1,3 @@
-/**
- * Document storage. The version check is the collaboration guard: an operation
- * built on a version that has already moved is refused rather than applied, so a
- * stale editor is told to refetch instead of silently undoing someone's edit.
- */
 import type { TaskStore } from "../storage/store.ts"
 import { BoardError, parse } from "../tasks/schema.ts"
 import { applyOp, subtreeSize } from "./outline.ts"
@@ -16,7 +11,6 @@ export const makeDocumentService = (store: TaskStore, docs: DocStore, now: () =>
     return doc
   }
   const write = (doc: Document, at: number): Document => {
-    // the version moves on every accepted operation, whichever collaborator sent it
     const next = { ...doc, version: doc.version + 1, updatedAt: Math.max(at, doc.updatedAt + 1) }
     docs.put(next)
     return next
@@ -36,7 +30,6 @@ export const makeDocumentService = (store: TaskStore, docs: DocStore, now: () =>
         throw new BoardError(409, `Document ${doc.docId} advanced to version ${doc.version}; refetch before applying an operation built on ${value.version}`)
       }
       const newId = crypto.randomUUID(), at = now()
-      // a rename is versioned like any other edit, so it cannot race an outline change
       const edited: Document = value.op.kind === "retitle"
         ? { ...doc, title: value.op.title }
         : { ...doc, nodes: applyOp(doc.nodes, value.op, newId) }

@@ -6,12 +6,6 @@ import type { Driver } from "./driver.ts"
 import type { AgentError } from "./errors.ts"
 import type { Until } from "./until.ts"
 
-/**
- * The agent algebra: an agent is Input -> Effect<Output, Error, Requirements>.
- * The definition expresses WHAT it does (context mapping, until, access);
- * the driver decides HOW the loop runs. define -> returns -> uses/writes ->
- * implementedBy reads as the sentence it is.
- */
 export interface Definition<I, O, R> {
   readonly id: string
   readonly input: (input: I) => AgentContext
@@ -66,4 +60,3 @@ export const Agent = {
   ) =>
     Effect.forEach(agents, (agent) => agent.run(input), { concurrency: "unbounded" }).pipe(Effect.flatMap(select))
 }
-

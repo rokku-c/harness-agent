@@ -1,12 +1,3 @@
-/**
- * Orchestration as the same algebra: the supervisor is an agent whose ops
- * are the runtime's coordination primitives. It creates a shared whiteboard,
- * spawns workers, declares a watch rule (fork a reviewer when a child
- * reports progress), waits, and merges. Children push their progress into
- * the supervisor's context between its steps. The model is scripted here,
- * with the cast's own models in ./lib/orchestration-models.ts;
- * 06-live-orchestration.ts runs the same shape on a real provider.
- */
 import { Effect, Layer } from "effect"
 import {
   Agent, AgentContext, ConsoleHook, Harness, Until,
@@ -29,7 +20,6 @@ const registry = {
     .implementedBy(reviewerDriver)
 }
 
-// the supervisor's scripted model drives the real runtime ops
 const supervisorModel = (): Model => {
   const script: Array<{ text: string; toolCalls?: Array<{ id: string; name: string; input: unknown }> }> = [
     { text: "", toolCalls: [{ id: "c1", name: "create_board", input: { name: "findings" } }] },

@@ -1,10 +1,3 @@
-/**
- * console/turn-runner.ts - TURN LAUNCH + BUSY EXCLUSION.
- *
- * Concept: one conversation drives one turn at a time (#inflight rejects
- * overlap); each launch runs in its own AsyncLocalStorage context so events
- * attribute right when turns interleave; begin/end record onto ledger + bus.
- */
 import { AsyncLocalStorage } from "node:async_hooks"
 import type { Bus } from "../bus.ts"
 import type { MantisHost } from "../../dingtalk/host.ts"
@@ -23,7 +16,6 @@ export class TurnRunner {
     private readonly host: MantisHost
   ) {}
 
-  /** conversation currently driving a turn (session event attribution) */
   readonly current = (): string | undefined => this.#runCtx.getStore()
 
   #guard(conversationId: string, text: string): string | undefined {
@@ -55,7 +47,6 @@ export class TurnRunner {
       ts: Date.now()
     }))
   }
-  /** start (or continue) a conversation turn from the web */
   readonly handleMessage = async (conversationId: string, text: string): Promise<{ accepted: boolean; detail?: string }> => {
     const error = this.#guard(conversationId, text)
     if (error !== undefined) return { accepted: false, detail: error }
@@ -68,7 +59,6 @@ export class TurnRunner {
     return { accepted: true }
   }
 
-  /** fire a turn and AWAIT its reply (MCP host: a chat tool returns the answer) */
   readonly chatSync = async (conversationId: string, text: string): Promise<{ ok: boolean; reply?: string; detail?: string }> => {
     const error = this.#guard(conversationId, text)
     if (error !== undefined) return { ok: false, detail: error }

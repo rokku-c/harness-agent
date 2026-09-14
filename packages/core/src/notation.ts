@@ -1,7 +1,3 @@
-/**
- * The prose rule: every model-facing text is notation - a branded string
- * resolved from a store. Definitions carry targets, not prose.
- */
 declare const brand: unique symbol
 export type NotationText = string & { readonly [brand]: true }
 
@@ -34,4 +30,3 @@ export const resolveNotation = (store: NotationStore, target: string, vars?: Rec
   if (text.length === 0) throw new Error('notation: target "' + target + '" resolves to empty text')
   return text as NotationText
 }
-

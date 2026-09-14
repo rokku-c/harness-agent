@@ -12,13 +12,6 @@ export const jsonBind = (path: string): unknown => ({ $bindState: path })
 const isItem = (value: UiActionParam): value is { readonly item: string } =>
   typeof value === "object" && value !== null && "item" in value
 
-/**
- * An action param reads the *value* of an item field, and json-render spells
- * that differently from a prop: in a prop `$item` is the field's value, but in
- * an action param `$item` is a state *path* — the value form there is
- * `$bindItem`, which resolves the path the repeat scope is standing on. Both
- * of our spellings mean "this item's field", so the difference stays here.
- */
 export const actionParams = (params: Readonly<Record<string, UiActionParam>> | undefined): Record<string, unknown> | undefined =>
   params === undefined ? undefined : Object.fromEntries(Object.entries(params).map(([key, value]) =>
     [key, isItem(value) ? { $bindItem: value.item } : jsonDynamic(value)]))

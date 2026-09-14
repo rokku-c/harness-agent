@@ -1,11 +1,3 @@
-/**
- * channels/robot/channel.ts - the RobotChannel itself.
- *
- * Concept: the bot's inbound subscription (TOPIC_ROBOT messages + TOPIC_CARD
- * approval-button callbacks) wired to delivery. Message handling is
- * concurrent - one approval reply must never queue behind a running agent
- * turn. Normalizing, SDK loading and sending live in the sibling files.
- */
 import type { IncomingMessage, MessageChannel, OutgoingTarget, Reply } from "../../messages.ts"
 import { parseCardAction } from "../../dingtalk-card.ts"
 import { toIncomingRobot } from "./parse.ts"
@@ -36,13 +28,12 @@ export const makeRobotChannel = (options: RobotChannelOptions): MessageChannel =
           typeof (raw as Record<string, unknown>).sessionWebhook === "string"
             ? ((raw as Record<string, unknown>).sessionWebhook as string)
             : ""
-        // concurrent: an approval reply must never queue behind a running turn
         void deliver(message).then((reply) => {
           if (reply !== undefined) return postWebhookReply(webhook, reply)
         })
       })
       await client.connect()
-      return new Promise<never>(() => {}) // keep the stream alive
+      return new Promise<never>(() => {})
     }
   }
 }

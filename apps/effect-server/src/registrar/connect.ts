@@ -1,7 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import type { McpPluginEntry } from "../registrar.ts"
 
-/** Own connection cleanup if a transport fails before registration completes. */
 export const connectPlugin = async (entry: McpPluginEntry): Promise<Client> => {
   const client = new Client({ name: "effect-server", version: "0.1.0" })
   try {

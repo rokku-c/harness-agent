@@ -1,4 +1,3 @@
-/** Preserve base path prefixes; an existing terminal /v1 overlaps the API route. */
 export const upstreamURL = (baseURL: string, source: URL): URL => {
   const target = new URL(baseURL)
   const prefix = target.pathname.replace(/\/+$/, "")

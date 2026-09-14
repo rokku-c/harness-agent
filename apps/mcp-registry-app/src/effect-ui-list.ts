@@ -1,21 +1,3 @@
-/**
- * The start screen: the registry, and the two doors to the acts that are about
- * no server in particular.
- *
- * The list leads because it is what an operator comes back to read, and it is
- * the only thing that grows, so it is the only thing in a region: the heading,
- * the doors and the line saying the read failed keep their place while a
- * registry of any length scrolls under them. Withdrawing one is not a door here
- * — it belongs to the row that already names the server it is about.
- *
- * The heading names the screen and not the app: the chrome's own bar carries the
- * app's title, so a second identical line would spend a row at density 7 to say
- * nothing. This is the `Heading` a route change moves focus to (§12).
- *
- * The empty notice names the door above it rather than carrying a press of its
- * own, because that door is on this screen and is the route by which the list
- * fills — the one thing §9 asks an empty state to say.
- */
 import { heading, press, region, row, text, type UiActionSpec, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { registryRead } from "./effect-ui-registry-source.ts"
 import { serversTable } from "./effect-ui-servers.ts"
@@ -37,9 +19,9 @@ const start: UiNodeSpec = {
 
 export const serversScreen: readonly UiNodeSpec[] = [start, registryRead, region([serversTable])]
 
-/** The doors above are destinations, so each one names a screen and nothing else. */
 export const navigation: readonly UiActionSpec[] = [
   { name: "registry.openRegister", opens: "register" },
   { name: "registry.openWithdraw", opens: "withdraw" },
+  { name: "registry.openRotate", opens: "rotate" },
   { name: "registry.openPreview", opens: "preview" },
 ]

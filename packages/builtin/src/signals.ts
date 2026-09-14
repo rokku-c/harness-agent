@@ -1,14 +1,6 @@
-/**
- * Session wiring: pure composition over the session protocol. A child's
- * event bus can be forwarded into a parent's signal box, watch rules can
- * fork responders at declared moments, and an agent can report progress
- * into its own session. Nothing here knows about fibers - the kernel is
- * injected as a plain spawn function.
- */
 import { Effect, Option, PubSub, Queue, Schema, type Scope } from "effect"
 import { AgentSession, notationText, Op, type AgentError, type AgentEvent, type Spawned, type Watch } from "@effect-agent/core"
 
-/** Forward a child's progress/completion into the parent's signal box. */
 export const forwardChildEvents = (child: { readonly agent: string; readonly bus: PubSub.PubSub<AgentEvent> }): Effect.Effect<void, never, Scope.Scope> =>
   Effect.gen(function* () {
     const parent = yield* Effect.serviceOption(AgentSession)
@@ -26,7 +18,6 @@ export const forwardChildEvents = (child: { readonly agent: string; readonly bus
     }).pipe(Effect.ignore))
   }).pipe(Effect.asVoid)
 
-/** Fork the responder fibers declared by watch rules. */
 export const startWatchers = (
   spawn: (agent: string, task: string) => Effect.Effect<Spawned, AgentError, Scope.Scope>,
   childBus: PubSub.PubSub<AgentEvent>,
@@ -52,7 +43,6 @@ export const startWatchers = (
     }
   }).pipe(Effect.asVoid)
 
-/** Report progress into your own session; your supervisor hears it between its steps. */
 export const progressOp = () =>
   Op.write({
     name: "report_progress",
@@ -66,4 +56,3 @@ export const progressOp = () =>
         return { reported: true }
       })
   })
-

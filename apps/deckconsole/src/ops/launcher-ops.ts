@@ -1,13 +1,3 @@
-/**
- * The launchers an operator saved: a kind, a label, and the raw config to open
- * that kind with.
- *
- * A launcher is addressed by its label, and the kind beside it is what tells two
- * launchers of one label apart, so a removal reads that kind from the query -
- * the shape the console's own remove press sends. Adding a launcher already
- * saved keeps the one that is there: repeating a saved configuration is not a
- * way to change it.
- */
 import { z } from "@effect-agent/effect-config"
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import type { DeckDomain } from "../domain/deck.ts"

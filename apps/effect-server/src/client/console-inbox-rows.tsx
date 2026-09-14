@@ -1,14 +1,3 @@
-/**
- * The queue's two row kinds: a decision, and an action item.
- *
- * They are rows in the same list and they are not the same row, which is the
- * whole of §1.5: a decision needs a verdict and is addressable at `#inbox/<id>`,
- * so its row is a press that opens it and its current state is a press away from
- * being answered. An action item needs one recovery action and is not addressable
- * at all, so its row is not pressable and says what the action is — a row that
- * could not be opened would be a control that does nothing.
- */
-
 import { Button, Flex, Text } from "@radix-ui/themes"
 import type { ActionItem } from "./console-decision.ts"
 

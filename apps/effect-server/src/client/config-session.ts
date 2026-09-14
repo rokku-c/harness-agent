@@ -1,12 +1,3 @@
-/**
- * One open config form: what it holds, what it saves, and when it is stale.
- *
- * The form itself is mounted outside React (it is a generated spec), so this
- * owns the parts React cannot see — the editor instance, the busy flag, and the
- * order of save, apply and reload. It reports every change through its hooks and
- * keeps no state of its own to disagree with them.
- */
-
 import type { ConfigApi, ConfigFailure, ConfigState, SaveStrategy } from "./config-api.ts"
 import type { ConfigMount, ConfigMountFactory } from "./config-spec.ts"
 import { createConfigEdits } from "./config-edits.ts"
@@ -17,7 +8,6 @@ export interface ConfigSessionHooks {
   readonly current: () => boolean
 }
 
-/** The generated form is not React's to disable, so a save locks it directly. */
 export const lockForm = (container: HTMLElement, on: boolean): void => {
   container.querySelectorAll<HTMLElement>("input,select,textarea,button").forEach((control) => { (control as HTMLButtonElement).disabled = on })
   container.setAttribute("aria-busy", String(on))

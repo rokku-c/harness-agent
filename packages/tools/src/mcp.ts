@@ -1,9 +1,3 @@
-/**
- * MCP adapter seam (E8 ToolTransport). The real transports (stdio /
- * streamable-http) belong to an implementation package; here we define the
- * session surface and a bridge from any McpSession into ToolDescriptors,
- * plus an in-memory fake server for tests. Same descriptors, any transport.
- */
 import { Context, Effect } from "effect"
 import type { ToolDescriptor } from "./descriptor.ts"
 
@@ -45,7 +39,6 @@ export const mcpSessionToDescriptors = (
     }))
   )
 
-/** In-memory fake MCP server: serves descriptors as its tool surface. */
 export const MemoryMcpServer = (name: string, tools: ReadonlyArray<ToolDescriptor>): McpSession => ({
   name,
   listTools: async () =>

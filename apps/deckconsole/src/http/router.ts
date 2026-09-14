@@ -1,11 +1,3 @@
-/**
- * The deck's one entry: its operations, then its own 404.
- *
- * Every domain route is an operation, so this file routes and nothing more -
- * a request no operation claimed is a path this deck does not have, and the
- * answer to it stays the deck's own. The deck serves no page: its UI is the
- * deck's declarative view in the platform console (`src/effect-ui.ts`).
- */
 import { toHttpHandler, type Operation } from "@effect-agent/effect-interface"
 import { deckFailure } from "../ops/refusal.ts"
 

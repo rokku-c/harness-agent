@@ -1,4 +1,3 @@
-/** The flag surface of the machine program, kept apart from what it then does. */
 import type { CollectedHost } from "@effect-agent/agentd-probe"
 
 export const USAGE = `usage: bun run node:probe --url <control-plane> --id <nodeId> [options]
@@ -48,7 +47,6 @@ export const parse = (argv: readonly string[]): Record<string, string> => {
 export const csv = (value: string | undefined): readonly string[] =>
   (value ?? "").split(",").map((entry) => entry.trim()).filter((entry) => entry !== "")
 
-/** A positive number from a flag, or the fallback when the flag was not given. */
 export const number = (given: Record<string, string>, flag: string, fallback?: number): number | undefined => {
   const raw = given[flag]
   if (raw === undefined) return fallback
@@ -57,10 +55,6 @@ export const number = (given: Record<string, string>, flag: string, fallback?: n
   return parsed
 }
 
-/**
- * A whole number that may be zero, for a flag where zero is a real answer: an
- * app-count ceiling of none is a machine that takes no apps, not a missing one.
- */
 export const ceiling = (given: Record<string, string>, flag: string): number | undefined => {
   const raw = given[flag]
   if (raw === undefined) return undefined
@@ -69,7 +63,7 @@ export const ceiling = (given: Record<string, string>, flag: string): number | u
   return parsed
 }
 
-/** `[user@]host[:port]`, named by the spec itself so two hosts never collide. */export const hostOf = (spec: string): CollectedHost => {
+export const hostOf = (spec: string): CollectedHost => {
   const at = spec.lastIndexOf("@")
   const rest = at === -1 ? spec : spec.slice(at + 1)
   const user = at === -1 ? undefined : spec.slice(0, at)

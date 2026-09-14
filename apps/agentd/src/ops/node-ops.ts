@@ -1,10 +1,3 @@
-/**
- * The machine's own voice (§8.5-1): what a node declares about itself, what it
- * is asked to run, its receipt, and the artifact bytes it fetches.
- *
- * The answers carry an explicit `ok` because a machine reads them as a
- * protocol — it is not a tool call that either returns or throws.
- */
 import { OperationFault, json, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { announcedMachine } from "../machine-schema.ts"
@@ -12,11 +5,6 @@ import { nodePlan } from "./plan.ts"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
 export const NODE_CREDENTIAL = { field: "token", header: "authorization", prefix: "Bearer " } as const
-/**
- * `at` is declared rather than left to be refused as an unknown key: liveness
- * time is the server's observation, and a body carrying its own is saying so out
- * loud. Refusing beats dropping, which would leave a node believing it had a say.
- */
 const liveness = z.object({
   nodeId: z.string().min(1), token: z.string().optional(), at: z.unknown().optional(),
 }).strict()

@@ -1,14 +1,3 @@
-/**
- * mantis session - a runnable assembly with ONE protected tool (note_write).
- *
- * The agent runs offline on a scripted model (set OPENAI_API_KEY + OPENAI_MODEL
- * for a real model). When the agent calls a protected tool it WAITS on the
- * operator console; the operator answers on stdin - the same seam a real host
- * (e.g. the dingtalk host) drives from an owner's reply. No auto-approval,
- * no polling: approval is a person.
- *
- * Run: bun apps/mantis/src/main.ts
- */
 import { Effect } from "effect"
 import { createInterface } from "node:readline/promises"
 import { stdin, stdout } from "node:process"
@@ -46,7 +35,6 @@ const model = process.env.OPENAI_API_KEY
     })
   : scripted()
 
-// the operator console: only note_write is protected
 const gate = new ManualGate()
 const mantis = makeMantis({
   model,
@@ -54,7 +42,6 @@ const mantis = makeMantis({
 })
 
 const answers = createInterface({ input: stdin, output: stdout })
-// the operator console: driven by the gate's onPending event (no polling)
 gate.onPending(async (pending) => {
   const input = JSON.stringify(pending.input.input)
   const answer = await answers.question(

@@ -1,88 +1,28 @@
-/**
- * The console shell's own chrome: the dock, and the way back out of an app.
- *
- * A floating launcher is the one thing the design system has no component for,
- * so it is written here — in the design system's own tokens, and without naming
- * a single colour. The tile the dock draws is the app's own declared mark, which
- * is the `Avatar` the springboard draws, so the palette below is the library's.
- */
 :root { --dock-height: 80px; --dock-lift: 0.875rem }
 
-/**
- * §10.2.1's bar: one line, 48 px, on the panel's own solid ground, with one
- * hairline under it. It is the first child of the shell's column and outside
- * `.shell-body`, which is the only scroller — so it stays where it is while a
- * page moves under it, which is what "sticky" asks for without a stacking
- * context to get wrong.
- *
- * Below 700 px the trigger keeps its glyph and loses its key hint, and the status
- * line goes: the three controls a reader needs on a narrow screen are the way
- * home, where they are, and the time.
- */
 .shell-bar { height: 48px; background: var(--color-panel-solid); box-shadow: inset 0 -1px 0 var(--gray-a4) }
 @media (max-width: 700px) {
   .shell-bar-status, .shell-bar-key { display: none }
-  /**
-   * §12's target floor. Below 700 px every press in the bar and every control a
-   * form is filled in through is 44 px, the size a finger hits without aiming;
-   * the dock's items are already 64 x 64. It is a floor and not a size, so
-   * anything already taller keeps its own height, and it is set on the
-   * library's own wrappers — `TextField.Root`, `Select.Trigger` — so the border
-   * the operator sees is the thing that grows rather than a box inside it.
-   */
   .shell-bar button, .screen-pane button { box-sizing: border-box; min-height: 44px }
   .shell-bar button { min-width: 44px }
   .screen-pane :is(.rt-TextFieldRoot, .rt-SelectTrigger, .rt-TextAreaRoot,
     .rt-SegmentedControlRoot, .rt-SegmentedControlItem, .rt-CheckboxRoot, .rt-SwitchRoot) { min-height: 44px }
-  /* A row's own press keeps the row's height: a table is dense on purpose, and a
-     44 px control in it would make a page hold one row. */
   .screen-pane .rt-TableRootTable button { min-height: 0 }
 }
 
 .shell-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: none }
 .shell-body::-webkit-scrollbar { display: none }
-/* The dock floats over the page, so every route that carries it keeps room for it. Home does not:
-   it is the index itself, so the dock is not drawn under it (console-dock.tsx). */
 .shell-body[data-dock="on"] { padding-bottom: calc(var(--dock-height) + var(--dock-lift) + var(--space-5)) }
 
-/**
- * An app surface is a screen, not a document: it is exactly as tall as the area
- * the chrome leaves, so a view can lay itself out against a known height and
- * say which of its own parts scrolls (see `region` in @effect-agent/effect-ui).
- * `.shell-body` keeps its scrollbar and stays the only scroller — a view that
- * overflows this chain simply scrolls there, exactly as it did before.
- *
- * Scoped to an app route, because a document screen — a place, a config form —
- * wants the opposite: as tall as its content, and the class is inert there. Each
- * link is one of ours; the design system's own `Theme` is given this class
- * rather than a layout prop, because it takes a className and not a height.
- */
 .shell-body[data-shell-view="fill"] .view-fill { height: 100%; min-height: 0; display: flex; flex-direction: column }
 
-/**
- * The panes an app's screens are shown in: two at the design system's own `md`,
- * one below it, which is a split view controller collapsing on a compact size
- * class. The width decides, so there is no listener and nothing to keep in step
- * with the layout — and the app's own `md:` layouts switch at the same width,
- * because it is the same breakpoint.
- *
- * Every rule here is a height link. A spec is laid out against the height it is
- * given (`frame()` in @effect-agent/effect-ui), so a pane that does not pass its
- * height down is a view that can no longer say which of its own parts scrolls.
- * The pane beneath is hidden rather than dropped, so entering a screen and
- * leaving it again costs no refetch, and its spec is rendered by the same
- * renderer as any other.
- */
 .screen-panes { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: var(--space-5) }
 .screen-pane { display: flex; flex-direction: column; min-width: 0; min-height: 0 }
 .screen-parent { display: none; flex-direction: column; min-width: 0; min-height: 0 }
-/* The pane's own scroller, so a document-shaped view scrolls where it is drawn rather than moving the shell. */
 .screen-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto }
 .screen-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3) }
 .screen-bar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 
-/* Radix's own `md`, the same width the apps' own `md:` grids switch at, so a split does not
-   happen at a width the view inside it is not laid out for. */
 @media (min-width: 768px) {
   .screen-panes[data-split="on"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) }
   .screen-panes[data-split="on"] > .screen-parent { display: flex }
@@ -118,22 +58,7 @@
 }
 @media (prefers-reduced-motion: reduce) { .shell-dock-item { transition: none } }
 
-/*
- * The command palette (§10.3). The box itself is anchored inline, because Radix
- * lays the dialog out itself and no stylesheet order can be relied on to move it.
- *
- * The list is bounded so the dialog keeps its place near the top of the viewport
- * and the search field never scrolls out of reach. The cursor is a cursor and not
- * focus — the operator's hands stay in the field — so the row it is on is drawn
- * rather than focused, and a row is a full-width control whose content starts at
- * its own leading edge.
- */
 .command-palette-list { max-height: min(60vh, 420px) }
 .command-palette-row { width: 100%; justify-content: flex-start; text-align: left }
 .command-palette-row[data-active="on"] { background: var(--gray-a3) }
-/*
- * The address a row goes to (§6.4 rule 6). It is the row's least important text
- * and the one with no length limit, so it is the one that gives way: it shrinks
- * first and is cut with an ellipsis rather than wrapping the row onto two lines.
- */
 .command-palette-address { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }

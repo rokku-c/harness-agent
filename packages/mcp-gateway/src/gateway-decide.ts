@@ -1,14 +1,3 @@
-/**
- * The gateway's decision, on its own.
- *
- * A call and an advertisement ask the same question — may this caller do this?
- * — and they must get the same answer, or the door offers a tool it then
- * refuses. So the question is one function. `decide` walks the same sets, the
- * same grants and the same rules the call would run, and answers with the
- * verdict *and* the audit trail it produced. A caller that only wants to know
- * takes the verdict and drops the trail; a caller that acts records the trail
- * and then makes the call. Nothing decides twice, so nothing can disagree.
- */
 import { principalKey } from "@effect-agent/effect-authz"
 
 import { authorizeCall } from "./authorize.ts"
@@ -22,7 +11,6 @@ interface Target {
   readonly deniedBySet: boolean
 }
 
-/** The identity a binding is keyed by. A verified principal, and nothing else. */
 const identityKey = (context: McpGatewayContext): string | undefined =>
   context.principal === undefined ? undefined : principalKey(context.principal)
 
@@ -30,7 +18,6 @@ export const makeDecide = (options: McpGatewayOptions) => {
   const rules = options.rules ?? []
   const fallback = options.defaultAction ?? "allow"
 
-  /** Where the call goes, before anything decides whether it may. */
   const target = async (context: McpGatewayContext): Promise<Target> => {
     const registry = options.setRegistry
     if (registry !== undefined) {
@@ -63,8 +50,6 @@ export const makeDecide = (options: McpGatewayOptions) => {
       return { allowed: false, status, detail, decision: "deny", trace, ...routed, ...(ruleId === undefined ? {} : { ruleId }) }
     }
 
-    // A gateway with sets but no verified caller has nobody to look up: its sets
-    // are keyed by identity, so a nameless call reaches nothing at all.
     if (options.setRegistry !== undefined && identityKey(input) === undefined) return refuse(401, "no_principal", input)
 
     const found = await target(input)

@@ -1,13 +1,3 @@
-/**
- * main/approval.ts - the APPROVAL POLICY for this live host.
- *
- * Concept: tools named in MANTIS_PROTECTED hang on a shared ManualGate;
- * every Ask is delivered to the owner (direct user or group) as a REAL
- * interactive approval card; button clicks resolve the call. Missing owner
- * or missing card template are startup errors (there is no textual
- * fallback); a denial surfaces as a recoverable tool error the agent
- * answers.
- */
 import { ManualGate, type PendingApproval } from "@effect-agent/gate"
 import type { Logger } from "@effect-agent/logger"
 import type { ApprovalRequest } from "../../../approval.ts"

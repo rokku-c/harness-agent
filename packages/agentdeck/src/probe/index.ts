@@ -1,8 +1,3 @@
-/**
- * The machine probe: per known agent, is it installed, what version, and what
- * is it configured to talk to. Read-only - it never writes an agent's config
- * (that is agentd's apply path, which is an explicit, verifiable operation).
- */
 import { homedir } from "node:os"
 import { claudeFacts } from "./claude.ts"
 import { codexFacts } from "./codex.ts"
@@ -17,7 +12,6 @@ export type { AgentInstallPlan, PackageManager } from "./install.ts"
 
 interface AgentSpec {
   readonly kind: AgentKind
-  /** executable name on PATH */
   readonly file: string
   readonly facts: (home: string, cwd?: string) => Promise<Partial<AgentFacts>>
 }
@@ -43,8 +37,6 @@ const probeOne = async (spec: AgentSpec, options: ProbeOptions, home: string): P
     ...facts,
     ...(path !== undefined ? { path } : {}),
     ...(release !== undefined ? { version: release } : {}),
-    // an agent that is not installed has no configuration worth reporting, and
-    // saying so is more honest than returning the settings of a stale install
     ...(path === undefined
       ? { notes: [...(facts.notes ?? []), "not on PATH; configuration not read"], sources: [] }
       : {})

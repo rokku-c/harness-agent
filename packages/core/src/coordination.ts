@@ -2,15 +2,6 @@ import { Context, Effect, Ref } from "effect"
 import type { AgentError } from "./errors.ts"
 import { eaUri } from "./uri.ts"
 
-/**
- * Coordination structures as pure data. A Board is a versioned whiteboard;
- * a Group is a discussion log whose posts reach its members between their
- * steps. Both surface as ordinary Bindings - an agent shares them with
- * children by granting access, not by special-casing a harness layer.
- *
- * The service SHAPES live here (they are part of the vocabulary the runtime
- * hands its children); the Ref-backed implementations live in builtin.
- */
 export interface BoardEntry {
   readonly seq: number
   readonly author: string
@@ -44,7 +35,6 @@ export const boardRead = (board: BoardRef) => Ref.get(board.entries)
 export interface GroupRef {
   readonly uri: string
   readonly log: Ref.Ref<ReadonlyArray<GroupEntry>>
-  /** Members are child ids; delivery into their signal boxes is wiring. */
   readonly members: Ref.Ref<ReadonlyArray<string>>
 }
 
@@ -64,7 +54,6 @@ export const groupRead = (group: GroupRef, limit?: number) =>
     return limit === undefined ? all : all.slice(-limit)
   })
 
-/** The board surface an agent's coordination ops talk to. */
 export interface BoardsService {
   readonly create: (name: string) => Effect.Effect<string, AgentError>
   readonly post: (board: string, author: string, text: string) => Effect.Effect<void, AgentError>
@@ -73,7 +62,6 @@ export interface BoardsService {
 
 export class Boards extends Context.Tag("core/Boards")<Boards, BoardsService>() {}
 
-/** The group surface: create over child ids, post, read the log. */
 export interface GroupsService {
   readonly create: (name: string, children: ReadonlyArray<string>) => Effect.Effect<string, AgentError>
   readonly post: (group: string, author: string, text: string) => Effect.Effect<void, AgentError>
@@ -82,4 +70,3 @@ export interface GroupsService {
 }
 
 export class Groups extends Context.Tag("core/Groups")<Groups, GroupsService>() {}
-

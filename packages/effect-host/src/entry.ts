@@ -16,7 +16,6 @@ export const loadEntry = async (entry: PluginEntry): Promise<void> => {
   }
 }
 
-/** Detach before stopping: failed stops cannot remain routable or run twice. */
 export const unloadEntry = async (entry: PluginEntry): Promise<void> => {
   entry.enabled = false
   const loaded = entry.loaded

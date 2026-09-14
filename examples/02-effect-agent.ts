@@ -1,15 +1,8 @@
-/**
- * The default Effect-TS loop: the same agent definition implemented by
- * EffectAgent - context -> model -> tool call -> binding op -> tool result
- * -> context -> until. The model here is scripted; swap in a provider for
- * the real thing (see 03-live.ts).
- */
 import { Effect, Schema } from "effect"
 import { Agent, AgentContext, Op, Until, notationText, type Binding } from "@effect-agent/core"
 import { EffectAgent } from "@effect-agent/builtin"
 import type { Model, WireMessage } from "@effect-agent/model"
 
-// the capability surface: typed ops with notation-resolved prose
 const weather: Binding = {
   uri: "ea://svc/weather/main",
   ops: [Op.read({
@@ -21,7 +14,6 @@ const weather: Binding = {
   })]
 }
 
-// a scripted model standing in for the provider
 const model: Model = {
   generate: (_systemPrompt: string, messages: ReadonlyArray<WireMessage>) => {
     const first = messages.length <= 1
@@ -40,7 +32,6 @@ const Assistant = Agent
 const answer = await Effect.runPromise(Assistant.run("What is the weather in Shanghai right now?"))
 console.log("answer:", answer)
 
-// structured output over the same loop
 const Plan = Schema.Struct({ city: Schema.String, headline: Schema.String })
 const Planner = Agent
   .define("weather-planner", (question: string) => AgentContext.text(question))
@@ -52,4 +43,3 @@ const Planner = Agent
   }))
 const plan = await Effect.runPromise(Planner.run("summarize Shanghai weather"))
 console.log("plan:", JSON.stringify(plan))
-

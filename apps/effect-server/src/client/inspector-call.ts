@@ -1,15 +1,3 @@
-/**
- * Turning what the operator typed into a call.
- *
- * The form holds text; the schema says what the text means. Empty means "not
- * supplied" rather than "", so an optional argument stays absent and the tool's
- * own schema applies its default — which is the whole reason to leave a field
- * alone. A value that cannot mean what the schema says (a non-number in a
- * number field, broken JSON in an object field) is refused here, before the
- * call, so the operator reads their own typo rather than a validation error
- * about a string they never saw.
- */
-
 import type { InspectorField } from "./inspector-types.ts"
 
 export type FieldValues = Readonly<Record<string, string>>

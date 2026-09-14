@@ -1,10 +1,3 @@
-/**
- * The supervisor's running memory: the recorded index, the revisions this host
- * has already refused, and the two slots the double buffer moves between.
- *
- * Every disposition shares these, so an ordering (supervisor-swap.ts,
- * supervisor-rebuild.ts) and the state it orders cannot drift apart.
- */
 import { assessKernelCompat, type BootstrapCapability } from "./kernel.ts"
 import { assessKernelAgainst, type DeclaredApp } from "./kernel-matrix.ts"
 import type { KernelRepo, KernelRevision, KernelState } from "./repo.ts"
@@ -19,15 +12,8 @@ export interface KernelRuntime<K> {
   persist(next: KernelState): void
   condemned(): readonly number[]
   condemn(revision: KernelRevision): void
-  /** Both halves of the §5 judgement, or undefined when the revision may run. */
   refusalFor(revision: KernelRevision): Refusal | undefined
-  /** Load + health-check a revision. Nothing is flipped yet; on failure it is dropped. */
   adopt(revision: KernelRevision): Promise<KernelSlot<K>>
-  /**
-   * Put a candidate in front and hand back the slot it displaced. The in-memory
-   * half of §6.2's commit: the caller still has to record it, and the displaced
-   * kernel is stopped only after that record exists.
-   */
   promote(slot: KernelSlot<K>): KernelSlot<K> | undefined
   active(): KernelSlot<K> | undefined
   previous(): KernelSlot<K> | undefined
@@ -97,4 +83,3 @@ export const makeKernelRuntime = <K>(options: SupervisorOptions<K>): KernelRunti
     active: () => live, previous: () => prior,
   }
 }
-

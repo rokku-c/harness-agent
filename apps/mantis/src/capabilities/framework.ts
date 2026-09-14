@@ -1,9 +1,3 @@
-/**
- * capabilities/framework.ts - the FIXED SESSION SURFACE.
- *
- * Concept: the framework entries every session starts with - catalog,
- * enable, and workspace reads.
- */
 import type { CapabilityDecl } from "./types.ts"
 
 export const FRAMEWORK: readonly CapabilityDecl[] = [

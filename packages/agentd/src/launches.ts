@@ -1,13 +1,3 @@
-/**
- * The launch queue. This is agentd's, not board's: board owns task data, and
- * "run this agent in this directory on that machine" is machine access and
- * scheduling, which is the agentd center's to own.
- *
- * The shape is a pull queue on purpose. A machine behind NAT cannot be called,
- * so an intent waits until the machine it names asks for it, and claiming is
- * what makes an intent a machine's own - after that no other machine is offered
- * it. The center never contacts a node.
- */
 import { AgentdError } from "./errors.ts"
 import { claimLapsed, settled } from "./launch-claim.ts"
 import type { LaunchIntent, LaunchState, QueuedWork } from "./launch-types.ts"
@@ -17,26 +7,15 @@ export type { AgentTurn, CommandWork, LaunchIntent, LaunchState, QueuedTurn, Que
 export interface LaunchQueueOptions {
   readonly now?: () => number
   readonly limitPerPoll?: number
-  /** How long a claim is a machine's own before it can be offered again. */
   readonly claimTtlMs?: number
 }
 
 export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
   const now = options.now ?? Date.now
   const limitPerPoll = options.limitPerPoll ?? 1
-  // long enough to outlast the batch a machine takes, since it claims the batch
-  // before it runs any of it
   const claimTtlMs = options.claimTtlMs ?? 300_000
   const intents = new Map<string, LaunchIntent>()
   return {
-    /**
-     * A relative workdir means different places on different machines, so the
-     * request is refused rather than guessed at: the caller names one directory.
-     * What arrives here is already resolved — a turn names the machine and the
-     * dialect its identity resolved to — because the queue holds work, and
-     * resolving an identity is the center's read of its own fleet, not the
-     * queue's.
-     */
     enqueue: (work: QueuedWork): LaunchIntent => {
       if (!work.workdir.startsWith("/")) {
         throw new AgentdError(400, `workdir must be an absolute path, got ${work.workdir}`)
@@ -45,10 +24,6 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
       intents.set(intent.intentId, intent)
       return intent
     },
-    /**
-     * Claim up to `limit` intents for one machine, oldest first. Nothing awaits
-     * in here, so two polls cannot both take the same intent.
-     */
     poll: (machineId: string, limit: number = limitPerPoll): LaunchIntent[] => {
       const at = now()
       const claimed: LaunchIntent[] = []
@@ -62,7 +37,6 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
       }
       return claimed
     },
-    /** A machine reporting on an intent it holds; no other machine may. */
     report: (intentId: string, machineId: string, state: LaunchState, detail?: string): LaunchIntent => {
       const intent = intents.get(intentId)
       if (intent === undefined) throw new AgentdError(404, `Unknown launch intent: ${intentId}`)
@@ -79,17 +53,6 @@ export const makeLaunchQueue = (options: LaunchQueueOptions = {}) => {
       return next
     },
     get: (intentId: string): LaunchIntent | undefined => intents.get(intentId),
-    /**
-     * What has been asked, optionally of one machine or filed under one task
-     * node. Both are lookups a caller arrives with, not searches: an agent
-     * picking up a task asks what was tried on it, and a caller asking about a
-     * machine asks for a machine it can name.
-     *
-     * Only a turn can answer the second: a command is filed under the machine it
-     * runs on and under nothing else, so asking by task node cannot return one —
-     * which is the honest answer, and not the one a field spelled the same on
-     * both arms would have given.
-     */
     list: (query: { readonly machineId?: string; readonly nodeId?: string } = {}): LaunchIntent[] =>
       [...intents.values()].filter((intent) =>
         (query.machineId === undefined || intent.machineId === query.machineId)

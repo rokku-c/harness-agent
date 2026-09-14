@@ -15,8 +15,8 @@ The built-in demo agent (no model / no binary) demonstrates the full open→send
 flow; other kinds go through the CLI gateway (claude-code/codex/gemini/pi/custom), and effect
 needs a model provider injected at startDeckServer({ effectModel }).
 
-Verification: apps/deckconsole/test/deckconsole.test.ts (3 e2e cases, starts a real HTTP server).
-
+Verification: start the server and probe it; the 3 e2e cases that used to do this were deleted on
+2026-09-14, and AGENTS.md now forbids unit tests.
 
 ## API quick reference (JSON)
 

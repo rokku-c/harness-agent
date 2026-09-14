@@ -3,7 +3,6 @@ import type { EffectTool } from "@effect-agent/effect-interface"
 import type { EffectAppDescriptor, EffectAppHost } from "../descriptor.ts"
 import { launcherApps } from "./launcher.ts"
 
-/** Instance interfaces live exactly as long as the loaded app, including reloads. */
 export const withAppRuntime = (host: EffectAppHost, app: EffectAppDescriptor, plugin: EffectPlugin): EffectPlugin => ({
   ...plugin, id: app.id, routes: app.routes ?? plugin.routes ?? (app.path ? [{ path: app.path, match: "prefix" }] : undefined),
   load: async (): Promise<LoadedPlane> => {

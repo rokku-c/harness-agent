@@ -1,14 +1,3 @@
-/**
- * The markdown rendering of the portability inventory.
- *
- * Presentation only: it turns facts into the report body, and every count it
- * prints is derived from the rows it is handed.
- *
- * Every literal here is English: the file this writes is repository
- * documentation, so it follows the same English-first rule as the docs it
- * cites. A translation of the output alone would be undone by the next run.
- */
-
 import type { AppInventory } from "./inventory-app.ts"
 
 const floorLabel = (app: AppInventory): string => {

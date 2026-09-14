@@ -2,7 +2,6 @@ import { makeListenerManager } from "@effect-agent/effect-network"
 import type { EffectPluginHost } from "@effect-agent/effect-host"
 import { networkSchema } from "./config.ts"
 
-/** Binding ports is explicit; constructing the app host binds no socket. */
 export const makeManagedListeners = (host: EffectPluginHost, getConfig: () => unknown) => {
   let manager = makeListenerManager({ handle: (request) => host.handle(request), resolveApp: (request) => host.resolveApp(request) })
   let started = false

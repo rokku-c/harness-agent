@@ -1,12 +1,3 @@
-/**
- * Playground — L5 application example: assembles the five layers into a
- * runnable agent.
- *
- * Demonstrates "accumulation": the same definition swaps drivers, tools
- * come from the registry, memory is retrievable, the event log is
- * auditable, and answers are delivered via Delivery. All services come
- * from defaultLayers().
- */
 import { Effect, Schema } from "effect"
 import { Agent, AgentContext, Until, notationText, Op, type Binding } from "@effect-agent/core"
 import { Harness } from "@effect-agent/core"
@@ -16,7 +7,6 @@ import { Delivery, Ingress } from "@effect-agent/channel"
 import { ToolRegistry, tool, type ToolDescriptor } from "@effect-agent/tools"
 import { assemble, driver } from "@effect-agent/assembly"
 
-// ---- L1 capabilities (API-as-data): registry + bridged into core Bindings ----
 const weatherTool: ToolDescriptor = tool({
   name: "weather.lookup",
   description: "look up weather for a city",
@@ -42,7 +32,6 @@ const noteBinding: Binding = {
 }
 
 const main = Effect.gen(function* () {
-  // ---- L4/L5 assembly: default composition (SQLite-capable store / echo model / in-memory channel / allow-all gate) ----
   const registry = yield* ToolRegistry
   yield* registry.register(weatherTool)
   const bindings = yield* registry.asBindings()
@@ -55,18 +44,14 @@ const main = Effect.gen(function* () {
     .uses(noteBinding)
     .implementedBy(Harness.withHooks(effectAgent, eventLogHook("playground-session")))
 
-  // ---- L3 execution ----
   const answer = yield* Assistant.run("weather in Shanghai + today's notes")
 
-  // ---- L2 memory ----
   const memory = yield* Memory
   yield* memory.remember(String(answer), "answer", ["daily"], 1)
 
-  // ---- L1 outbound delivery ----
   const delivery = yield* Delivery
   yield* delivery.send({ conversationId: "c1", text: String(answer) })
 
-  // ---- observation ----
   const recalled = yield* memory.recall("notes")
   const sent = yield* delivery.history()
   const toolList = yield* registry.list()
@@ -79,7 +64,6 @@ const main = Effect.gen(function* () {
   }
 })
 
-// ---- run ----
 const summary = await assemble().run(main)
 console.log("=== playground agent ===")
 console.log("answer:", summary.answer)
@@ -87,7 +71,6 @@ console.log("tools:", summary.toolCount)
 console.log("recalled:", summary.recalled)
 console.log("delivered:", summary.delivered)
 
-// Proactive scenario: read Ingress (consumes a message if one is seeded)
 const poll = Effect.gen(function* () {
   const ingress = yield* Ingress
   return yield* Effect.promise(() => ingress.read())

@@ -12,7 +12,6 @@ export const makeTaskStore = (db: Database) => {
     },
     put: (task: Task) => { check(); db.run("INSERT INTO tasks(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data", [task.id, JSON.stringify(task)]) },
     delete: (id: string) => { check(); db.run("DELETE FROM tasks WHERE id=?", [id]) },
-    /** `kind` names what happened, `subjectId` what it happened to (a task or an agent). */
     event: (kind: string, subjectId: string, data: unknown) => {
       check(); db.run("INSERT INTO task_events(at,kind,taskId,data) VALUES(?,?,?,?)", [Date.now(), kind, subjectId, JSON.stringify(data)])
     },
@@ -21,12 +20,6 @@ export const makeTaskStore = (db: Database) => {
       return db.query<Omit<TaskEvent, "data"> & { data: string }, [number]>("SELECT * FROM task_events WHERE seq > ? ORDER BY seq LIMIT 200").all(after)
         .map((row) => ({ ...row, data: JSON.parse(row.data) }))
     },
-    /**
-     * The most recent events, oldest first. A reader that wants "what is
-     * happening now" cannot ask `events(0)`: that reads forward from the
-     * beginning and stops at the page limit, so a board with more history than
-     * one page shows only its oldest events and never the new ones.
-     */
     recentEvents: (limit: number): TaskEvent[] => {
       check()
       return db.query<Omit<TaskEvent, "data"> & { data: string }, [number]>(

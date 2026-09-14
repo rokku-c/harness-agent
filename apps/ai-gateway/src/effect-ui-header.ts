@@ -1,18 +1,3 @@
-/**
- * What this console is, where it leads, and the one thing it can do.
- *
- * The doors sit above the scrolling region rather than inside it, because the
- * region is what scrolls: a control that scrolls away is a control an operator
- * finds again on every screen. The three lists behind them are read-only, so
- * they are destinations and not sections — a section is somewhere a reader
- * scrolls to, and what stays on this screen is its own task, the providers.
- *
- * The posture line is not a caveat for its own sake. The app declares three
- * reads and a probe and nothing else, so this console cannot change the plane
- * it presents; a surface that looks controllable and is not is exactly the
- * failure that line prevents, and it names where the plane is configured
- * instead of leaving the operator to hunt for it.
- */
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { heading, text } from "@effect-agent/effect-ui"
 

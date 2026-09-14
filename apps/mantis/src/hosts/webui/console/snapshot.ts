@@ -1,11 +1,3 @@
-/**
- * console/snapshot.ts - SNAPSHOT READERS over the console state.
- *
- * Concept: the panel never subscribes to an event stream - it polls
- * snapshots (conversations + counts, pending approvals,
- * approvalsOn) and renders them. Readers are pure over the seams
- * they name; nothing reconnects or dedupes on the client.
- */
 import type { ManualGate, PendingApproval } from "@effect-agent/gate"
 import type { MantisHost } from "../../dingtalk/host.ts"
 import type { WorkKind } from "../../../workspace.ts"
@@ -14,13 +6,6 @@ import type { TimelineLedger } from "./ledger.ts"
 import { WORKSPACE_CONVERSATION, type ConsoleTimelineEntry } from "./types.ts"
 import { pendingApprovals } from "./approvals.ts"
 
-/**
- * The full timeline of one conversation. The ledger's timeline is the answer:
- * it opens onto the durable history the first time this console drives that
- * conversation, so it holds the conversation and not just this process's part of
- * it. A conversation this process has not touched has no timeline yet, and its
- * history is what there is to render.
- */
 export const timelineOf = (
   ledger: TimelineLedger,
   host: MantisHost,
@@ -47,9 +32,6 @@ export const conversationsOf = (host: MantisHost, ledger: TimelineLedger): Array
 
 export const pendingOf = (gate: ManualGate | undefined): ReadonlyArray<PendingApproval> => pendingApprovals(gate)
 
-/** the human console's shared workspace: one host session whose store holds
- *  every declared resource kind. The operator writes from the UI directly;
- *  agent sessions share it when they use this conversation. */
 export const workspaceSurface = (host: MantisHost, notes: NotesStore | undefined) => ({
   records: (kind?: WorkKind) =>
     kind === undefined

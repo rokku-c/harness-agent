@@ -10,14 +10,6 @@ import { viewRoute } from "./console/view-route.ts"
 import type { ConsoleOptions } from "./console/options.ts"
 export type { ConsoleOptions } from "./console/options.ts"
 
-/**
- * The client bundle and the stylesheet it extracts. Both come out of one
- * `bun run build:client`, and both are served from disk: the console renders
- * nothing it did not ship as a file, so a browser cache and the source agree.
- *
- * While `dev` is on they are built from source instead — see client-bundle.ts for
- * why, and for the one thing that cannot be left to a cache.
- */
 const CLIENT_ASSETS: Readonly<Record<string, { readonly file: string; readonly type: string }>> = {
   "/console-client.js": { file: "../public/effect-ui-client.js", type: "text/javascript; charset=utf-8" },
   "/console-client.css": { file: "../public/effect-ui-client.css", type: "text/css; charset=utf-8" },
@@ -54,9 +46,6 @@ export const makeConsolePlugin = (options: ConsoleOptions): EffectPlugin => ({
         }
         const view = path.match(/^\/console\/api\/view\/([^/]+)$/)
         if (view) return viewRoute(options, decodeURIComponent(view[1]))
-        // The whole catalogue, which is what `#tools` lists; the call below is
-        // one operation of one app, and the two cannot collide: a call names two
-        // more segments.
         if (path === "/console/api/tools") return toolsRoute(options.registry)
         const call = path.match(/^\/console\/api\/tools\/([^/]+)\/([^/]+)$/)
         if (call) return callRoute(options.registry, decodeURIComponent(call[1]), decodeURIComponent(call[2]), request)

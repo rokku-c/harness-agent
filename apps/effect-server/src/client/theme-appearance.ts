@@ -1,12 +1,3 @@
-/**
- * Following the console's appearance, not owning one.
- *
- * The document element holds the mode — that is where a browser paints from and
- * where the persisted choice lands — so this reads it and re-reads it when it
- * changes, rather than keeping a second copy. "System" is a decision the
- * document element does not make, so it is resolved here against the media query.
- */
-
 import * as React from "react"
 import { normalizeThemeMode, setThemeMode, THEME_CHANGE, type ThemeMode } from "./theme-runtime.ts"
 
@@ -14,7 +5,6 @@ const prefersDark = (): boolean => window.matchMedia?.("(prefers-color-scheme: d
 
 const currentMode = (): ThemeMode => normalizeThemeMode(document.documentElement.dataset.themeMode)
 
-/** The current mode, and the one way to set it: document, store and UI move together. */
 export const useThemeMode = (): readonly [ThemeMode, (mode: ThemeMode) => void] => {
   const [mode, setMode] = React.useState(currentMode)
   React.useEffect(() => {

@@ -306,12 +306,15 @@ See [docs/agentdeck.md](docs/agentdeck.md) and
 ```bash
 bun install
 bun run typecheck          # tsc --noEmit
-bun test                   # 1061 tests
+bun scripts/check-lines.ts # the 100-line cap, one concern per file
 bun run examples           # offline examples (01, 02, 05, 07, 10)
 bun run examples 03 --live # live provider roundtrip (config.toml + .env)
 bun run examples 06 --live # live supervisor spawning real subagents
 bun run check:proofs       # build the Lean model in formal/ (needs a Lean toolchain)
 ```
+
+There is no test suite. `AGENTS.md` forbids unit tests: a change is verified by
+running it, not by asserting about it.
 
 `formal/` proves the invariants whose failure is silent — a config provenance
 that names the wrong layer, a navigation chain that loops, a stale disposer that

@@ -1,12 +1,3 @@
-/**
- * cc/result.ts - the RESULT INTERPRETATION (termination semantics).
- *
- * Concept: the SDK stream ends with provider-shaped messages; express what
- * the agent asked for (until) out of them: a native structured output for
- * Schema (decoded, typed), the result text for Text/Stop, or the first
- * tool_use/thinking block for ToolCall/Thinking. Claude Code's own loop did
- * the work - this layer only names the outcome.
- */
 import { Effect } from "effect"
 import { AgentFailure, decode, type Until } from "@effect-agent/core"
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk"

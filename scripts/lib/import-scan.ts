@@ -1,5 +1,3 @@
-/** Which modules a source file pulls in — static and dynamic import specifiers. */
-
 export const importSpecifiers = (source: string): string[] => {
   const out: string[] = []
   const fromRe = /(?:^|\s)(?:import|export)\b[^;]*?\bfrom\s*["']([^"']+)["']/g

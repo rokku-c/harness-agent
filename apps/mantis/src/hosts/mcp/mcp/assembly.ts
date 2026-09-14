@@ -1,12 +1,3 @@
-/**
- * mcp/assembly.ts - ASSEMBLING the mantis MCP server.
- *
- * Concept: one McpServer over the WebConsole seam - each domain registrar
- * (lifecycle / approvals / workspace) adds its tools; the returned
- * server is handed to the stdio transport. Approved semantics are identical
- * to the web console / dingtalk because they share the same MantisHost +
- * ManualGate + config wiring.
- */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { registerLifecycle } from "./lifecycle.ts"
 import { registerApprovals } from "./approvals.ts"
@@ -15,7 +6,6 @@ import type { WebConsole } from "../../webui/console.ts"
 
 export interface MantisMcpOptions {
   readonly console: WebConsole
-  /** server name shown to the MCP client (default "mantis") */
   readonly name?: string
 }
 

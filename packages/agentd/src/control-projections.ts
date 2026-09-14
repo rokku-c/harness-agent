@@ -1,20 +1,8 @@
-/**
- * The read side of the control plane: what an agent or a node *should* be
- * running, assembled from the bindings and the registry.
- *
- * These sit between the writes and the verbs that need them because both sides
- * read the same projection — `reportApplied` measures a receipt against what
- * `desired` says *now*, not against what the binding looked like when the plan
- * was made, which is what makes a stale receipt a 409 rather than a silent
- * re-push.
- */
-
 import { AgentdError } from "./errors.ts"
 import type { ControlState } from "./control-state.ts"
 import type { DesiredNode } from "./node-types.ts"
 import type { AgentBinding, DesiredAgentConfig } from "./types.ts"
 
-/** The binding, created empty on first write so sets and bundles share one revision. */
 export const bindingFor = (control: ControlState, agentId: string): AgentBinding => {
   if (!control.agents.has(agentId)) throw new AgentdError(404, "agent not found")
   const existing = control.bindings.get(agentId)
@@ -38,11 +26,6 @@ export const desired = (control: ControlState, agentId: string): DesiredAgentCon
   }
 }
 
-/**
- * A declared machine that has never been bound still has a desired config — its
- * own record with nothing placed on it. The revision is the current one, because
- * an unbound node's "what to run" changes whenever anything else does.
- */
 export const desiredNode = (control: ControlState, nodeId: string): DesiredNode => {
   const node = control.machines.get(nodeId)
   if (node === undefined) throw new AgentdError(404, "node not found")

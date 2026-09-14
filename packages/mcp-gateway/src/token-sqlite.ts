@@ -1,18 +1,3 @@
-/**
- * mcp-gateway — bearer tokens, on disk.
- *
- * Only the hash is written. A token is therefore recoverable from neither a copy
- * of this file nor a screenshot of the console, and the one moment it is
- * readable is the moment it is issued — which is what makes the console's "copy
- * it now" a fact rather than a nag.
- *
- * `verify` stamps `last_used_at`, and every failure is `undefined`: unknown,
- * revoked, expired. The caller denies, and never learns which of the three it
- * was, because that difference is only useful to someone guessing.
- *
- * Revoking is final — a second revocation answers false rather than restamping
- * the record — so the console can stop offering the press once it has been made.
- */
 import type { Database } from "bun:sqlite"
 import { randomBytes } from "node:crypto"
 

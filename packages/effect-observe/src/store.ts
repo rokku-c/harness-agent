@@ -1,8 +1,3 @@
-/**
- * ObservationStore persisted to SQLite (bun:sqlite): frames live as rows in
- * observation_frames and replay in recorded order. The store never samples —
- * callers feed it snapshots via record().
- */
 import { Database, type SQLQueryBindings } from "bun:sqlite"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
@@ -39,7 +34,6 @@ const toSnapshot = (row: FrameRow): ObservationSnapshot => ({
   data: JSON.parse(row.data) as unknown,
 })
 
-/** Open the database (creating the file's dir when needed) and ensure schema. */
 const open = (file: string): Database => {
   if (file !== ":memory:") mkdirSync(dirname(file), { recursive: true })
   const database = new Database(file, { create: true })

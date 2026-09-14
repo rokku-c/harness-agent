@@ -1,9 +1,3 @@
-/**
- * The activity snapshot: what the host's own read surfaces already say, gathered
- * into one object. It holds no markup — a surface that draws it is separate —
- * and it never invents a second status source.
- */
-
 export interface ActivityService { readonly id: string; readonly enabled: boolean; readonly priority: number }
 export interface ActivityObservation { readonly at: number; readonly perspective: string; readonly target: string; readonly error?: string }
 export interface ActivitySnapshot {

@@ -1,12 +1,3 @@
-/**
- * What the tool answered.
- *
- * A refusal is not a result: `invoke` validates against the tool's own schema,
- * so a rejection here is the tool's message about the arguments, and it renders
- * as one. A success is the tool's own output — JSON when it has a shape, the
- * text itself when it is a string — in the design system's code face.
- */
-
 import * as React from "react"
 import { Callout, Card, Flex, Heading, Text } from "@radix-ui/themes"
 import type { CallResult } from "./inspector-call.ts"

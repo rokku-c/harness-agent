@@ -41,8 +41,8 @@ no surface that *draws* a config can be drawing one.
 AgentDeck (src/registry.ts): registers multiple gateways, shares one consent ledger, and
 `sessions()` aggregates every session across agents. Products above it (console/board) only face these three surfaces.
 
-## Tests (no model / no real CLI)
+## Verification (no model / no real CLI)
 
-packages/agentdeck/test/agentdeck.test.ts (7 cases): config normalization, dialect model field
-mapping, the whole consent ledger flow, effect gateway with a scripted Model, cli gateway with a
-fake executable, and registry aggregation across gateways.
+Config normalization, dialect model field mapping, the consent ledger flow, the effect gateway
+under a scripted Model, the cli gateway under a fake executable, and registry aggregation now
+stand unverified — the suite covering them was deleted 2026-09-14 and AGENTS.md forbids new ones.

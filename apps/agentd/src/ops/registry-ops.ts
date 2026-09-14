@@ -1,16 +1,9 @@
-/**
- * The registration verbs: what an operator declares about the fleet, and what a
- * deployment is bound to. None of these contact a machine — binding is a record
- * here, and the machine learns what changed the next time it asks for its plan.
- */
 import { operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { mcpSetSchema } from "@effect-agent/mcp-gateway"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
-/** Any object: what an operator declares about the fleet is passed through as it arrived. */
 const declared = z.looseObject({})
-/** Sets are MCP sets, bundles are app artifacts: two bindings, and each names its own. */
 const sets = z.object({ agentId: z.string().min(1), setIds: z.array(z.string()) }).strict()
 const bundles = z.object({ agentId: z.string().min(1), bundleIds: z.array(z.string()) }).strict()
 
@@ -21,16 +14,10 @@ export const registryOperations = ({ control }: AgentdSurfaces): readonly Operat
     input: declared, handler: (input) => control.registerAgent(input as never) }),
   operation({ name: "agentd_register_mcp_server", description: "Declare an MCP server agents can be given",
     input: declared, handler: (input) => control.registerServer(input as never) }),
-  // A set is declared against the one mcpset grammar, not passed through free-form:
-  // that grammar is also what the config and the gateway read, so a set means the
-  // same thing however it was declared.
   operation({ name: "agentd_upsert_mcpset", description: "Declare a named set of MCP servers",
     input: mcpSetSchema, handler: (input) => control.upsertSet(input) }),
   operation({ name: "agentd_bind", description: "Give an agent these MCP sets",
     input: sets, handler: (input) => control.bindAgent(input.agentId, input.setIds) }),
-  // The credential is declared against the agent's id, which is the principal
-  // key the door resolves it to: issuing is done where identities live, and the
-  // agent that presents it is named here so the two spell the key the same way.
   operation({
     name: "agentd_credential",
     description: "The credential one agent presents at the MCP Gateway's door; issue it for the identity the agent is named by",
@@ -43,8 +30,6 @@ export const registryOperations = ({ control }: AgentdSurfaces): readonly Operat
   operation({ name: "agentd_bind_bundles", description: "Give an agent these apps",
     input: bundles, handler: (input) => control.bindBundles(input.agentId, input.bundleIds) }),
   operation({
-    // binding takes placements rather than ids, because `ns` is what distinguishes
-    // two instances of one artifact
     name: "agentd_bind_node", description: "Give a node a kernel and a set of apps, each in its namespace",
     input: z.object({
       nodeId: z.string().min(1), kernelId: z.string().min(1).optional(),

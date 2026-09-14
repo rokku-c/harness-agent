@@ -1,20 +1,3 @@
-/**
- * The sessions this deck is running.
- *
- * This is the console's first screen and what an operator comes back to, so it
- * is a list of what exists rather than of what to do: a row's Open leaves for
- * that session's own screen, which holds the whole of working in it. A session's
- * identity is the agent running it — the generated id is the key that addresses
- * it, so it wears the code chip rather than standing at the head of the row.
- *
- * Close all is guarded on the list having a row, because a close-all over
- * nothing is a press that reports success for having done nothing. It carries no
- * confirmation, and that is a gap rather than a choice: `flows.md` §6.3 requires
- * a destructive press to name what it acts on, `design-system.md` §11.3 gives
- * that confirmation exactly one shape (`AlertDialog`), and this layer cannot
- * build it — see the report. The label is therefore as plain as it can be about
- * what it does, and no second, invented interlock stands in for the dialog.
- */
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { cellOf, code, emptyRows, press, readout, row, section, stateBadge, stateRows, table, text, tryAgain, whenRows } from "./effect-ui-nodes.ts"
 

@@ -1,11 +1,3 @@
-/**
- * model/version-refs.ts - DEPENDENCY REFERENCES and version objects.
- *
- * Concept: a dep points at a tool version one of four ways (latest/revision/
- * hash/range); a Version is the immutable record of one revision - content
- * addressed (SHA-256 over canonical content + dep hashes) so the closure is
- * locked by the hash itself.
- */
 import type { ToolDef } from "./tool.ts"
 export type Ref =
   | { readonly kind: "latest" }
@@ -30,13 +22,11 @@ export const refToShort = (ref: Ref): string => {
 export interface Version {
   readonly tool: string
   readonly revision: number
-  /** SHA-256(canonical content + dep hashes) - content addressing that locks the dependency closure */
   readonly hash: string
   readonly parent?: string
   readonly message: string
   readonly content: ToolDef
   readonly createdAt: number
-  /** Version visibility: experimental versions can be hidden from specific agents */
   readonly hidden?: boolean
 }
 

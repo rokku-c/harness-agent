@@ -2,7 +2,6 @@ import type { Registry } from "./store.ts"
 import { announceSchema, heartbeatSchema } from "./http-validation.ts"
 
 const fail = (status: number, error: string) => Response.json({ ok: false, error }, { status })
-/** HTTP validates requests; the shared registry is the sole authority for credentials. */
 export const makeRegistryHandler = (registry: Registry) => async (request: Request): Promise<Response> => {
   const path = new URL(request.url).pathname
   if (request.method === "GET" && path === "/-/registry/servers") return Response.json({ servers: registry.list() })

@@ -1,22 +1,3 @@
-/**
- * The gateway's console plane, declared once.
- *
- * An operator comes here to ask whether one agent may reach one tool and then
- * reads the topology to understand the answer, so both are operations like any
- * other: the console reads them over HTTP and an agent calls the same
- * declarations as tools, and neither can answer differently from the other.
- *
- * The topology is read *through* the catalog rebuild rather than beside it. What
- * the gateway is made of and what it can actually offer are different facts — a
- * registered server whose tools never listed is a server nothing can be reached
- * through — and the second is only true if the surface was asked. Asking here is
- * the same call `tools/list` makes, and it is cheap when the live servers have
- * not changed, so the console's topology is the door's own answer rather than a
- * second opinion about it.
- *
- * What the gateway *serves* (`POST /mcp-gateway`) is the protocol itself rather
- * than a move an operator makes, so it keeps its own route and is not here.
- */
 import { OperationFault, noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { previewAccess, type AccessSurfaces } from "./access-preview.ts"
@@ -27,19 +8,12 @@ import { directoryOperations } from "./ops-directory.ts"
 import { tokenOperations } from "./ops-token.ts"
 import { withListings } from "./server-listings.ts"
 
-/** What these operations read: the shared registry, the center's sets, the live catalog, the audit — and the two engines that decide and issue. */
 export interface GatewaySurfaces extends AccessSurfaces {
   readonly audit: AuditLog
-  /** The catalog *as a read*: it rebuilds, and it says how the rebuild went. */
   readonly live: LiveCatalog
   readonly identities: IdentitySurfaces
 }
 
-/**
- * An empty box is an unanswered question, not the empty string: the console
- * binds the tool field to a path that starts blank, and a preview run against
- * `""` would report a denial of a tool nobody named.
- */
 const named = (value: string | undefined): string | undefined => {
   const trimmed = value?.trim()
   return trimmed === undefined || trimmed === "" ? undefined : trimmed
@@ -58,9 +32,6 @@ export const mcpGatewayOperations = (surfaces: GatewaySurfaces): readonly Operat
         servers: withListings(surfaces.registry.list(), surfaces.live.report()),
         sets: facts.sets,
         bindings: facts.bindings,
-        // The center's own write counter, read beside the declarations it counts.
-        // A grant edit reaches every principal bound to the set, so the console
-        // that shows the grants has to say which revision it is showing (J2).
         revision: facts.revision,
         tools: surfaces.offered.list(),
         audit: surfaces.audit.list(),

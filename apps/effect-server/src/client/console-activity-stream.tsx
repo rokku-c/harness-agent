@@ -1,17 +1,3 @@
-/**
- * The record itself, as rows: newest first, with the four facts H9 asks a row to
- * carry — who, what app, how it ended, and when.
- *
- * The rows are drawn in a `Table` and not as cards because this is a log, and a
- * log is read down a column: an operator looking for the failure at 14:02 is
- * reading the time column, not reading sentences.
- *
- * The actor column is the record's own `perspective` under H9's vocabulary (see
- * `console-activity-filter.ts`); the outcome column is the failure text when
- * there is one and `ok` when there is not, which is the whole of what a frame
- * says about how it went.
- */
-
 import * as React from "react"
 import { Table, Text } from "@radix-ui/themes"
 import { actorOf } from "./console-activity-filter.ts"
@@ -22,7 +8,6 @@ const Time = ({ at }: { readonly at: number }) =>
 
 export const ActivityStream = ({ observations, empty = "Nothing reported yet." }: {
   readonly observations: readonly ActivityObservation[]
-  /** A filtered record that matches nothing is not an empty record, and says so. */
   readonly empty?: string
 }) =>
   observations.length === 0

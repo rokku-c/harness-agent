@@ -13,18 +13,6 @@ const call = (tool: EffectTool) => async (args: Record<string, unknown>): Promis
   }
 }
 
-/**
- * Serve a registry's tools on a node server, once, from the registry as it is.
- *
- * A server serves the surface it was built with; a caller that needs a
- * different one builds another server. That is how every production face works
- * — `effect-standalone`'s HTTP host and `apps/effect-server` both build a server
- * per request from the live catalog — so an app hot-swap is a new server rather
- * than a reconcile pass over this one, and there is no stale list to announce.
- *
- * Throws (naming both tools) rather than silently overwriting when two tools
- * would share one served name — the reduction `served-name.ts` owns.
- */
 export const registerTools = (server: any, registry: EffectRegistry): void => {
   const register = server.registerTool.bind(server) as any
   const served = makeServedNames("tools")

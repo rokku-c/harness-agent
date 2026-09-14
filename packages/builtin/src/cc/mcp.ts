@@ -1,11 +1,3 @@
-/**
- * cc/mcp.ts - OP-TO-MCP TOOL INJECTION.
- *
- * Concept: express effect-agent binding ops as native MCP tools inside
- * Claude Code's own runtime, executed on our runtime so each op's services
- * resolve exactly as they would in-loop. Mapping is name-safe and
- * schema-faithful (see cc/schema.ts).
- */
 import { Schema, Runtime } from "effect"
 import * as z from "zod"
 import { tool as sdkTool } from "@anthropic-ai/claude-agent-sdk"

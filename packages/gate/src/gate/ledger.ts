@@ -1,11 +1,3 @@
-/**
- * gate/ledger.ts - the MANUAL GATE'S LEDGER.
- *
- * Concept: the operator side of an Ask - the pending queue, the recorded
- * verdicts (dedupe on the identical request key) and the subscribers that
- * learn about a new Ask. Pure bookkeeping: no waiters, no timeouts; who
- * sleeps on an Ask and wakes lives in gate/manual.ts.
- */
 import { Effect, Ref } from "effect"
 import { randomUUID } from "node:crypto"
 import { keyOf, type GateDecision, type GateInput } from "./contract.ts"
@@ -21,7 +13,6 @@ export class ApprovalLedger {
   private readonly decisionsRef = Ref.unsafeMake(new Map<string, GateDecision>())
   private readonly listeners = new Set<(pending: PendingApproval) => void>()
 
-  /** subscribe to new pending approvals (a console, a dingtalk host) */
   readonly onPending = (listener: (pending: PendingApproval) => void): (() => void) => {
     this.listeners.add(listener)
     return () => {
@@ -29,11 +20,9 @@ export class ApprovalLedger {
     }
   }
 
-  /** the recorded verdict for an identical prior request, when one exists */
   readonly lookup = (input: GateInput): Effect.Effect<GateDecision | undefined> =>
     Effect.map(Ref.get(this.decisionsRef), (map) => map.get(keyOf(input)))
 
-  /** open a new pending approval (idempotency is the caller's job) */
   readonly ask = (input: GateInput): Effect.Effect<PendingApproval> => {
     const pendingRef = this.pendingRef
     const listeners = this.listeners
@@ -51,7 +40,6 @@ export class ApprovalLedger {
   readonly drop = (callId: string): Effect.Effect<void> =>
     Ref.update(this.pendingRef, (items) => items.filter((item) => item.callId !== callId))
 
-  /** remember the operator's verdict under the request key (dedupes asks) */
   readonly record = (input: GateInput, verdict: GateDecision): Effect.Effect<void> =>
     Ref.update(this.decisionsRef, (map) => {
       const next = new Map(map)

@@ -1,8 +1,3 @@
-/**
- * agentdeck - the middle-abstraction control plane over mainstream agents.
- * Layers: types -> config (unified map) -> consent (session->consent map) ->
- * gateway/adapters (flow control) -> registry (deck).
- */
 export * from "./kinds.ts"
 export * from "./flow.ts"
 export * from "./consent-types.ts"

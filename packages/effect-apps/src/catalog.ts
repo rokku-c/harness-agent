@@ -1,22 +1,7 @@
-/**
- * effect-apps catalog — a registry of namespaced effect apps.
- *
- * An app is ns::appId and may expose any combination of an effect-interface
- * registry (tools), a UiDocument (ui.doc) plus runtime state, a config
- * {schema,value,sources} triplet, and a NodeStore storage plane. A per-entry
- * authorize(op) gate guards each plane before it is read or invoked.
- */
-
 import type { EffectRegistry } from "@effect-agent/effect-interface"
 
-/** Planes an app can expose, and the ops authorize() is asked about. */
 export type AppsPlane = "interface" | "ui" | "store" | "config"
 
-/**
- * Minimal JSON KV store, the same shape as `effect-bundle`'s `NodeStore`, written
- * out rather than imported: an app plane is duck-typed, so an app's store is
- * anything with these four methods and the app plane stays clear of the loader.
- */
 export interface NodeStore {
   get(key: string): unknown | undefined
   set(key: string, value: unknown): void
@@ -24,13 +9,11 @@ export interface NodeStore {
   list(prefix?: string): readonly string[]
 }
 
-/** UI plane: the app's UiDocument plus an optional live state snapshot. */
 export interface AppUiPlane {
   doc(): unknown
   state?(): unknown
 }
 
-/** Config plane: schema / merged value / per-key provenance as JSON data. */
 export interface AppConfigPlane {
   schema?(): unknown
   value?(): unknown
@@ -44,23 +27,15 @@ export interface AppEntry {
   readonly ui?: AppUiPlane
   readonly config?: AppConfigPlane
   readonly store?: NodeStore
-  /** Omitted authorization denies every plane. */
   authorize?(op: AppsPlane): boolean
 }
 
-/**
- * The catalog as its readers see it. Reading and writing are two interfaces: a
- * derived catalog (`apps-catalog.ts`) has no `register` to offer, and the type
- * says that rather than a method that throws.
- */
 export interface AppCatalog {
   list(): readonly AppEntry[]
   find(ns: string, appId: string): AppEntry | undefined
 }
 
-/** A catalog apps can be put into; `makeAppCatalog` is the default in-memory one. */
 export interface MutableAppCatalog extends AppCatalog {
-  /** register an app; returns a disposer that removes exactly this entry. */
   register(app: AppEntry): () => void
 }
 

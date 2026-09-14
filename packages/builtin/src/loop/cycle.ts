@@ -1,14 +1,3 @@
-/**
- * loop/cycle.ts - THE STEP CYCLE (the loop's body).
- *
- * Concept: iterate the canonical step. One step: cooperative yield, drain
- * session signals, checkpoint, project the model-facing surface, inject a
- * reflection when the last step failed a tool, generate, then route the
- * result: tool calls go to turn semantics (turn.ts), a call-less turn goes
- * to termination (decide.ts). Exhausted steps fail. Schema structured
- * results must arrive as the protocol tool (turn.ts); call-less replies are
- * rejected by decide.ts without text decoding or synthetic retry prompts.
- */
 import { Effect, Option, Queue } from "effect"
 import { AgentFailure, AgentPaused, type AgentEvent, type Op, type Until } from "@effect-agent/core"
 import { DEFAULT_DECODE_RETRIES, DEFAULT_MAX_REFLECTIONS, DEFAULT_MAX_STEPS, type LoopState, type RunBox, type EffectAgentOptions } from "./types.ts"
@@ -51,10 +40,6 @@ export const runCycle = <A>(env: CycleEnv): Effect.Effect<A, AgentFailure, any> 
             return yield* Effect.fail(new AgentFailure({ agent: env.driverId, cause: "interrupted by signal" }))
           if (signal._tag === "Pause") {
             yield* env.snapshot(step)
-            // A pause is not the end of the run — it is resumed — and the rest
-            // of this batch was taken off the queue by takeAll and never read.
-            // Dropping it loses an operator's injection with nothing to show
-            // for it; the queue is documented as honoring every signal.
             yield* Queue.offerAll(queue, pending.slice(index + 1))
             return yield* Effect.fail(new AgentPaused({ runId: env.runId ?? "unknown" }) as unknown as AgentFailure)
           }

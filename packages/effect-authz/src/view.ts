@@ -1,11 +1,3 @@
-/**
- * effect-authz — the effective view of one principal.
- *
- * view(principal) = TEMPLATE[kind] ⊕ grants(principal), default deny. This is
- * the value the gateway both projects (`tools/list`) and enforces (`tools/call`)
- * from, and the value it compiles into effect-planes grants — one table, not two.
- */
-
 import { subjectMatches, type PolicyEntry } from "./policy.ts"
 import { principalKey, type Principal } from "./principal.ts"
 import { templateEntries, type TemplateTable } from "./templates.ts"

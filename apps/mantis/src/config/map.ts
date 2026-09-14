@@ -1,17 +1,3 @@
-/**
- * config/map.ts - DERIVING the standalone worker's config values.
- *
- * Concept: translate the audited document into MantisConfig - channel
- * (robot vs dws), access credentials, model settings with the legacy
- * reflection.max_passes mapping, approvals from env. Throws only for real
- * errors (robot without credentials); deprecation warnings never throw.
- *
- * The fallbacks below are clawyp's, and they are not the embedded app's:
- * `effect-config.ts` declares the same knobs for the platform-facing surface with
- * its own defaults (12 steps, two reflection passes). Two surfaces, two sets of
- * numbers, and neither reaches the other — so a change to one is not a change to
- * the other, `max_steps` most of all.
- */
 import { envVar } from "../env.ts"
 import type { MantisConfig, ModelApi } from "./types.ts"
 import type { Toml } from "./discovery.ts"

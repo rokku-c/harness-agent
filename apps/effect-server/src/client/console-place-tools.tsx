@@ -1,13 +1,3 @@
-/**
- * Tools: every operation every app registered, whichever transport it arrived on.
- *
- * The place exists because the alternative is what today does — an app that draws
- * loses its operations behind its own view, so the one surface built for poking
- * at a half-wired app is the one an app with a view cannot reach (`flows.md`
- * §1.6, §2.H8). Selecting is the address here, not component state: a colleague
- * can be sent `#tools/board/board.open` and land on that operation's form.
- */
-
 import * as React from "react"
 import { Button, Callout, Card, Flex, Grid, Heading, Text } from "@radix-ui/themes"
 import { navigate } from "./console-nav.ts"
@@ -42,7 +32,6 @@ const ToolsPlace = ({ app, operation }: { readonly app?: string; readonly operat
     </Flex>
     {catalogue === undefined ? null
       : apps.length === 0
-        // Where a disabled service would explain it: the service list is on Activity (§2.H8).
         ? <Callout.Root color="gray">
             <Callout.Text>
               No app has registered an operation.{" "}
@@ -78,16 +67,6 @@ export const TOOLS: Place = {
   color: "cyan",
   chrome: "page",
   kinds: ["tools"],
-  /**
-   * An app's operations are named at the app's own address under this place, and
-   * an app that registered none is not one this address can scope to: that is a
-   * not-found of the app part, reported as one, not an empty list (§2.H13).
-   *
-   * Only a plan that read something is evidence of that. An empty plan is what a
-   * catalogue failure leaves behind, and turning a transient failure into "no
-   * such app" would break every tools link in a bookmark at the moment the
-   * console is least able to explain why.
-   */
   claim: (address, plan) => {
     if (address.parts[0] !== "tools") return undefined
     const app = address.parts[1]

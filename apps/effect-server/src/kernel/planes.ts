@@ -1,15 +1,3 @@
-/**
- * The shipped kernel's planes: one implementation per slot in `KERNEL_PLANES`.
- *
- * These are the same factories the composition root used to call inline before the
- * split. What changed is who owns them: the kernel builds and owns its planes, and
- * the host holds only a stable stand-in per slot. A kernel revision therefore
- * supplies implementations, never the routing table — which is why no factory here
- * states a priority or a route. `KERNEL_PLANES` owns both, and this call is the
- * only one that reads a factory, so a factory that restated either would be a
- * second copy nothing reads.
- */
-
 import type { EffectPlugin } from "@effect-agent/effect-host"
 import type { AppsCatalogOptions } from "../apps-catalog.ts"
 import { makeAppsPlane } from "../apps-plane.ts"
@@ -41,8 +29,6 @@ export const pluginFor = (planeId: string, context: KernelContext): EffectPlugin
     case "config":
       return makeConfigPlugin(context.configs, context.yamlOf)
     default:
-      // A slot with no implementation is a broken build, not a runtime condition:
-      // the plane list and this switch are two halves of one declaration.
       throw new Error(`effect-server: no kernel plane implements ${planeId}`)
   }
 }

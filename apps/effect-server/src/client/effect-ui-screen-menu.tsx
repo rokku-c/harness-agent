@@ -1,31 +1,9 @@
-/**
- * The functions of a view the host had to read off the layout, offered on the
- * first screen.
- *
- * A view that declares its screens also declares what opens them — every one of
- * them has a control somewhere, and the control says `opens`. Screens that were
- * read instead have no such control, because they were never declared: they are
- * the layout's own blocks, split apart. So the host draws the control they are
- * missing, here, and it is the host's rather than the view's precisely because
- * nothing in the view asked for it.
- *
- * That is also why this is React and not a spec: the menu is not part of any
- * view, and writing it into the spec would mean inventing a synthetic action
- * name in every app's own vocabulary.
- */
-
 import * as React from "react"
 import { Button, Flex } from "@radix-ui/themes"
 import { ROOT_SCREEN } from "@effect-agent/effect-ui"
 import { openScreen } from "./console-nav.ts"
 import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
 
-/**
- * §10.2.5's shape: a wrapping row of soft buttons at the chrome's own size, inside
- * a group named for the app. The group name is not decoration — eight buttons
- * with no name around them are eight buttons a reader arrives at with no idea
- * what they belong to.
- */
 export const ScreenMenu = ({ appId, title, screens }: {
   readonly appId: string
   readonly title: string

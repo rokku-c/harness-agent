@@ -3,7 +3,6 @@ import type { EffectPlugin } from "./plugin.ts"
 import { loadEntry, unloadEntry, type PluginEntry } from "./entry.ts"
 import { makeLifecycleQueue } from "./queue.ts"
 
-/** The only owner of plugin state; every mutation (including close) uses the queue. */
 export const makePluginLifecycle = () => {
   const entries = new Map<string, PluginEntry>()
   const queue = makeLifecycleQueue()
@@ -36,7 +35,6 @@ export const makePluginLifecycle = () => {
       try {
         await loadEntry(entry)
       } catch (error) {
-        // Preserve control API's existing failed-enable result and disabled state.
         console.error(`[effect-host] plugin ${id} load failed, staying disabled:`, error)
         return false
       }

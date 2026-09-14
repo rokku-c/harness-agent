@@ -1,7 +1,3 @@
-/**
- * Standard app form for deckconsole: one descriptor; engine derives lui.
- */
-
 import { createDeckPlugin } from "./effect-plugin.ts"
 import { effectConfig } from "./effect-config.ts"
 import { effectUiView } from "./effect-ui.ts"

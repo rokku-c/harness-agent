@@ -1,15 +1,6 @@
-# effect-agent provider configuration.
-# Copy to config.toml and fill in the secrets (values resolve from the
-# environment: ${LLM_API_KEY} or env:LLM_API_KEY; .env is loaded first).
-
 [providers.default]
 api = "anthropic.messages"
 model = "deepseek-v4-flash"
 baseURL = "https://ai-api-gateway.app.baizhiyun.vip/api/anthropic"
 apiKey = "env:LLM_API_KEY"
 maxOutputTokens = 2048
-
-# [providers.openai]
-# api = "openai.chat"
-# model = "gpt-4o-mini"
-# apiKey = "${OPENAI_API_KEY}"

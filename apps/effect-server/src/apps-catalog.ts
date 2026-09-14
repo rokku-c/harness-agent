@@ -9,7 +9,6 @@ export interface AppsCatalogOptions {
   readonly uiViews?: ReadonlyMap<string, EffectUiView>
   readonly namespace?: string
   readonly stateReader?: (appId: string) => unknown | Promise<unknown>
-  /** Trusted host policy, not an identity inferred from a request-supplied namespace. */
   readonly authorize?: (appId: string, plane: AppsPlane) => boolean
 }
 export const makeLiveAppCatalog = (options: AppsCatalogOptions): AppCatalog => {

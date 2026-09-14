@@ -1,16 +1,3 @@
-/**
- * The providers, and the one thing this console can ask of them.
- *
- * This is the screen's task, so it is the first thing under the figures, and the
- * probe is a press on the row it is about rather than a form elsewhere.
- *
- * The Status column is the design system's first-match rule written out: a
- * provider that cannot authenticate is the loud one, one the operator has taken
- * out of rotation is a fact, and one that is both enabled and credentialed is
- * `ok`, the jade word the tone table gives health. No row is left blank there,
- * because a blank status beside a provider reads as a status that failed to load
- * rather than as a provider that is fine.
- */
 import type { UiCondition, UiNodeSpec } from "@effect-agent/effect-ui"
 import { cellOf, chip, failureCallout, text } from "@effect-agent/effect-ui"
 import { caption, listRows, mono, monoBind, note } from "./effect-ui-nodes.ts"
@@ -22,20 +9,16 @@ const badge = (value: string, color: string, visible: UiCondition, variant = "so
 
 const provider: UiNodeSpec = cellOf([chip("id")])
 
-/** A protocol is a kind — a distinguishing literal, which the tone table reads as `info` and never as health. */
 const protocol: UiNodeSpec = cellOf([
   { component: "Badge", props: { variant: "soft", color: "blue", highContrast: true }, item: "apiType" },
 ])
 
-/** An address: mono, because an operator copies it far more often than reads it. */
 const upstream: UiNodeSpec = cellOf([mono("baseURL")])
 
 const status: UiNodeSpec = cellOf([{
   component: "Flex", props: { direction: "column", gap: "1", align: "start" },
   children: [
     badge("No credential", "red", { source: { item: "credential" }, equals: "missing" }),
-    // the rest of the rule: only a credentialed provider is disabled or healthy,
-    // so both of those are stated inside this guard
     { component: "Flex", visible: { source: { item: "credential" }, equals: "missing", not: true },
       children: [
         badge("Disabled", "blue", { source: { item: "enabled" }, equals: false }),
@@ -44,25 +27,8 @@ const status: UiNodeSpec = cellOf([{
   ],
 }])
 
-/**
- * The press and its answer, on the row that caused it.
- *
- * The answer is one value in view state — the last probe, whichever row ran it —
- * so a row has to claim it, or the same answer would appear on every row and say
- * four providers replied when one did. The claim compares the row's own id with
- * the id the answer names, and it is written with the row on the left because
- * the language resolves a state path on either side of a comparison but an item
- * path only on the left: the plain "the answer names my id" never matches, and
- * the answer would then be invisible on every row.
- *
- * It keeps its place until the next press, which is why the table's line calls it a record, not a reading.
- */
 const mine: UiCondition = { source: { item: "id" }, equals: { state: `${PROBE}/providerId` } }
 
-/** The answer when it came back: the word in body text, the two readings in mono.
- *  `ok` is quiet on purpose — the design system keeps green off whole screens —
- *  and there is no glyph to add, since a view names only what the library
- *  exports and the console's icon set is not among those names. */
 const reach: UiNodeSpec = {
   component: "Flex", props: { gap: "1", align: "baseline" },
   visible: { source: { state: `${PROBE}/reachable` } },

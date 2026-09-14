@@ -1,27 +1,3 @@
-/**
- * The launch surface. A machine asks for work rather than being told to do it,
- * so polling is a POST: it hands out intents and they stop being anyone else's,
- * and a GET that quietly claimed work would be a lie about what it does.
- *
- * `agentd_launch` queues a *turn*, and a turn is named by the identity it runs
- * as. The machine it runs on and the dialect it runs under are read from that
- * identity here, at the moment of queueing, rather than accepted from the
- * caller: a request that could name its own dialect could start a CLI the center
- * never planned a config for, and the plan and the process would then agree only
- * by luck. Work that is not a turn names its own machine and its own argv, and
- * has no identity to be armed with — which is why it is a different shape and
- * not this one with a field left out.
- *
- * An identity this center cannot arm is refused where it is armed: the machine's
- * fetch (§F10) is the thing that hands over a credential, and a second rule for
- * that question here would be a copy of the adapter's, free to drift from it.
- *
- * A caller with a task node names it, and the intent is filed under it; a caller
- * without one — an operator starting a turn from the console — leaves it out and
- * the intent belongs to no node. It is the one field here the center does not
- * derive, and it is optional because it is a label and not a routing decision:
- * what the turn runs as and where it runs come from the identity either way.
- */
 import { count, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { AgentdSurfaces } from "./surfaces.ts"

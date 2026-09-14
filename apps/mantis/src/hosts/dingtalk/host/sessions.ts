@@ -1,11 +1,3 @@
-/**
- * host/sessions.ts - the PER-CONVERSATION SESSION REGISTRY.
- *
- * Concept: one mantis instance per conversation - lazily created on the
- * first message with that conversation's durable workspace (when shared),
- * restored enabled surface, history binding (re-rendered every run) and
- * conversation-scoped approval policy + hooks.
- */
 import type { Logger } from "@effect-agent/logger"
 import type { HarnessHook } from "@effect-agent/core"
 import { makeMantis } from "../../../agent.ts"
@@ -25,7 +17,6 @@ export class SessionRegistry {
     private readonly logger: Logger
   ) {}
 
-  /** one session agent per conversation - lazily created on first message */
   readonly session = (conversationId: string): MantisSession => {
     let session = this.#sessions.get(conversationId)
     if (session === undefined) {

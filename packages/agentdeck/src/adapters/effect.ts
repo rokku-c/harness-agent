@@ -1,8 +1,3 @@
-/**
- * agentdeck/adapters/effect - the "self" agent (this framework's own
- * EffectAgent runtime) as a SessionGateway. Flow control maps 1:1 onto
- * driver.run(until text); config maps onto the driver options + model.
- */
 import { Effect } from "effect"
 import { AgentContext, Until } from "@effect-agent/core"
 import { EffectAgent } from "@effect-agent/builtin"
@@ -12,7 +7,6 @@ import type { UnifiedAgentConfig } from "../config-types.ts"
 import { makeSessionTable, type SessionBox } from "./session-table.ts"
 
 export interface EffectGatewayOptions {
-  /** model for the in-proc driver; REQUIRED for real use, injectable for tests */
   readonly model?: (config: UnifiedAgentConfig) => Model
   readonly maxTurns?: number
 }
@@ -20,7 +14,6 @@ export interface EffectGatewayOptions {
 interface EffectBox extends SessionBox {
   readonly config: UnifiedAgentConfig
   readonly seed?: string
-  /** alternating user/agent text, in order */
   readonly history: Array<string>
 }
 

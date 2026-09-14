@@ -1,11 +1,3 @@
-/**
- * mcp/approvals.ts - APPROVAL tools for other agents.
- *
- * Concept: protected calls hang until the operator resolves them - or
- * MANTIS_APPROVE_TIMEOUT_MS elapses into Deny. These tools let an agent
- * client see what is waiting and resolve it itself, with the same semantics
- * as the web console / dingtalk (one shared ManualGate).
- */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
 import { chatId, text } from "./helpers.ts"

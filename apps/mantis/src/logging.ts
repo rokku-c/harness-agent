@@ -1,8 +1,3 @@
-/**
- * Turn HarnessEvent (the driver's observable loop) into leveled log entries.
- * A host attaches this hook per session so tool calls, outputs and failures
- * flow into its unified logger (console and/or persistent file sinks).
- */
 import { Effect } from "effect"
 import { Harness, type HarnessEvent, type HarnessHook } from "@effect-agent/core"
 import type { Logger } from "@effect-agent/logger"

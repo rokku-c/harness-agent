@@ -1,7 +1,6 @@
 import { makeWebHandler, type WebHandlerOptions } from "./web.ts"
 
 export interface WebHostOptions extends WebHandlerOptions { readonly host?: string; readonly port?: number }
-/** Only this explicit standalone entry allocates a listening socket. */
 export const startWebHost = (options: WebHostOptions = {}) => {
   const app = makeWebHandler(options)
   try {

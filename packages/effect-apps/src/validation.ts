@@ -4,7 +4,6 @@ import type { JsonSchemaType, JsonSchemaValidator } from "@modelcontextprotocol/
 
 const validators = new WeakMap<object, JsonSchemaValidator<unknown>>()
 
-/** JSON-only MCP tools need the same pre-handler validation as zod-backed tools. */
 export const validateAppArguments = (tool: EffectTool, args: unknown): void => {
   const schema = tool.inputSchema
   if (schema === undefined || schema === true) return
@@ -18,7 +17,6 @@ export const validateAppArguments = (tool: EffectTool, args: unknown): void => {
   const object = schema as object
   let validate = validators.get(object)
   if (validate === undefined) {
-    // Isolate schemas: another app's identical $id must not select its validator.
     validate = new AjvJsonSchemaValidator().getValidator(schema as JsonSchemaType)
     validators.set(object, validate)
   }

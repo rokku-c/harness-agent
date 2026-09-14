@@ -19,47 +19,76 @@ arrival rather than two paths to keep in step.
 
 **What this app is for.** The board's console view (`apps/board/src/effect-ui.ts`): hierarchical
 work items as one read, drawn two ways. The worktable and the columns wall lead — two shapes of the
-one start screen rather than two screens — and the record a row opened and the form that writes a
-new one are destinations entered from it.
+one start screen rather than two screens — and every record entered from it is a destination: the
+task a row opened, the form that writes a new one, the documents the board holds, one of those
+documents as the outline it is, and the ring of what the board has done.
 
 **Screens.**
 
 | id | title | onEnter | what the user does there |
 | --- | --- | --- | --- |
-| — (start) | Board | — | reads the worktable or the columns wall, filters by state, switches shape, opens a task or the new-task form |
+| — (start) | Board | — | reads the worktable or the columns wall, filters by state and by exact title or id, switches shape, opens a task, the documents, the events, or the new-task form |
 | `task` | Task | `board.load` | edits the title, body and state of the task the address names; saves or deletes it |
 | `new` | New task | — | fills title, body and state, creates a task |
+| `documents` | Documents | — | reads the documents the board holds, opens one as an outline, deletes one, creates one |
+| `outline` | Outline | `board.loadDocument` | reads the document the address names at the version it was read at, and renames it or inserts a node into it |
+| `events` | Events | — | reads the ring of what the board has done, and follows a row out to Activity filtered to this app |
 
-**Sources** — `apps/board/src/effect-ui.ts`.
+**Sources** — `apps/board/src/effect-ui-state.ts`.
 
 | id | url | state | refreshMs |
 | --- | --- | --- | --- |
 | table | `/board/api/table?columns=id,title,state,body,agent,waits,failure,parentTitle` | `/table` | 10000 |
+| documents | `/board/api/documents` | `/documents` | 10000 |
+| events | `/board/api/events?tail=50` | `/events` | 10000 |
 
 There is no second read for the other shape: the worktable and the columns wall are the same tasks
 seen twice, and a second fetch of the same list is a second copy to drift from the first
-(`effect-ui-worktable.ts`, which builds the url from the union of what both shapes read).
+(`effect-ui-worktable.ts`, which builds the url from the union of what both shapes read). The other
+two reads are separate data and not another view of the tasks: a document is a structure read at an
+address of its own, and the ring is the board's history of everything it has done, task or document.
+A declared view mounts every source it names with the view and not with a screen, so both of those
+are read while the task list is on screen too (`effect-ui.ts`).
 
-**Actions** — `apps/board/src/effect-ui.ts`.
+**Actions** — `apps/board/src/effect-ui-actions.ts`.
 
 | name | method | url | result | opens |
 | --- | --- | --- | --- | --- |
 | board.new | — | — | — | `new` |
 | board.open | — | — | — | `task` |
+| board.openDocuments | — | — | — | `documents` |
+| board.openDocument | — | — | — | `outline` |
+| board.openEvents | — | — | — | `events` |
 | board.create | POST | `/board/api/tasks` | `/createResult` | — |
 | board.load | GET | `/board/api/tasks/{taskId}` | `/selected` | — |
 | board.save | PATCH | `/board/api/tasks/{taskId}` | `/selectedResult` | — |
 | board.delete | DELETE | `/board/api/tasks/{taskId}` | `/selectedResult` | — |
 | board.retry | — | — | — | — |
+| board.createDocument | POST | `/board/api/documents` | `/docResult` | — |
+| board.deleteDocument | DELETE | `/board/api/documents/{docId}` | `/docResult` | — |
+| board.loadDocument | GET | `/board/api/documents/{docId}` | `/outline/read` | — |
+| board.retitle | POST | `/board/api/documents/{docId}` | `/outlineResult` | — |
+| board.insertNode | POST | `/board/api/documents/{docId}` | `/outlineResult` | — |
 
-`board.open` and `board.new` open a screen and make no call of their own. `board.load` takes
-`{taskId}` from `/_nav/taskId`, which the row press writes by opening the screen — so a row press
-and a pasted link are one act, and the screen's own `onEnter` is the only read of the record.
-`board.create` sends `{title}`, `{body}` and `{state}` from `/create/title`, `/create/body` and
-`/create/state`, and on success clears the two fields it consumed and refreshes `table`.
-`board.save` sends `{taskId}` from `/selected/id` plus every field on screen, and refreshes
-`table`; `board.delete` sends the same id and refreshes `table`. `board.retry` makes no call and
-writes nothing: it names the `table` source and repeats that read (`effect-ui-notices.ts`).
+The five doors open a screen and make no call of their own. `board.load` takes `{taskId}` from
+`/_nav/taskId`, and `board.loadDocument` takes `{docId}` from `/_nav/docId` — which the press that
+opened the screen wrote — so a row press and a pasted link are one act, and the screen's own
+`onEnter` is the only read of the record. `board.create` sends `{title}`, `{body}` and `{state}`
+from `/create/title`, `/create/body` and `/create/state`, and on success clears the two fields it
+consumed and refreshes `table`. `board.save` sends `{taskId}` from `/selected/id` plus every field
+on screen, and refreshes `table`; `board.delete` sends the same id and refreshes `table`.
+`board.retry` makes no call and writes nothing: it names the `table` source and repeats that read
+(`effect-ui-notices.ts`).
+
+The three document writes take `{docId}` from the row that was pressed and, for the two that edit
+an outline, `{version}` from `/outline/read/version` — the version the tree on screen was built
+from, which is what makes a stale edit a refusal rather than a silently applied one. Each sends its
+operation as `op`, a whole object read from a state path (`/outline/rename`, `/outline/insert`),
+because an action's parameter can name a path and can never assemble an object: the screen's own
+controls fill those two objects in (`effect-ui-outline-edits.ts`, `effect-ui-state.ts`). Both edits
+clear the text field they consumed and refresh `board.loadDocument`, so the tree and the version it
+is edited against move on together. `board.createDocument` sends `{title}` from `/docDraft/title`
+and refreshes `documents`.
 
 **Controls.**
 
@@ -67,12 +96,30 @@ writes nothing: it names the `table` source and repeats that read (`effect-ui-no
 | --- | --- |
 | `/view` | SegmentedControl.Root Worktable, Columns (`effect-ui-header.ts`) |
 | `/filter` | SegmentedControl.Root All and the five states To do, Doing, Blocked, Done, Cancelled (`effect-ui-filter.ts`, `effect-ui-states.ts`) |
+| `/query` | TextField.Root Exact title or id (`effect-ui-filter.ts`) |
 | `/create/title` | TextField.Root Title (`effect-ui-fields.ts`) |
 | `/create/body` | TextArea Body (`effect-ui-fields.ts`) |
 | `/create/state` | Select.Root State, the same five states (`effect-ui-fields.ts`) |
 | `/selected/title` | TextField.Root Title (`effect-ui-fields.ts`) |
 | `/selected/body` | TextArea Body (`effect-ui-fields.ts`) |
 | `/selected/state` | Select.Root State, the same five states (`effect-ui-fields.ts`) |
+| `/docDraft/title` | TextField.Root Title (`effect-ui-documents.ts`) |
+| `/outline/rename/title` | TextField.Root Document title (`effect-ui-outline-edits.ts`) |
+| `/outline/insert/text` | TextField.Root Node text (`effect-ui-outline-edits.ts`) |
+| `/outline/insert/parentId` | Select.Root First node under, options repeated from the read's top-level nodes (`effect-ui-outline-edits.ts`) |
+
+The filter's field is a text field and not a search box, and it is labelled for what it does: a
+condition compares and does not search — neither `visible` nor a node's `source` has a substring
+operator (`value-spec.ts`) — so a row survives it on an exact match of the title or the id, and a
+partial title matches no row.
+
+Seeded, not a control: `/outline/rename` = `{kind: "retitle", title: ""}` and `/outline/insert` =
+`{kind: "insert", parentId: null, index: 0, text: ""}` (`effect-ui-state.ts`) — an action's
+parameter cannot be an object, so each of the two outline edits is one such object whose varying
+field the control above the press writes into. The operations that vary per node — toggle, retitle,
+move, remove — are therefore not offered on the outline screen: `op`'s `nodeId` is the one value
+that cannot come from the row it is about, and the tree's rows carry no control
+(`effect-ui-outline-tree.ts`).
 
 **Screens declaration.** Explicit `screens` array (`apps/board/src/effect-ui.ts`).
 
@@ -289,7 +336,8 @@ entered from it.
 | id | title | onEnter | what the user does there |
 | --- | --- | --- | --- |
 | — (start) | MCP Gateway | — | chooses a principal and a tool, presses Preview; opens Principals, Topology, Audit |
-| `access` | Access decision | `gateway.previewAccess` | reads whether the call was allowed or denied, the reasons, and the sets the principal is bound to |
+| `access` | Access decision | `gateway.previewAccess` | reads whether the call was allowed or denied, the reasons, the sets the principal is bound to, and the one edit that would change a denial |
+| `grants` | Grant editor | — | reads the edit a denial named, on the principal and the entry it named; opens Topology |
 | `principals` | Principals | — | reads the directory and every token; issues a token, turns a principal off or on, revokes a token |
 | `topology` | Topology | — | reads the servers and tools the door offers, the sets and bindings, at the revision shown |
 | `audit` | Audit | — | reads what the door decided, newest first |
@@ -314,6 +362,7 @@ three depths, and refreshing one faster could paint a refusal over a stale topol
 | gateway.openPrincipals | — | — | — | `principals` |
 | gateway.openTopology | — | — | — | `topology` |
 | gateway.openAudit | — | — | — | `audit` |
+| gateway.openGrants | — | — | — | `grants` |
 | gateway.showEveryServer | — | — | — | `topology` |
 | gateway.previewAccess | GET | `/mcp-gateway/access` | `/access/result` | — |
 | gateway.issueToken | POST | `/mcp-gateway/tokens` | `/issue/result` | — |
@@ -323,12 +372,16 @@ three depths, and refreshing one faster could paint a refusal over a stale topol
 | gateway.revokeToken | POST | `/mcp-gateway/tokens/revoke` | `/principals/revoked` | — |
 | gateway.readTopology … readDirectory | — | — | — | — |
 
-The five doors open a screen and make no call. `gateway.openAccess` — the Preview press — carries
+The six doors open a screen and make no call. `gateway.openAccess` — the Preview press — carries
 `{agent, tool}` from `/access/agent` and `/access/tool` into `/_nav/agent` and `/_nav/tool`, which
 `gateway.previewAccess` reads on arrival, so a press and a pasted link are one act; the question's
-choice stays in view state, which a Back press would otherwise erase. `gateway.showEveryServer`
-opens the screen it already stands on carrying nothing, which is how the topology's `?serverId=`
-filter is dropped; that filter is read at `/_nav/serverId` and never written here.
+choice stays in view state, which a Back press would otherwise erase. `gateway.openGrants` — J7's
+one fixing action — carries the *answer's* own values, off
+`/access/result/access/fixing/{setId,list,tool,serverId}`, into `/_nav/{setId,list,entry,serverId}`:
+a press from a denial and a colleague's pasted link render the same editor, so neither needs the
+denial to still be on screen. `gateway.showEveryServer` opens the screen it already stands on
+carrying nothing, which is how the topology's `?serverId=` filter is dropped; that filter is read
+at `/_nav/serverId` and never written here.
 `gateway.issueToken` takes the draft from `/issue/draft/{kind,id,name,days}`, clears
 `/issue/draft/id` and refreshes `identities`; `gateway.dismissToken` calls the directory read the
 principals screen is already about, lands its answer on a path nothing reads, and clears
@@ -349,20 +402,28 @@ principals screen is already about, lands its answer on a path nothing reads, an
 
 There is no `Copy` control beside the revealed token, and its absence is deliberate: a press runs a
 declared action, the console has no clipboard action, and a button that claimed to copy and did not
-would be worse than a mono value the operator selects (`effect-ui-issue.ts`). Sets and bindings are
-read here and never written, being declared in the agentd center, which is why a denial names the
-deciding set and stops (`effect-ui-grants.ts`).
+would be worse than a mono value the operator selects (`effect-ui-issue.ts`).
+
+Sets and bindings are read here and never written *by this app*: they are declared in the agentd
+center, and a set the console wrote would be a set the door never enforces, because the door reads
+the center (`effect-config.ts`). What a refusal therefore carries is the *edit* that would change
+it — the reason and the one fixing action, from one switch, so the two cannot drift
+(`access-reasons.ts`) — and that edit is a press, not a form: `Add read to staging` — the set's own
+id, not its display name — opens the grant editor on the principal and the entry the engine named,
+and a link to it renders the same screen. The grant editor holds no control: every value on it is a
+`/_nav` parameter, and its last card names where the declaration is made rather than offering a
+press that would fail (`effect-ui-grant-editor.ts`).
 
 **Screens declaration.** Explicit `screens` array (`apps/mcp-gateway-app/src/effect-ui.ts`) listing
-the four entered screens; the start screen is `nodes`, which no view names.
+the five entered screens; the start screen is `nodes`, which no view names.
 
 ## mcp-registry-app
 
 **What this app is for.** The registry console (`apps/mcp-registry-app/src/effect-ui.ts`): the
 catalogue the gateway decides from, so it is a read first and an act second. The server list leads;
-registering a server, withdrawing one, and previewing a `ui://` resource one declares are
-destinations entered from that list, and the two that act on a record carry that server's token on
-their own screen.
+registering a server, withdrawing one, rotating a token and previewing a `ui://` resource one
+declares are destinations entered from that list, and the three that act on a record carry that
+server's token — or, when it is lost, its replacement — on their own screen.
 
 **Screens.**
 
@@ -370,13 +431,17 @@ their own screen.
 | --- | --- | --- | --- |
 | — (start) | MCP Registry | — | reads the server list (version, era, status, declared `ui://` resources); opens Register or Preview |
 | `register` | Register a server | — | pastes a declaration, enters that server's token, registers |
-| `withdraw` | Withdraw a server | — | enters the named server's token and withdraws it |
+| `withdraw` | Withdraw a server | — | enters the named server's token and withdraws it; opens Rotate token when that token is lost |
+| `rotate` | Rotate a server token | — | enters a new token for the named server, replacing the one it presented before |
 | `preview` | Preview a resource | — | names a server id and a `ui://` uri, loads the body (a page, an image, or text) |
 
 No screen declares `onEnter`: the read a move makes is the press on its own screen, and the list a
 move changes is re-read by that act's `refresh`. There is no Withdraw door on the start screen:
 removing a server is authorized by that server's own token, and the start screen has nowhere to
-enter one, so the act belongs to the row that already names the server (`effect-ui-list.ts`).
+enter one, so the act belongs to the row that already names the server (`effect-ui-list.ts`). The
+`Rotate token` door is on the withdraw screen for the same reason turned around: it is the one
+route out of the dead end an operator meets there — a token they cannot produce — so it stands
+under the field that asks for one and carries the server that screen already names.
 
 **Sources** — `apps/mcp-registry-app/src/effect-ui.ts`.
 
@@ -385,8 +450,9 @@ enter one, so the act belongs to the row that already names the server (`effect-
 | registry | `/mcp-registry` | `/registry` | 10000 |
 
 One read behind the whole surface, with its health at `/_sources/registry`. `register` and
-`withdraw` refresh it; `preview` reads a resource over that server's own endpoint and refreshes
-nothing here, so the list is re-read by the two acts that change a record.
+`withdraw` refresh it; `rotate` and `preview` each act on something the list does not state — a
+credential it never holds, a resource on another server's own endpoint — so neither refreshes it,
+and the list is re-read by the two acts that change a record.
 
 **Actions** — `apps/mcp-registry-app/src/effect-ui.ts`.
 
@@ -394,19 +460,24 @@ nothing here, so the list is re-read by the two acts that change a record.
 | --- | --- | --- | --- | --- |
 | registry.openRegister | — | — | — | `register` |
 | registry.openWithdraw | — | — | — | `withdraw` |
+| registry.openRotate | — | — | — | `rotate` |
 | registry.openPreview | — | — | — | `preview` |
 | registry.register | POST | `/mcp-registry/register` | `/register/result` | — |
 | registry.withdraw | DELETE | `/mcp-registry/withdraw` | `/withdraw/result` | — |
-| registry.preview | GET | `/-/registry/preview` | `/preview/result` | — |
+| registry.rotate | POST | `/mcp-registry/rotate` | `/rotate/result` | — |
+| registry.preview | GET | `/mcp-registry/preview` | `/preview/result` | — |
 | registry.retry | — | — | — | — |
 
-The three opens are declared in `effect-ui-list.ts`, each act's action beside its screen, and the
+The four opens are declared in `effect-ui-list.ts`, each act's action beside its screen, and the
 retry in `effect-ui-registry-source.ts`. The start screen's doors carry nothing; the row's Preview
 and Withdraw presses each carry `{serverId}` from the row, which the open writes to
-`/_nav/serverId` — a row press and a pasted link are one act. `register` takes `{declaration}` from
+`/_nav/serverId` — a row press and a pasted link are one act — and the rotate door on the withdraw
+screen carries the id that screen is already naming. `register` takes `{declaration}` from
 `/register/declaration` and `{token}` from `/register/token`, clears the token, and refreshes
 `registry`; `withdraw` takes `{serverId}` from `/_nav/serverId` and `{token}` from
-`/withdraw/token`, and refreshes `registry`; `preview` takes `{serverId}` from `/_nav/serverId` and
+`/withdraw/token`, and refreshes `registry`; `rotate` takes `{serverId}` from `/_nav/serverId` and
+`{newToken}` from `/rotate/token`, clears the token, and refreshes nothing, because the credential
+it replaced is not a field of any row; `preview` takes `{serverId}` from `/_nav/serverId` and
 `{uri}` from `/_nav/uri`, and refreshes nothing. `registry.retry` makes no call: it names `registry`
 and repeats that read, so the verdict at `/_sources/registry` stays the runtime's to write.
 
@@ -417,6 +488,7 @@ and repeats that read, so the verdict at `/_sources/registry` stays the runtime'
 | `/register/declaration` | TextArea Server declaration (`effect-ui-register.ts`) |
 | `/register/token` | TextField.Root password Server token (`effect-ui-register.ts`) |
 | `/withdraw/token` | TextField.Root password Server token (`effect-ui-withdraw.ts`) |
+| `/rotate/token` | TextField.Root password New server token (`effect-ui-rotate.ts`) |
 | `/_nav/serverId` | TextField.Root Server id (`effect-ui-preview.ts`) |
 | `/_nav/uri` | TextField.Root Resource URI (`effect-ui-preview.ts`) |
 
@@ -573,7 +645,7 @@ agent, start an agent, read the workspaces one can be started in — are destina
 | id | title | onEnter | what the user does there |
 | --- | --- | --- | --- |
 | — (start) | Herdr | — | reads the fleet as a table, each row carrying the last lines its agent printed; opens one agent or a door |
-| `agent` | Terminal agent | `herdr.agentOutput` | reads what one agent is printing and its scrollback; sends it a message or a key; brings it forward |
+| `agent` | Terminal agent | — | reads what one agent is printing and its scrollback; sends it a message or a key; brings it forward |
 | `start` | Start an agent | — | names an agent, gives it a kind, picks a workspace, starts it |
 | `workspaces` | Workspaces | — | reads the workspaces Herdr has open, which one is in front, what each one holds |
 
@@ -605,11 +677,15 @@ what makes the agent screen live; its longer read is addressed by `/_nav/target`
 | herdr.agentEscape | POST | `/herdr/agents/{target}/keys` | `/herdr/result/agentEscape` | — |
 | herdr.agentInterrupt | POST | `/herdr/agents/{target}/keys` | `/herdr/result/agentInterrupt` | — |
 
-The three `open*` actions make no call: entering a screen is a behaviour, and the screen's own
-`onEnter` is what fills it. `herdr.openAgent` is the only press carrying a value of its own — the row's
-`pane_id`, written to `/_nav/target` — so a row press and a pasted link are one arrival.
-`herdr.agentOutput` takes `{target}` from `/_nav/target` plus fixed `{source: "recent", lines: 200}`;
-`herdr.agentPrompt` takes `{text}` from `/herdr/draft/message`, clears that draft and refreshes
+The three `open*` actions make no call: entering a screen is a behaviour, and no screen here is
+filled by entering it — both reads run on the app's own cadence while any screen is up, so the
+agent screen draws its output from `agents` rather than from an `onEnter`. `herdr.openAgent` is
+the only press carrying a value of its own — the row's `pane_id`, written to `/_nav/target` — so a
+row press and a pasted link are one arrival.
+`herdr.agentOutput` takes `{target}` from `/_nav/target` plus fixed `{source: "recent", lines: 200}`:
+it is the operator's one-shot read of the same terminal, longer than the tail the source carries,
+and not what fills the screen. `herdr.agentPrompt` takes `{text}` from `/herdr/draft/message`,
+clears that draft and refreshes
 `agents`; `herdr.agentStart` takes `{name}`, `{kind}` and `{workspaceId}` from `/herdr/draft/*`, clears
 nothing (the name and kind are what the next start reuses) and refreshes both reads;
 `herdr.agentFocus` refreshes both; `herdr.agentEscape` and `herdr.agentInterrupt` take `{keys}` from
@@ -634,4 +710,4 @@ Seeded, not a control: `/herdr/keys/escape` = `["esc"]`, `/herdr/keys/interrupt`
 
 ---
 
-Row count of the combined action tables: 87 (board 7, agentd 11, mantis 11, ai-gateway 4, mcp-gateway-app 12, mcp-registry-app 7, ui-host 7, deckconsole 17, herdr-app 11).
+Row count of the combined action tables: 98 (board 15, agentd 11, mantis 11, ai-gateway 4, mcp-gateway-app 13, mcp-registry-app 9, ui-host 7, deckconsole 17, herdr-app 11).

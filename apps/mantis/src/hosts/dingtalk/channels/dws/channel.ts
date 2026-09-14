@@ -1,12 +1,3 @@
-/**
- * channels/dws/channel.ts - the DwsChannel poll loop.
- *
- * Concept: every pollIntervalMs the channel lists messages after the cursor,
- * normalizes them, drops already-seen ids and advances the cursor to the
- * newest fresh message, then delivers each (concurrently - an approval
- * reply must never queue behind a running turn). Replies and proactive
- * sends go through the same runner as the logged-in user.
- */
 import type { IncomingMessage, MessageChannel, OutgoingTarget } from "../../messages.ts"
 import { dwsBunRunner, type DwsRunner } from "./runner.ts"
 import { listArgs, sendArgs, type DwsChannelOptions } from "./source.ts"
@@ -16,9 +7,6 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 export const makeDwsChannel = (options: DwsChannelOptions): MessageChannel => {
   if (options.meUserId === "") {
-    // Not a degraded mode: this channel speaks as the logged-in user, so its
-    // own replies come back in the next list call. Nothing else separates them
-    // from the operator's, and the loop that follows has no error in it.
     throw new Error("dws channel needs the logged-in user's id (DWS_ME_USER_ID): without it it answers its own replies")
   }
   const runner: DwsRunner = options.runner ?? dwsBunRunner
@@ -38,7 +26,6 @@ export const makeDwsChannel = (options: DwsChannelOptions): MessageChannel => {
     return options.filter === undefined ? fresh : fresh.filter(options.filter)
   }
 
-  /** proactive outbound (approval cards): dws sends as the logged-in user */
   const send = async (target: OutgoingTarget, text: string): Promise<void> => {
     const args =
       target.kind === "direct"
@@ -53,7 +40,6 @@ export const makeDwsChannel = (options: DwsChannelOptions): MessageChannel => {
     listen: async (deliver): Promise<never> => {
       while (true) {
         const messages = await pull()
-        // concurrent: an approval reply must never queue behind a running turn
         for (const message of messages) {
           void deliver(message).then((reply) => {
             if (reply !== undefined) return runner.run(sendArgs(options.source, reply.text))

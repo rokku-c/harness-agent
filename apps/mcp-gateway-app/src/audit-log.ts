@@ -1,6 +1,5 @@
 import type { McpGatewayEvent, McpGatewayRecorder } from "@effect-agent/mcp-gateway"
 
-/** Bounded per-process audit; the gateway owns decisions, the host owns retention policy. */
 export interface AuditLog extends McpGatewayRecorder {
   list(): readonly McpGatewayEvent[]
 }

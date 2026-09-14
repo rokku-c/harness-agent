@@ -1,13 +1,3 @@
-/**
- * RenderContract — the "rules" that tell an agent how this UI renders.
- *
- * For every element: what component it is, what data it reads (a state path),
- * whether it is display-only, and what is interactive (on -> action + how to
- * build args). A document-level dictionary + empty-data rule explain the
- * rendering even with zero data. Any representation (json/toml/compact) is
- * projected from this same contract so interactions stay unambiguous.
- */
-
 import type { ContractElement, InteractionRule, RenderContract } from "./contract-types.ts"
 import type { EffectUiView, UiNode } from "./spec.ts"
 
@@ -32,7 +22,6 @@ export const makeRenderContract = (
         id,
         component: node.component,
         display: node.onPress === undefined,
-        // A repeating node is the long list the token view collapses.
         ...(node.repeat === undefined ? {} : { collapsible: true }),
         ...(node.bind === undefined ? {} : { data: node.bind }),
         ...(children.length === 0 ? {} : { children }),

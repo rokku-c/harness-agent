@@ -1,5 +1,3 @@
-/** In-memory MCP catalog with authenticated control-plane operations. */
-
 import { makeRuntimeConfig } from "./config.ts"
 import { chooseRecord, type RegistryPreference } from "./selection.ts"
 import {

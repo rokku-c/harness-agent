@@ -1,12 +1,3 @@
-/**
- * loop/driver.ts - THE RUN FACADE (top of the layer stack).
- *
- * Concept: turn a RunRequest into a running session. Materialize the
- * request, resolve the runtime services (signals in, events out), derive the
- * granted surface + protocol tool, hydrate the run ledger from its
- * checkpoint when resumed - then hand the ledger to the step cycle. No step
- * logic lives here: that is loop/cycle.ts.
- */
 import { Effect, Option, PubSub } from "effect"
 import {
   AgentContext, AgentFailure, AgentSession, CheckpointStore, materialize, requireUntil,
@@ -33,7 +24,6 @@ export const EffectAgent = {
         fork: "none",
         tools: "native",
         toolCalls: "intercept",
-        // structured results arrive as the agent-declared protocol tool
         structuredOutput: "tool",
         sandbox: "none"
       },

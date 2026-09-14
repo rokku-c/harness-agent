@@ -1,13 +1,3 @@
-/**
- * The canvas ops an agent drives: building a canvas, patching and binding a
- * node, and moving between canvases.
- *
- * A patch and a binding take the version the caller read, because the refusal
- * they are for is against a canvas that moved since that read. Reading the
- * version here and passing it along states the canvas's own version as the one
- * expected — a comparison that cannot fail, so the guard was never armed and a
- * move computed from a stale read landed anyway.
- */
 import type { BindingExpression, Json, UINode } from "@effect-agent/ui-protocol"
 import type { UIRuntime } from "@effect-agent/ui-runtime"
 import type { DefinitionStore } from "@effect-agent/ui-definition"

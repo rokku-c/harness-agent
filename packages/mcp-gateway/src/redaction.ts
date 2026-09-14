@@ -1,10 +1,3 @@
-/**
- * mcp-gateway redaction — scrub secrets from tool args before they reach the
- * audit log. Authorization-style headers are never modeled as capturable
- * fields at all; this protects the argument payload only.
- */
-
-/** Keys treated as secrets, matched case-insensitively. */
 const SENSITIVE_KEY = new Set([
   "authorization",
   "api_key",
@@ -24,11 +17,6 @@ export function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY.has(key.toLowerCase())
 }
 
-/**
- * Deep copy of an args object with sensitive leaves replaced by REDACTED and
- * arrays recursively scrubbed. Non-plain values (functions, class instances)
- * are passed through untouched.
- */
 export function redactArgs(
   args: Readonly<Record<string, unknown>> | undefined,
 ): Readonly<Record<string, unknown>> | undefined {

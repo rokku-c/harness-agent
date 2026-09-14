@@ -1,7 +1,5 @@
-/** The plumbing an HTTP surface needs: which path a request is, and what it sent. */
 import { OperationFault } from "./operation.ts"
 
-/** `/tasks/:id` against `/tasks/abc` gives `{ id: "abc" }`; undefined when this is not that path. */
 export const bindPath = (pattern: string, path: string): Record<string, string> | undefined => {
   const want = pattern.split("/"), got = path.split("/")
   if (want.length !== got.length) return undefined
@@ -18,10 +16,8 @@ export const bindPath = (pattern: string, path: string): Record<string, string> 
   return bound
 }
 
-/** The query as one flat object. A repeated key keeps its last value. */
 export const queryInput = (url: URL): Record<string, unknown> => Object.fromEntries(url.searchParams)
 
-/** The body as one flat object. An empty body is no input, not a failure. */
 export const bodyInput = async (request: Request): Promise<Record<string, unknown>> => {
   if (request.body === null) return {}
   const text = await request.text()
@@ -37,10 +33,6 @@ export const bodyInput = async (request: Request): Promise<Record<string, unknow
 export const messageOf = (error: unknown): string =>
   error instanceof Error ? error.message : String(error)
 
-/**
- * A schema failure, flattened into something a log can carry: zod's own message
- * is a JSON dump of its issue list, exact and unreadable.
- */
 export const issuesOf = (error: unknown): string | undefined => {
   const issues = (error as { issues?: ReadonlyArray<{ path: readonly PropertyKey[]; message: string }> }).issues
   if (!Array.isArray(issues)) return undefined

@@ -1,11 +1,3 @@
-/**
- * mcp/lifecycle.ts - SESSION LIFECYCLE tools.
- *
- * Concept: drive one mantis session turn (sync or fire-and-poll via
- * mantis_events), enumerate conversations and read one conversation's full
- * timeline, plus the whole-console snapshot. All read the WebConsole seam;
- * nothing here knows how a session is implemented.
- */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
 import { chatId, text } from "./helpers.ts"
@@ -21,8 +13,6 @@ export const registerLifecycle = (server: McpServer, web: WebConsole): void => {
       "report a denial or timeout; check mantis_pending / mantis_approve.",
     { conversationId: chatId, text: z.string().min(1), wait: z.boolean().optional() },
     async ({ conversationId, text: chatText, wait }) => {
-      // wait=false fires the turn and returns immediately; the final reply
-      // then arrives as a "reply" event (poll mantis_events)
       if (wait === false) {
         const fired = web.chatFire(conversationId, chatText)
         return text(fired.ok ? "accepted" : "error: " + (fired.detail ?? "?"))

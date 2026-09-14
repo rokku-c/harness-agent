@@ -1,15 +1,3 @@
-/**
- * The HTTP projection of an operation list.
- *
- * A request is matched by method and path, `:name` segments bind input fields,
- * and the answer is JSON unless the binding says otherwise. Anything an
- * operation throws becomes its own status when it has one, a 400 when the input
- * did not parse, and a 500 only when the failure is the server's - the same
- * verdict the tool projection reaches, because it is the same schema.
- *
- * `undefined` means "no operation claimed this request", so a host keeps its
- * other routes and its own 404.
- */
 import { bindPath, bodyInput, issuesOf, messageOf, queryInput } from "./match.ts"
 import type { HttpBinding, Operation } from "./operation.ts"
 
@@ -19,11 +7,9 @@ export interface Failed {
 }
 
 export interface HttpSurfaceOptions {
-  /** What a thrown error becomes. Absent = the shape below. */
   readonly onError?: (error: unknown) => Failed
 }
 
-/** The status a thrown error carries, when it carries one; anything else is the server's own 500. */
 export const statusOf = (error: unknown): number => {
   const status = (error as { status?: unknown } | null)?.status
   return typeof status === "number" && status >= 400 && status < 600 ? status : 500
@@ -35,7 +21,6 @@ const defaultError = (error: unknown): Failed => {
   return { status: statusOf(error), body: { ok: false, error: messageOf(error) } }
 }
 
-/** Where an operation's input comes from, absent an explicit binding. */
 const sourceOf = (binding: HttpBinding, method: string): "query" | "body" =>
   binding.from ?? (method === "GET" || method === "DELETE" ? "query" : "body")
 
@@ -47,11 +32,6 @@ const rawInput = async (request: Request, url: URL, binding: HttpBinding, bound:
     : { ...bound, [binding.bodyField]: body }
 }
 
-/**
- * The credential field is the transport's to fill. A value the caller put in a
- * body or a query is dropped rather than trusted: a credential a caller can set
- * is a credential in a log, and ignoring one can only fail closed.
- */
 const credentialInput = (request: Request, binding: HttpBinding, raw: Record<string, unknown>): void => {
   const credential = binding.credential
   if (credential === undefined) return

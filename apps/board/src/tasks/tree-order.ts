@@ -1,15 +1,3 @@
-/**
- * The tasks in tree order, each with how deep it sits.
- *
- * Every parent comes before its children, so a flat list of rows reads as the
- * tree it is, and `depth` is the indent a reader needs without a second walk.
- *
- * Two tasks may point at each other (nothing in the schema forbids it) and a
- * task may name a parent that no longer exists. Neither may hide a row: a task
- * whose parent is unknown is treated as a root, and anything the walk down from
- * the roots does not reach — the members of a parent cycle — is walked again as
- * a root of its own, so every task appears exactly once.
- */
 import type { Task } from "./schema.ts"
 
 export interface OrderedTask {

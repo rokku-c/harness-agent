@@ -45,20 +45,12 @@ export function makeMcpSetRegistry(options: McpSetRegistryOptions = {}): McpSetR
     bindings.set(agentId, [...setIds])
   }
   const serverOf = (serverId: string): McpGatewayServer | undefined => (resolver?.resolve ?? ((id: string) => servers.get(id)))(serverId)
-  /** The candidates a call may go through, in order: the set it named, or the agent's own binding. */
   const candidates = (agent: string | undefined, setId: string | undefined): readonly string[] =>
     (setId === undefined ? boundOf(agent) : [setId]).filter((id) => sets.has(id) && (agent === undefined || boundOf(agent).includes(id)))
-  /**
-   * The server a set routes through: the one the caller named when it named
-   * one, otherwise the set's first reachable server. A named server the set
-   * does not hold is not routed — that is what makes an advertised tool's
-   * server part of the question rather than a detail the answer ignores.
-   */
   const routed = (set: McpSet, serverId: string | undefined): McpGatewayServer | undefined =>
     serverId === undefined
       ? set.servers.map(serverOf).find((server) => server !== undefined)
       : (set.servers.includes(serverId) ? serverOf(serverId) : undefined)
-  /** The FIRST candidate that reaches a server. The ones behind it are never consulted. */
   const reaching = (query: McpSetQuery): { readonly set: McpSet; readonly server: McpGatewayServer } | undefined => {
     for (const id of candidates(query.agent, query.setId)) {
       const set = sets.get(id)
@@ -68,15 +60,8 @@ export function makeMcpSetRegistry(options: McpSetRegistryOptions = {}): McpSetR
     }
     return undefined
   }
-  /** Which of a set's two lists refuses a tool. A list's absence is not a refusal. */
   const refusedBy = (set: McpSet, tool: string): McpSetRefusal | undefined =>
     set.denyTools?.includes(tool) === true ? "deny" : set.allowTools !== undefined && !set.allowTools.includes(tool) ? "allowlist" : undefined
-  /**
-   * The one question about a call: which set and server it goes through, and
-   * whether that set's lists admit the tool. A query with no tool asks the same
-   * walk and nothing can refuse it, so one function answers both the door and
-   * the advertisement that door shows.
-   */
   const resolve = (query: McpSetQuery): McpSetResolution | undefined => {
     const found = reaching(query)
     if (found === undefined) return undefined

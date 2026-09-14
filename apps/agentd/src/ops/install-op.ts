@@ -1,19 +1,7 @@
-/**
- * Installing an agent on a machine, expressed as the work it is.
- *
- * The plan comes from the *machine*: `installs` is part of what it reported
- * about itself, so the center runs an argv the machine named rather than a
- * package name the center looked up. It goes through the launch queue, so the
- * install lands with a receipt like any other work instead of being a silent
- * side effect, and a machine that never reported is refused rather than guessed
- * at. The machine is named once and once only: an install is work with no
- * identity behind it, so the machine it runs on is the whole of where it goes.
- */
 import { OperationFault, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { AgentdSurfaces } from "./surfaces.ts"
 
-/** One install plan, as the machine that reported it would run it. */
 interface ReportedInstall {
   readonly kind?: unknown
   readonly manager?: unknown

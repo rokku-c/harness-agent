@@ -1,4 +1,3 @@
-/** Composition root: discover declarations, initialize SQLite, then activate apps. */
 import { existsSync, readFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { kernelStatePath } from "@effect-agent/effect-bundle"
@@ -8,11 +7,6 @@ import { csv, type EffectServer, type EffectServerOptions } from "./boot/options
 export type { EffectServer, EffectServerOptions } from "./boot/options.ts"
 
 const DEFAULT_PLANES = ["ai-gateway", "board"]
-/**
- * A real server persists the kernel index (§6.1's artifact repo) so the next
- * start has a rollback target. Tests and embedded hosts leave it unset and get an
- * in-memory index — no boot should depend on a writable cwd.
- */
 const withKernelState = (base: string, options: EffectServerOptions): EffectServerOptions =>
   options.kernelStateFile === undefined && options.kernelRepo === undefined
     ? { ...options, kernelStateFile: kernelStatePath(resolve(base, ".effect-bundles")) }

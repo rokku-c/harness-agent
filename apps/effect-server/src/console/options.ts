@@ -7,9 +7,7 @@ export interface ConsoleOptions {
   readonly registry: EffectRegistry
   readonly configs: ConfigRegistry
   readonly configRuntime?: ConfigRuntime
-  /** Bootstrap-only seed for embedded hosts, not a runtime overlay. */
   readonly yamlOf?: (appId: string) => unknown
   readonly uiViews?: ReadonlyMap<string, EffectUiView>
-  /** Rebuild the client from source per request rather than serving the built file. */
   readonly dev?: boolean
 }

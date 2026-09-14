@@ -1,9 +1,3 @@
-/**
- * The composition root (cross-cutting Assembly): defaultLayers() turns every seam
- * into a Layer - open-box defaults unless overridden - and driver() reads
- * the Model from the assembled context. This is where the "accumulation" happens:
- * each layer adds one replaceable service, nothing else changes.
- */
 import { Effect, Layer } from "effect"
 import { EffectAgent } from "@effect-agent/builtin"
 import type { Driver } from "@effect-agent/core"
@@ -40,7 +34,6 @@ export const defaultLayers = (options: AssembleOptions = {}): Layer.Layer<
     Memory,
     options.memory === undefined ? ScopedMemory : Effect.succeed(options.memory)
   )
-  // Layer.mergeAll does NOT resolve cross-layer requirements - wire explicitly.
   const wiredMemory = memoryLayer.pipe(Layer.provide(storeLayer))
   const schedulerLayer =
     options.scheduler === undefined
@@ -62,13 +55,11 @@ export const defaultLayers = (options: AssembleOptions = {}): Layer.Layer<
   >
 }
 
-/** The default driver: EffectAgent with the Model from the assembled context. */
 export const driver = (options: DriverOptions = {}): Effect.Effect<Driver, never, ModelTag> =>
   Effect.map(ModelTag, (model) =>
     EffectAgent.make({ model, instructions: options.instructions, maxSteps: options.maxSteps })
   )
 
-/** Convenience: run an effect with the default layers provided. */
 export const assemble = (options: AssembleOptions = {}) => {
   const layers = defaultLayers(options)
   return {

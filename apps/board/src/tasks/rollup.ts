@@ -1,12 +1,3 @@
-/**
- * Non-leaf state is DERIVED, never stored. A parent that kept its own copy of a
- * state could contradict its children ("parent done, child still running"); as a
- * pure function of the leaves below it, it cannot drift.
- *
- * `kind` is derived for the same reason: a node with no children IS a leaf, so
- * storing the kind would only create a second fact that can disagree with the
- * tree.
- */
 import { taskTree, type TaskTree } from "./relations.ts"
 import { BoardError, type Task } from "./schema.ts"
 import type { Run } from "../runs/schema.ts"
@@ -15,14 +6,11 @@ export type DerivedState = Task["state"]
 export type NodeKind = "goal" | "group" | "leaf"
 export interface Rollup {
   readonly kind: NodeKind
-  /** a leaf's own state; a parent's state derived from the leaves below it */
   readonly state: DerivedState
-  /** done leaves / leaves below this node, 0..1 */
   readonly progress: number
   readonly leaves: number
   readonly doneLeaves: number
   readonly running: boolean
-  /** a run below this node stopped without reporting: it needs a human */
   readonly interrupted: boolean
 }
 const terminal = (task: Task): boolean => task.state === "done" || task.state === "cancelled"
@@ -36,11 +24,6 @@ const derive = (leaves: readonly Task[], running: boolean): DerivedState => {
   return "todo"
 }
 
-/**
- * The most recent run on each node. History is never rewritten, so an orphaned
- * record stays on the node forever - what changes is whether anything has run
- * since. An interruption only still stands if nothing has.
- */
 const latestRunByNode = (runs: readonly Run[]): Map<string, Run> => {
   const out = new Map<string, Run>()
   for (const run of runs) {
@@ -77,7 +60,6 @@ export const rollupTree = (tasks: readonly Task[], runs: readonly Run[]): Map<st
     return leaves
   }
   for (const task of tasks) if (!task.parentId) visit(task)
-  // a task whose parent is missing would otherwise never be reached
   for (const task of tasks) if (!out.has(task.id)) visit(task)
   return out
 }

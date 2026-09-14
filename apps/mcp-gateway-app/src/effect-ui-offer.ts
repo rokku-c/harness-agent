@@ -1,24 +1,3 @@
-/**
- * What the door can offer, and why anything is missing from it.
- *
- * M2 step 4 is the reason this is two tables and not one: a tool is exposed only
- * when its server is registered, that server is healthy, and the tool is
- * declared by that server's own declaration — so "why is this tool not in my
- * list" is a question about a *server*, and it is answered in the server's row.
- * `Listing failed` carries the lister's own words underneath, because a server
- * that answered with an error and a server that answered with nothing are two
- * different repairs.
- *
- * The three listing states are exactly the three answers the catalog rebuild
- * gives, and none is invented here: `listed` was asked and answered, `failed`
- * was asked and refused, and `not asked` is a server that is offline — the state
- * an operator meets most often, and the one a report of only successes and
- * failures would leave unexplained. A server that is `warn` has a heartbeat
- * going stale: not yet gone, and no longer current.
- *
- * Both tables answer the address's `serverId`, which is how a server read in
- * another app arrives here already narrowed to itself (J6).
- */
 import { cellOf, chip, emptyRows, section, stateRows, toneWhen, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { titled } from "./effect-ui-cells.ts"
 import { filtered, filteredTable } from "./effect-ui-filtered.ts"

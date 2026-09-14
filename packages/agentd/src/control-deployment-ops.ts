@@ -1,13 +1,3 @@
-/**
- * The node deployment verbs (§8.4): what one node is told to run, and the
- * receipt for it.
- *
- * A binding holds addresses (`ns::bundleId@version`), so a placement is resolved
- * against the registry *here* rather than trusted to restate the artifact's own
- * lines: one source for "what does board@1.0.0 run on" is what stops a placement
- * from contradicting the artifact it places.
- */
-
 import { bundleRefId } from "./bundles.ts"
 import type { ControlState } from "./control-state.ts"
 import type { AgentdControl } from "./contract.ts"
@@ -23,8 +13,6 @@ export const deploymentOps = (control: ControlState): Pick<AgentdControl,
     if (kernelId !== undefined) {
       const kernel = control.registry.get(kernelId)
       if (kernel === undefined) throw new AgentdError(404, "bundle not found")
-      // A node runs exactly one kernel; an app in the kernel slot would be a
-      // category error that only surfaces at load time.
       if ((kernel.kind ?? "app") !== "kernel") throw new AgentdError(400, `${kernelId} is not a kernel artifact`)
     }
     const resolved = apps.map((app) => {

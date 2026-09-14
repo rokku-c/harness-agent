@@ -1,11 +1,3 @@
-/**
- * The default checkpoint store (in-memory, scoped to the runtime) and the
- * recovery-policy wiring: at resume, the checkpoint's sensitivity
- * declarations turn into concrete recovery notes injected into the fresh
- * context. Time sensitivity translates wall-clock drift; external-effect
- * sensitivity demands re-validation; custom sensitivities carry their own
- * label.
- */
 import { Effect, Layer, Ref } from "effect"
 import { CheckpointStore, type Content, type StoredCheckpoint } from "@effect-agent/core"
 
@@ -21,7 +13,6 @@ export const CheckpointStoreLayer = Layer.effect(
   })
 )
 
-/** Sensitivity declarations -> the recovery content a resumed run sees first. */
 export const recoveryContent = (stored: StoredCheckpoint): ReadonlyArray<Content> => {
   const elapsed = Date.now() - stored.savedAt
   const notes = stored.sensitivities.map((sensitivity) =>
@@ -34,4 +25,3 @@ export const recoveryContent = (stored: StoredCheckpoint): ReadonlyArray<Content
   if (notes.length === 0) notes.push("[resume] state restored from checkpoint; continue where the thread left off.")
   return [{ _tag: "Text", text: notes.join(" ") }]
 }
-

@@ -1,9 +1,3 @@
-/**
- * The run surface: an agent instance holding a task node, declared once.
- *
- * `sync` is the hello an agent makes on arrival; the rest is the run lifecycle.
- * Board records what an agent declares and never schedules anything itself.
- */
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { BoardApi } from "../board.ts"
@@ -20,8 +14,6 @@ export const runOperations = (board: BoardApi): readonly Operation[] => [
     input: byNode, http: { method: "GET", path: "/api/runs" }, handler: (input) => ({ runs: board.runs(input.nodeId) }) }),
   operation({ name: "board_run_start", description: "Take a task node and hold it while working; refuses if another run holds it",
     input: startRunSchema, http: { method: "POST", path: "/api/runs", status: 201 }, handler: (input) => board.start(input) }),
-  // the runId is in the path, so a caller reporting progress cannot report it
-  // against a run other than the one it named; the schema already requires it
   operation({ name: "board_run_progress", description: "Report progress on a run you hold", input: progressSchema,
     http: { method: "POST", path: "/api/runs/:runId/progress" }, handler: (input) => board.progress(input) }),
   operation({ name: "board_run_finish", description: "Report the outcome of a run you hold (done | failed)", input: finishSchema,

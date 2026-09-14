@@ -1,16 +1,3 @@
-/**
- * @effect-agent/effect-ui — the UI declaration layer.
- *
- * An effect app declares ONLY an EffectUiView contract (spec.ts) — nodes that
- * name @radix-ui/themes components and export as JSON Schema (schema.ts) — and
- * the host lowers that declaration to the input its renderer consumes
- * (json-spec.ts for a view, form-spec.ts for a config form).
- *
- * This package ships no renderer. Lowering a declaration stays server-side so
- * the renderer's dependency stays out of the browser bundle; the one renderer
- * that draws a lowered spec is the console's, behind the adaptation layer.
- */
-
 export * from "./spec.ts"
 export * from "./screen-spec.ts"
 export * from "./screen.ts"

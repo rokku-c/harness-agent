@@ -8,11 +8,6 @@ export const makeRunStore = (db: Database) => {
     const row = db.query<{ data: string }, [string]>(sql).get(key)
     return row === undefined || row === null ? undefined : parse(schema, JSON.parse(row.data))
   }
-  /**
-   * The ONE writer of a run. `status` and `nodeId` are denormalised columns that
-   * make the running-run lookup a plain index hit; writing them anywhere but
-   * here is how the column and the record drift apart.
-   */
   const putRun = (run: Run) => db.run("INSERT INTO runs(id,nodeId,status,data) VALUES(?,?,?,?) ON CONFLICT(id) DO UPDATE SET nodeId=excluded.nodeId, status=excluded.status, data=excluded.data",
     [run.runId, run.nodeId, run.status, JSON.stringify(run)])
   return {
@@ -31,10 +26,6 @@ export const makeRunStore = (db: Database) => {
     runningOn: (nodeId: string): Run | undefined =>
       one("SELECT data FROM runs WHERE nodeId=? AND status='running'", nodeId, runSchema),
     putRun,
-    /**
-     * A run still marked running after a restart has no live agent behind it.
-     * No `endedAt` is invented: board knows the run stopped being held, not when.
-     */
     orphanRunning: (): Run[] => {
       const stale = db.query<{ data: string }, []>("SELECT data FROM runs WHERE status='running'").all()
         .map((row) => parse(runSchema, JSON.parse(row.data)))

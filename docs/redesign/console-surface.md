@@ -28,7 +28,7 @@ Every address the console answers, resolved in this order by `parseConsoleHash`
 | `""` or `"#"` | exact | Home springboard (`console-plan.ts:91`) |
 | `#settings` | exact | Settings; no app selected (`console-plan.ts:91`) |
 | `#settings/config/<id>` | `/^#settings\/config\/([^/?]+)/` (`console-plan.ts:92`) | Settings with that app's editor; falls back to plain Settings if the id is not in the plan with `hasConfig` |
-| `#config/<id>` | `/^#config\/([^/?]+)/` (`console-plan.ts:93`) | Same as above — the one-time spelling of a link to an app's configuration; resolves to the Settings page that holds the form (`console-plan.ts:81-89`). Not anchored to end, so `#config/daemon/deep?x=1` resolves identically (`src/client/test/console-plan.test.ts:51`) |
+| `#config/<id>` | `/^#config\/([^/?]+)/` (`console-plan.ts:93`) | Same as above — the one-time spelling of a link to an app's configuration; resolves to the Settings page that holds the form (`console-plan.ts:81-89`). Not anchored to end, so `#config/daemon/deep?x=1` resolves identically |
 | `#view/<app>` | `DESTINATION` = `/^#view\/([^/?]+)(?:\/([^?]*))?(?:\?(.*))?$/` (`console-plan.ts:69`) | The app's surface. The app id stops at the first `/`; the entry must be in the plan with `hasView`, else Home |
 | `#view/<app>/<screen>` | same regex, group 2 | The app's surface with that screen on top. Empty screen (trailing `/`) means "no screen" |
 | `#view/<app>/<screen>?<name>=<value>&…` | same regex, group 3, parsed by `URLSearchParams` | Same, with the screen's parameters (`console-plan.ts:73-79`). Parameters are strings — a number arrives as its digits |
@@ -64,7 +64,7 @@ decides which of its own parts scroll (`console-shell.tsx:81-86`, `console-shell
   (`console-boot.ts:11-18`).
 - **Appearance control** (`console-status-bar.tsx:9-15`). One button, `◐`, whose tooltip is
   `Appearance: Follow system | Light mode | Dark mode`. Pressing it cycles system → light → dark
-  (`theme-runtime.ts:6`, tested at `src/client/test/theme-runtime.test.ts:5`). The choice persists
+  (`theme-runtime.ts:6`). The choice persists
   in `localStorage` under `effect-theme` (`theme-runtime.ts:8`, `:17`) and is stamped on the
   document element before first paint so there is no flash (`console-page.ts:16`). Every mount
   point renders inside one `ConsoleTheme` (accent jade, gray gray, radius large,
@@ -122,7 +122,7 @@ A view is declared by the app as a tree of nodes (`component` name plus props) o
    caches one renderer per name for the life of the page, because a fresh component type per draw
    makes React unmount and lose focus mid-keystroke (`:69-95`). `registry.ts` builds one registry
    per view from the names the spec actually uses; a host-supplied component wins over the
-   library's for its name (`:43-44`, tested at `src/client/test/adapt-registry.test.tsx:8`).
+   library's for its name (`:43-44`).
    `unresolved.tsx` is the single report for a name nothing resolves. `preview.tsx` is the one
    component in a view that is ours: it renders a `ui://` resource as a `kind`-chosen sandboxed
    iframe, image or text (`:36-47`).

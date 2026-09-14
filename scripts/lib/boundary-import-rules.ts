@@ -1,10 +1,3 @@
-/**
- * R1-R4 and W: the import rules, applied to one file's source.
- *
- * Specifiers are visited in source order and the first rule that fires ends
- * that specifier, so the report reads top-to-bottom like the source does.
- */
-
 import { posix } from "node:path"
 import { importSpecifiers, isBuiltinSpecifier } from "./import-scan.ts"
 import { escapeAllowed, fileAllowed, ioExempt, type BoundaryConfig } from "./boundary-config.ts"
@@ -14,7 +7,6 @@ import type { Pkg } from "./package-graph.ts"
 export interface ImportContext {
   readonly config: BoundaryConfig
   readonly byName: ReadonlyMap<string, Pkg>
-  /** repo-relative, posix */
   readonly fileRel: string
 }
 
@@ -23,7 +15,6 @@ export const importFindings = (pkg: Pkg, source: string, ctx: ImportContext): Fi
   const fileRel = ctx.fileRel
   const dirRel = posix.dirname(fileRel)
   for (const spec of importSpecifiers(source)) {
-    // R1 no relative import that escapes the package root
     if (spec.startsWith(".")) {
       const resolved = posix.normalize(posix.join(dirRel, spec))
       if (resolved !== pkg.dir && !resolved.startsWith(pkg.dir + "/") && !escapeAllowed(ctx.config, pkg, resolved)) {
@@ -37,7 +28,6 @@ export const importFindings = (pkg: Pkg, source: string, ctx: ImportContext): Fi
       }
       continue
     }
-    // R4 apps must not use bun/node builtins — go through repo abstractions
     if (isBuiltinSpecifier(spec)) {
       if (pkg.kind === "app" && !ioExempt(ctx.config, pkg) && !fileAllowed(ctx.config.allowNodeBuiltinsFrom, fileRel)) {
         findings.push({
@@ -53,11 +43,10 @@ export const importFindings = (pkg: Pkg, source: string, ctx: ImportContext): Fi
 
     const name = spec.split("/")[0]
     const workspace = name.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : name
-    const rest = spec.slice(workspace.length + 1) // "" when importing the package root
+    const rest = spec.slice(workspace.length + 1)
     const target = ctx.byName.get(workspace)
-    if (target === undefined) continue // third-party npm — out of scope
+    if (target === undefined) continue
 
-    // R2 deep import (apps must import package roots; packages: warn)
     if (rest !== "" && !ctx.config.allowDeepWorkspaceImports?.includes(spec)) {
       findings.push({
         severity: pkg.kind === "app" ? "error" : "warn",
@@ -69,7 +58,6 @@ export const importFindings = (pkg: Pkg, source: string, ctx: ImportContext): Fi
       continue
     }
 
-    // R3 app -> app (apps must use repo abstractions instead)
     if (pkg.kind === "app" && target.kind === "app") {
       if (!fileAllowed(ctx.config.allowCrossAppImports, fileRel)) {
         findings.push({
@@ -82,7 +70,6 @@ export const importFindings = (pkg: Pkg, source: string, ctx: ImportContext): Fi
       }
     }
 
-    // W undeclared workspace dependency
     if (!pkg.deps.has(workspace)) {
       findings.push({
         severity: "warn",

@@ -1,9 +1,7 @@
-/** locating and versioning the agent executables on this machine. */
 import { access, constants } from "node:fs/promises"
 import { delimiter, join } from "node:path"
 import { spawn } from "node:child_process"
 
-/** the first executable named `file` on PATH, or undefined */
 export const which = async (
   file: string,
   path: string = process.env.PATH ?? ""
@@ -19,8 +17,6 @@ export const which = async (
 
 const VERSION_TIMEOUT_MS = 5_000
 
-/** ask the executable its version. Bounded: a CLI that waits on a TTY must not
- *  hang the probe, so stdin is closed and a timeout kills it. */
 export const version = async (
   file: string,
   argv: ReadonlyArray<string> = ["--version"]

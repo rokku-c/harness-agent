@@ -1,11 +1,3 @@
-/**
- * main/setup.ts - RUNTIME BOOTSTRAP.
- *
- * Concept: config.toml (the ORIGINAL mantis config is read automatically -
- * see src/config.ts for what maps and what is deprecated) -> warnings ->
- * composite logger (console always; a JSON-lines file when MANTIS_LOG_FILE
- * is set) -> model. Every later assembly step consumes this one runtime.
- */
 import { envVar } from "../../../env.ts"
 import { loadConfig } from "../../../config.ts"
 import { buildModelFromConfig } from "../../../model.ts"
@@ -22,7 +14,6 @@ export const setupRuntime = (): Runtime => {
   const config = loadConfig()
   const logLevel = (envVar("LOG_LEVEL") ?? "info") as LogLevel
   const logFile = envVar("LOG_FILE")
-  // production logging: console always; a JSON-lines file when MANTIS_LOG_FILE is set
   const sinks = logFile === undefined
     ? [consoleSink({ level: logLevel })]
     : [consoleSink({ level: logLevel }), jsonFileSink(logFile, { level: logLevel })]

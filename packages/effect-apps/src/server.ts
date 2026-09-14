@@ -1,13 +1,3 @@
-/**
- * buildAppsMcpServer — one MCP entry to browse and operate every app in a catalog.
- * Tools: apps_list (summary rows), app_read ({ns,appId,part,key?} -> ui doc/state,
- * config, or store value), app_call ({ns,appId,tool,arguments} -> a registry tool),
- * app_reload ({ns,appId} -> re-read that app's code from source in place). Plane
- * reads and calls pass the entry's authorize(op) gate; a denial throws, which the
- * MCP SDK surfaces as an isError result. A refusal to reload throws too: it is a
- * result on the control plane, and an error here, where a caller asked for one.
- */
-
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
 import { invokeAppTool } from "./tools.ts"
@@ -29,7 +19,6 @@ const reloadArgs = z.object({ ns: z.string(), appId: z.string() })
 const entry = (catalog: AppCatalog, ns: string, appId: string): AppEntry =>
   catalog.find(ns, appId) ?? fail(`effect-apps: no app ${appKey(ns, appId)}`)
 
-/** Read one plane. ui and state both sit behind the "ui" op. */
 const readPlane = async (app: AppEntry, part: AppPart, key?: string): Promise<unknown> => {
   switch (part) {
     case "ui":
@@ -50,11 +39,6 @@ const readPlane = async (app: AppEntry, part: AppPart, key?: string): Promise<un
 }
 
 export interface AppsMcpOptions {
-  /**
-   * Re-read one app's code from source (§6.4). Absent on a host that does not own
-   * app sources — and then app_reload says so rather than reporting a reload that
-   * never happened.
-   */
   readonly reload?: (appId: string) => Promise<HostReloadResult>
 }
 

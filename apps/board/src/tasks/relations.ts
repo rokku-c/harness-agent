@@ -1,6 +1,5 @@
 import { BoardError, type Task } from "./schema.ts"
 
-/** Hierarchy and dependency edges are data constraints, not a scheduler. */
 export const validateRelations = (tasks: readonly Task[], candidate: Task): void => {
   const map = new Map(tasks.map((t) => [t.id, t])); map.set(candidate.id, candidate)
   const references = [...candidate.dependsOn, ...(candidate.parentId ? [candidate.parentId] : [])]
@@ -16,13 +15,11 @@ export const validateRelations = (tasks: readonly Task[], candidate: Task): void
   walk(candidate.id, new Set(), "parent")
   walk(candidate.id, new Set(), "dependency")
 }
-/** A schedule is one interval; a due time before its own start is not a plan. */
 export const validateSchedule = (task: Task): void => {
   if (task.startAt !== undefined && task.dueAt !== undefined && task.dueAt < task.startAt) {
     throw new BoardError(400, "dueAt must not precede startAt")
   }
 }
-/** Every node below `id`, nearest first; used to cancel a whole subtree. */
 export const descendantIds = (tasks: readonly Task[], id: string): string[] => {
   const out: string[] = [], queue = [id]
   for (let current = queue.shift(); current !== undefined; current = queue.shift()) {

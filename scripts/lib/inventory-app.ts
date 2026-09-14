@@ -1,11 +1,3 @@
-/**
- * What one app's code actually does, regardless of what its bundle declares.
- *
- * The fact-finding half of the portability inventory: ambient IO and node/bun
- * builtins found by scanning the app's src/, plus the artifact header if one
- * exists. It reads no allowlists — that is the boundary checker's job.
- */
-
 import { existsSync, readFileSync } from "node:fs"
 import { join, posix } from "node:path"
 import { importSpecifiers, isBuiltinSpecifier } from "./import-scan.ts"
@@ -23,7 +15,6 @@ export interface AppInventory {
   readonly name: string
   readonly abi?: string
   readonly declaredRuntimes?: readonly EffectRuntimeKind[]
-  /** what the code can actually do, regardless of what it declares */
   readonly floor: "os" | "unverified"
   readonly ambientIo: readonly Hit[]
   readonly builtins: readonly Hit[]

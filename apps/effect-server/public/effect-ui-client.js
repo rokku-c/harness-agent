@@ -54712,7 +54712,7 @@ function createConfigApi(fetcher) {
 }
 
 // src/client/console-shell.tsx
-var React87 = __toESM(require_react(), 1);
+var React89 = __toESM(require_react(), 1);
 
 // src/client/theme-appearance.ts
 var React62 = __toESM(require_react(), 1);
@@ -54797,7 +54797,7 @@ var ConsoleTheme = ({ children, fill = false }) => {
 };
 
 // src/client/console-chrome.tsx
-var React86 = __toESM(require_react(), 1);
+var React88 = __toESM(require_react(), 1);
 // ../../packages/effect-ui/src/screen.ts
 var ROOT_SCREEN = "root";
 var NAV_ROOT = "/_nav";
@@ -54836,6 +54836,7 @@ var condition = exports_external.object({
 });
 var visible = exports_external.union([condition, exports_external.object({ any: exports_external.array(condition) })]);
 var source = exports_external.object({ id: exports_external.string().min(1), url: exports_external.string().min(1), state: exports_external.string().min(1), refreshMs: exports_external.number().positive().optional() });
+var confirm = exports_external.object({ say: exports_external.string().min(1), press: exports_external.string().min(1) });
 var action = exports_external.object({
   name: exports_external.string().min(1),
   method: exports_external.enum(["GET", "POST", "PATCH", "DELETE"]).optional(),
@@ -54844,10 +54845,14 @@ var action = exports_external.object({
   params: exports_external.record(exports_external.string(), actionParam).optional(),
   result: exports_external.string().min(1).optional(),
   clear: exports_external.array(exports_external.string()).optional(),
-  refresh: exports_external.array(exports_external.string()).optional()
+  refresh: exports_external.array(exports_external.string()).optional(),
+  confirm: confirm.optional()
 }).superRefine((value, ctx) => {
   if (value.url === undefined && value.opens === undefined && (value.refresh ?? []).length === 0) {
     ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url, opens a screen, or re-runs a read; this one does none" });
+  }
+  if (value.confirm !== undefined && (value.url === undefined || (value.method ?? "POST") === "GET")) {
+    ctx.addIssue({ code: "custom", path: ["confirm"], message: "a confirmation guards a write; this press makes no writing call" });
   }
 });
 
@@ -55054,7 +55059,7 @@ var NotFound = ({ address, part, text, app, plan, screens }) => {
 };
 
 // src/client/console-source.ts
-var React64 = __toESM(require_react(), 1);
+var React65 = __toESM(require_react(), 1);
 
 // src/client/console-read-now.ts
 var React63 = __toESM(require_react(), 1);
@@ -55072,12 +55077,55 @@ var useReadNow = () => {
   return count3;
 };
 
+// src/client/console-live.ts
+var React64 = __toESM(require_react(), 1);
+var sentence2 = "";
+var details = new Map;
+var listeners2 = new Set;
+var emit = () => {
+  for (const listener of listeners2)
+    listener();
+};
+var subscribe2 = (listener) => {
+  listeners2.add(listener);
+  return () => {
+    listeners2.delete(listener);
+  };
+};
+var announce = (next) => {
+  if (next === sentence2)
+    return;
+  sentence2 = next;
+  emit();
+};
+var liveSentence = () => sentence2;
+var useLiveSentence = () => React64.useSyncExternalStore(subscribe2, liveSentence);
+var useRouteDetail = (kind2) => React64.useSyncExternalStore(subscribe2, () => details.get(kind2));
+var useRouteAnnouncement = (kind2, title) => {
+  const detail = useRouteDetail(kind2);
+  React64.useEffect(() => {
+    announce(detail === undefined ? title : `${title}, ${detail}`);
+  }, [kind2, title, detail]);
+};
+var useRouteDetailFor = (kind2, detail) => {
+  React64.useEffect(() => () => {
+    if (details.delete(kind2))
+      emit();
+  }, [kind2]);
+  React64.useEffect(() => {
+    if (detail === undefined || details.get(kind2) === detail)
+      return;
+    details.set(kind2, detail);
+    emit();
+  }, [kind2, detail]);
+};
+
 // src/client/console-source.ts
 var useSource = (key, load) => {
-  const [state, setState] = React64.useState({ status: "loading" });
-  const [attempt, setAttempt] = React64.useState(0);
+  const [state, setState] = React65.useState({ status: "loading" });
+  const [attempt, setAttempt] = React65.useState(0);
   const read2 = useReadNow();
-  React64.useEffect(() => {
+  React65.useEffect(() => {
     let live = true;
     load(key).then((value) => {
       if (live)
@@ -55085,13 +55133,14 @@ var useSource = (key, load) => {
     }, (cause) => {
       if (!live)
         return;
+      announce(`Reading ${key} failed: ${cause.message}`);
       setState((old) => old.status === "ready" ? { status: "failed", error: cause.message, at: old.at, value: old.value } : { status: "failed", error: cause.message });
     });
     return () => {
       live = false;
     };
   }, [key, load, attempt, read2]);
-  const retry = React64.useCallback(() => setAttempt((count3) => count3 + 1), []);
+  const retry = React65.useCallback(() => setAttempt((count3) => count3 + 1), []);
   return { state, retry };
 };
 var readAt = (at2) => new Date(at2).toLocaleTimeString();
@@ -55157,7 +55206,7 @@ var FirstSteps = ({ status, quiet }) => /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(
 }, undefined, true, undefined, this);
 
 // src/client/console-home-grid.tsx
-var React65 = __toESM(require_react(), 1);
+var React66 = __toESM(require_react(), 1);
 
 // src/client/console-app-icon.tsx
 var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
@@ -55221,7 +55270,7 @@ var matches = (mark, text) => {
   return needle === "" || mark.title.toLowerCase().includes(needle) || mark.id.toLowerCase().includes(needle);
 };
 var HomeGrid = ({ apps, settings }) => {
-  const [filter, setFilter] = React65.useState("");
+  const [filter, setFilter] = React66.useState("");
   const links = springboard(apps, settings);
   const shown = links.filter((link) => matches(link.mark, filter));
   const missed = filter.trim() !== "" && shown.length === 0;
@@ -55275,7 +55324,7 @@ var HomeGrid = ({ apps, settings }) => {
 };
 
 // src/client/config-surface.tsx
-var React66 = __toESM(require_react(), 1);
+var React67 = __toESM(require_react(), 1);
 
 // src/client/config-state.ts
 function describeConfigState(state) {
@@ -55383,16 +55432,23 @@ var TONE = { active: "green", pending: "amber", error: "red" };
 var EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart.";
 var STRATEGIES = ["apply", "restart"];
 var ConfigSurface = ({ id, api: api2, mountConfig }) => {
-  const [state, setState] = React66.useState(undefined);
-  const [note, setNote] = React66.useState({ message: "Loading configuration…", error: false });
-  const form = React66.useRef(null);
-  const session = React66.useRef(undefined);
-  React66.useEffect(() => {
+  const [state, setState] = React67.useState(undefined);
+  const [note, setNote] = React67.useState({ message: "Loading configuration…", error: false });
+  const form = React67.useRef(null);
+  const session = React67.useRef(undefined);
+  React67.useEffect(() => {
     const node2 = form.current;
     if (node2 === null)
       return;
     let live = true;
-    const made = makeConfigSession(api2, id, { onState: setState, onNote: (message, error61) => setNote({ message, error: error61 }), current: () => live });
+    const made = makeConfigSession(api2, id, {
+      onState: setState,
+      onNote: (message, error61) => {
+        setNote({ message, error: error61 });
+        announce(message);
+      },
+      current: () => live
+    });
     session.current = made;
     const run = async () => {
       try {
@@ -55751,19 +55807,67 @@ var Freshness = ({ state, onRetry }) => {
   }, undefined, true, undefined, this);
 };
 
-// src/client/console-decision-card.tsx
+// src/client/console-inbox-rows.tsx
 var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
-var Row = ({ label, value }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+var ItemRow = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o15, {
+  size: "2",
+  variant: active ? "soft" : "ghost",
+  color: active ? "jade" : "gray",
+  style: { justifyContent: "flex-start", height: "auto", paddingBlock: "var(--space-2)" },
+  onClick: open2,
+  children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+    direction: "column",
+    align: "start",
+    gap: "1",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+        size: "2",
+        weight: "medium",
+        children: label
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+        size: "1",
+        color: "gray",
+        children: detail
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this)
+}, undefined, false, undefined, this);
+var ActionRow = ({ item }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+  direction: "column",
+  gap: "1",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+      size: "2",
+      weight: "medium",
+      children: item.title
+    }, undefined, false, undefined, this),
+    item.detail === undefined ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      children: item.detail
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      children: item.app === undefined ? item.action : `${item.app} · ${item.action}`
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+
+// src/client/console-decision-card.tsx
+var jsx_dev_runtime16 = __toESM(require_jsx_dev_runtime(), 1);
+var Row = ({ label, value }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
   gap: "3",
   align: "start",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
       size: "1",
       color: "gray",
       style: { minWidth: 104 },
       children: label
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
       size: "2",
       children: value
     }, undefined, false, undefined, this)
@@ -55783,46 +55887,46 @@ var stateText = (decision) => {
   }
   return decision.state;
 };
-var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
   direction: "column",
   gap: "3",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
       direction: "column",
       gap: "1",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(r8, {
+        /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(r8, {
           size: "3",
           children: decision.subject
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+        /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
           size: "2",
           color: "gray",
           children: stateText(decision)
         }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Row, {
       label: "Class",
       value: decision.class
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Row, {
       label: "Asked by",
       value: decision.raisedBy
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Row, {
       label: "Blocking",
       value: decision.raisedFor
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Row, {
       label: "Reasons",
       value: decision.reasons.join(" · ")
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Row, {
       label: "Deadline",
       value: deadlineText(decision.deadline)
     }, undefined, false, undefined, this),
-    decision.recovery === undefined ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
+    decision.recovery === undefined ? null : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Row, {
       label: "Recovery",
       value: decision.recovery
     }, undefined, false, undefined, this)
@@ -55830,86 +55934,42 @@ var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p1
 }, undefined, true, undefined, this);
 
 // src/client/console-place-inbox.tsx
-var jsx_dev_runtime16 = __toESM(require_jsx_dev_runtime(), 1);
-var ItemRow = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o15, {
-  size: "2",
-  variant: active ? "soft" : "ghost",
-  color: active ? "jade" : "gray",
-  style: { justifyContent: "flex-start", height: "auto", paddingBlock: "var(--space-2)" },
-  onClick: open2,
-  children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
-    direction: "column",
-    align: "start",
-    gap: "1",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
-        size: "2",
-        weight: "medium",
-        children: label
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
-        size: "1",
-        color: "gray",
-        children: detail
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this)
-}, undefined, false, undefined, this);
-var ActionRow = ({ item }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
-  direction: "column",
-  gap: "1",
-  children: [
-    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
-      size: "2",
-      weight: "medium",
-      children: item.title
-    }, undefined, false, undefined, this),
-    item.detail === undefined ? null : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
-      size: "1",
-      color: "gray",
-      children: item.detail
-    }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
-      size: "1",
-      color: "gray",
-      children: item.app === undefined ? item.action : `${item.app} · ${item.action}`
-    }, undefined, false, undefined, this)
-  ]
-}, undefined, true, undefined, this);
+var jsx_dev_runtime17 = __toESM(require_jsx_dev_runtime(), 1);
 var InboxPlace = ({ decisionId }) => {
   const inbox = useSource("inbox", loadInbox);
   const snapshot = sourceValue(inbox.state);
   const decisions = snapshot?.decisions ?? [];
   const actionItems = snapshot?.actionItems ?? [];
   const open2 = decisionId === undefined ? undefined : decisions.find((item) => item.id === decisionId);
-  return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
+  useRouteDetailFor("inbox", snapshot === undefined ? undefined : `${decisions.length + actionItems.length} waiting`);
+  return /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(r8, {
             size: "6",
             children: "Inbox"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Freshness, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Freshness, {
             state: inbox.state,
             onRetry: inbox.retry
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      snapshot === undefined ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
+      snapshot === undefined ? /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: "This queue cannot be read, so it cannot say whether anything is waiting."
-      }, undefined, false, undefined, this) : decisions.length === 0 && actionItems.length === 0 ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(exports_callout.Root, {
+      }, undefined, false, undefined, this) : decisions.length === 0 && actionItems.length === 0 ? /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_callout.Root, {
         color: "gray",
-        children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(exports_callout.Text, {
+        children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_callout.Text, {
           children: [
             "Nothing is waiting on you. ",
-            /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o15, {
+            /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(o15, {
               size: "1",
               variant: "ghost",
               onClick: () => navigate({ kind: "activity", filter: {} }),
@@ -55917,45 +55977,45 @@ var InboxPlace = ({ decisionId }) => {
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o20, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(o20, {
         columns: { initial: "1", md: "320px 1fr" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
               direction: "column",
               gap: "1",
               children: [
-                decisions.map((item) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(ItemRow, {
+                decisions.map((item) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(ItemRow, {
                   label: item.subject,
                   detail: `${item.class} · ${item.raisedBy}`,
                   active: item.id === decisionId,
                   open: () => navigate({ kind: "inbox", decisionId: item.id })
                 }, item.id, false, undefined, this)),
-                actionItems.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
+                actionItems.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
                   size: "1",
                   color: "gray",
                   mt: "3",
                   children: "Action items"
                 }, undefined, false, undefined, this),
-                actionItems.map((item) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(ActionRow, {
+                actionItems.map((item) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(ActionRow, {
                   item
                 }, item.id, false, undefined, this))
               ]
             }, undefined, true, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o17, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(o17, {
             size: "3",
-            children: decisionId === undefined ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
+            children: decisionId === undefined ? /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: "Select a decision to read what it is holding up."
-            }, undefined, false, undefined, this) : open2 === undefined ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
+            }, undefined, false, undefined, this) : open2 === undefined ? /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: `No decision "${decisionId}" is waiting.`
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(DecisionCard, {
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(DecisionCard, {
               decision: open2
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
@@ -55973,7 +56033,7 @@ var INBOX = {
   chrome: "page",
   kinds: ["inbox"],
   claim: (address) => address.parts[0] === "inbox" ? { kind: "inbox", ...address.parts[1] === undefined ? {} : { decisionId: address.parts[1] } } : undefined,
-  view: (route) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(InboxPlace, {
+  view: (route) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(InboxPlace, {
     decisionId: route.kind === "inbox" ? route.decisionId : undefined
   }, undefined, false, undefined, this)
 };
@@ -56046,47 +56106,47 @@ var applyFilter = (observations, filter) => {
 var unhonouredKind = (filter) => all(filter.kind) ? undefined : filter.kind;
 
 // src/client/console-activity-stream.tsx
-var jsx_dev_runtime17 = __toESM(require_jsx_dev_runtime(), 1);
-var Time = ({ at: at2 }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+var jsx_dev_runtime18 = __toESM(require_jsx_dev_runtime(), 1);
+var Time = ({ at: at2 }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
   size: "1",
   color: "gray",
   style: { fontVariantNumeric: "tabular-nums" },
   children: new Date(at2).toLocaleTimeString()
 }, undefined, false, undefined, this);
-var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => observations.length === 0 ? /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => observations.length === 0 ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
   size: "2",
   color: "gray",
   children: empty
-}, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Root, {
+}, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Root, {
   variant: "ghost",
   size: "1",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Header, {
-      children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Row, {
+    /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Header, {
+      children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Row, {
         children: [
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "Actor"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "App"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "Outcome"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "When"
@@ -56095,30 +56155,30 @@ var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => obse
         ]
       }, undefined, true, undefined, this)
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Body, {
-      children: observations.map((observation, index2) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Row, {
+    /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Body, {
+      children: observations.map((observation, index2) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Row, {
         children: [
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "2",
               children: actorOf(observation)
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "2",
               children: observation.target
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
               size: "1",
               color: observation.error === undefined ? "gray" : "red",
               children: observation.error ?? "ok"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Time, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(Time, {
               at: observation.at
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
@@ -56129,34 +56189,34 @@ var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => obse
 }, undefined, true, undefined, this);
 
 // src/client/console-activity-readouts.tsx
-var jsx_dev_runtime18 = __toESM(require_jsx_dev_runtime(), 1);
-var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o17, {
-  children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+var jsx_dev_runtime19 = __toESM(require_jsx_dev_runtime(), 1);
+var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o17, {
+  children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
     direction: "column",
     gap: "3",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(r8, {
         size: "3",
         children: title
       }, undefined, false, undefined, this),
-      rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: empty
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Root, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Root, {
         variant: "ghost",
         size: "1",
-        children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Body, {
-          children: rows.map(([label, detail], index2) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Row, {
+        children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Body, {
+          children: rows.map(([label, detail], index2) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Row, {
             children: [
-              /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
-                children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+                children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
                   size: "2",
                   children: label
                 }, undefined, false, undefined, this)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
-                children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
+                children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
                   size: "2",
                   color: "gray",
                   children: detail
@@ -56172,21 +56232,21 @@ var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime18.js
 var ActivityReadOuts = ({ snapshot }) => {
   const enabled = snapshot.services.filter((service) => service.enabled).length;
   const offline = snapshot.services.filter((service) => !service.enabled).map((service) => service.id);
-  return /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
     direction: "column",
     gap: "4",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o20, {
+      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o20, {
         columns: { initial: "1", md: "2" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(CardTable, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(CardTable, {
             title: `Services (${String(enabled)}/${String(snapshot.services.length)})`,
             empty: "Nothing reported yet.",
             rows: snapshot.services.map((service) => [service.id, service.enabled ? `enabled, priority ${String(service.priority)}` : "disabled"])
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(CardTable, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(CardTable, {
             title: "Apps",
             empty: "Nothing reported yet.",
             rows: [
@@ -56195,14 +56255,14 @@ var ActivityReadOuts = ({ snapshot }) => {
               ["host operations", String(snapshot.privilegedOperations)]
             ]
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(CardTable, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(CardTable, {
             title: `Failures (${String(snapshot.failures.length)})`,
             empty: "No failures observed.",
             rows: snapshot.failures.map((item) => [item.target, item.error ?? ""])
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      offline.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      offline.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
         size: "2",
         color: "amber",
         children: `${String(offline.length)} service(s) disabled: ${offline.join(", ")}`
@@ -56247,9 +56307,9 @@ var parseDestination = (hash2) => {
 };
 
 // src/client/console-place-activity.tsx
-var jsx_dev_runtime19 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime20 = __toESM(require_jsx_dev_runtime(), 1);
 var loadHostRecord = () => loadActivity(fetchActivity);
-var Option = ({ value, label }) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Item, {
+var Option = ({ value, label }) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Item, {
   value,
   children: label
 }, undefined, false, undefined, this);
@@ -56258,55 +56318,55 @@ var FilterBar = ({ filter, plan }) => {
     navigate({ kind: "activity", filter: next });
   };
   const carried = unhonouredKind(filter);
-  return /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
     direction: "column",
     gap: "2",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
         align: "center",
         gap: "3",
         wrap: "wrap",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "Actor"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Root, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Root, {
             value: filter.actor ?? "all",
             onValueChange: (value) => set2({ ...filter, actor: value }),
             children: [
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Trigger, {
+              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Trigger, {
                 "aria-label": "Actor",
                 "data-filter": ""
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Content, {
-                children: ACTORS.map((actor) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
+              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Content, {
+                children: ACTORS.map((actor) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(Option, {
                   value: actor,
                   label: actor === "all" ? "All actors" : actor
                 }, actor, false, undefined, this))
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "App"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Root, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Root, {
             value: filter.app ?? "all",
             onValueChange: (value) => set2({ ...filter, app: value }),
             children: [
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Trigger, {
+              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Trigger, {
                 "aria-label": "App"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Content, {
+              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Content, {
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
+                  /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(Option, {
                     value: "all",
                     label: "All apps"
                   }, undefined, false, undefined, this),
-                  plan.map((entry) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
+                  plan.map((entry) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(Option, {
                     value: entry.id,
                     label: entry.title
                   }, entry.id, false, undefined, this))
@@ -56314,7 +56374,7 @@ var FilterBar = ({ filter, plan }) => {
               }, undefined, true, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          filter.actor === undefined && filter.app === undefined && filter.kind === undefined && filter.since === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o15, {
+          filter.actor === undefined && filter.app === undefined && filter.kind === undefined && filter.since === undefined ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o15, {
             size: "1",
             variant: "soft",
             color: "gray",
@@ -56323,7 +56383,7 @@ var FilterBar = ({ filter, plan }) => {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      carried === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+      carried === undefined ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
         size: "1",
         color: "amber",
         children: `The host record carries no kind yet, so "${carried}" is kept in the address and not applied.`
@@ -56335,44 +56395,44 @@ var ActivityPlace = ({ filter, context }) => {
   const record2 = useSource("activity", loadHostRecord);
   const snapshot = sourceValue(record2.state);
   const filtered = filter.actor !== undefined || filter.app !== undefined || filter.kind !== undefined || filter.since !== undefined;
-  return /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(r8, {
             size: "6",
             children: "Activity"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "What the host reports about itself, drawn as it is reported."
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Freshness, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(Freshness, {
             state: record2.state,
             onRetry: record2.retry
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(FilterBar, {
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(FilterBar, {
         filter,
         plan: context.plan
       }, undefined, false, undefined, this),
-      snapshot === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
+      snapshot === undefined ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
         direction: "column",
         gap: "4",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(ActivityStream, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(ActivityStream, {
               observations: applyFilter(snapshot.observations.slice(-20).reverse(), filter),
               empty: filtered ? "No row matches this filter." : "Nothing reported yet."
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(ActivityReadOuts, {
+          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(ActivityReadOuts, {
             snapshot
           }, undefined, false, undefined, this)
         ]
@@ -56389,7 +56449,7 @@ var ACTIVITY = {
   chrome: "page",
   kinds: ["activity"],
   claim: (address) => address.parts[0] === "activity" ? { kind: "activity", filter: filtersOf(address.query) } : undefined,
-  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(ActivityPlace, {
+  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(ActivityPlace, {
     filter: route.kind === "activity" ? route.filter : {},
     context
   }, undefined, false, undefined, this)
@@ -56406,21 +56466,21 @@ var loadTools = async () => {
 var operationOf = (app, operation) => operation === undefined ? undefined : app.tools.find((tool) => tool.name === operation);
 
 // src/client/inspector-detail.tsx
-var React67 = __toESM(require_react(), 1);
+var React68 = __toESM(require_react(), 1);
 
 // src/client/inspector-field.tsx
-var jsx_dev_runtime20 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
 var Control = ({ field, value, onChange }) => {
   if (field.type === "choice") {
-    return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Root, {
       value,
       onValueChange: onChange,
       children: [
-        /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Trigger, {
+        /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Trigger, {
           placeholder: "Unset"
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Content, {
-          children: field.choices?.map((choice) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Item, {
+        /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Content, {
+          children: field.choices?.map((choice) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Item, {
             value: choice,
             children: choice
           }, choice, false, undefined, this))
@@ -56429,13 +56489,13 @@ var Control = ({ field, value, onChange }) => {
     }, undefined, true, undefined, this);
   }
   if (field.type === "boolean") {
-    return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(i19, {
+    return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(i19, {
       checked: value === "true",
       onCheckedChange: (checked) => onChange(String(checked))
     }, undefined, false, undefined, this);
   }
   if (field.type === "json") {
-    return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(r46, {
+    return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r46, {
       resize: "vertical",
       rows: 4,
       value,
@@ -56443,20 +56503,20 @@ var Control = ({ field, value, onChange }) => {
       onChange: (event) => onChange(event.target.value)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_text_field.Root, {
+  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_text_field.Root, {
     type: field.type === "number" ? "number" : "text",
     value,
     placeholder: field.fallback,
     onChange: (event) => onChange(event.target.value)
   }, undefined, false, undefined, this);
 };
-var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
   asChild: true,
   direction: "column",
   gap: "2",
-  children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV("label", {
+  children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV("label", {
     children: [
-      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
         size: "2",
         weight: "medium",
         color: "gray",
@@ -56465,12 +56525,12 @@ var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_run
           field.required ? " *" : ""
         ]
       }, undefined, true, undefined, this),
-      field.description === undefined ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+      field.description === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
         size: "1",
         color: "gray",
         children: field.description
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(Control, {
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Control, {
         field,
         value,
         onChange
@@ -56480,7 +56540,7 @@ var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_run
 }, undefined, false, undefined, this);
 
 // src/client/inspector-result.tsx
-var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime22 = __toESM(require_jsx_dev_runtime(), 1);
 var shown = (value) => {
   if (typeof value === "string")
     return value;
@@ -56496,23 +56556,23 @@ var InspectorResult = ({ result }) => {
   if (result === undefined)
     return null;
   if (!result.ok) {
-    return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_callout.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_callout.Root, {
       color: "red",
-      children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_callout.Text, {
         children: result.error ?? "The call failed."
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
     direction: "column",
     gap: "2",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r8, {
         size: "3",
         children: "Result"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o17, {
-        children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(o17, {
+        children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
           as: "div",
           size: "1",
           style: { fontFamily: "var(--code-font-family)", whiteSpace: "pre-wrap", wordBreak: "break-word" },
@@ -56604,13 +56664,13 @@ var fieldsOf = (schema3) => {
 var initialValues = (fields) => Object.fromEntries(fields.filter((field) => field.required && field.type === "boolean").map((field) => [field.name, "false"]));
 
 // src/client/inspector-detail.tsx
-var jsx_dev_runtime22 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime23 = __toESM(require_jsx_dev_runtime(), 1);
 var message = (error61) => error61 instanceof Error ? error61.message : String(error61);
 var InspectorDetail = ({ id, tool }) => {
-  const fields = React67.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
-  const [values, setValues] = React67.useState(() => initialValues(fields));
-  const [result, setResult] = React67.useState(undefined);
-  const [running, setRunning] = React67.useState(false);
+  const fields = React68.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
+  const [values, setValues] = React68.useState(() => initialValues(fields));
+  const [result, setResult] = React68.useState(undefined);
+  const [running, setRunning] = React68.useState(false);
   const run = () => {
     let args;
     try {
@@ -56622,23 +56682,23 @@ var InspectorDetail = ({ id, tool }) => {
     setRunning(true);
     callTool(id, tool.name, args).then(setResult, (error61) => setResult({ ok: false, error: error61.message })).finally(() => setRunning(false));
   };
-  return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
     direction: "column",
     gap: "4",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r8, {
             size: "4",
             children: tool.title ?? tool.name
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p16, {
+              /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p16, {
                 children: tool.name
               }, undefined, false, undefined, this),
               tool.description === undefined ? "" : `: ${tool.description}`
@@ -56646,34 +56706,34 @@ var InspectorDetail = ({ id, tool }) => {
           }, undefined, true, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(o48, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o48, {
         size: "4"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r8, {
         size: "3",
         children: "Arguments"
       }, undefined, false, undefined, this),
-      fields.length === 0 ? /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
+      fields.length === 0 ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: "This tool takes no arguments."
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
         direction: "column",
         gap: "4",
-        children: fields.map((field) => /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(InspectorField, {
+        children: fields.map((field) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(InspectorField, {
           field,
           value: values[field.name] ?? "",
           onChange: (next) => setValues((old) => ({ ...old, [field.name]: next }))
         }, field.name, false, undefined, this))
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
-        children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(o15, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+        children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o15, {
           loading: running,
           onClick: run,
           children: running ? "Running" : "Run"
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(InspectorResult, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(InspectorResult, {
         result
       }, undefined, false, undefined, this)
     ]
@@ -56681,8 +56741,8 @@ var InspectorDetail = ({ id, tool }) => {
 };
 
 // src/client/console-place-tools.tsx
-var jsx_dev_runtime23 = __toESM(require_jsx_dev_runtime(), 1);
-var Row2 = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o15, {
+var jsx_dev_runtime24 = __toESM(require_jsx_dev_runtime(), 1);
+var Row2 = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o15, {
   size: detail === undefined ? "2" : "3",
   variant: active ? "soft" : "ghost",
   color: active ? "jade" : "gray",
@@ -56699,31 +56759,31 @@ var ToolsPlace = ({ app, operation }) => {
   const apps = catalogue?.apps ?? [];
   const scoped = apps.find((entry) => entry.id === app);
   const tool = scoped === undefined ? undefined : operationOf(scoped, operation);
-  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(r8, {
             size: "6",
             children: "Tools"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Freshness, {
+          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(Freshness, {
             state: tools.state,
             onRetry: tools.retry
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      catalogue === undefined ? null : apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Root, {
+      catalogue === undefined ? null : apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(exports_callout.Root, {
         color: "gray",
-        children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Text, {
+        children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(exports_callout.Text, {
           children: [
             "No app has registered an operation.",
             " ",
-            /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o15, {
+            /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o15, {
               size: "1",
               variant: "ghost",
               onClick: () => navigate({ kind: "activity", filter: {} }),
@@ -56731,23 +56791,23 @@ var ToolsPlace = ({ app, operation }) => {
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o20, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o20, {
         columns: { initial: "1", md: "320px 1fr" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
               direction: "column",
               gap: "1",
               children: [
-                apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Row2, {
+                apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(Row2, {
                   label: entry.title,
                   detail: `${entry.tools.length}`,
                   active: entry.id === app,
                   open: () => navigate({ kind: "tools", app: entry.id })
                 }, entry.id, false, undefined, this)),
-                scoped === undefined ? null : scoped.tools.map((entry) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Row2, {
+                scoped === undefined ? null : scoped.tools.map((entry) => /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(Row2, {
                   label: entry.title ?? entry.name,
                   active: entry.name === operation,
                   open: () => navigate({ kind: "tools", app: scoped.id, operation: entry.name })
@@ -56755,17 +56815,17 @@ var ToolsPlace = ({ app, operation }) => {
               ]
             }, undefined, true, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o17, {
+          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o17, {
             size: "3",
-            children: scoped === undefined ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
+            children: scoped === undefined ? /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: "Select a tool to see what it takes."
-            }, undefined, false, undefined, this) : tool === undefined ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
+            }, undefined, false, undefined, this) : tool === undefined ? /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: `"${scoped.title}" has no operation called "${operation ?? ""}".`
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(InspectorDetail, {
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(InspectorDetail, {
               id: scoped.id,
               tool
             }, tool.name, false, undefined, this)
@@ -56794,7 +56854,7 @@ var TOOLS = {
     const operation = address.parts[2];
     return { kind: "tools", app, ...operation === undefined ? {} : { operation } };
   },
-  view: (route) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ToolsPlace, {
+  view: (route) => /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(ToolsPlace, {
     app: route.kind === "tools" ? route.app : undefined,
     operation: route.kind === "tools" ? route.operation : undefined
   }, undefined, false, undefined, this)
@@ -56819,7 +56879,7 @@ var loadView = async (id) => {
 var isView = (read2) => !("kind" in read2);
 
 // src/client/effect-ui-runtime.tsx
-var React75 = __toESM(require_react(), 1);
+var React77 = __toESM(require_react(), 1);
 
 // src/client/effect-ui-source-runtime.ts
 var rowsIn = (body) => {
@@ -56883,8 +56943,12 @@ var refusal = (parsed, status) => {
 var isStateRef = (value) => typeof value === "object" && value !== null && ("state" in value) && typeof value.state === "string";
 var declared = (params, store) => Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, isStateRef(value) ? store.get(value.state) : value]));
 
+// src/client/effect-ui-action-gate.ts
+var mayRun = async (confirm2, ask) => confirm2 === undefined || await ask(confirm2);
+
 // src/client/effect-ui-action-runtime.ts
-var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin) => {
+var makeActionHandlers = (options2) => {
+  const { store, ask, actions = [], sources = [], open: open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin } = options2;
   const declaredOf = (action2, runtimeParams) => ({ ...declared(action2.params, store), ...runtimeParams });
   const call = async (action2, params) => {
     const url2 = action2.url;
@@ -56907,6 +56971,8 @@ var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, f
   };
   return Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
     const params = declaredOf(action2, runtimeParams);
+    if (!await mayRun(action2.confirm, ask))
+      return;
     const ran = action2.url !== undefined && await call(action2, params);
     if (ran)
       for (const path of action2.clear ?? [])
@@ -56925,46 +56991,111 @@ var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, f
   }]));
 };
 
+// src/client/effect-ui-confirm.ts
+var React69 = __toESM(require_react(), 1);
+var pending = null;
+var listeners3 = new Set;
+var emit2 = () => {
+  for (const listener of listeners3)
+    listener();
+};
+var subscribe3 = (listener) => {
+  listeners3.add(listener);
+  return () => {
+    listeners3.delete(listener);
+  };
+};
+var askConfirm = (confirm2) => new Promise((settle) => {
+  pending?.settle(false);
+  pending = { confirm: confirm2, settle };
+  emit2();
+});
+var answerConfirm = (yes) => {
+  const question = pending;
+  if (question === null)
+    return;
+  pending = null;
+  emit2();
+  question.settle(yes);
+};
+var useConfirm = () => React69.useSyncExternalStore(subscribe3, () => pending?.confirm ?? null);
+
+// src/client/effect-ui-confirm-gate.tsx
+var jsx_dev_runtime25 = __toESM(require_jsx_dev_runtime(), 1);
+var ConfirmGate = () => {
+  const question = useConfirm();
+  return /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_alert_dialog.Root, {
+    open: question !== null,
+    children: /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_alert_dialog.Content, {
+      maxWidth: "480px",
+      "aria-describedby": undefined,
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_alert_dialog.Title, {
+          children: question?.say
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
+          gap: "3",
+          mt: "4",
+          justify: "end",
+          children: [
+            /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+              variant: "soft",
+              color: "gray",
+              onClick: () => answerConfirm(false),
+              children: "Cancel"
+            }, undefined, false, undefined, this),
+            /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+              color: "red",
+              onClick: () => answerConfirm(true),
+              children: question?.press
+            }, undefined, false, undefined, this)
+          ]
+        }, undefined, true, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this);
+};
+
 // src/client/adapt/preview.tsx
-var jsx_dev_runtime24 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime26 = __toESM(require_jsx_dev_runtime(), 1);
 var resourceOf = (value) => typeof value === "object" && value !== null ? value : {};
 var Preview = (ctx) => {
   const props = propsOf(ctx);
   const value = resourceOf(props.value);
   const height = props.height === undefined ? undefined : String(props.height);
   if (typeof value.error === "string")
-    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(exports_callout.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(exports_callout.Root, {
       color: "red",
       size: "1",
-      children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(exports_callout.Text, {
         children: value.error
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
   if (typeof value.body !== "string")
-    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o17, {
+    return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(o17, {
       variant: "surface",
-      children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
+      children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: "Select a resource to preview."
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
   if (value.kind === "html")
-    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV("iframe", {
+    return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV("iframe", {
       title: value.uri ?? "Resource preview",
       sandbox: "allow-scripts",
       srcDoc: value.body,
       style: { width: "100%", border: 0, height: height ?? "420px", background: "white" }
     }, undefined, false, undefined, this);
   if (value.kind === "image")
-    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV("img", {
+    return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV("img", {
       alt: value.uri ?? "Resource preview",
       src: `data:${value.mimeType ?? "image/png"};base64,${value.body}`,
       style: { maxWidth: "100%", height: "auto" }
     }, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o17, {
+  return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(o17, {
     variant: "surface",
-    children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p16, {
+    children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p16, {
       style: { whiteSpace: "pre-wrap" },
       children: value.body
     }, undefined, false, undefined, this)
@@ -56975,14 +57106,14 @@ var Preview = (ctx) => {
 var ownComponents = { Preview };
 
 // src/client/effect-ui-screen-menu.tsx
-var jsx_dev_runtime25 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenMenu = ({ appId, title, screens }) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
+var jsx_dev_runtime27 = __toESM(require_jsx_dev_runtime(), 1);
+var ScreenMenu = ({ appId, title, screens }) => /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(p12, {
   wrap: "wrap",
   gap: "2",
   pt: "3",
   role: "group",
   "aria-label": `Screens of ${title}`,
-  children: screens.filter((screen2) => screen2.id !== ROOT_SCREEN).map((screen2) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+  children: screens.filter((screen2) => screen2.id !== ROOT_SCREEN).map((screen2) => /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(o15, {
     variant: "soft",
     size: "1",
     onClick: () => openScreen(appId, { screen: screen2.id }),
@@ -56991,32 +57122,32 @@ var ScreenMenu = ({ appId, title, screens }) => /* @__PURE__ */ jsx_dev_runtime2
 }, undefined, false, undefined, this);
 
 // src/client/console-glyph.tsx
-var jsx_dev_runtime26 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime28 = __toESM(require_jsx_dev_runtime(), 1);
 var Glyph = ({ name }) => {
   const Icon = glyphs[name];
-  return Icon === undefined ? null : /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(Icon, {
+  return Icon === undefined ? null : /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(Icon, {
     weight: "regular",
     size: 16
   }, undefined, false, undefined, this);
 };
 
 // src/client/effect-ui-screen-panes.tsx
-var jsx_dev_runtime27 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenBar = ({ label, title, onBack }) => /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+var jsx_dev_runtime29 = __toESM(require_jsx_dev_runtime(), 1);
+var ScreenBar = ({ label, title, onBack }) => /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
   className: "screen-bar",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(o15, {
+    /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(o15, {
       variant: "ghost",
       size: "1",
       onClick: onBack,
       children: [
-        /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Glyph, {
+        /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Glyph, {
           name: "CaretLeft"
         }, undefined, false, undefined, this),
         `Back to ${label}`
       ]
     }, undefined, true, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(r8, {
+    /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(r8, {
       as: "h1",
       size: "2",
       weight: "medium",
@@ -57027,9 +57158,9 @@ var ScreenBar = ({ label, title, onBack }) => /* @__PURE__ */ jsx_dev_runtime27.
     }, undefined, false, undefined, this)
   ]
 }, undefined, true, undefined, this);
-var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
   className: "screen-body",
-  children: /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Renderer, {
+  children: /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Renderer, {
     spec: screen2.spec,
     registry: registry2,
     fallback: Unresolved
@@ -57038,26 +57169,26 @@ var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev
 var ScreenPanes = ({ chain, registry: registry2, menu, onBack, returnLabel }) => {
   const current2 = chain[chain.length - 1];
   const parent = chain.length < 2 ? undefined : chain[chain.length - 2];
-  return /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
     className: "screen-panes",
     "data-split": parent === undefined ? "off" : "on",
     children: [
-      parent === undefined ? null : /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+      parent === undefined ? null : /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
         className: "screen-parent",
-        children: /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Pane, {
+        children: /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Pane, {
           screen: parent,
           registry: registry2
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+      /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
         className: "screen-pane",
         children: [
-          returnLabel === undefined ? null : /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(ScreenBar, {
+          returnLabel === undefined ? null : /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(ScreenBar, {
             label: returnLabel,
             title: current2.title,
             onBack
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Pane, {
+          /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Pane, {
             screen: current2,
             registry: registry2
           }, undefined, false, undefined, this),
@@ -57069,13 +57200,13 @@ var ScreenPanes = ({ chain, registry: registry2, menu, onBack, returnLabel }) =>
 };
 
 // src/client/effect-ui-screen-nav.ts
-var React69 = __toESM(require_react(), 1);
+var React71 = __toESM(require_react(), 1);
 
 // src/client/console-route-hooks.ts
-var React68 = __toESM(require_react(), 1);
+var React70 = __toESM(require_react(), 1);
 var useAddress = () => {
-  const [hash2, setHash] = React68.useState(() => window.location.hash);
-  React68.useEffect(() => {
+  const [hash2, setHash] = React70.useState(() => window.location.hash);
+  React70.useEffect(() => {
     const onHash = () => setHash(window.location.hash);
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
@@ -57084,7 +57215,7 @@ var useAddress = () => {
 };
 var useDestination = () => {
   const hash2 = useAddress();
-  return React68.useMemo(() => parseDestination(hash2), [hash2]);
+  return React70.useMemo(() => parseDestination(hash2), [hash2]);
 };
 
 // src/client/effect-ui-screen-nav.ts
@@ -57094,24 +57225,24 @@ var chainFor = (screens, screen2) => {
 };
 var useScreenView = (screens) => {
   const destination = useDestination();
-  return React69.useMemo(() => {
+  return React71.useMemo(() => {
     const chain = chainFor(screens, destination.screen);
     return { chain, current: chain[chain.length - 1], params: destination.params ?? {} };
   }, [screens, destination]);
 };
 var useNavState = (store, id, params) => {
   const key = `${id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
-  React69.useLayoutEffect(() => {
+  React71.useLayoutEffect(() => {
     store.set(NAV_ROOT, { ...params });
   }, [store, key, params]);
 };
 
 // src/client/effect-ui-screen-entry.ts
-var React70 = __toESM(require_react(), 1);
+var React72 = __toESM(require_react(), 1);
 var useScreenEnter = (handlers, screen2, params) => {
   const key = `${screen2?.id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
   const name = screen2?.onEnter;
-  React70.useEffect(() => {
+  React72.useEffect(() => {
     if (name === undefined)
       return;
     handlers[name]?.();
@@ -57119,9 +57250,9 @@ var useScreenEnter = (handlers, screen2, params) => {
 };
 
 // src/client/effect-ui-screen-back.ts
-var React71 = __toESM(require_react(), 1);
+var React73 = __toESM(require_react(), 1);
 var useScreenBack = (appId, chain, screens) => {
-  const back = React71.useCallback(() => {
+  const back = React73.useCallback(() => {
     if (canGoBack()) {
       window.history.back();
       return;
@@ -57129,7 +57260,7 @@ var useScreenBack = (appId, chain, screens) => {
     const parent = chain[chain.length - 2]?.id;
     navigate({ kind: "app", id: appId, ...parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent } });
   }, [appId, chain]);
-  const returnTo = React71.useMemo(() => {
+  const returnTo = React73.useMemo(() => {
     const parent = chain[chain.length - 2];
     if (!canGoBack())
       return parent;
@@ -57140,10 +57271,10 @@ var useScreenBack = (appId, chain, screens) => {
 };
 
 // src/client/effect-ui-mount.ts
-var React73 = __toESM(require_react(), 1);
+var React75 = __toESM(require_react(), 1);
 
 // src/client/console-escape.ts
-var React72 = __toESM(require_react(), 1);
+var React74 = __toESM(require_react(), 1);
 
 // src/client/console-keys.ts
 var isMac = () => typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
@@ -57153,6 +57284,7 @@ var BACK = isMac() ? "⌘" : "Alt";
 var KEY_MAP = [
   { keys: `${MOD}+K`, action: "Open the command palette, in command mode", scope: "Global" },
   { keys: `${MOD}+P`, action: "Open the command palette, in Go to mode: destinations only", scope: "Global" },
+  { keys: "Up / Down", action: "Move the cursor one row, wrapping at either end", scope: "The command palette, while rows are listed" },
   { keys: "/", action: "Focus the current place's filter or search", scope: "Global, not while a text field has focus" },
   { keys: "?", action: "Open the shortcut sheet", scope: "Global, not while a text field has focus" },
   { keys: "g then h", action: "Go Home", scope: "Global, not while a text field has focus. The g prefix expires after 1500 ms" },
@@ -57209,11 +57341,11 @@ var leaveScreen = () => {
   return true;
 };
 var useConsoleEscape = (onParent) => {
-  const latest = React72.useRef(onParent);
-  React72.useEffect(() => {
+  const latest = React74.useRef(onParent);
+  React74.useEffect(() => {
     latest.current = onParent;
   });
-  React72.useEffect(() => {
+  React74.useEffect(() => {
     const onKeyDown = (event) => {
       if (event.key !== "Escape" || isTypingTarget(event.target) || layerOpen())
         return;
@@ -57243,32 +57375,32 @@ var runMountedAction = (app, name) => {
 
 // src/client/effect-ui-mount.ts
 var useMountedView = (appId, back, handlers) => {
-  React73.useEffect(() => {
+  React75.useEffect(() => {
     setScreenLeave(back);
     return () => setScreenLeave(null);
   }, [back]);
-  React73.useEffect(() => {
+  React75.useEffect(() => {
     setMountedActions(appId, handlers);
     return () => clearMountedActions(appId);
   }, [appId, handlers]);
 };
 
 // src/client/effect-ui-view-state.tsx
-var React74 = __toESM(require_react(), 1);
+var React76 = __toESM(require_react(), 1);
 var seeded = (state, sources) => ({
   ...state,
   [NAV_ROOT]: {},
   _sources: Object.fromEntries(sources.map((source2) => [source2.id, initialStatus()]))
 });
 var useViewStore = (state, sources) => {
-  const ref = React74.useRef(null);
+  const ref = React76.useRef(null);
   if (ref.current === null)
     ref.current = createStateStore(seeded(state, sources));
   return ref.current;
 };
 var SourceLoader = ({ sources, store, fetcher }) => {
   const read2 = useReadNow();
-  React74.useEffect(() => {
+  React76.useEffect(() => {
     const timers = [];
     for (const source2 of sources) {
       const load = () => void loadSource(source2, store, fetcher);
@@ -57282,76 +57414,77 @@ var SourceLoader = ({ sources, store, fetcher }) => {
 };
 
 // src/client/effect-ui-runtime.tsx
-var jsx_dev_runtime28 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime30 = __toESM(require_jsx_dev_runtime(), 1);
 var asParams = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]));
 var EffectUiRuntime = ({ runtime }) => {
-  const screens = React75.useMemo(() => runtime?.screens ?? [], [runtime]);
-  const sources = React75.useMemo(() => runtime?.sources ?? [], [runtime]);
+  const screens = React77.useMemo(() => runtime?.screens ?? [], [runtime]);
+  const sources = React77.useMemo(() => runtime?.sources ?? [], [runtime]);
   const appId = runtime?.appId ?? "";
-  const registry2 = React75.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ownComponents))), [screens]);
+  const registry2 = React77.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ownComponents))), [screens]);
   const store = useViewStore(screens[0]?.spec.state, sources);
-  const fetcher = React75.useMemo(() => window.fetch.bind(window), []);
+  const fetcher = React77.useMemo(() => window.fetch.bind(window), []);
   const { chain, current: current2, params } = useScreenView(screens);
   useNavState(store, current2?.id, params);
-  const open2 = React75.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
+  const open2 = React77.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
   const { back, returnTo } = useScreenBack(appId, chain, screens);
-  const handlers = React75.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
+  const handlers = React77.useMemo(() => makeActionHandlers({ actions: runtime?.actions, sources, store, open: open2, fetcher, ask: askConfirm }), [runtime?.actions, sources, store, open2, fetcher]);
   useScreenEnter(handlers, current2, params);
   useMountedView(appId, back, handlers);
   if (current2 === undefined)
     return null;
-  const menu = runtime?.menu === true && current2.id === ROOT_SCREEN ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ScreenMenu, {
+  const menu = runtime?.menu === true && current2.id === ROOT_SCREEN ? /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(ScreenMenu, {
     appId,
     title: runtime.title ?? appId,
     screens
   }, undefined, false, undefined, this) : null;
-  return /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ConsoleTheme, {
+  return /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(ConsoleTheme, {
     fill: true,
-    children: /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(JSONUIProvider, {
+    children: /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(JSONUIProvider, {
       store,
       registry: registry2,
       handlers,
       children: [
-        /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(SourceLoader, {
+        /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(SourceLoader, {
           sources,
           store,
           fetcher
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ScreenPanes, {
+        /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(ScreenPanes, {
           chain,
           registry: registry2,
           menu,
           onBack: back,
           returnLabel: returnTo?.title
-        }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(ConfirmGate, {}, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this)
   }, undefined, false, undefined, this);
 };
 
 // src/client/console-app-surface.tsx
-var jsx_dev_runtime29 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime31 = __toESM(require_jsx_dev_runtime(), 1);
 var AppScreen = ({ route, address, context }) => {
   const read2 = useSource(route.id, loadView);
   const payload = sourceValue(read2.state);
   if (read2.state.status === "failed" && payload === undefined)
-    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Freshness, {
+    return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Freshness, {
       state: read2.state,
       onRetry: read2.retry
     }, undefined, false, undefined, this);
   if (payload === undefined)
-    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(r40, {
+    return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(r40, {
       style: { flex: "1 1 auto" }
     }, undefined, false, undefined, this);
   if (!isView(payload))
-    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(NotFound, {
+    return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(NotFound, {
       address,
       part: "app",
       text: route.id,
       plan: context.plan
     }, undefined, false, undefined, this);
   if (route.screen !== undefined && !payload.screens.some((screen2) => screen2.id === route.screen)) {
-    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(NotFound, {
+    return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(NotFound, {
       address,
       part: "screen",
       text: route.screen,
@@ -57360,7 +57493,7 @@ var AppScreen = ({ route, address, context }) => {
       screens: payload.screens.map((screen2) => ({ id: screen2.id, title: screen2.title }))
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(EffectUiRuntime, {
+  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(EffectUiRuntime, {
     runtime: {
       appId: route.id,
       title: context.plan.find((entry) => entry.id === route.id)?.title ?? route.id,
@@ -57388,14 +57521,14 @@ var APP = {
   },
   view: (route, context) => {
     if (route.kind === "app-settings")
-      return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(ConfigEditor, {
+      return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(ConfigEditor, {
         id: route.id,
         plan: context.plan,
         surfaces: context.surfaces
       }, undefined, false, undefined, this);
     if (route.kind !== "app")
       return null;
-    return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(AppScreen, {
+    return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(AppScreen, {
       route,
       address: hashOf(route),
       context
@@ -57404,7 +57537,7 @@ var APP = {
 };
 
 // src/client/console-places.tsx
-var jsx_dev_runtime30 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime32 = __toESM(require_jsx_dev_runtime(), 1);
 var PLACES = [HOME, INBOX, ACTIVITY, TOOLS, SETTINGS];
 var NOT_FOUND = {
   kinds: ["not-found"],
@@ -57412,7 +57545,7 @@ var NOT_FOUND = {
   claim: () => {
     return;
   },
-  view: (route, context) => route.kind === "not-found" ? /* @__PURE__ */ jsx_dev_runtime30.jsxDEV(NotFound, {
+  view: (route, context) => route.kind === "not-found" ? /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(NotFound, {
     address: route.address,
     part: route.part,
     text: route.text,
@@ -57442,36 +57575,36 @@ var titleOf = (route, plan, places) => {
 };
 
 // src/client/console-status-bar.tsx
-var React76 = __toESM(require_react(), 1);
-var jsx_dev_runtime31 = __toESM(require_jsx_dev_runtime(), 1);
+var React78 = __toESM(require_react(), 1);
+var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
 var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
 var AppearanceButton = () => {
   const [mode, setMode] = useThemeMode();
   const label = `Appearance: ${themeLabel(mode)}`;
-  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(e43, {
+  return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(e43, {
     content: label,
-    children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(o30, {
+    children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(o30, {
       size: "1",
       variant: "ghost",
       color: "gray",
       "aria-label": label,
       onClick: () => setMode(nextThemeMode(mode)),
-      children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Glyph, {
+      children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(Glyph, {
         name: "CircleHalf"
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this)
   }, undefined, false, undefined, this);
 };
-var PaletteButton = ({ onPalette }) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(o15, {
+var PaletteButton = ({ onPalette }) => /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(o15, {
   variant: "soft",
   size: "1",
   "aria-label": "Open the command palette",
   onClick: onPalette,
   children: [
-    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Glyph, {
+    /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(Glyph, {
       name: "MagnifyingGlass"
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(r30, {
+    /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(r30, {
       className: "shell-bar-key",
       size: "1",
       children: `${modKey()}+K`
@@ -57479,66 +57612,66 @@ var PaletteButton = ({ onPalette }) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(
   ]
 }, undefined, true, undefined, this);
 var ConsoleStatusBar = ({ status, title, home, onPalette }) => {
-  const [clock, setClock] = React76.useState(clockText);
-  React76.useEffect(() => {
+  const [clock, setClock] = React78.useState(clockText);
+  React78.useEffect(() => {
     const timer = setInterval(() => setClock(clockText()), 30000);
     return () => clearInterval(timer);
   }, []);
-  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
     className: "shell-bar",
     align: "center",
     gap: "3",
     px: "3",
     flexShrink: "0",
     children: [
-      home ? null : /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(e43, {
+      home ? null : /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(e43, {
         content: "Home",
-        children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(o30, {
+        children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(o30, {
           size: "1",
           variant: "ghost",
           "aria-label": "Home",
           onClick: () => navigate({ kind: "home" }),
-          children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Glyph, {
+          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(Glyph, {
             name: "House"
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
         size: "2",
         weight: "bold",
         truncate: true,
         children: title
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
         className: "shell-bar-status",
         size: "1",
         color: "gray",
         truncate: true,
         children: status
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p9, {
+      /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p9, {
         flexGrow: "1"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(PaletteButton, {
+      /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(PaletteButton, {
         onPalette
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
         size: "1",
         color: "gray",
         style: { fontVariantNumeric: "tabular-nums" },
         children: clock
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(AppearanceButton, {}, undefined, false, undefined, this)
+      /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(AppearanceButton, {}, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 };
 
 // src/client/console-palette.tsx
-var React80 = __toESM(require_react(), 1);
+var React82 = __toESM(require_react(), 1);
 
 // src/client/console-command-row.tsx
-var jsx_dev_runtime32 = __toESM(require_jsx_dev_runtime(), 1);
-var CommandRowButton = ({ row: row2, active, onPress }) => /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(o15, {
+var jsx_dev_runtime34 = __toESM(require_jsx_dev_runtime(), 1);
+var CommandRowButton = ({ row: row2, active, onPress }) => /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(o15, {
   variant: "ghost",
   color: "gray",
   size: "2",
@@ -57546,29 +57679,29 @@ var CommandRowButton = ({ row: row2, active, onPress }) => /* @__PURE__ */ jsx_d
   "data-active": active ? "on" : undefined,
   onClick: onPress,
   children: [
-    /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(Glyph, {
+    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(Glyph, {
       name: row2.glyph
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
       size: "2",
       weight: active ? "medium" : "regular",
       children: row2.label
     }, undefined, false, undefined, this),
-    row2.caption === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p, {
+    row2.caption === undefined ? null : /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
       size: "1",
       color: "gray",
       children: row2.caption
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p9, {
+    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p9, {
       flexGrow: "1"
     }, undefined, false, undefined, this),
-    row2.address === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p, {
+    row2.address === undefined ? null : /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
       size: "1",
       color: "gray",
       className: "command-palette-address",
       children: row2.address
     }, undefined, false, undefined, this),
-    row2.shortcut === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(r30, {
+    row2.shortcut === undefined ? null : /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(r30, {
       size: "1",
       children: row2.shortcut
     }, undefined, false, undefined, this)
@@ -57775,12 +57908,12 @@ var addressRow = (query2, plan, places) => {
 };
 
 // src/client/console-palette-reads.ts
-var React77 = __toESM(require_react(), 1);
+var React79 = __toESM(require_react(), 1);
 var NO_APPS = [];
 var NO_DECISIONS = [];
 var useRead = (load, empty) => {
-  const [value, setValue] = React77.useState(empty);
-  React77.useEffect(() => {
+  const [value, setValue] = React79.useState(empty);
+  React79.useEffect(() => {
     let live = true;
     load().then((read2) => {
       if (live)
@@ -57796,8 +57929,8 @@ var useRead = (load, empty) => {
   return value;
 };
 var useOpenView = (id) => {
-  const [view, setView] = React77.useState(undefined);
-  React77.useEffect(() => {
+  const [view, setView] = React79.useState(undefined);
+  React79.useEffect(() => {
     if (id === undefined) {
       setView(undefined);
       return;
@@ -57816,11 +57949,11 @@ var useOpenView = (id) => {
   }, [id]);
   return view;
 };
-var useOperations = () => useRead(React77.useCallback(() => loadTools().then((catalogue) => catalogue.apps), []), NO_APPS);
-var useWaitingDecisions = () => useRead(React77.useCallback(() => loadInbox().then((snapshot) => snapshot.decisions), []), NO_DECISIONS);
+var useOperations = () => useRead(React79.useCallback(() => loadTools().then((catalogue) => catalogue.apps), []), NO_APPS);
+var useWaitingDecisions = () => useRead(React79.useCallback(() => loadInbox().then((snapshot) => snapshot.decisions), []), NO_DECISIONS);
 
 // src/client/console-command-run.ts
-var React78 = __toESM(require_react(), 1);
+var React80 = __toESM(require_react(), 1);
 
 // src/client/console-deep-link.ts
 var deepLink = () => window.location.href;
@@ -57835,8 +57968,8 @@ var copyDeepLink = async () => {
 
 // src/client/console-command-run.ts
 var useCommandRun = (onClose, onShortcuts, setTheme) => {
-  const navigated = React78.useRef(false);
-  const run = React78.useCallback((row2) => {
+  const navigated = React80.useRef(false);
+  const run = React80.useCallback((row2) => {
     switch (row2.action.kind) {
       case "go":
         navigated.current = true;
@@ -57867,15 +58000,15 @@ var useCommandRun = (onClose, onShortcuts, setTheme) => {
 };
 
 // src/client/console-command-cursor.ts
-var React79 = __toESM(require_react(), 1);
+var React81 = __toESM(require_react(), 1);
 var within = (index2, length) => length === 0 ? 0 : Math.min(index2, length - 1);
 var useCommandCursor = (rows, run) => {
-  const [cursor, setCursor] = React79.useState(0);
-  const list = React79.useRef(null);
-  React79.useEffect(() => {
+  const [cursor, setCursor] = React81.useState(0);
+  const list = React81.useRef(null);
+  React81.useEffect(() => {
     setCursor((current2) => within(current2, rows.length));
   }, [rows.length]);
-  React79.useEffect(() => {
+  React81.useEffect(() => {
     list.current?.querySelector('[data-active="on"]')?.scrollIntoView({ block: "nearest" });
   }, [cursor, rows]);
   const onKeyDown = (event) => {
@@ -57896,37 +58029,37 @@ var useCommandCursor = (rows, run) => {
     run(row2);
   };
   return {
-    reset: React79.useCallback(() => setCursor(0), []),
+    reset: React81.useCallback(() => setCursor(0), []),
     list,
     onKeyDown,
-    activeAt: React79.useCallback((index2) => index2 === cursor, [cursor])
+    activeAt: React81.useCallback((index2) => index2 === cursor, [cursor])
   };
 };
 
 // src/client/console-palette.tsx
-var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime35 = __toESM(require_jsx_dev_runtime(), 1);
 var openApp = (route) => route.kind === "app" || route.kind === "app-settings" ? route.id : undefined;
 var ConsolePalette = ({ mode, plan, route, places, onClose, onShortcuts, restore }) => {
-  const [search, setSearch] = React80.useState("");
+  const [search, setSearch] = React82.useState("");
   const open2 = openApp(route);
   const view = useOpenView(open2);
   const operations = useOperations();
   const decisions = useWaitingDecisions();
   const [, setTheme] = useThemeMode();
   const { run, navigated } = useCommandRun(onClose, onShortcuts, setTheme);
-  const rows = React80.useMemo(() => {
+  const rows = React82.useMemo(() => {
     const ranked = filterCommands(commandRows({ plan, route, places, open: open2, view, operations, decisions, mode }), search, open2);
     const address = addressRow(search, plan, places);
     return address === undefined ? ranked : [address, ...ranked];
   }, [plan, route, places, open2, view, operations, decisions, mode, search]);
   const cursor = useCommandCursor(rows, run);
-  return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_dialog.Root, {
+  return /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(exports_dialog.Root, {
     open: true,
     onOpenChange: (next) => {
       if (!next)
         onClose();
     },
-    children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_dialog.Content, {
+    children: /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(exports_dialog.Content, {
       style: LAYER_BOX,
       onKeyDown: cursor.onKeyDown,
       onCloseAutoFocus: (event) => {
@@ -57935,12 +58068,12 @@ var ConsolePalette = ({ mode, plan, route, places, onClose, onShortcuts, restore
           restore();
       },
       children: [
-        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(d4, {
-          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_dialog.Title, {
+        /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(d4, {
+          children: /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(exports_dialog.Title, {
             children: "Command palette"
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(exports_text_field.Root, {
+        /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(exports_text_field.Root, {
           size: "3",
           variant: "soft",
           placeholder: "Search apps, screens and settings",
@@ -57950,19 +58083,19 @@ var ConsolePalette = ({ mode, plan, route, places, onClose, onShortcuts, restore
             cursor.reset();
           }
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(c3, {
+        /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(c3, {
           ref: cursor.list,
           className: "command-palette-list",
-          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
+          children: /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(p12, {
             direction: "column",
             gap: "1",
             p: "1",
-            children: rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
+            children: rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(p, {
               size: "2",
               color: "gray",
               m: "2",
               children: "No command matches that."
-            }, undefined, false, undefined, this) : rows.map((row2, index2) => /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(CommandRowButton, {
+            }, undefined, false, undefined, this) : rows.map((row2, index2) => /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(CommandRowButton, {
               row: row2,
               active: cursor.activeAt(index2),
               onPress: () => run(row2)
@@ -57975,68 +58108,68 @@ var ConsolePalette = ({ mode, plan, route, places, onClose, onShortcuts, restore
 };
 
 // src/client/console-shortcuts.tsx
-var React81 = __toESM(require_react(), 1);
-var jsx_dev_runtime34 = __toESM(require_jsx_dev_runtime(), 1);
+var React83 = __toESM(require_react(), 1);
+var jsx_dev_runtime36 = __toESM(require_jsx_dev_runtime(), 1);
 var ConsoleShortcuts = ({ onClose, restore }) => {
-  const [search, setSearch] = React81.useState("");
+  const [search, setSearch] = React83.useState("");
   const rows = KEY_MAP.filter((binding2) => matches2(`${binding2.keys} ${binding2.action} ${binding2.scope}`, search));
-  return /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Root, {
+  return /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(exports_dialog.Root, {
     open: true,
     onOpenChange: (next) => {
       if (!next)
         onClose();
     },
-    children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Content, {
+    children: /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(exports_dialog.Content, {
       style: LAYER_BOX,
       onCloseAutoFocus: (event) => {
         event.preventDefault();
         restore();
       },
       children: [
-        /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(d4, {
-          children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Title, {
+        /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(d4, {
+          children: /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(exports_dialog.Title, {
             children: "Keyboard shortcuts"
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_text_field.Root, {
+        /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(exports_text_field.Root, {
           size: "3",
           variant: "soft",
           placeholder: "Search keys",
           value: search,
           onChange: (event) => setSearch(event.target.value)
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(c3, {
+        /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(c3, {
           className: "command-palette-list",
-          children: rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+          children: rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p, {
             size: "2",
             color: "gray",
             m: "2",
             children: "No key matches that."
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p12, {
             direction: "column",
             gap: "3",
             p: "2",
-            children: rows.map((binding2) => /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+            children: rows.map((binding2) => /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p12, {
               align: "start",
               gap: "3",
               children: [
-                /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p9, {
+                /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p9, {
                   style: { flex: "none", minWidth: "6rem" },
-                  children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(r30, {
+                  children: /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(r30, {
                     size: "1",
                     children: binding2.keys
                   }, undefined, false, undefined, this)
                 }, undefined, false, undefined, this),
-                /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+                /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p12, {
                   direction: "column",
                   gap: "1",
                   style: { flex: "1 1 auto", minWidth: 0 },
                   children: [
-                    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+                    /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p, {
                       size: "2",
                       children: binding2.action
                     }, undefined, false, undefined, this),
-                    /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+                    /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(p, {
                       size: "1",
                       color: "gray",
                       children: binding2.scope
@@ -58053,24 +58186,38 @@ var ConsoleShortcuts = ({ onClose, restore }) => {
 };
 
 // src/client/console-skip-link.tsx
-var jsx_dev_runtime35 = __toESM(require_jsx_dev_runtime(), 1);
-var SkipLink = ({ target }) => /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(d4, {
+var jsx_dev_runtime37 = __toESM(require_jsx_dev_runtime(), 1);
+var SkipLink = ({ target }) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(d4, {
   asChild: true,
-  children: /* @__PURE__ */ jsx_dev_runtime35.jsxDEV("button", {
+  children: /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("button", {
     type: "button",
     onClick: () => target.current?.focus({ preventScroll: true }),
     children: "Skip to content"
   }, undefined, false, undefined, this)
 }, undefined, false, undefined, this);
 
+// src/client/console-live-region.tsx
+var jsx_dev_runtime38 = __toESM(require_jsx_dev_runtime(), 1);
+var ConsoleLiveRegion = () => {
+  const sentence3 = useLiveSentence();
+  return /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(d4, {
+    children: /* @__PURE__ */ jsx_dev_runtime38.jsxDEV("div", {
+      role: "status",
+      "aria-live": "polite",
+      "aria-atomic": "true",
+      children: sentence3
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+};
+
 // src/client/console-keyboard.ts
-var React82 = __toESM(require_react(), 1);
+var React84 = __toESM(require_react(), 1);
 var useConsoleKeys = (keys) => {
-  const latest = React82.useRef(keys);
-  React82.useEffect(() => {
+  const latest = React84.useRef(keys);
+  React84.useEffect(() => {
     latest.current = keys;
   });
-  React82.useEffect(() => {
+  React84.useEffect(() => {
     let chord = 0;
     const onKeyDown = (event) => {
       const keys2 = latest.current;
@@ -58150,7 +58297,7 @@ var useConsoleKeys = (keys) => {
 };
 
 // src/client/console-actions.ts
-var React83 = __toESM(require_react(), 1);
+var React85 = __toESM(require_react(), 1);
 
 // src/client/console-goto.ts
 var last = null;
@@ -58178,7 +58325,7 @@ var parentRoute = (route) => {
 
 // src/client/console-actions.ts
 var useConsoleMoves = (route, body) => {
-  const back = React83.useCallback(() => {
+  const back = React85.useCallback(() => {
     if (canGoBack()) {
       window.history.back();
       return;
@@ -58188,33 +58335,33 @@ var useConsoleMoves = (route, body) => {
       navigate(parent);
   }, [route]);
   return {
-    go: React83.useCallback((target) => navigate(target), []),
-    goLast: React83.useCallback(() => {
+    go: React85.useCallback((target) => navigate(target), []),
+    goLast: React85.useCallback(() => {
       const last2 = lastApp();
       if (last2 !== undefined)
         navigate(last2);
     }, []),
     back,
-    forward: React83.useCallback(() => window.history.forward(), []),
-    focusFilter: React83.useCallback(() => {
+    forward: React85.useCallback(() => window.history.forward(), []),
+    focusFilter: React85.useCallback(() => {
       body.current?.querySelector("[data-filter]")?.focus({ preventScroll: true });
     }, [body]),
-    copyLink: React83.useCallback(() => void copyDeepLink(), [])
+    copyLink: React85.useCallback(() => void copyDeepLink(), [])
   };
 };
 
 // src/client/console-layers.ts
-var React84 = __toESM(require_react(), 1);
+var React86 = __toESM(require_react(), 1);
 var useLayer = (body) => {
-  const [layer, setLayer] = React84.useState(null);
-  const opener = React84.useRef(null);
-  const open2 = React84.useCallback((next) => {
+  const [layer, setLayer] = React86.useState(null);
+  const opener = React86.useRef(null);
+  const open2 = React86.useCallback((next) => {
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setLayer(next);
   }, []);
-  const replace = React84.useCallback((next) => setLayer(next), []);
-  const close = React84.useCallback(() => setLayer(null), []);
-  const restore = React84.useCallback(() => {
+  const replace = React86.useCallback((next) => setLayer(next), []);
+  const close = React86.useCallback(() => setLayer(null), []);
+  const restore = React86.useCallback(() => {
     const control2 = opener.current;
     if (control2 !== null && control2.isConnected)
       control2.focus({ preventScroll: true });
@@ -58225,11 +58372,11 @@ var useLayer = (body) => {
 };
 
 // src/client/console-route-focus.ts
-var React85 = __toESM(require_react(), 1);
+var React87 = __toESM(require_react(), 1);
 var headingIn = (body) => body.querySelector("[data-route-heading]") ?? body.querySelector("h1, h2, h3, h4, h5, h6");
 var useRouteFocus = (route, body) => {
   const address = hashOf(route);
-  React85.useEffect(() => {
+  React87.useEffect(() => {
     const node2 = body.current;
     if (node2 === null || isTypingTarget(document.activeElement))
       return;
@@ -58247,26 +58394,27 @@ var useRouteFocus = (route, body) => {
 };
 
 // src/client/console-chrome.tsx
-var jsx_dev_runtime36 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime39 = __toESM(require_jsx_dev_runtime(), 1);
 var ConsoleChrome = ({ plan, route, status, home, body }) => {
   const { layer, open: open2, replace, close, restore } = useLayer(body);
   const moves = useConsoleMoves(route, body);
-  React86.useEffect(() => {
+  React88.useEffect(() => {
     rememberApp(route);
   }, [route]);
   useConsoleKeys({
     paletteOpen: layer?.kind === "palette",
-    openPalette: React86.useCallback((mode) => open2({ kind: "palette", mode }), [open2]),
+    openPalette: React88.useCallback((mode) => open2({ kind: "palette", mode }), [open2]),
     closePalette: close,
-    openShortcuts: React86.useCallback(() => open2({ kind: "shortcuts" }), [open2]),
+    openShortcuts: React88.useCallback(() => open2({ kind: "shortcuts" }), [open2]),
     ...moves
   });
   useConsoleEscape(moves.back);
   useRouteFocus(route, body);
-  const drawer = layer === null ? null : layer.kind === "shortcuts" ? /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsoleShortcuts, {
+  useRouteAnnouncement(route.kind, titleOf(route, plan, PLACES));
+  const drawer = layer === null ? null : layer.kind === "shortcuts" ? /* @__PURE__ */ jsx_dev_runtime39.jsxDEV(ConsoleShortcuts, {
     onClose: close,
     restore
-  }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsolePalette, {
+  }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime39.jsxDEV(ConsolePalette, {
     mode: layer.mode,
     plan,
     route,
@@ -58275,12 +58423,13 @@ var ConsoleChrome = ({ plan, route, status, home, body }) => {
     restore,
     onShortcuts: () => replace({ kind: "shortcuts" })
   }, layer.mode, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(jsx_dev_runtime36.Fragment, {
+  return /* @__PURE__ */ jsx_dev_runtime39.jsxDEV(jsx_dev_runtime39.Fragment, {
     children: [
-      /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(SkipLink, {
+      /* @__PURE__ */ jsx_dev_runtime39.jsxDEV(SkipLink, {
         target: body
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsoleStatusBar, {
+      /* @__PURE__ */ jsx_dev_runtime39.jsxDEV(ConsoleLiveRegion, {}, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime39.jsxDEV(ConsoleStatusBar, {
         status,
         title: titleOf(route, plan, PLACES),
         home,
@@ -58292,8 +58441,8 @@ var ConsoleChrome = ({ plan, route, status, home, body }) => {
 };
 
 // src/client/console-dock.tsx
-var jsx_dev_runtime37 = __toESM(require_jsx_dev_runtime(), 1);
-var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("button", {
+var jsx_dev_runtime40 = __toESM(require_jsx_dev_runtime(), 1);
+var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime40.jsxDEV("button", {
   type: "button",
   className: "shell-dock-item",
   "aria-label": mark.title,
@@ -58301,11 +58450,11 @@ var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime37
   "aria-current": active ? "page" : undefined,
   onClick: open2,
   children: [
-    /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(AppAvatar, {
+    /* @__PURE__ */ jsx_dev_runtime40.jsxDEV(AppAvatar, {
       mark,
       size: "2"
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("span", {
+    /* @__PURE__ */ jsx_dev_runtime40.jsxDEV("span", {
       className: "shell-dock-label",
       children: mark.title
     }, undefined, false, undefined, this)
@@ -58314,26 +58463,26 @@ var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime37
 var working = PLACES.filter((place) => place !== SETTINGS);
 var ConsoleDock = ({ plan, route }) => {
   const apps = plan.filter((entry) => entry.hasView);
-  return /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("nav", {
+  return /* @__PURE__ */ jsx_dev_runtime40.jsxDEV("nav", {
     className: "shell-dock",
     "aria-label": "Places and apps",
     children: [
-      working.map((place) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(Item5, {
+      working.map((place) => /* @__PURE__ */ jsx_dev_runtime40.jsxDEV(Item5, {
         mark: placeMark(place),
         active: place.kinds.includes(route.kind),
         open: () => navigate(place.route)
       }, place.id, false, undefined, this)),
-      apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(Item5, {
+      apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime40.jsxDEV(Item5, {
         mark: markOf(entry),
         active: (route.kind === "app" || route.kind === "app-settings") && route.id === entry.id,
         open: () => navigate(appRoute(entry.id))
       }, entry.id, false, undefined, this)),
-      /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(o48, {
+      /* @__PURE__ */ jsx_dev_runtime40.jsxDEV(o48, {
         orientation: "vertical",
         size: "2",
         style: { alignSelf: "center" }
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(Item5, {
+      /* @__PURE__ */ jsx_dev_runtime40.jsxDEV(Item5, {
         mark: placeMark(SETTINGS),
         active: SETTINGS.kinds.includes(route.kind),
         open: () => navigate(SETTINGS.route)
@@ -58362,10 +58511,10 @@ var loadStatusLine = async () => {
 };
 
 // src/client/console-shell.tsx
-var jsx_dev_runtime38 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime41 = __toESM(require_jsx_dev_runtime(), 1);
 var useStatusLine = () => {
-  const [status, setStatus] = React87.useState("Loading system status…");
-  React87.useEffect(() => {
+  const [status, setStatus] = React89.useState("Loading system status…");
+  React89.useEffect(() => {
     let live = true;
     loadStatusLine().then((value) => {
       if (live)
@@ -58380,11 +58529,11 @@ var useStatusLine = () => {
 var ConsoleShell = ({ surfaces }) => {
   const catalogue = useSource("catalogue", loadCatalogue);
   const status = useStatusLine();
-  const plan = React87.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
+  const plan = React89.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
   const hash2 = useAddress();
-  const route = React87.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
+  const route = React89.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
   const surface = surfaceFor(route);
-  const context = React87.useMemo(() => ({
+  const context = React89.useMemo(() => ({
     plan,
     surfaces,
     status,
@@ -58395,40 +58544,40 @@ var ConsoleShell = ({ surfaces }) => {
   }), [plan, surfaces, status, catalogue.state, catalogue.retry]);
   const home = route.kind === "home";
   const view = surface?.view(route, context) ?? null;
-  const main = React87.useRef(null);
-  return /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleTheme, {
-    children: /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p12, {
+  const main = React89.useRef(null);
+  return /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(ConsoleTheme, {
+    children: /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(p12, {
       direction: "column",
       height: "100dvh",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleChrome, {
+        /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(ConsoleChrome, {
           plan,
           route,
           status,
           home,
           body: main
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime38.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime41.jsxDEV("div", {
           className: "shell-body",
           ref: main,
           tabIndex: -1,
           id: "console-main",
           "data-shell-view": surface?.chrome ?? "page",
           "data-dock": home ? "off" : "on",
-          children: surface?.chrome === "fill" ? /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p12, {
+          children: surface?.chrome === "fill" ? /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(p12, {
             className: "view-fill",
             direction: "column",
             p: "4",
             children: view
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(r35, {
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(r35, {
             size: "1",
             px: "4",
-            children: /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p18, {
+            children: /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(p18, {
               children: view
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
-        home ? null : /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleDock, {
+        home ? null : /* @__PURE__ */ jsx_dev_runtime41.jsxDEV(ConsoleDock, {
           plan,
           route
         }, undefined, false, undefined, this)
@@ -58438,7 +58587,7 @@ var ConsoleShell = ({ surfaces }) => {
 };
 
 // src/client/effect-ui-client.tsx
-var jsx_dev_runtime39 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime42 = __toESM(require_jsx_dev_runtime(), 1);
 var start = () => {
   let storage;
   try {
@@ -58451,7 +58600,7 @@ var start = () => {
   const surfaces = {
     config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(configComponents) }
   };
-  import_client2.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime39.jsxDEV(ConsoleShell, {
+  import_client2.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime42.jsxDEV(ConsoleShell, {
     surfaces
   }, undefined, false, undefined, this));
 };

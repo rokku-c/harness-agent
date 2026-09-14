@@ -1,10 +1,8 @@
-/** Tool primitives: safe decode diagnostics, unchanged business execution, and tool feedback. */
 import { Effect, ParseResult, type SchemaAST } from "effect"
 import { decode, type AgentEvent, type Op } from "@effect-agent/core"
 import type { RunBox } from "./types.ts"
 import type { WireToolCall } from "@effect-agent/model"
 
-/** Schema-owned labels only: no actual values, literal values, annotations, or custom messages. */
 const typeNames: Partial<Record<SchemaAST.AST["_tag"], string>> = {
   StringKeyword: "string", NumberKeyword: "number", BooleanKeyword: "boolean", BigIntKeyword: "bigint",
   TypeLiteral: "object", TupleType: "array", Literal: "declared literal", Union: "declared union",
@@ -12,7 +10,6 @@ const typeNames: Partial<Record<SchemaAST.AST["_tag"], string>> = {
 }
 const typeLabel = (ast: SchemaAST.AST): string => typeNames[ast._tag] ?? "declared type"
 
-/** Dynamic record keys can contain credentials; only declared fields and array indices are printable. */
 const fieldPath = (path: ParseResult.Path, parent?: SchemaAST.AST): string => {
   const keys: ReadonlyArray<PropertyKey> = Array.isArray(path) ? path : [path as PropertyKey]
   return keys.map((key) => {
@@ -23,7 +20,6 @@ const fieldPath = (path: ParseResult.Path, parent?: SchemaAST.AST): string => {
   }).join("")
 }
 
-/** Reduce native parse issues to bounded field/type diagnostics, never stringify a decode failure. */
 export const causeDetail = (error: unknown): string => {
   const cause = (error as { cause?: unknown })?.cause
   if (!ParseResult.isParseError(cause)) return "Tool input does not match the declared schema"
@@ -53,7 +49,6 @@ export interface FeedbackEnv {
   readonly emit: (event: AgentEvent) => Effect.Effect<void>
 }
 
-/** decoded + executed outcome of one call against one op */
 export const runOp = <O>(op: Op<any, O, any, any>, input: unknown): Effect.Effect<{ ok: true; output: O } | { ok: false; detail: string }, never, any> =>
   decode(op.input as never, input).pipe(
     Effect.mapError((error) => ({ ok: false as const, detail: causeDetail(error) })),
@@ -69,7 +64,6 @@ export const runOp = <O>(op: Op<any, O, any, any>, input: unknown): Effect.Effec
     Effect.catchAll((failure) => Effect.succeed(failure))
   )
 
-/** put a tool failure back as the model's next input (tool role message) */
 export const feedBack = (env: FeedbackEnv, box: RunBox, call: WireToolCall, detail: string): Effect.Effect<void, never, any> =>
   Effect.gen(function* () {
     const text = call.name + " error: " + detail

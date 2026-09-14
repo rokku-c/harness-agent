@@ -1,8 +1,3 @@
-/**
- * rewriteRequest — serve a backend that expects a root/absolute URL scheme
- * under a path prefix by rewriting the request path before dispatch.
- */
-
 export const rewriteRequest = (
   request: Request,
   base: string,

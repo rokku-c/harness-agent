@@ -1,11 +1,3 @@
-/**
- * catalog/contract.ts - the CATALOG CONTRACT (types + tag + error).
- *
- * Concept: what a model catalog IS - providers.toml/config.toml resolve into
- * named Model factories; the agent API never names a provider. This file
- * owns the shapes and the service tag; resolution and loading live in the
- * sibling files.
- */
 import { Context, Data } from "effect"
 import type { Model } from "../types.ts"
 import type { AnthropicConfig } from "../anthropic.ts"

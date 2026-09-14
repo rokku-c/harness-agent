@@ -1,8 +1,3 @@
-/**
- * Task writes, plus the one policy board enforces on the tree: a node with
- * children has no state of its own, so only cancellation may be set on it
- * directly. Cancelling cancels everything below it, so no leaf is left running.
- */
 import type { TaskStore } from "../storage/store.ts"
 import { assertDeletable, descendantIds, validateRelations, validateSchedule } from "./relations.ts"
 import { BoardError, createTaskSchema, updateTaskSchema, parse, type Task, type TaskInput, type TaskPatch } from "./schema.ts"
@@ -38,7 +33,6 @@ export const makeTaskMutations = (store: TaskStore) => {
       assertStateWritable(previous, fields.state)
       const now = Math.max(Date.now(), previous.updatedAt + 1)
       const task: Task = { ...previous, ...fields, updatedAt: now }
-      // an explicit null clears the field; an omitted field keeps its value
       const parent = parentId === null ? undefined : parentId ?? previous.parentId
       const start = startAt === null ? undefined : startAt ?? previous.startAt
       const due = dueAt === null ? undefined : dueAt ?? previous.dueAt

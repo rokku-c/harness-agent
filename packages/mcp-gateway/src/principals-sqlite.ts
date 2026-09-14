@@ -1,16 +1,3 @@
-/**
- * mcp-gateway — the principal directory, on disk.
- *
- * A row is an identity that exists. `register` is idempotent because issuing a
- * second token for the same identity must not be a different act from the
- * first; it keeps the created-at and re-activates, which is what an operator
- * pressing "issue" after "disable" is asking for — and that it reactivated is
- * the caller's to report, since it did more than the press said.
- *
- * Cutting someone off is one flag here rather than a hunt through live tokens:
- * `active` is asked on every resolution, and an identity that is off is off
- * whatever credential it still holds.
- */
 import type { Database } from "bun:sqlite"
 import { principalKey, type PrincipalKind } from "@effect-agent/effect-authz"
 

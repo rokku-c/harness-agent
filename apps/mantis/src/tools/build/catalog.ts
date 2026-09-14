@@ -1,11 +1,3 @@
-/**
- * tools/build/catalog.ts - the CATALOG + ENABLE ops.
- *
- * Concept: the context-economy pair. tools_catalog reports the current
- * surface (core always visible, extended listed with descriptions so the
- * model can decide what to enable); enable grows the surface for the rest
- * of the session and notifies the host (which persists the choice).
- */
 import { Effect, Schema } from "effect"
 import { Op, type Op as OpT } from "@effect-agent/core"
 import { CatalogOut, EnableIn, EnableOut, manifestDescription } from "../schemas.ts"

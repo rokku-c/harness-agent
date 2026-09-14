@@ -1,9 +1,3 @@
-/**
- * The web console's observability bus: every noteworthy event (session
- * activity, tool calls, messages, approvals, agent UI updates, replies) is
- * pushed here and read by clients over the state endpoint, with a small ring
- * kept for late readers.
- */
 export type BusEvent =
   | { readonly type: "message.in"; readonly conversationId: string; readonly text: string }
   | { readonly type: "reply"; readonly conversationId: string; readonly text: string }
@@ -26,9 +20,7 @@ export class Bus {
     if (this.#ring.length > 200) this.#ring.shift()
     for (const subscriber of this.#subscribers) subscriber(dated)
   }
-  /** recent events for a late-joining page */
   readonly history = (): ReadonlyArray<DatedBusEvent> => [...this.#ring]
-  /** events strictly after a timestamp (MCP polling: no per-client state) */
   readonly after = (ts: number): ReadonlyArray<DatedBusEvent> => this.#ring.filter((event) => event.ts > ts)
   readonly subscribe = (onEvent: (event: DatedBusEvent) => void): (() => void) => {
     this.#subscribers.add(onEvent)

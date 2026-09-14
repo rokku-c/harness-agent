@@ -1,21 +1,9 @@
-/**
- * The one place a ② attempt puts the suspended apps back.
- *
- * Every step of §6.3-② that fails lands here — teardown, load, flip or replay —
- * so there is one recovery path and not four, and none of them can drift into
- * claiming a rollback that did not happen.
- *
- * And it says plainly when even the recovery failed: a node whose apps did not
- * come back needs a restart, and reporting a rollback that only looks successful
- * would be worse than the failure itself.
- */
 import { messageOf } from "@effect-agent/effect-interface"
 import type { KernelRevision } from "./repo.ts"
 import { type StageResult } from "./supervisor-outcome.ts"
 import type { KernelRuntime } from "./supervisor-runtime.ts"
 import type { AppRebuild } from "./supervisor-types.ts"
 
-/** Hand the suspended apps back after a failed attempt, and report the outcome either way. */
 export const makeRecovery = <K>(
   runtime: KernelRuntime<K>,
   rebuild: AppRebuild,

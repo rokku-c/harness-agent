@@ -1,11 +1,3 @@
-/**
- * agentdeck/adapters/cli - generic NON-INTERACTIVE CLI agent gateway
- * (claude-code -p, codex exec, gemini cli, pi, custom commands).
- *
- * Config mapping is the point: a UnifiedAgentConfig renders to the exact spawn
- * argv for the kind (ask 3) — that render is `cli-preset.ts`, the turn is
- * `cli-turn.ts`, and this file is the session lifecycle over them.
- */
 import type { AgentKind } from "../kinds.ts"
 import type { SendOutcome, SessionGateway } from "../flow.ts"
 import type { UnifiedAgentConfig } from "../config-types.ts"
@@ -14,7 +6,6 @@ import { runTurn, type CliBox } from "./cli-turn.ts"
 import { makeSessionTable } from "./session-table.ts"
 
 export interface CliGatewayOptions {
-  /** override/add CLI dialects (e.g. a "*claw"-like agent) */
   readonly presets?: Readonly<Record<string, CliPreset>>
 }
 
@@ -24,8 +15,6 @@ export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {})
   const table = makeSessionTable<CliBox>({
     kind,
     prefix: kind,
-    // a CLI session is labelled with the kind its config asked for, which is the
-    // dialect actually spawned — not the kind this gateway was constructed with.
     kindOf: (box) => box.kind,
     create: (sessionId, request) => ({
       sessionId,
@@ -35,7 +24,6 @@ export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {})
       status: "idle",
       lastActivityAt: Date.now()
     }),
-    // a turn may be holding a process group; the box is the only place it is known
     onClose: (box) => {
       box.closed = true
       const child = box.active
@@ -46,7 +34,6 @@ export const makeCliGateway = (kind: AgentKind, options: CliGatewayOptions = {})
     }
   })
 
-  /** unified config -> the process for one turn (ask 3, lossless) */
   const argvFor = (config: UnifiedAgentConfig, prompt: string) => cliInvocation(config, prompt, presets)
 
   const send = (sessionId: string, text: string): Promise<SendOutcome> =>

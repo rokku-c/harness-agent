@@ -1,15 +1,6 @@
-/**
- * version/address.ts - CONTENT ADDRESSING.
- *
- * Concept: versioning = content addressing (git-like). hash = SHA-256 of the
- * canonical content + the dep hashes, so tool@hash automatically locks the
- * whole dependency closure: declaring a hash as a strong dependency equals
- * declaring "this exact version set of the tool + closure".
- */
 import { createHash } from "node:crypto"
 import type { ToolDef } from "../model/tool.ts"
 
-/** Canonical tool content (deps sorted by name; dep hashes participate in addressing). */
 export const canonical = (content: ToolDef, depHashes: Readonly<Record<string, string>>): string =>
   JSON.stringify({
     name: content.name,

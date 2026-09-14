@@ -1,10 +1,3 @@
-/**
- * cc/schema.ts - JSON-SCHEMA TRANSLATION (core <=> claude SDK).
- *
- * Concept: project effect-agent input schemas (already in JSON Schema form)
- * into the zod shapes the claude-agent-sdk MCP tools need, and sanitize op
- * names to SDK-safe identifiers. Pure functions.
- */
 import * as z from "zod"
 
 export const safeToolName = (name: string) => name.replace(/[^a-zA-Z0-9_-]/g, "_")

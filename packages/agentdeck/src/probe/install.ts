@@ -1,25 +1,12 @@
-/**
- * Installing an agent is a MUTATION on someone's machine, so this module only
- * ever DESCRIBES the operation: it returns the argv a caller may run. Actually
- * running it belongs to agentd's apply path, where it is an explicit,
- * verifiable operation with a receipt - describing and doing are never the same
- * endpoint.
- *
- * Every package name here was checked against the npm registry rather than
- * recalled; a name that is merely plausible installs somebody else's code.
- */
 import type { AgentKind } from "../kinds.ts"
 
 export type PackageManager = "npm" | "bun"
 
 export interface AgentInstallPlan {
   readonly kind: AgentKind
-  /** the executable the plan is expected to provide */
   readonly file: string
   readonly packageName: string
-  /** the package manager this plan is rendered for */
   readonly manager: PackageManager
-  /** the full command, ready to show a human before anything runs */
   readonly argv: ReadonlyArray<string>
 }
 
@@ -38,8 +25,6 @@ const INSTALLABLE: ReadonlyArray<Installable> = [
 
 export const installableKinds: ReadonlyArray<AgentKind> = INSTALLABLE.map((entry) => entry.kind)
 
-/** The plan for one kind under one package manager, or undefined when we have
- *  no verified package for it - an unknown agent is not guessed at. */
 export const installPlan = (
   kind: AgentKind,
   manager: PackageManager = "npm"
@@ -59,6 +44,5 @@ export const installPlans = (manager: PackageManager = "npm"): ReadonlyArray<Age
   INSTALLABLE.map((entry) => installPlan(entry.kind, manager))
     .filter((plan): plan is AgentInstallPlan => plan !== undefined)
 
-/** one line a caller can put in front of an operator for approval */
 export const describeInstall = (plan: AgentInstallPlan): string =>
   `${plan.argv.join(" ")}   # provides ${plan.file}`

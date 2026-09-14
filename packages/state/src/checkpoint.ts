@@ -1,8 +1,3 @@
-/**
- * Checkpoint persistence (E11): a Store-backed implementation of the core
- * CheckpointStore protocol. Any Store (memory/sqlite) can back it -
- * swap the Store, keep the checkpoint semantics.
- */
 import { Effect } from "effect"
 import { AgentFailure, type AgentError } from "@effect-agent/core"
 import type { CheckpointStoreService, StoredCheckpoint } from "@effect-agent/core"

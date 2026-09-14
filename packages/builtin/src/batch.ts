@@ -1,11 +1,3 @@
-/**
- * Batch combinators: map / filter over children, learned from collection
- * algebra. map_children is a bounded parallel map (one declaration fans out
- * N children); children_where is filter; the reduce is deliberately NOT an
- * op - a board is the accumulator (post_board folds, read_board finalizes)
- * and small result sets reduce in the supervisor's context. All of it
- * composes from the supervision kernel - no kernel changes.
- */
 import { Effect, Schema } from "effect"
 import { AgentRuntime, notationText, Op } from "@effect-agent/core"
 
@@ -54,4 +46,3 @@ export const batchOps = () => [
       })
   })
 ]
-

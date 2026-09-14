@@ -1,12 +1,3 @@
-/**
- * effect-authz — policy entries.
- *
- * One entry says: <subject> may (allow) or may not (deny) perform <actions> on
- * <resource>, and where that statement came from. Entries come from three
- * independent sources — the kind template, a declared/consented grant, and an
- * operator revoke — which is why the resolver cannot be order-dependent.
- */
-
 import type { Action } from "./action.ts"
 import { covers } from "./match.ts"
 import { asResource, type Resource } from "./resource.ts"
@@ -32,7 +23,6 @@ export interface GrantInput {
 
 export const ANY_SUBJECT = "*"
 
-/** `*` matches every principal; `user:*` matches any principal of that kind; else exact key. */
 export const subjectMatches = (pattern: string, key: string): boolean => {
   if (pattern === ANY_SUBJECT) return true
   if (pattern.endsWith(":*")) return key.startsWith(pattern.slice(0, -1))

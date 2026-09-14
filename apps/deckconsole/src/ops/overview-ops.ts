@@ -1,11 +1,3 @@
-/**
- * What the console reads before it acts: the deck in one answer, the raw config
- * sample a kind starts from, and the preview of what a raw config becomes once
- * it is normalized for its kind.
- *
- * The preview parses the raw config here rather than in the page, so the browser
- * and an agent are told the same way when what they pasted is not JSON.
- */
 import { cliInvocation, normalizeConfig } from "@effect-agent/agentdeck"
 import { z } from "@effect-agent/effect-config"
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"

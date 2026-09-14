@@ -1,13 +1,3 @@
-/**
- * gate/manual.ts - ManualGate: the OPERATOR CONSOLE.
- *
- * Concept: askWhen picks which calls need a human (default: none -
- * protecting specific calls is explicit). decide records an Ask in the
- * ledger; request additionally sleeps on it (Deferred wake, timeout -> Deny);
- * resolve answers one call: the verdict is recorded under the request key
- * and the waiter, if any, is woken. The queue + verdicts + subscribers live
- * in gate/ledger.ts.
- */
 import { Deferred, Effect, Ref } from "effect"
 import { ApprovalLedger, type PendingApproval } from "./ledger.ts"
 import type { GateDecision, GateInput, GateService } from "./contract.ts"
@@ -20,7 +10,6 @@ export class ManualGate implements GateService {
   constructor(askWhen: (input: GateInput) => boolean = () => false) {
     this.askWhen = askWhen
   }
-  /** subscribe to new pending approvals; returns an unsubscribe */
   readonly onPending = (listener: (pending: PendingApproval) => void): (() => void) =>
     this.ledger.onPending(listener)
 
@@ -40,7 +29,6 @@ export class ManualGate implements GateService {
     })
   }
 
-  /** decide + wait for the operator when Ask (Deferred wake, no polling) */
   request = (input: GateInput, timeoutMs?: number): Effect.Effect<GateDecision> => {
     const gate = this
     return Effect.gen(function* () {
@@ -67,7 +55,6 @@ export class ManualGate implements GateService {
             Effect.catchAll((error: Error) =>
               Effect.succeed({ _tag: "Deny", reason: error.message } as GateDecision))
           )
-      // whichever way we left, the operator entry is consumed
       yield* gate.ledger.drop(decision.callId)
       yield* Ref.update(gate.waitingRef, (map) => {
         const next = new Map(map)
@@ -78,7 +65,6 @@ export class ManualGate implements GateService {
     })
   }
 
-  /** Operator answers one pending Ask; wakes its waiter, records the verdict. */
   resolve = (callId: string, allow: boolean): Effect.Effect<void, Error> => {
     const gate = this
     const ledger = this.ledger

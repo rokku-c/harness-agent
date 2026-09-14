@@ -1,16 +1,5 @@
-/**
- * log/core.ts - the LOGGER FACADE over one sink.
- *
- * Concept: a leveled logger is scope + thresholds applied to a sink. Sinks
- * are the swappable half (console/file/...); this file owns the shapes and
- * the emit rule: entries below the effective level are dropped before write.
- * Plain async TS on purpose - hosts (dingtalk channels, pm2 processes) are
- * not Effect fibers; this stays usable everywhere.
- */
 export type LogLevel = "debug" | "info" | "warn" | "error"
 
-/** The level order, stated once: a sink's threshold and an entry's level are
-compared against the same table, so they cannot rank differently. */
 export const LEVEL_ORDER: Record<LogLevel, number> = { debug: 10, info: 20, warn: 30, error: 40 }
 
 export interface LogEntry {
@@ -21,10 +10,8 @@ export interface LogEntry {
   readonly meta?: unknown
 }
 
-/** where entries go - a Logger is the leveled facade over one or more sinks */
 export interface LogSink {
   readonly write: (entry: LogEntry) => void
-  /** sink-level threshold; entries below it are dropped before write */
   readonly level?: LogLevel
 }
 
@@ -33,7 +20,6 @@ export interface Logger {
   readonly info: (message: string, meta?: unknown) => void
   readonly warn: (message: string, meta?: unknown) => void
   readonly error: (message: string, meta?: unknown) => void
-  /** a logger scoped to a subsystem (e.g. "host.session.<conversationId>") */
   readonly child: (scope: string) => Logger
 }
 

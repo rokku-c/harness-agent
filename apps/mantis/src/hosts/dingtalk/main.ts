@@ -1,11 +1,3 @@
-/**
- * mantis dingtalk-host live entry: a REAL model over a REAL dingtalk
- * channel (robot or dws), configured from config.toml + MANTIS_* env.
- * Assembly is split by concept into ./main/: setup.ts (config/log/model),
- * card.ts (interactive approval card deliverer), channel.ts (channel
- * selection), approval.ts (protected-tool policy). Run:
- *   bun apps/mantis/src/hosts/dingtalk/main.ts
- */
 import { workspaceFile } from "../../paths.ts"
 import { NotesStore } from "../../tools.ts"
 import { MantisHost } from "./host.ts"
@@ -16,8 +8,6 @@ import { makeApproval } from "./main/approval.ts"
 
 const { config, logger, model, logFile } = setupRuntime()
 
-// the host is created after the channel (the channel forwards card-button
-// clicks to it); a let forward-reference keeps the wiring in one place
 let host: MantisHost | undefined
 
 const cardDeliverer = makeCardDeliverer(config)

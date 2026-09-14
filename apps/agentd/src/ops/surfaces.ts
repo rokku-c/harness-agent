@@ -1,4 +1,3 @@
-/** What agentd's operations read and write. One object, so a new surface is one field. */
 import type { AgentdControl, FactsRegistry, LaunchQueue, Tunnel } from "@effect-agent/agentd"
 
 export interface AppliedReport {
@@ -7,7 +6,6 @@ export interface AppliedReport {
   readonly state: unknown
   readonly at: number
 }
-/** The node-level receipt (§8.4), on the same revision rule as the agent one. */
 export interface NodeAppliedReport {
   readonly nodeId: string
   readonly revision: number

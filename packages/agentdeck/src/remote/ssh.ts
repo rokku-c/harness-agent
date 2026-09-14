@@ -1,14 +1,8 @@
-/**
- * ssh transport. A daemon must never block on a password prompt, so BatchMode
- * is on by default: an unreachable or unauthenticated target fails fast and
- * visibly instead of hanging a control loop.
- */
 import { spawn } from "node:child_process"
 import type { RemoteRun, RemoteRunOptions, RemoteTarget, RemoteTransport } from "./types.ts"
 
 export const DEFAULT_TIMEOUT_MS = 30_000
 
-/** single-quote a fragment for POSIX sh */
 export const quote = (value: string): string => `'${value.split("'").join(`'\\''`)}'`
 
 export const sshArgs = (target: RemoteTarget): ReadonlyArray<string> => [

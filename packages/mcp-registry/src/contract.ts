@@ -1,10 +1,5 @@
 import type { RegistryAuth } from "./auth.ts"
 
-/**
- * mcp-registry contract — catalog of MCP servers & apps.
- *
- * Status is derived from heartbeat freshness, never stored as a value.
- */
 
 export type ProtocolEra = "modern" | "auto" | "legacy"
 export type ServerStatus = "healthy" | "warn" | "offline"
@@ -40,19 +35,16 @@ export interface McpServerRecord extends McpServer {
   readonly status: ServerStatus
   readonly lastSeen: number
   readonly registeredAt: number
-  /** Public identity only; credentials are never part of a record. */
   readonly ownerId?: string
 }
 
 export interface StaticRegistrationOptions {
-  /** Optional public owner identity for a trusted, local registration. */
   readonly ownerId?: string
 }
 
 export interface RegistryConfig {
   readonly heartbeatTtlMs?: number
   readonly offlineAfterMs?: number
-  /** Required by the authenticated announce/heartbeat/withdraw controls. */
   readonly auth?: RegistryAuth
 }
 

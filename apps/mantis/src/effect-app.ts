@@ -1,9 +1,3 @@
-/**
- * Standard app form for mantis (declarative facade).
- * The DingTalk worker itself keeps running independently; this descriptor only
- * exposes mantis' configSchema + declarative UI into the platform.
- */
-
 import { effectConfig } from "./effect-config.ts"
 import { effectUiView } from "./effect-ui.ts"
 import { createMantisPlugin } from "./effect-plugin.ts"

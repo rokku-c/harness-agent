@@ -1,16 +1,3 @@
-/**
- * bun run up — one command to bring the whole agent up.
- *
- * 1. Boots the home (effect-server) from the root effect.yaml, WITHOUT the apps
- *    that are bundle-managed, and hands it their directories.
- * 2. The home compiles each one and loads it back into its own host/registry/
- *    configs/uiViews — the plugin "compiles, then connects back". Doing it there
- *    rather than here is what makes a bundle an app the server can reload like
- *    any other: `POST /-/planes/:id/reload`.
- * 3. Binds one port and stays up, then prints where each thing lives. Ctrl-C
- *    tears the server down, bundles included.
- */
-
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { readServerYaml } from "./yaml-manifest.ts"
@@ -22,8 +9,6 @@ const cfg = readServerYaml(readFileSync(yamlPath, "utf8"))
 
 const envBundles = (process.env.EFFECT_BUNDLES ?? "").split(",").map((s) => s.trim()).filter(Boolean)
 const named = envBundles.length > 0 ? envBundles : (cfg.bundles ?? ["board"])
-// A name with no bundle declaration is not a bundle-managed app. Skipping it here
-// is what keeps one mistyped name from failing the boot of everything else.
 const apps = named.flatMap((appId) => {
   const appDir = resolve(ROOT, "apps", appId)
   if (existsSync(resolve(appDir, "effect.bundle.json"))) return [{ appId, appDir }]

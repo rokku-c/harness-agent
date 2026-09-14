@@ -1,11 +1,3 @@
-/**
- * log/sinks.ts - the SWAPPABLE SINKS.
- *
- * Concept: console is just one sink - production hosts route the same
- * entries to JSON lines or any other sink without changing a call site.
- * Each sink owns its threshold; composite fans an entry out to several,
- * honoring every member's own level (never taking the process down).
- */
 import { appendFileSync, mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { LEVEL_ORDER, type LogLevel, type LogSink } from "./core.ts"
@@ -33,7 +25,6 @@ export const jsonFileSink = (filePath: string, options: SinkOptions = {}): LogSi
       try {
         appendFileSync(filePath, JSON.stringify(entry) + "\n", "utf-8")
       } catch (error) {
-        // logging must never take the process down - fall back to stderr once
         console.error("[logger] write failed for " + filePath + ":", error)
       }
     }

@@ -1,18 +1,3 @@
-/**
- * mcp-gateway — filling the catalog from live upstreams.
- *
- * Listing is best-effort per server: one unreachable upstream must not take the
- * whole gateway down, so each failure is reported rather than thrown. A server
- * that fails keeps the tools it last advertised — a transient blip should not
- * make the surface flap, and clients cache tool lists aggressively. That is the
- * safe direction: a stale entry can only ever lead to a call that enforcement
- * still checks and upstream still rejects, never to a call that skips a check.
- *
- * The list given here is the whole catalog, so a server that is no longer in it
- * is forgotten. Keeping an offline server's tools advertised would be the one
- * direction that is not safe: a door offering a tool it cannot carry.
- */
-
 import type { CatalogTool, McpToolLister, ToolCatalog } from "./catalog.ts"
 import type { McpGatewayServer } from "./contract-sets.ts"
 

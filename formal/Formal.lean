@@ -1,14 +1,3 @@
-/-
-  The model's index, and the build's root.
-
-  `lake build` compiles this module's import closure and nothing else, so a module
-  under `Formal/` that is missing from this list is never compiled — while
-  `scripts/check-proofs.ts` still counts its theorems. `check:proofs` fails on that
-  divergence rather than reporting a count over proofs it did not build.
-
-  One import per module, alphabetical, so a missing one is visible.
--/
-
 import Formal.Adapt
 import Formal.AppLayer
 import Formal.Arming
@@ -23,6 +12,7 @@ import Formal.CommandSearch
 import Formal.Compat
 import Formal.Config
 import Formal.ConfigFetch
+import Formal.Confirm
 import Formal.Consent
 import Formal.Credential
 import Formal.Derive

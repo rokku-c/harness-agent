@@ -1,11 +1,3 @@
-/**
- * main/card.ts - INTERACTIVE APPROVAL CARD DELIVERER.
- *
- * Concept: approvals are delivered as REAL DingTalk interactive cards
- * (createAndDeliver + STREAM callback) - the owner clicks 同意/拒绝 and the
- * button click resolves the call via its outTrackId; no text parsing
- * anywhere. Only wired when the robot channel has a card template id.
- */
 import { openApiCardDeliverer } from "../dingtalk-card.ts"
 
 export type CardDeliverer = ReturnType<typeof openApiCardDeliverer> | undefined

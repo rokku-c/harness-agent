@@ -47,9 +47,9 @@ supported. Real model keys are picked up by the standard MANTIS_* config path.
     GET  /api/events?after= ; GET /api/health
 
 ## Release gates
-docs/acceptance.md rows must be green (suite + live rows). Run:
-    bun test                       (repo root; 220+ tests)
-plus the live smoke steps in SELFUSE.md round notes.
+Every row in docs/acceptance.md must be `[L]` — verified live, in a real running
+instance. There is no suite to fall back on (`AGENTS.md` forbids unit tests), so
+the live smoke steps in SELFUSE.md round notes are the gate, not a supplement to one.
 
 ## Notes
 - Product display name is mantis; code identifiers stay mantis.

@@ -4,9 +4,6 @@ import { makeUpstream, type McpUpstreamServer } from "./upstream-call.ts"
 
 export interface McpStdioUpstreamOptions { readonly servers: readonly McpGatewayServer[] }
 
-/** Each server gets its own client process. The environment is inherited: a
- *  stdio server is a local command and expects the PATH, HOME and credentials
- *  the gateway was started with, with `server.env` layered over them. */
 export const makeStdioUpstream = (options: McpStdioUpstreamOptions): McpUpstreamServer =>
   makeUpstream({
     servers: options.servers,

@@ -1,11 +1,3 @@
-/**
- * cc/session.ts - the SDK SESSION (launch + collect).
- *
- * Concept: translate a run into one Claude Code query and stream it to
- * completion. The MCP bridge server, the allowed-tool allowlist and the
- * environment (with an isolated CLAUDE_CONFIG_DIR) are assembled HERE - the
- * driver stays a thin composer over this.
- */
 import { Effect } from "effect"
 import { createSdkMcpServer, query, type Options, type SDKMessage } from "@anthropic-ai/claude-agent-sdk"
 import { AgentFailure } from "@effect-agent/core"

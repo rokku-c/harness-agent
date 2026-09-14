@@ -28,10 +28,6 @@ export const startProbe = (options: ProbeOptions): RunningProbe => {
   const launch = launchStep(control, options), facts = factsStep(control, options)
   let cancel: (() => void) | undefined, stopped = false
 
-  /**
-   * A lease that lapsed while we were away is not a failure — the control plane
-   * is telling us to introduce ourselves again, and we can, once, in this beat.
-   */
   const beat = async (reintroduce: boolean): Promise<CycleOutcome> => {
     try {
       const outcome = await runCycle({
@@ -50,21 +46,11 @@ export const startProbe = (options: ProbeOptions): RunningProbe => {
     try {
       last = await beat(true); beats += 1; fault = undefined
       options.onEvent?.(last)
-      // work is taken only once the node itself is in order: a machine that
-      // cannot report a launch has no business claiming one
       if (launch !== undefined) launched = await launch()
       if (facts !== undefined) await facts()
     } catch (error) {
       fault = asFault(error)
       options.onEvent?.(fault)
-      /**
-       * A refusal is about *this* caller and *this* request shape: the identical
-       * call is refused identically forever, and a loop that keeps making it is a
-       * spin rather than a retry, so it stops and says so. Every other fault is
-       * worth another beat — an unreachable control plane included, because a
-       * node that keeps trying and ages offline is telling the truth, while one
-       * that gives up is reporting a health it cannot know.
-       */
       if (fault.kind === "refused") { halted = fault; return }
     }
     if (!stopped) cancel = schedule(() => void tick(), intervalMs)
@@ -74,10 +60,6 @@ export const startProbe = (options: ProbeOptions): RunningProbe => {
   const stop = (): Promise<void> => stopping ??= (async () => {
     stopped = true
     cancel?.()
-    // The goodbye has to be delivered to count. A `stop` that swallowed an
-    // unreachable control plane would report a clean exit for a node that stays
-    // listed as up until its lease happens to lapse — the exit and the record
-    // disagreeing, which is the one thing withdraw exists to prevent.
     await control.withdraw(nodeId)
     leased = false
   })()

@@ -1,12 +1,7 @@
-/**
- * DingTalk openapi helpers shared by the robot channel and the card layer:
- * access-token fetching (cached, like the original clawyp) + API root.
- */
 export const DINGTALK_API = "https://api.dingtalk.com"
 
 const tokenCache = new Map<string, { token: string; expiryMs: number }>()
 
-/** bot access token from the app credentials (cached until near expiry) */
 export const robotAccessToken = async (clientId: string, clientSecret: string): Promise<string> => {
   const cached = tokenCache.get(clientId)
   if (cached !== undefined && cached.expiryMs > Date.now() + 60_000) return cached.token

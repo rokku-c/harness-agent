@@ -1,16 +1,3 @@
-/**
- * Starting an agent: the one form in this console.
- *
- * Three fields, and only one of them is Herdr's protocol. A pane is where layout
- * happens to be and an operator starting an agent is thinking about the agent, so
- * the pane is found rather than named — and the workspace is a picker over the
- * workspaces the server actually has open, because a workspace id typed by hand
- * is a typo away from an agent started somewhere nobody is looking.
- *
- * The picker's rows come from the workspaces read, so the read's own states are
- * stated here too: a picker over a failed read is an empty dropdown with no
- * explanation, and an operator would read that as "there is nowhere to start one".
- */
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { command } from "./effect-ui-command.ts"
 import { mono } from "./effect-ui-cells.ts"
@@ -18,7 +5,6 @@ import { readFailure, retry } from "./effect-ui-failures.ts"
 import { WORKSPACES_SOURCE, draft, emptyRows, field, loadingRows, row, rowsPath, section, text } from "./effect-ui-nodes.ts"
 import { serverRow } from "./effect-ui-header.ts"
 
-/** One workspace, as the item a person picks: the id travels, the label is what they read. */
 const workspaceOption: UiNodeSpec = {
   component: "Select.Item",
   item: "workspace_id",
@@ -29,13 +15,6 @@ const workspaceOption: UiNodeSpec = {
   ])],
 }
 
-/**
- * The workspace to start in.
- *
- * Empty is the focused workspace, which is why the trigger says so rather than
- * saying nothing: an untouched picker sends no choice at all, and the server
- * reads that as "wherever I am" (`agent-start-ops.ts`).
- */
 const workspacePicker: UiNodeSpec = {
   component: "Select.Root",
   bind: draft("startWorkspace"),

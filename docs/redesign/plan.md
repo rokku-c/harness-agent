@@ -22,6 +22,23 @@ Measured on `rewrite-agent-connection` at `6102369`.
 These are expected to move. The point of writing them down is that a move must
 be reported and explained, never quietly absorbed.
 
+### Movement since the freeze
+
+| guard | now | why |
+|---|---|---|
+| `bun scripts/check-lines.ts` | **clean**, 996 files in scope | the 30 violations were the whole of the suite; the suite is gone |
+| `bun run check:boundary` | **51** packages, 0/0 | `packages/ui-renderer` is gone — L1's second renderer |
+| `bun run check:proofs` | **535** theorems in **60** files | added by the L1/L2 work |
+| `bun test` | **removed** | `AGENTS.md` now forbids unit tests; all 267 files deleted 2026-09-14 |
+
+Two consequences worth naming, because both are gates rather than notes now:
+
+- `check-lines` left `continue-on-error` and became a real gate in
+  `.github/workflows/guards.yml`. Its own comment had said to do this "once it
+  reaches zero" — deleting the suite is what reached zero.
+- `check-lines` no longer scans `test/` dirs, because there are none. The cap now
+  covers `packages/*/src`, `apps/*/src`, `examples/` and `scripts/`.
+
 ## 2. What "all UI code" covers
 
 Measured by file and line count, excluding `board-mcp/` (the user's own project,
@@ -234,7 +251,7 @@ rather than by the directory it sits in.
 | `screen-derive.ts`, `screen-reads.ts` | `screen.ts:38`, `screen-derive.ts:31,65` |
 | `json-spec.ts`, `json-values.ts` | `view-route.ts:16` — `viewToJsonSpec` |
 | `form-spec.ts` | `config-route.ts:17` — `formToJsonSpec` |
-| `form/types.ts`, `form/model.ts`, `form/parse.ts` | `form-spec.ts:13`, the ai-gateway form contract test |
+| `form/types.ts`, `form/model.ts`, `form/parse.ts` | `form-spec.ts:13` (the ai-gateway form contract test that also reached them was deleted with the suite 2026-09-14) |
 | `contract.ts`, `projector.ts`, `tokenizer.ts`, `pointer.ts` | `monitor/projection.ts:19,21` |
 | `source-status.ts` | `sourceStateOf`, kept by the 6 surviving `Readout` theorems |
 | `index.ts` | the declared export entry, `package.json:6` |
@@ -293,10 +310,10 @@ This is the same rule as "carries a transport", applied to a payload instead of
 a request, and it is why the L1 layer rebuilds the lowerer rather than deleting
 it.
 
-One test needs repointing before `form.ts` can go:
-`apps/ai-gateway/test/form-contract.test.ts:3` reaches it through a raw relative
-path instead of the exports map, and it is the only test that the config form's
-parse output satisfies an app's config schema.
+The config form's parse output satisfying an app's config schema is no longer
+pinned by anything: that was `apps/ai-gateway/test/form-contract.test.ts`'s only
+job, and it was deleted with the suite on 2026-09-14. `form.ts` can now go
+without a repointing step, but the property it guarded is unverified.
 
 ## 5. The consolidation this redesign should make
 

@@ -1,13 +1,4 @@
 import type { EgressRouter } from "@effect-agent/effect-network"
-/**
- * loadEffectBundle — load a compiled bundle "anywhere" and register it back.
- *
- * The bundle's compiled entry calls `register(api)` where `api` is whatever
- * the surrounding host exposes (host/registry/configs/ui). For an in-process
- * host this registers directly; a remote/embedded host passes an api that
- * forwards over the effect remote protocol instead. Loading always returns a
- * disposer.
- */
 
 import { readFileSync } from "node:fs"
 import { resolve, join } from "node:path"
@@ -25,23 +16,9 @@ export interface EffectBundleApi {
   readonly registry: EffectRegistry
   readonly configs?: ConfigRegistry
   readonly uiViews?: Map<string, EffectUiView>
-  /** optional override of the bundle's declared namespace (isolation). */
   readonly namespace?: string
-  /** ABI this host implements; defaults to the SDK's kernel ABI (see compat.ts). */
   readonly abi?: string
-  /** Runtime this host is — os | browser | sandbox; defaults to "os" (see §7). */
   readonly runtime?: EffectRuntimeKind
-  /**
-   * What this host can actually hand an app (§7.2). Absent = the host has not
-   * declared, and the `requires` check is skipped rather than guessed.
-   *
-   * Not the `abi` stance one field up, which gates on `KERNEL_ABI` when the
-   * host says nothing: there is one kernel ABI and every host implements it,
-   * while a capability is defined by being possible to lack (§7.4), so an
-   * undeclared host has no default to be held to. What bounds the skip is that
-   * this is not the only gate — `requireCapability` refuses at first use, by
-   * name, with the runtime it is on.
-   */
   readonly capabilities?: RuntimeCapabilities
   readonly initializeConfig?: (appId: string) => void
   readonly activeConfig?: (appId: string) => unknown
@@ -55,14 +32,6 @@ export interface EffectBundleEntry {
 
 type Disposer = () => void | Promise<void>
 
-/**
- * The capability half of the pre-import gate, in the same place as the abi and
- * runtime halves: an artifact whose declared needs this host cannot meet must
- * not execute a single line of its entry (§5, §7.4).
- *
- * Only checks what the artifact declares. Guessing needs from code is exactly
- * the "declaration nobody made" this repo refuses to treat as a declaration.
- */
 export const assertCapabilityCompat = (
   manifest: Pick<EffectBundleManifest, "bundleId" | "requires">,
   capabilities: RuntimeCapabilities | undefined,
@@ -81,11 +50,8 @@ export const assertCapabilityCompat = (
 
 export const loadEffectBundle = async (bundleDir: string, api: EffectBundleApi): Promise<Disposer> => {
   const manifest: EffectBundleManifest = JSON.parse(readFileSync(join(bundleDir, "effect.bundle.json"), "utf8"))
-  // Gate before importing anything: an incompatible artifact must not execute a
-  // single line of its entry. Fail loud, never silently downgrade (§5, §7.4).
   assertBundleCompat(manifest, { abi: api.abi, runtime: api.runtime })
   assertCapabilityCompat(manifest, api.capabilities)
-  // The build for this runtime (§7.5-2), falling back to the primary entry.
   const runtime = api.runtime ?? DEFAULT_RUNTIME
   const entryPath = resolve(bundleDir, manifest.entries?.[runtime] ?? manifest.entry ?? "entry.js")
   const mod = (await import(entryPath)) as EffectBundleEntry

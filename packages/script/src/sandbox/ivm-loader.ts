@@ -1,17 +1,3 @@
-/**
- * sandbox/ivm-loader.ts - LAZY isolated-vm LOADING.
- *
- * Concept: isolated-vm is a native module compiled against node's V8 ABI, so
- * dlopen fails under bun. A top-level import would make the whole package
- * unusable under bun; it is loaded only inside execute, where an explicit
- * error explains the fallback (NodeVmRuntime) or switching to node.
- */
-/**
- * Lazy-load isolated-vm: it is a native module (compiled against node's V8 ABI), so dlopen
- * fails under bun. A top-level import would make the whole package unusable under bun,
- * so it is loaded only inside execute; under bun an explicit error is thrown
- * (switch to NodeVmRuntime or run under node).
- */
 export const loadIvm = async (): Promise<{
   Isolate: new (options: { memoryLimit: number }) => {
     createContextSync(): {

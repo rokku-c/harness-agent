@@ -1,14 +1,3 @@
-/**
- * What the host already reports about itself, kept from the console this act
- * replaces (`console-surface` §7): the service table with each service's enabled
- * state and priority, the catalogued-app and operation counts, the failure list,
- * and the warning naming disabled services.
- *
- * It is kept because it is the only answer the console has to "is this host
- * healthy", and H9 puts it below the stream rather than in a place of its own:
- * reading the record and reading the host's health are one visit.
- */
-
 import * as React from "react"
 import { Card, Flex, Grid, Heading, Table, Text } from "@radix-ui/themes"
 import type { ActivitySnapshot } from "./console-activity.ts"

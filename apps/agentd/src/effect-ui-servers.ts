@@ -1,27 +1,3 @@
-/**
- * What the fleet can be assembled from: the MCP servers the center knows, and
- * the sets those servers are grouped into.
- *
- * Neither is a fact about one node, which is why they are a screen of their own
- * rather than another column of the machine list. A set is what a fleet agent is
- * bound to, so the agent's own room is where that binding is read; what an
- * operator comes here for is the vocabulary the binding is written in.
- *
- * This screen is not where access to a server is granted. That is the MCP
- * Gateway's job, and a server read here is a server governed there, so every row
- * carries the way over. The gateway's own topology screen is named on each row
- * rather than the server, and that is a limit of the language and not a choice:
- * a declared node's props are static, nothing here can put a row's own id into
- * an address, and a link that claimed to open one server would be a lie about
- * where it goes. What the row can honestly offer is the screen where servers are
- * bound, and the line above the table carries the gateway's operation list,
- * where a server is picked out by name rather than by address.
- *
- * The endpoint is drawn as a key and not as the literal badge rule 4 would
- * allow: it is an address read character by character against a config file,
- * which is what mono is for. The literal rule is carried by the transport beside
- * it, and by the credential reference, which is one of a small closed set.
- */
 import {
   chipList, emptyRows, row, sourceStatusPath, stateRows, toneField, whenRows, type UiNodeSpec,
 } from "@effect-agent/effect-ui"
@@ -29,9 +5,7 @@ import { SERVERS, SETS, STATUS_SOURCE } from "./effect-ui-paths.ts"
 import { readFailure, reading, sourceFailed } from "./effect-ui-read.ts"
 import { block, cellOf, chip, figure, linkCell, screenHead, table } from "./effect-ui-rows.ts"
 
-/** Where a server's binding and its grants are edited: the MCP Gateway's own topology screen. */
 const BINDING_EDITOR = "#app/mcp-gateway/topology"
-/** The same app's operation list: the nearest thing to a link at one named server. */
 const OPERATIONS = "#tools/mcp-gateway"
 
 const servers: UiNodeSpec = block(

@@ -8,7 +8,6 @@ const providerState = (provider: { readonly id: string; readonly apiType: string
   credential: provider.apiKey === undefined ? "missing" : "configured",
 })
 
-/** Public model-plane state: provider credentials are represented by status only. */
 export const modelsState = (getConfig: () => unknown) => {
   const config = gatewayConfig(getConfig())
   return {

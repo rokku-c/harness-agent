@@ -3,13 +3,6 @@ import { formInputType } from "./form/controls.ts"
 import { createFormModel } from "./form/model.ts"
 import type { FormNode, JsonSchema } from "./form/types.ts"
 
-/**
- * Declarative form projection; field paths make nested object state lossless.
- *
- * The component names are the design system's. The config mount renders them
- * with its own components, because a config field carries more than a value:
- * which schema kind it holds and which row of an array it belongs to.
- */
 export const formToJsonSpec = (appId: string, schema?: JsonSchema, value?: Readonly<Record<string, unknown>>): Spec => {
   const elements: Record<string, UIElement> = {}, form = createFormModel().create(appId, schema, value)
   const lower = (node: FormNode, path: readonly string[]): string => {

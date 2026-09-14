@@ -1,30 +1,3 @@
-/**
- * The command palette: one `Dialog`, one search field, one list, two modes (§10.3,
- * §6.4).
- *
- * Mounted only while it is open, which is what makes its three reads free the rest
- * of the time: the open app's screens and declared actions, every registered
- * operation, and the decisions that are waiting are fetched for its groups, and
- * nothing fetches them while the palette is closed. They are fetched together on
- * purpose — a palette whose rows appeared one group at a time would reorder itself
- * under the operator's cursor while they were reading it.
- *
- * The address row is built here rather than in `console-commands.ts` because
- * resolving an address is the surfaces' question (`console-palette-address.tsx`),
- * and it is put in front of the rest: a pasted address is the query's most literal
- * answer, and §6.4 rule 3 makes it the one row that is a link the reader already
- * had.
- *
- * Focus goes where the operator expects on the way out. A row that navigated
- * leaves focus to the route's heading, by the rule every other route change
- * follows; a row that only acted hands focus back to whatever opened the palette
- * (§6.4 rule 5). Radix's close-auto-focus is suppressed for exactly that reason —
- * left alone it restores to a trigger this palette does not have, and focus would
- * land on the document. `Escape` is Radix's, not ours: it closes this dialog and
- * restores focus, and the console's own handler stands aside while a layer is open
- * (`console-escape.ts`).
- */
-
 import * as React from "react"
 import { Dialog, Flex, ScrollArea, Text, TextField, VisuallyHidden } from "@radix-ui/themes"
 import { CommandRowButton } from "./console-command-row.tsx"
@@ -40,7 +13,6 @@ import type { ConsoleEntry } from "./console-plan.ts"
 import type { ConsoleRoute } from "./console-route.ts"
 import type { Place } from "./console-place.ts"
 
-/** The app whose view is mounted, if any: the only app whose actions this palette can run. */
 const openApp = (route: ConsoleRoute): string | undefined =>
   route.kind === "app" || route.kind === "app-settings" ? route.id : undefined
 
@@ -50,9 +22,7 @@ export const ConsolePalette = ({ mode, plan, route, places, onClose, onShortcuts
   readonly route: ConsoleRoute
   readonly places: readonly Place[]
   readonly onClose: () => void
-  /** The Console group's "Keyboard shortcuts" row: the sheet is a layer of its own. */
   readonly onShortcuts: () => void
-  /** Where focus goes when the palette closes without having navigated. */
   readonly restore: () => void
 }) => {
   const [search, setSearch] = React.useState("")

@@ -1,26 +1,3 @@
-/**
- * mantis web console live entry: observability + access over HTTP.
- *
- * The console reuses the exact live config (config.toml + env) of the other
- * hosts: same [agent] model, same MANTIS_PROTECTED approval policy - except
- * that here the caller IS the operator: a pending approval is resolved with one
- * call, and events are read from polls against a stateless cursor.
- *
- *
- * The browser cannot speak MCP stdio, so this process maps every /api call
- * onto the in-process mantis MCP server (InMemoryTransport) - the HTTP client
- * IS an MCP client, like Claude Code; there is no other path into the host.
- *
- * This host serves that API and nothing else: mantis's UI is its declarative
- * view in the platform console (src/effect-ui.ts), rendered by the console in
- * the console's own design system. The embedded app mounts the same API through
- * makeApiHandler at "/mantis" and opens no listener at all.
- *
- * Env: MANTIS_WEB_HOST (default 127.0.0.1), MANTIS_WEB_PORT (default 3737),
- * plus the standard MANTIS_* env (config/model/protected).
- *
- * Run: bun apps/mantis/src/hosts/webui/main.ts
- */
 import { envVar } from "../../env.ts"
 import { workspaceFile } from "../../paths.ts"
 import { loadConfig } from "../../config.ts"
@@ -38,8 +15,6 @@ const config = loadConfig()
 const logLevel = (envVar("LOG_LEVEL") ?? "info") as LogLevel
 const logFile = envVar("LOG_FILE")
 
-// one bus shared by the console and the logger: every entry (debug level
-// included - tool calls) streams to open pages and is queryable by state
 const bus = new Bus()
 const sinks: LogSink[] = [{
   level: "debug",
@@ -52,8 +27,6 @@ if (logFile !== undefined) sinks.push(jsonFileSink(logFile, { level: logLevel })
 const logger = makeLogger(compositeSink(...sinks), "mantis")
 for (const warning of config.warnings) logger.warn(warning)
 
-// conversation memory is in-process here: nothing supplies a directory for it,
-// so a restart forgets the turns. durability is opt-in per embedder.
 const memoryDir = undefined
 const web = new WebConsole({
   bus,
@@ -62,13 +35,10 @@ const web = new WebConsole({
   maxReflections: config.model.maxReflections,
   protectedTools: config.approvals.protectedTools,
   approveTimeoutMs: config.approvals.timeoutMs,
-  // durable shared workspace: one SQLite database in the data root (paths.ts)
   workspaceFile: workspaceFile(),
   memoryDir,
   logger
 })
-// the backend of the web console IS the mantis MCP server; the HTTP shell
-// is only a browser <-> MCP protocol translator (in-process transport)
 const mcpServer = makeMantisMcp({ console: web })
 const mcpClient = new Client({ name: "mantis-web-console", version: "0.1.0" })
 const mcpPair = InMemoryTransport.createLinkedPair()

@@ -1,19 +1,3 @@
-/**
- * Per-file line cap linter (zero deps, runs on bun).
- *
- * Default: every .ts/.tsx under packages/<pkg>/src, apps/<app>/src, the
- * package test dirs, root test/, examples/ and scripts/ is capped at 100.
- * Intent: force small single-concern files - 330-line loops are how
- * product-specific names and rules sneak into core.
- *
- * Usage:
- *   bun scripts/check-lines.ts
- *   bun scripts/check-lines.ts --max 80
- *   bun scripts/check-lines.ts --skip-dirs test
- *   bun scripts/check-lines.ts --dirs packages/builtin/src
- *
- * Exit 0 = clean; exit 1 lists every over-limit file (plus total debt).
- */
 import { readFileSync, readdirSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
 
@@ -21,9 +5,6 @@ const MAX = 100
 const ROOTS = [
   "packages/*/src",
   "apps/*/src",
-  "packages/*/test",
-  "apps/*/test",
-  "test",
   "examples",
   "scripts"
 ]

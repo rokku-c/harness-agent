@@ -1,26 +1,7 @@
-/-
-  Why the walk cannot hang — `packages/effect-ui/src/screen.ts`.
-
-  `Screen.lean` proves the chain names only real screens and stops somewhere.
-  What it does not yet say is that the stop is *earned*: the walk must not be
-  able to arrive at a screen it has already taken. The implementation guards
-  that with a set of ids; the model takes a screen out of the pool instead. The
-  two agree exactly when a view's screens have distinct ids — which is the
-  invariant `screensOf` has to establish, and the one the derived-screens path
-  broke when a card titled "Root" minted the id `root`.
-
-  So this file proves the walk repeats nothing, twice over: no screen twice
-  (`walk_nodup`), and no id twice (`walk_ids_nodup`) — the latter being the
-  claim that matches the implementation's guard, and the one that needs the
-  distinct-ids hypothesis. The bridge between the two is `eq_of_id_eq`:
-  distinct ids mean distinct screens.
--/
-
 import Formal.Screen
 
 namespace EffectUi
 
-/-- Reversing a list keeps it free of repeats. -/
 theorem nodup_reverse {α : Type} {l : List α} (h : l.Nodup) : l.reverse.Nodup := by
   induction l with
   | nil => exact List.nodup_nil
@@ -34,7 +15,6 @@ theorem nodup_reverse {α : Type} {l : List α} (h : l.Nodup) : l.reverse.Nodup 
     rw [hy] at hxy
     exact hat (hxy ▸ List.mem_reverse.mp hx)
 
-/-- Distinct ids mean distinct screens. -/
 theorem eq_of_id_eq : ∀ (l : List Screen) (a b : Screen),
     (ids l).Nodup → a ∈ l → b ∈ l → a.id = b.id → a = b
   | [], a, b, _, ha, _, _ => by simp at ha
@@ -49,7 +29,6 @@ theorem eq_of_id_eq : ∀ (l : List Screen) (a b : Screen),
       · exact absurd (List.mem_map.mpr ⟨a, ha', hid⟩) hnotin
       · exact eq_of_id_eq t a b hnodup ha' hb' hid
 
-/-- Distinct ids mean distinct screens, taken as a list. -/
 theorem nodup_of_ids_nodup : ∀ (l : List Screen), (ids l).Nodup → l.Nodup
   | [], _ => List.nodup_nil
   | c :: t, h => by
@@ -58,8 +37,6 @@ theorem nodup_of_ids_nodup : ∀ (l : List Screen), (ids l).Nodup → l.Nodup
     exact List.nodup_cons.mpr
       ⟨fun hc => hnotin (List.mem_map.mpr ⟨c, hc, rfl⟩), nodup_of_ids_nodup t hnodup⟩
 
-/-- A screen that is in a list without repeats is not left behind by erasing it.
-Erase drops one occurrence, so this is where distinctness is spent. -/
 theorem not_mem_erase_self_of_nodup : ∀ (l : List Screen) (a : Screen),
     l.Nodup → a ∈ l → a ∉ l.erase a
   | [], a, _, ha => by simp at ha
@@ -76,7 +53,6 @@ theorem not_mem_erase_self_of_nodup : ∀ (l : List Screen) (a : Screen),
       · exact hct (hac ▸ hat)
       · exact not_mem_erase_self_of_nodup t a ht hat hat'
 
-/-- The walk repeats no screen. -/
 theorem walk_nodup : ∀ (l : List Screen) (c : String), (ids l).Nodup → (walk l c).Nodup := by
   intro l c
   refine walk.induct (motive := fun l c => (ids l).Nodup → (walk l c).Nodup) ?_ ?_ ?_ l c
@@ -99,7 +75,6 @@ theorem walk_nodup : ∀ (l : List Screen) (c : String), (ids l).Nodup → (walk
     exact not_mem_erase_self_of_nodup l t (nodup_of_ids_nodup l h) ht
       (mem_walk (l.erase t) c' t ht_mem)
 
-/-- The walk repeats no id either — which is what the implementation's `seen` set guards. -/
 theorem walk_ids_nodup : ∀ (l : List Screen) (c : String), (ids l).Nodup → (ids (walk l c)).Nodup := by
   intro l c
   refine walk.induct (motive := fun l c => (ids l).Nodup → (ids (walk l c)).Nodup) ?_ ?_ ?_ l c
@@ -126,14 +101,12 @@ theorem walk_ids_nodup : ∀ (l : List Screen) (c : String), (ids l).Nodup → (
     exact not_mem_erase_self_of_nodup l t (nodup_of_ids_nodup l h) ht
       (hut ▸ mem_walk (l.erase t) c' u hu_mem)
 
-/-- The chain the host draws repeats no screen. -/
 theorem chainOf_nodup {screens : List Screen} {id : String} (h : (ids screens).Nodup) :
     (chainOf screens id).Nodup := by
   have hw : (walk screens id).Nodup := walk_nodup screens id h
   rw [chainOf]
   exact nodup_reverse hw
 
-/-- The chain the host draws repeats no id. -/
 theorem chainOf_ids_nodup {screens : List Screen} {id : String} (h : (ids screens).Nodup) :
     (ids (chainOf screens id)).Nodup := by
   have hw : (ids (walk screens id)).Nodup := walk_ids_nodup screens id h

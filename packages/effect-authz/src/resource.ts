@@ -1,24 +1,3 @@
-/**
- * effect-authz — resource addressing.
- *
- * A resource is a stratified string. Every form below already exists in the
- * repo except `mcp://`, which normalizes a gateway serverId onto the same
- * dialect so gateway tool surfaces and in-process app surfaces share one key
- * space.
- *
- *   ns        "<ns>"                      bare namespace
- *   app       "<ns>::<appId>"             effect-apps appKey
- *   tool      "<ns>::<appId>.<name>"      effect-mesh toolKey
- *   ui        "ui://<ns>/<appId>/<view>"
- *   store     "store://<ns>/<appId>/<key>"
- *   config    "config://<ns>/<appId>"
- *   server    "mcp://<serverId>"          mcp-registry serverId
- *   mcp tool  "mcp://<serverId>/<tool>"
- *
- * Constraint (by convention, not enforced here): ns / appId / tool names must
- * not contain `::`, `.` or `/`.
- */
-
 export interface Resource {
   readonly raw: string
 }
@@ -28,9 +7,7 @@ export interface ParsedResource {
   readonly segments: readonly string[]
 }
 
-/** Matches exactly one segment. */
 export const ANY_SEGMENT = "*"
-/** Terminal segment: matches one or more remaining segments. */
 export const REST_SEGMENT = "**"
 
 export const asResource = (raw: string): Resource => ({ raw })

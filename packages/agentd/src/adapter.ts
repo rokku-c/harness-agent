@@ -1,22 +1,3 @@
-/**
- * The gateway config adapter: what one agent is told to run so that it can reach
- * the platform's one tool door (§F10).
- *
- * What it emits names the gateway and *presents a credential*. It deliberately
- * does not say who the agent is: identity at the door is what a verified
- * credential resolves to, never a field a config asserted, so a config that
- * carried its own agent id would be asking the door to believe a caller about
- * itself. That is why there is no `x-agent-id` here and no id in the headers —
- * the only thing that crosses is the credential the center was given for the
- * identity it bound, and a credential is one string for one principal.
- *
- * A credential is required rather than optional. The door refuses a request with
- * no credentials outright, so a config planned without one is a config that
- * cannot work, and handing an agent a file it will be turned away by is worse
- * than refusing to write it: the failure would surface at the agent, as a
- * refusal about sets, far from the operator who could have issued one.
- */
-
 import { AgentdError } from "./errors.ts"
 import { fail, record, sameKeys } from "./guards.ts"
 import type { AgentAdapter, AgentInstance, AdapterPlan, DesiredAgentConfig } from "./types.ts"
@@ -30,7 +11,6 @@ const validUrl = (value: unknown): value is string => {
   if (typeof value !== "string") return false
   try { const url = new URL(value); return url.protocol === "http:" || url.protocol === "https:" } catch { return false }
 }
-/** A bearer header, carrying something. The door is the one that verifies a token. */
 const bearer = (value: unknown): boolean => typeof value === "string" && value.startsWith("Bearer ") && value.length > "Bearer ".length
 
 function validateGatewayConfig(config: unknown): asserts config is GatewayAgentConfig {

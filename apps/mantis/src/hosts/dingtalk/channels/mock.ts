@@ -1,8 +1,3 @@
-/**
- * MockChannel: an in-memory channel for tests. Messages pushed in are
- * delivered immediately (or queued until a listener attaches); replies are
- * recorded for assertions. No polling loop - push() drives delivery.
- */
 import type { IncomingMessage, MessageChannel, OutgoingTarget, Reply } from "../messages.ts"
 
 export class MockChannel implements MessageChannel {
@@ -35,7 +30,6 @@ export class MockChannel implements MessageChannel {
   listen = async (deliver: (message: IncomingMessage) => Promise<Reply | undefined>): Promise<never> => {
     this.#deliver = deliver
     for (const queued of this.#queue.splice(0)) void this.#pump(queued)
-    // a listener lives until the process ends (like a real channel)
     return new Promise<never>(() => {})
   }
 }

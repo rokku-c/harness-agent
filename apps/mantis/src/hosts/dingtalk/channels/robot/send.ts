@@ -1,15 +1,6 @@
-/**
- * channels/robot/send.ts - OUTBOUND replies + openapi sends.
- *
- * Concept: two ways a robot speaks. Reactive replies POST text to the
- * message's sessionWebhook (no access-token dance); proactive sends go
- * through the robot openapi (oToMessages for a direct chat, groupMessages
- * for a group) with a token fetched and cached like the original clawyp.
- */
 import type { OutgoingTarget, Reply } from "../../messages.ts"
 import { DINGTALK_API, robotAccessToken } from "../openapi.ts"
 
-/** reactive reply: POST to the message's sessionWebhook (no token dance) */
 export const postWebhookReply = async (webhook: string, reply: Reply): Promise<void> => {
   if (webhook === "") return
   await fetch(webhook, {
@@ -21,7 +12,6 @@ export const postWebhookReply = async (webhook: string, reply: Reply): Promise<v
 
 export type TextSender = (target: OutgoingTarget, text: string) => Promise<void>
 
-/** proactive text send via the robot openapi (markdown card, like clawyp) */
 export const openApiTextSender = (clientId: string, clientSecret: string): TextSender => {
   const sendOpenApi = async (target: OutgoingTarget, text: string): Promise<void> => {
     const token = await robotAccessToken(clientId, clientSecret)

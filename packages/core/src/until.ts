@@ -2,10 +2,6 @@ import type { Schema } from "effect"
 import type { Capabilities } from "./capabilities.ts"
 import { UnsupportedCapability } from "./errors.ts"
 
-/**
- * The termination condition as data - and the agent's OUTPUT type. An agent
- * declares what it returns by declaring when it stops.
- */
 export type Until<A> =
   | { readonly _tag: "Text" }
   | { readonly _tag: "Thinking" }
@@ -24,13 +20,11 @@ export const Until = {
   thinking: { _tag: "Thinking" } as Until<string>,
   toolCall: { _tag: "ToolCall" } as Until<Extract<import("./content.ts").Content, { _tag: "ToolCall" }>>,
   stop: { _tag: "Stop" } as Until<string>,
-  /** structured result; pass asTool to serve it as a native tool call */
   schema: <A>(
     schema: Schema.Schema<A, any, never>,
     asTool?: { readonly name: string; readonly description?: string }
   ): Until<A> => ({ _tag: "Schema", schema, ...(asTool === undefined ? {} : { asTool }) })
 }
-/** Check a driver's capabilities against the requested until - fail loud, precisely. */
 export const requireUntil = <A>(id: string, capabilities: Capabilities, until: Until<A>) => {
   const reject = (required: string, actual: string) => new UnsupportedCapability({ agent: id, required, actual })
   switch (until._tag) {
@@ -50,4 +44,3 @@ export const requireUntil = <A>(id: string, capabilities: Capabilities, until: U
       return undefined
   }
 }
-

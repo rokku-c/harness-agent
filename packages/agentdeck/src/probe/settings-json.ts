@@ -1,18 +1,10 @@
-/**
- * gemini and pi: agents configured by a single settings JSON, with no separate
- * provider block to follow. Both are read here rather than in their own files
- * because the shape - one document, a default model, an optional MCP map - is
- * the same concern; splitting them would duplicate the whole reader.
- */
 import { join } from "node:path"
 import { fileExists, mcpFactsFrom, readJsonFile, record, text } from "./read.ts"
 import type { AgentFacts, AgentKind, ProviderFacts } from "./types.ts"
 
 interface SettingsAgent {
   readonly kind: AgentKind
-  /** path of the settings document, relative to home */
   readonly settings: string
-  /** document proving credentials exist, when it is not the settings file */
   readonly auth?: string
   readonly read: (settings: Record<string, unknown>) => ProviderFacts
 }

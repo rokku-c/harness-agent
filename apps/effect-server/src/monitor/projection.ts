@@ -1,14 +1,3 @@
-/**
- * The agent's-eye read of one app: its declared view, its live state, and the
- * actions it authorises — answered as data, in five notations.
- *
- * It used to answer a sixth way as well: an HTML page with one form per action,
- * the same view drawn a second time with its own hand-picked colours. That page
- * is gone. A person reads a canvas on the console, and this plane is what an
- * agent and a program read — `json`/`toml`/`compact`/`token` are notations of one
- * contract, not renderings of one, so they stay.
- */
-
 import { fromCatalogEntry } from "@effect-agent/effect-parity"
 import {
   makeRenderContract, contractToCompact, contractToJson, contractToToml, contractToTokenized,

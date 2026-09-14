@@ -5,7 +5,6 @@ export class ProviderSelectionError extends Error {
   constructor(readonly status: number, readonly type: string, message: string) { super(message) }
 }
 
-/** Handler-local rings: keep the next surviving ID on edits; new IDs follow config order. */
 export const makeProviderSelector = () => {
   const rings = new Map<ApiType, Ring>()
   const sync = (providers: readonly GatewayProvider[]) => {

@@ -2,7 +2,6 @@ import { headerPairs, targetHeaders } from "./headers.ts"
 import { targetURL } from "./request.ts"
 import type { HttpSend, MainNode } from "./types.ts"
 
-/** Node identity and upstream identity never occupy the same Authorization header. */
 export const relayRequest = (appId: string, target: Request, main: MainNode, send: HttpSend): Promise<Response> => {
   const url = targetURL(main.url)
   url.pathname = "/-/network/egress"; url.search = ""

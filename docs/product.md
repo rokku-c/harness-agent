@@ -26,8 +26,8 @@ One workbench, two users, one shared reality:
 | L4 channels | dingtalk robot/dws, web, future hosts | pure adapters over the same session agent |
 
 Round 1 state: the capability manifest exists and is the single source for
-supply + session ops + catalog descriptions; tests prove no drift
-(apps/mantis/src/capabilities.ts + test/capabilities.test.ts).
+supply + session ops + catalog descriptions; the no-drift test was deleted with
+the suite, so the derivation now stands on reading (apps/mantis/src/capabilities.ts).
 
 ## Gap list (what 'mature' still needs)
 
@@ -35,7 +35,7 @@ supply + session ops + catalog descriptions; tests prove no drift
    CRUD (update/delete) now exists as generic record capabilities (R20).
 2. UI from declarations: manifest -> automatic operator UI (resource panels,
    catalog view) without hand-written React per tool.
-3. Agent usability loop: scriptedModel acceptance tests per capability + a
+3. Agent usability loop: scriptedModel acceptance runs per capability + a
    real-model smoke per release (chat, notes, reminders, approvals).
 4. Naming: settle the product name + console branding (page title, header).
 5. Persistence: NotesStore is in-memory per process; promote to the
@@ -50,25 +50,23 @@ supply + session ops + catalog descriptions; tests prove no drift
   replay on reload; operator REST PATCH/DELETE /api/workspace and the MCP
   mantis_workspace_update/delete mirror them; the Workspace UI edits and
   deletes any record row inline (generic, no per-kind code). Gates on the
-  same approval policy as other writes. 87/87 mantis tests (6 new mutation
-  tests); REST smoke + real-model agent trial recorded in SELFUSE.md R20; the trial's top friction fix shipped same round: /api/workspace now also carries the full capability surface (capabilities[]), so update/delete/read/enable are discoverable without guessing.
+  same approval policy as other writes. REST smoke + real-model agent trial recorded in SELFUSE.md R20; the trial's top friction fix shipped same round: /api/workspace now also carries the full capability surface (capabilities[]), so update/delete/read/enable are discoverable without guessing.
 - R1 (done): capability manifest as single source of the tool surface;
   supply / ops / catalog descriptions derived from it; digest + visibility
-  regression fixed (200 tests green).
+  regression fixed.
 - R2 (done): workspace resources DECLARED (apps/mantis/src/workspace.ts);
   append ops, recall kind filter and read outputs GENERATE from the
   declarations; third resource "task" proves adding a resource = one
-  declaration, zero hand-written op code (fake-resource test). 208 green.
+  declaration, zero hand-written op code (exercised with a fake resource).
 - R3 (done): automatic human UI derived from the declarations - Workspace tab
   on the web console renders every resource (label / write capability / records)
   plus a quick-add form GENERICALLY from /api/workspace (mantis_workspace MCP
   tool); zero per-resource UI code. Verified in a real browser (add + refresh).
-  209 tests green.
 - R4 (done): durable SHARED workspace - the host owns ONE append-only JSONL
   NotesStore (workspaceFile / MANTIS_WORKSPACE_FILE; default <uiDir>/workspace.jsonl),
   injected into every conversation: human UI writes, any agent session, restarts.
   Verified: restart keeps records; a fresh agent conversation recalls human-written
-  tasks. 213 tests green.
+  tasks.
 - R5 (done): layered acceptance matrix (docs/acceptance.md) with per-row
   evidence; release smoke: real model catalog -> enable -> A2UI form render ->
   button click -> [ui.action] -> task_write lands in the shared workspace.
@@ -78,23 +76,23 @@ supply + session ops + catalog descriptions; tests prove no drift
 - R30 (done): whole console re-skinned to simple-line minimal light
   (hairline borders, gray fills, one accent; dark vars removed); bundle rebuilt,
   live-verified with DOM assertions + screenshots; instance relaunched (id5).
-- R29 (done): MCP stdio external-agent contract pinned as an in-repo test
+- R29 (done): MCP stdio external-agent contract recorded end to end
   (clean stdout JSON-RPC, full mantis_* surface, state round-trip w/o model);
-  aligned Schema plain-text semantics to the author's fail-once contract;
-  suite 254 green. Live demos still await the user's BAIZHI_API_KEY.
+  aligned Schema plain-text semantics to the author's fail-once contract.
+  Live demos still await the user's BAIZHI_API_KEY.
 - R28 (done): loop-split refactor (loop/* modules) integrated - fixed
-  finalToolFor asTool default, Schema re-ask budget, driver type; suite 253 green;
-  + workspace update/remove & ui-version contract tests. Live demos still await
-  the user's BAIZHI_API_KEY.
+  finalToolFor asTool default, Schema re-ask budget, driver type;
+  + workspace update/remove & ui-version contract coverage. Live demos still
+  await the user's BAIZHI_API_KEY.
 - R27 (done): restart trust automated (fresh console over the same dirs
   remembers turns saw:2 + workspace file); visual review PNGs captured for the
-  user; suite 251 green.
-- R26 (done): approval loop automated under a scripted model
-  (approvals-flow.test.ts - approve lands the agent record, deny drops it);
-  suite 250 green. Live model still needs the user's BAIZHI_API_KEY.
+  user.
+- R26 (done): approval loop exercised under a scripted model
+  (approve lands the agent record, deny drops it).
+  Live model still needs the user's BAIZHI_API_KEY.
 - R25 (done): MCP stdio hygiene (logs off stdout) + console.ts tail rebuilt
-  after out-of-band truncation (covered by new scripted console-flow tests);
-  loop.ts structured-output fixes; external-agent stdio e2e verified at the
+  after out-of-band truncation (a scripted console-flow run covered it at the
+  time); loop.ts structured-output fixes; external-agent stdio e2e verified at the
   protocol level (14 mantis_* tools). Live-model runs paused: gateway now
   requires BAIZHI_API_KEY (401) - needs the user's key.
 - R24 (done): approval loop e2e on an isolated gated console - protected write
@@ -113,7 +111,7 @@ supply + session ops + catalog descriptions; tests prove no drift
   buttons, carved inputs, pills; A2UI surfaces remapped; light scheme forced.
 - R20 (done): record mutations as declarative capabilities (update_record /
   delete_record over a generic record id; durable store replays mutation
-  op-lines across restarts) - mutation.test.ts.
+  op-lines across restarts).
 - R19 (done): responsive UI - mobile/touch gets a bottom nav + horizontal
   conversation strip, desktop keeps top tabs + left rail, all layouts survive
   any ratio with zero page overflow (browser-verified at 7 viewport sizes);

@@ -1,8 +1,3 @@
-/**
- * The loop as a sentence. The agent definition expresses WHAT it does -
- * context mapping, termination, capability access - and the driver decides
- * HOW the loop runs. Same definition, any driver.
- */
 import { Effect, Schema } from "effect"
 import {
   Agent, AgentContext, ConsoleHook, Harness, Op, Until, Uri,
@@ -14,7 +9,6 @@ const Plan = Schema.Struct({
   steps: Schema.Array(Schema.Struct({ title: Schema.String, doneWhen: Schema.String }))
 })
 
-// a scripted driver: the loop's HOW, replaced at will
 const scriptedDriver = (answers: unknown[]): Driver => ({
   id: "scripted",
   capabilities: {
@@ -30,13 +24,11 @@ const scriptedDriver = (answers: unknown[]): Driver => ({
     }) as any
 })
 
-// a read binding: its content materializes into the context before the run
 const notes: Binding = {
   uri: Uri.make("mem", "notes", "ops"),
   read: Effect.succeed({ _tag: "Text" as const, text: "2026-08-12 postmortem: config rollback" } as const)
 }
 
-// a write binding with a typed op: callable only through writes()
 const issueTracker: Binding = {
   uri: Uri.make("svc", "tracker", "main"),
   ops: [Op.write({
@@ -48,7 +40,6 @@ const issueTracker: Binding = {
   })]
 }
 
-// the sentence: define -> returns -> uses -> writes -> implementedBy
 const Planner = Agent
   .define("planner", (task: string) => AgentContext.text("Plan this task: " + task))
   .returns(Until.schema(Plan, { name: "submit_plan", description: "Return the completed plan" }))
@@ -62,7 +53,6 @@ const plan = await Effect.runPromise(
 
 console.log("structured plan:", JSON.stringify(plan, null, 2))
 
-// the same definition, now observed: hooks wrap any driver
 const observed = Harness.withHooks(
   scriptedDriver([{ goal: "ship v3", steps: [{ title: "freeze scope", doneWhen: "sign-off" }] }]),
   ConsoleHook
@@ -73,4 +63,3 @@ const plan3 = await Effect.runPromise(observed.run({
   access: [{ binding: notes, write: false }, { binding: issueTracker, write: true }]
 }))
 console.log("observed plan:", plan3.goal)
-

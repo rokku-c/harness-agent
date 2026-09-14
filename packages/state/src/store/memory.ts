@@ -1,9 +1,3 @@
-/**
- * store/memory.ts - MemoryStore: explicit ephemeral/test implementation.
- *
- * Concept: an in-memory Ref map implementing the Store seam (M1). Nothing is
- * durable and no transaction machinery is needed - transaction is identity.
- */
 import { Effect, Layer, Ref } from "effect"
 import { Store, deriveMeta, type StoredValue, type StoreService } from "./contract.ts"
 

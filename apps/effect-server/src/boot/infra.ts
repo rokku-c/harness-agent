@@ -13,21 +13,10 @@ export interface AppCatalogServices {
   readonly uiViews: ReadonlyMap<string, EffectUiView>
 }
 
-/**
- * The catalog is a live view over the host's services (§4), not a snapshot of one
- * kernel's registrations — which is why it can be built once and shared with every
- * kernel revision.
- *
- * It carries this server's *policy*, which is the whole of what it adds:
- * `apps-catalog.ts` derives the entries, and `authorize` below decides what a
- * plane of them is worth here. Named for the host rather than `makeAppCatalog`,
- * which is `effect-apps`'s in-memory one — two catalogs, two names.
- */
 export const makeHostCatalog = (services: AppCatalogServices): AppCatalog => makeLiveAppCatalog({
   registry: services.registry,
   configs: services.configs,
   uiViews: services.uiViews,
-  // Local single-operator host. Config credentials are never in the agent plane.
   authorize: (_id: string, plane: string) => plane !== "config",
   stateReader: async (id: string) => {
     if (id !== "board") return undefined
@@ -36,13 +25,7 @@ export const makeHostCatalog = (services: AppCatalogServices): AppCatalog => mak
   },
 })
 
-/**
- * §4's one table, served: the host's privileged plane and every app's tools, each
- * with its schema. Read-only by construction — the summary carries no invoke, so
- * this route describes and never acts (acting stays on /-/planes).
- */
 export const registerInfra = (app: EffectServer, catalog: AppCatalog): void => {
-  // Read-only service view for chrome and apps; mutating lifecycle stays on /-/planes.
   app.host.registerRoute({
     path: "/-/status",
     method: "GET",

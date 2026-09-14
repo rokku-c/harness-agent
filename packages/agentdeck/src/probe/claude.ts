@@ -1,8 +1,3 @@
-/**
- * claude code facts. Two files matter: `~/.claude/settings.json` holds the
- * model endpoint and the permission rules, `~/.claude.json` holds MCP servers -
- * globally, and separately per project.
- */
 import { join } from "node:path"
 import { credentialOf, hostOf, mcpFactsFrom, readJsonFile, record, strings, text } from "./read.ts"
 import type { AgentFacts, ProviderFacts } from "./types.ts"

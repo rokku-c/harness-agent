@@ -1,4 +1,3 @@
-/** reading config files, and reducing them so no secret survives the read. */
 import { readFile } from "node:fs/promises"
 import { parse as parseToml } from "smol-toml"
 import type { CredentialState, McpServerFacts } from "./types.ts"
@@ -30,19 +29,15 @@ export const readTomlFile = async (path: string): Promise<Record<string, unknown
 export const fileExists = async (path: string): Promise<boolean> =>
   await readFile(path).then(() => true).catch(() => false)
 
-/** HOST ONLY. A configured endpoint may embed credentials in its userinfo, and
- *  a probe result travels to a control plane. */
 export const hostOf = (url: string): string | undefined => {
   try { return new URL(url).host } catch { return undefined }
 }
 
-/** presence, never value */
 export const credentialOf = (env: Record<string, unknown>, keys: ReadonlyArray<string>): CredentialState => {
   for (const key of keys) if (text(env[key]) !== undefined) return "configured"
   return "missing"
 }
 
-/** one MCP server entry in any of the dialects we have seen, normalized */
 export const mcpFacts = (
   name: string,
   raw: unknown,

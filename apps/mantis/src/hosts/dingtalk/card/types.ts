@@ -1,11 +1,3 @@
-/**
- * card/types.ts - the APPROVAL CARD CONTRACT.
- *
- * Concept: a real DingTalk interactive card (createAndDeliver) carries one
- * pending approval. The call id rides the outTrackId ("mantis-approval-<id>")
- * so the card template needs NO dynamic parameters; the template's buttons
- * carry a static callback payload configured in the DingTalk console.
- */
 import type { OutgoingTarget } from "../messages.ts"
 
 export type CardAction = { readonly callId: string; readonly action: "approve" | "deny" }
@@ -21,7 +13,6 @@ export interface ApprovalCardParams {
   readonly text: string
 }
 
-/** the cardParamMap handed to the template (template variable names) */
 export const approvalCardParamMap = (params: ApprovalCardParams, contentKey = "content"): Record<string, string> => ({
   [contentKey]: params.text,
   tool: params.tool,
@@ -33,11 +24,9 @@ export interface CardDelivererOptions {
   readonly clientId: string
   readonly clientSecret: string
   readonly cardTemplateId: string
-  /** the template variable that carries the card text (default "content") */
   readonly contentKey?: string
 }
 
-/** the deliverable seam the host calls to put an approval in front of a human */
 export interface CardDeliverer {
   readonly sendApproval: (target: OutgoingTarget, params: ApprovalCardParams) => Promise<void>
 }

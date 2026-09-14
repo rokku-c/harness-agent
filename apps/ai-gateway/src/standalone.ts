@@ -4,7 +4,6 @@ import { gatewayConfig, type AiGatewayConfig } from "./config.ts"
 import { typeOrmRecorder } from "./recorder.ts"
 import { openGatewayConfig } from "./standalone-config.ts"
 
-/** Self-managed listener options; never read from the application config. */
 export interface StandaloneListenerOptions { readonly port?: number }
 export type AiGatewayServerOptions = Omit<AiGatewayConfig, "rules"> & AiGatewayHandlerOptions & StandaloneListenerOptions
 

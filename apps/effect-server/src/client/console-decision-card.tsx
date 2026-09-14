@@ -1,16 +1,3 @@
-/**
- * One decision, open: what a human needs to judge it.
- *
- * `flows.md` §2.H10 asks this pane for two controls, `Allow` and `Deny`, plus
- * `Hold`. They are not drawn, and the reason is not a design choice: a verdict is
- * a write to the decision store (§9.1), that store does not exist yet, and a pair
- * of buttons that cannot write would report a decision answered while the agent
- * stayed blocked — the exact failure this object exists to end. What is drawn is
- * everything §1.5 makes readable, including the answer when it was given
- * elsewhere (§2.H10.5), so the pane is complete as a record and honest about
- * being one.
- */
-
 import * as React from "react"
 import { Flex, Heading, Text } from "@radix-ui/themes"
 import type { Decision } from "./console-decision.ts"
@@ -22,7 +9,6 @@ const Row = ({ label, value }: { readonly label: string; readonly value: string 
     <Text size="2">{value}</Text>
   </Flex>
 
-/** Both halves of a deadline: the instant, and how long is left of it when this is drawn. */
 const deadlineText = (deadline: number): string => {
   const left = Math.round((deadline - Date.now()) / 60_000)
   if (left <= 0) return `${readAt(deadline)} · expired`

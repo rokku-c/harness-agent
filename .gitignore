@@ -7,8 +7,6 @@ config.toml
 .effect-agent/
 .effect-bundles
 
-# app reload generations (see effect-server boot/reload.ts)
 .effect-reload
 
-# Lean build output (see formal/, scripts/check-proofs.ts)
 formal/.lake

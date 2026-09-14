@@ -1,10 +1,3 @@
-/**
- * R5: apps must not call bun/node system APIs directly (fs/network/process/env).
- *
- * Exemptions are the caller's business — this turns one file's source into at
- * most one finding.
- */
-
 import { scanSystemIo } from "./system-io-scan.ts"
 import type { Finding } from "./boundary-finding.ts"
 

@@ -1,19 +1,9 @@
-/**
- * Opening and closing sessions - the moves the control room exists for.
- *
- * A session's config arrives raw and is normalized for the kind it opens, so
- * the declaration takes that raw shape and hands normalization the same value
- * the route always did. A kind is either one the deck serves or a preset an
- * operator registered, and an id already in use is refused rather than replaced:
- * two sessions under one id would be one session the page could not address.
- */
 import { normalizeConfig } from "@effect-agent/agentdeck"
 import { z } from "@effect-agent/effect-config"
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import type { DeckDomain } from "../domain/deck.ts"
 import { refuse } from "./refusal.ts"
 
-/** The raw config an operator pastes; normalizing it is the deck's job, not the caller's. */
 const rawConfig = z.record(z.string(), z.unknown())
 
 export const sessionOperations = ({ deck, presets, gatewayFor, sessionPolicy, closeSession }: DeckDomain): readonly Operation[] => [
@@ -31,17 +21,11 @@ export const sessionOperations = ({ deck, presets, gatewayFor, sessionPolicy, cl
         refuse(404, "unknown agent kind: " + kind + " (register a preset via POST /api/presets or use custom)")
       }
       const config = normalizeConfig(kind as never, input.config ?? {})
-      // The field is labelled optional, and an operator who leaves it blank has
-      // supplied no id — the deck names the session instead. Taking the empty
-      // string as an identity would name every such session alike: the row would
-      // carry a key no press can address, so Open and Close would do nothing and
-      // say nothing about why.
       const sessionId = input.sessionId === "" ? undefined : input.sessionId
       if (sessionId !== undefined && deck.sessions().some(s => s.sessionId === sessionId)) {
         refuse(409, "session already open: " + sessionId)
       }
       const opened = await gatewayFor(kind).open({ sessionId, prompt: input.prompt, config })
-      // a policy the config asked for lives exactly as long as its own session
       const auto = config.consent?.autoApproveTools
       const mode = config.consent?.defaultDecision as "ask" | "allow" | "deny" | undefined
       if (auto !== undefined && auto.length > 0) sessionPolicy.set(opened.sessionId, { auto: new Set(auto), mode: mode ?? "ask" })

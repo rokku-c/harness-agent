@@ -1,18 +1,8 @@
-/**
- * A turn, and the retry that runs the last one again.
- *
- * A turn the agent stopped on a consent ask is kept as that session's pending
- * text, so the retry sends the text it kept instead of asking the operator to
- * type it a second time - which is why retry declares no text of its own. A
- * session that is already running refuses a new turn rather than queueing it,
- * and a turn still waiting on consent answers with the calls it is waiting for.
- */
 import { z } from "@effect-agent/effect-config"
 import { operation, type Operation } from "@effect-agent/effect-interface"
 import type { DeckDomain } from "../domain/deck.ts"
 import { Refusal, refuse } from "./refusal.ts"
 
-/** One turn's move. A retry re-sends what the session kept, so it carries no text. */
 const send = async ({ deck, sessionGateway, lastTurn }: DeckDomain, id: string, text: string | undefined, retry: boolean): Promise<unknown> => {
   const said = retry ? lastTurn.get(id) : text ?? ""
   if (said === undefined) refuse(404, "no pending turn to retry")
@@ -20,7 +10,6 @@ const send = async ({ deck, sessionGateway, lastTurn }: DeckDomain, id: string, 
   if (!gateway) refuse(404, "unknown session")
   if (deck.sessions().find(s => s.sessionId === id)?.status === "running") refuse(409, "session busy: " + id)
   const out = await gateway.send(id, said)
-  // a turn waiting on consent is the only one worth keeping; anything else was answered
   if (!out.ok && out.awaiting?.length) lastTurn.set(id, said)
   else lastTurn.delete(id)
   if (out.ok) return { ok: true, text: out.text, ...(retry ? { retried: true } : {}) }
@@ -50,9 +39,6 @@ export const turnOperations = (domain: DeckDomain): readonly Operation[] => [
     http: { method: "GET", path: "/api/session/:id/history" },
     handler: async (input) => {
       const { deck, sessionGateway } = domain
-      // A session that is gone has no transcript. Answering with an empty one
-      // would say "this session has no turns yet" about a session that does not
-      // exist — and would keep saying it after the operator closed it.
       const gateway = sessionGateway(input.id)
       if (!gateway) refuse(404, "unknown session")
       return {

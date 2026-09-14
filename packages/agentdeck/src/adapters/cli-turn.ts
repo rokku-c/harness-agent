@@ -1,12 +1,3 @@
-/**
- * agentdeck/adapters/cli-turn - one CLI turn: spawn the agent for a session,
- * watch it to terminal, and return the outcome.
- *
- * The box carries what only a turn knows — the live child. The status the turn
- * leaves behind is `session-table.ts`'s, applied from the outcome; a turn
- * resolves exactly once whatever ends it: output, a spawn error, a timeout, or
- * the operator closing the session mid-turn.
- */
 import { spawn, type ChildProcess } from "node:child_process"
 import type { AgentKind } from "../kinds.ts"
 import type { SendOutcome } from "../flow.ts"
@@ -27,9 +18,6 @@ export const runTurn = (box: CliBox, invocation: CliInvocation): Promise<SendOut
     const { file, argv } = invocation
     const env = { ...process.env as Record<string, string> }
     for (const [k, v] of (box.config.env ?? new Map())) env[k] = v
-    // the dialect's own environment last, so it wins: what it holds is a
-    // credential the platform issued for this run, and a saved config left over
-    // from an earlier one must not be able to shadow it
     for (const [k, v] of Object.entries(invocation.env)) env[k] = v
     const child = spawn(file, [...argv], { cwd: box.config.cwd, env, stdio: ["ignore", "pipe", "pipe"], detached: true })
     box.active = child

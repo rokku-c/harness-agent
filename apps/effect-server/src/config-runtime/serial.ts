@@ -1,4 +1,3 @@
-/** Serialize activation per app, while unrelated apps may apply concurrently. */
 export const keyedSerial = () => {
   const tails = new Map<string, Promise<unknown>>()
   return <T>(key: string, action: () => Promise<T>): Promise<T> => {

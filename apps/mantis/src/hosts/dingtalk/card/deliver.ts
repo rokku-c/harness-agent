@@ -1,15 +1,6 @@
-/**
- * card/deliver.ts - SENDING approval cards (openapi).
- *
- * Concept: createAndDeliver one interactive card via the DingTalk card
- * openapi with the robot identity. callbackType STREAM routes the button
- * click back over the dingtalk-stream TOPIC_CARD subscription; the same
- * open space id shapes are used for groups and single chats.
- */
 import { DINGTALK_API, robotAccessToken } from "../channels/openapi.ts"
 import { approvalOutTrackId, approvalCardParamMap, type ApprovalCardParams, type CardDeliverer, type CardDelivererOptions } from "./types.ts"
 
-/** sends interactive approval cards via the card openapi (robot identity) */
 export const openApiCardDeliverer = (options: CardDelivererOptions): CardDeliverer => {
   const contentKey = options.contentKey ?? "content"
   return {

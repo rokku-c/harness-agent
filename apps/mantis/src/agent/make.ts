@@ -1,13 +1,3 @@
-/**
- * agent/make.ts - ASSEMBLING one mantis session agent.
- *
- * Concept: wire options into a driver: the default mantis supply registry
- * (from the capability manifest), a fresh ToolSupply pre-enabled with the
- * session's surface, the notes/ops bindings, the EffectAgent driver with
- * context economy (planTools = visible surface) and reflection, hooks, and
- * the program defined over the FinalReply contract via the final_answer
- * tool (declared here in the agent layer, not the core).
- */
 import { Effect } from "effect"
 import {
   Agent, AgentContext, eaUri, Harness, Until, type Binding
@@ -21,7 +11,6 @@ import { makeMantisOps, NotesStore } from "../tools.ts"
 import { MANTIS_INSTRUCTIONS, REFLECT_PROMPT } from "./persona.ts"
 import type { Mantis, MantisOptions } from "./options.ts"
 
-/** the mantis tool tiers, derived from the capability manifest (single source of truth) */
 export const mantisSupply = supplyFromCapabilities(MANTIS_CAPABILITIES)
 
 export const makeMantis = (options: MantisOptions): Mantis => {
@@ -36,9 +25,7 @@ export const makeMantis = (options: MantisOptions): Mantis => {
     model: options.model,
     instructions: options.instructions ?? MANTIS_INSTRUCTIONS,
     maxSteps: options.maxSteps,
-    // context economy: the model sees only the planned (grown) surface
     planTools: () => supply.visible() as ReadonlyArray<string>,
-    // reflection: one short prompt after a failed tool step
     reflect: (state) => (state.lastToolError === undefined ? undefined : REFLECT_PROMPT),
     maxReflections: options.maxReflections ?? 2
   })
@@ -59,5 +46,4 @@ export const makeMantis = (options: MantisOptions): Mantis => {
   return { agent: program, supply, notes, approvals }
 }
 
-/** run a mantis session to its FinalReply (convenience for demos/tests) */
 export const runMantis = (mantis: Mantis, message: string) => Effect.runPromise(mantis.agent.run(message))

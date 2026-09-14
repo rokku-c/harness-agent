@@ -13,11 +13,13 @@ const serverSchema = z.object({
   capabilities: capabilities.optional(), apps: z.array(z.string().min(1)).default([]),
 }).strict()
 
+export const TOKEN_MIN_LENGTH = 16
+
 const schema = z.object({
   heartbeatTtlMs: z.number().int().positive().default(2000),
   offlineAfterMs: z.number().int().positive().default(60000),
   servers: z.array(serverSchema).default([]),
-  registrationTokens: z.record(z.string(), z.string().min(16)).default({}),
+  registrationTokens: z.record(z.string(), z.string().min(TOKEN_MIN_LENGTH)).default({}),
 }).strict()
 
 export const effectConfig: ConfigDeclaration<typeof schema> = {

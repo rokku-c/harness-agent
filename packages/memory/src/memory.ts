@@ -1,9 +1,3 @@
-/**
- * Memory: the replaceable long-term memory seam (E10). The contract is
- * remember/recall/promote; implementations may be keyword-scored (default),
- * vector, file or graph. The promotion gate is the nmantis learning ladder
- * (episode → lesson → skill) expressed as a pluggable hook, not a concept.
- */
 import { Context, Effect } from "effect"
 import { Store } from "@effect-agent/state"
 import { randomUUID } from "node:crypto"
@@ -26,25 +20,21 @@ export interface MemoryService {
   readonly remember: (content: string, type: string, tags?: ReadonlyArray<string>, importance?: number) => Effect.Effect<MemoryEntry>
   readonly recall: (query: string, limit?: number) => Effect.Effect<ReadonlyArray<RecallResult>>
   readonly entries: (type?: string) => Effect.Effect<ReadonlyArray<MemoryEntry>>
-  /** Promotion hook: promote from one tier to another (episode→lesson→skill); no-op by default, replaceable implementation */
   readonly promote: (from: string, to: string, entry: MemoryEntry) => Effect.Effect<void>
 }
 
 export class Memory extends Context.Tag("effect-agent/Memory")<Memory, MemoryService>() {}
 
-/** Tokenize into lower-cased words for naive relevance scoring. */
 const tokens = (text: string): ReadonlyArray<string> =>
   text.toLowerCase().split(/[^a-z0-9\u4e00-\u9fa5]+/).filter((word) => word.length > 0)
 
 const score = (entry: MemoryEntry, queryTokens: ReadonlyArray<string>): number => {
-  // substring matching: works for CJK (no word boundaries) and English alike
   const haystack = (entry.content + " " + entry.tags.join(" ")).toLowerCase()
   let overlap = 0
   for (const token of queryTokens) if (haystack.includes(token)) overlap++
   return overlap > 0 ? overlap / Math.sqrt(queryTokens.length) * (1 + entry.importance) : 0
 }
 
-/** Default implementation: keyword-scored memory persisted through the Store. */
 export const ScopedMemory = Effect.gen(function* () {
   const store = yield* Store
   const service: MemoryService = {
@@ -63,8 +53,6 @@ export const ScopedMemory = Effect.gen(function* () {
       }),
     recall: (query, limit = 5) =>
       Effect.gen(function* () {
-        // every entry, because ranking is the point: a bound here would decide
-        // which memories are eligible before anything has scored them
         const all = yield* store.query({})
         const queryTokens = tokens(query)
         const entries = all

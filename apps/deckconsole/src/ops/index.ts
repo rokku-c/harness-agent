@@ -1,12 +1,3 @@
-/**
- * This deck's whole surface, declared once.
- *
- * Every declaration here is served twice - as an MCP tool and as the HTTP route
- * the console already called - from this one list, so an agent and the page
- * cannot drift into two decks that accept different input or answer a call
- * differently. What is left for the router to do is the assets and its own 404:
- * a path no operation declares is a path this app does not have.
- */
 import type { Operation } from "@effect-agent/effect-interface"
 import type { DeckDomain } from "../domain/deck.ts"
 import { consentOperations } from "./consent-ops.ts"

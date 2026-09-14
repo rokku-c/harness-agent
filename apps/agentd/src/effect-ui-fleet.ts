@@ -1,18 +1,3 @@
-/**
- * The screen the app starts on: the fleet itself, and the two doors out of it.
- *
- * The fleet is the surface rather than a menu entry, because it is what an
- * operator comes back to read; a fleet behind a door costs a press every time
- * and shows nothing when nobody presses. The two doors lead to the queue the
- * fleet's work lands in and to the servers it is assembled from, and both sit
- * above the scrolling region so a screen of rows cannot carry them off it.
- *
- * One failure notice stands for the whole screen. The fleet is one read, so the
- * three inventories below it share one verdict: three copies of one failed read
- * would be the same sentence three times and would each have to be believed
- * separately. A list with nothing in it says so itself, which is a fact about
- * the list and not about the read.
- */
 import { heading, press, region, row, sourceStatusPath, text, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { agentsBlock } from "./effect-ui-agents.ts"
 import { livenessBlock } from "./effect-ui-liveness.ts"

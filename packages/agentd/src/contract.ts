@@ -6,14 +6,6 @@ import type { DesiredNode, NodeAppPlacement, NodeBinding } from "./node-types.ts
 import type { NodePresence } from "./presence.ts"
 import type { WireArtifact } from "./artifact-wire.ts"
 
-/**
- * What the server believes about who is up (§8.5-1), and whether the verbs that
- * *change* that belief are guarded.
- *
- * `tokenRequired` is here rather than left implicit because an unarmed guard and
- * an armed one look identical from outside — one 401 away from each other — and
- * the operator should not have to read the config to find out which they have.
- */
 export interface NodeLiveness {
   readonly tokenRequired: boolean
   readonly nodes: readonly NodePresence[]
@@ -25,60 +17,17 @@ export interface AgentdControl {
   registerServer(server: McpServerRef): McpServerRef
   upsertSet(set: McpSet): McpSet
   bindAgent(agentId: string, setIds: readonly string[]): AgentBinding
-  /**
-   * The credential one agent presents at the gateway's door (§F10). Separate
-   * from the agent record because a record is listed and a secret is not, and
-   * separate from the binding because an identity is a fact before it reaches
-   * anything: an agent bound to no set still knocks, and is refused for the
-   * reason that is true of it — no set bound to this agent — rather than for
-   * having no credential at all.
-   */
   setCredential(agentId: string, token: string): { readonly agentId: string; readonly revision: number }
-  /**
-   * The mcpset facts as they stand: the one place a set and a binding live, read
-   * as a value rather than written out to a second store. `revision` is the
-   * counter every write here bumps and every receipt is measured against, so a
-   * reader that has built for one revision has built for every write below it —
-   * which is what lets the door rebuild on the counter instead of on a clock.
-   */
   mcpsets(): { readonly revision: number; readonly sets: readonly McpSet[]; readonly bindings: readonly AgentBinding[] }
-  /**
-   * Publish one artifact version for distribution (§7.6); keyed `bundleId@version`.
-   * `source` is the directory its bytes live in, when the publisher has them —
-   * a version published without one is a version a node must already have.
-   */
   publishBundle(bundle: BundleRef, source?: string): BundleRef
-  /**
-   * A published version's bytes, as they cross the wire (§8.2, P6). `token` is
-   * the node credential, checked here rather than at the route so one guard
-   * covers every node-facing verb.
-   */
   artifact(bundleId: string, token?: string): WireArtifact
-  /**
-   * The config one agent runs with, served to the machine that runs it (§F10).
-   * It carries the credential, so it is fetched with the node credential and is
-   * never drawn on a console. A read, so it does not bump — and the address in the
-   * plan is this center's declaration, never the caller's.
-   */
   gatewayConfig(agentId: string, token?: string, reported?: unknown): AdapterPlan<GatewayAgentConfig>
-  /** Bind artifacts to an agent; bumps the same revision the receipt is measured against. */
   bindBundles(agentId: string, bundleIds: readonly string[]): AgentBinding
   desired(agentId: string): DesiredAgentConfig
   reportApplied(agentId: string, revision: number, state: unknown): { agentId: string; revision: number; state: unknown }
-  /**
-   * Bind a whole node's deployment (§8.4): one kernel plus app placements at
-   * namespaces. Same revision counter and receipt as the agent-level bindings,
-   * because a bigger unit is not a second concurrency rule.
-   */
   bindNode(nodeId: string, kernelId: string | undefined, apps: readonly NodeAppPlacement[]): NodeBinding
   desiredNode(nodeId: string): DesiredNode
   reportNodeApplied(nodeId: string, revision: number, state: unknown): { nodeId: string; revision: number; state: unknown }
-  /**
-   * Node liveness (§8.5-1). Registering a machine is a declaration — it says
-   * what a node *is*, and stays true whether or not the node is running. These
-   * four are the node's own signs of life, which is the only thing that makes
-   * `online` true.
-   */
   announceNode(machine: DeclaredMachine, token?: string): NodePresence
   heartbeatNode(nodeId: string, token?: string): NodePresence
   withdrawNode(nodeId: string, token?: string): NodePresence

@@ -21,7 +21,7 @@
 
 ## Acceptance for this round
 
-- 307 targeted tests pass (112 files); the full-repo test suite was not run.
+- 307 targeted tests passed (112 files) at the time; that suite was deleted on 2026-09-14 and AGENTS.md now forbids unit tests, so the figure is historical, not a current gate.
 - TypeScript check passes for the affected scope; the 100-line check passes for 263 related TS files.
 - Import boundary: 0 errors; 12 warnings about other dependency declarations were left unexpanded.
 - Browser: adding/saving/round-robin/explicit selection across three upstreams of the same apiType passes.
@@ -64,4 +64,4 @@ This round added few new core verifications: agentd/mcpset/registry/upstream/hos
 - After announce / heartbeat / withdraw the Gateway's next call behaves correctly.
 - An endpoint change rebuilds the Gateway's MCP Client; stale Registry state is not cached.
 - The standard MCP initialize/tools/list/tools/call entry points are wired in; the old JSON call entry point is no longer maintained.
-- 97 targeted tests pass at this stage; the affected TypeScript, line-count and boundary checks pass.
+- The affected TypeScript, line-count and boundary checks pass. The 97 targeted tests this row used to cite were deleted with the suite on 2026-09-14, and `AGENTS.md` now forbids unit tests — so the live paths above are the whole of the current-stage acceptance.

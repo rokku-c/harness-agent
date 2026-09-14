@@ -3,6 +3,13 @@
 Found by using the system as a real user (real model, live HTTP flows), not by
 code reading. Each entry: symptom -> root cause -> fix (or backlog).
 
+## Note on test references (2026-09-14)
+The unit test suite was deleted on 2026-09-14 and AGENTS.md now forbids unit
+tests. Every `test/*.test.ts` citation and every "N tests green" tally below
+records a file that no longer exists or a figure from the round it was written
+in, not a gate that passes today; the release gate is live verification per
+docs/ops.md.
+
 ## Fixed
 1. Conversation memory was dead. "我上次和你说过什么话" ("what did I tell you last time?") always came back empty.
    - cause: history binding used `Effect.succeed`, which eagerly snapshots the
@@ -374,7 +381,6 @@ UI inline edit + delete on any record row (generic). Friction fix from the agent
 /api/workspace now ALSO returns capabilities[] (the full manifest surface: enable/read/
 update/delete discoverable, no tools_catalog guessing).
 Evidence:
-- suite: apps/mantis bun test 87/87 (6 new mutation tests; surface-no-drift asserted).
 - REST smoke (temp instance :3777, real model config): add task -> PATCH text -> list shows
   new text -> DELETE -> empty; bogus id PATCH/DELETE graceful {ok:false}; unknown kind graceful.
 - real-model external-agent trial (conversation trial-ext-agent-r20, 2 turns, 40 tool entries,

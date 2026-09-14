@@ -1,12 +1,6 @@
-/**
- * Matching a control-surface request against the declared host operations: each
- * path template becomes an anchored matcher once, at load, so dispatch is one
- * pass over five compiled patterns rather than a per-request parse.
- */
 import type { HostOperation } from "./operations.ts"
 import { HOST_OPERATIONS } from "./operation-table.ts"
 
-/** Turn a path template into an anchored matcher, leaving literals escaped. */
 const patternOf = (template: string): RegExp =>
   new RegExp(
     "^" +
@@ -27,11 +21,9 @@ const matchers = HOST_OPERATIONS.map((operation) => ({
 
 export interface HostOperationMatch {
   readonly operation: HostOperation
-  /** Template parameters, URL-decoded — `{ id: "board" }` for `/-/planes/board/enable`. */
   readonly params: Readonly<Record<string, string>>
 }
 
-/** Match a control-surface request against the declaration; undefined = not a control path. */
 export const matchHostOperation = (method: string, path: string): HostOperationMatch | undefined => {
   for (const { operation, pattern, names } of matchers) {
     if (operation.method !== method) continue

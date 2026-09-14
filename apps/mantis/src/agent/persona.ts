@@ -1,11 +1,3 @@
-/**
- * agent/persona.ts - the MANTIS PERSONA + REFLECTION TEXT.
- *
- * Concept: the fixed prompt material of the session agent - the persona
- * instructions (workspace semantics, tiered tool surface, the FinalReply
- * envelope discipline) and the one-shot reflection prompt after a failed
- * tool call. Kept as data so hosts can override with their own copy.
- */
 export const MANTIS_INSTRUCTIONS =
   "You are mantis, a careful session agent. Work in the user's workspace (a shared, " +
   "durable store: humans and other agents see what you record, across sessions). " +

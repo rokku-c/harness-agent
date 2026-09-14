@@ -1,13 +1,3 @@
-/**
- * Who is on the canvas, and since when.
- *
- * A status is the one thing here that arrives from outside rather than from a
- * browser, so it is the one write with a route of its own. An empty status is
- * legal and means the agent has nothing current: the log reads it that way
- * rather than as a blank chip, which is why the status field is unconstrained
- * while its author is not. A status with no author would be recorded against
- * nobody.
- */
 import { noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import type { UiSurfaces } from "./surfaces.ts"

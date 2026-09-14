@@ -1,15 +1,3 @@
-/**
- * §6.5-4's boot: start the recorded active revision, and fall back to the one it
- * displaced when that one cannot be started.
- *
- * A trust-nothing first boot: the revision this build carries is a candidate
- * like any other, and is recorded so the *next* boot has a rollback target —
- * which is the only reason this fallback has anywhere to fall back to.
- *
- * Every revision that fails the §5 judgement or the health check is *condemned*:
- * not retried, and not overwritten. A revision that could not run once is not
- * offered again, so a bad artifact cannot make every restart pay for it twice.
- */
 import { messageOf } from "@effect-agent/effect-interface"
 import type { KernelRevision } from "./repo.ts"
 import { describeRefusal, type BootResult, type KernelSlot } from "./supervisor-outcome.ts"
@@ -46,8 +34,6 @@ export const bootFrom = async <K>(runtime: KernelRuntime<K>, shipped?: KernelRev
 
     const broken = order[0]
     if (index === 0) {
-      // The recorded active revision booted. Record the shipped one only when
-      // the repo was empty — otherwise the index already says what is active.
       if (runtime.state().active === undefined) runtime.persist({ ...runtime.state(), active: revision })
       runtime.emit({ kind: "booted", revision })
       return { ok: true, slot }

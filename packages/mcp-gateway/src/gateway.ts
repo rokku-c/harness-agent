@@ -1,12 +1,3 @@
-/**
- * MCP gateway pipeline: decide, record, proxy.
- *
- * `handle` is `decide` plus the two things a caller that acts must do: write
- * the audit trail the decision produced, and make the call. Nothing about
- * *whether* the call may happen lives here — that was already answered, and it
- * is the same answer the advertised surface was built from, so a tool the door
- * offered is a tool this door carries.
- */
 import { principalKey } from "@effect-agent/effect-authz"
 
 import type { McpGatewayEvent } from "./contract-audit.ts"

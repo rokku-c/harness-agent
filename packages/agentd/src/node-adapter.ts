@@ -1,14 +1,3 @@
-/**
- * The node artifact adapter (§8.4). Same contract as the agent-level adapters:
- * plan may refuse, apply invents nothing, and a stale receipt is a 409.
- *
- * Where an agent-level plan adjudicates one artifact, this one adjudicates a set
- * — so a refusal has to name *which* placement lost, because "the plan failed"
- * is not an actionable message when the set has twelve entries. The verdict
- * itself is untouched: it comes from `assessBundleForMachine`, and only the
- * label around it is added here.
- */
-
 import type { CompatVerdict } from "@effect-agent/effect-bundle"
 import { artifactOf } from "./bundle-artifact.ts"
 import { assessBundleForMachine, bundleRefId } from "./bundles.ts"
@@ -21,13 +10,6 @@ import type { DesiredNode } from "./node-types.ts"
 import { validateNodeDeployment, type NodeAdapter, type NodeAdapterPlan, type NodeDeployment } from "./nodes.ts"
 import type { BundleRef, Machine } from "./types.ts"
 
-/**
- * Adjudicate one artifact, labelling the failure with where it was going.
- *
- * The verdict itself is untouched — it comes from `assessBundleForMachine`. Only
- * the wrapper is new, and it exists because a node-level refusal has to be
- * addressable: `cannot place workspace-b::board@1.0.0` beats `cannot push`.
- */
 const adjudicate = (label: string, bundle: BundleRef, capability: MachineCapability): void => {
   const verdict: CompatVerdict = assessBundleForMachine(bundle, capability)
   if (!verdict.ok) fail(`cannot place ${label}: ${verdict.reason.message}`)
@@ -41,12 +23,8 @@ export const makeNodeArtifactAdapter = (): NodeAdapter => ({
     if (desired.node.machineId !== node.machineId) fail("node identity mismatch")
     const capability = machineCapability(desired.node)
 
-    // What the node says it carries (§8.3) is adjudicated before what it can run,
-    // because it needs no registry: a placement into a domain the node never
-    // claimed is refused whether or not the artifact exists.
     admitApps(desired.node, desired.apps)
 
-    // Refuse before anything is written down, and say which placement failed.
     if (desired.kernel !== undefined) {
       if ((desired.kernel.kind ?? "app") !== "kernel") fail("a node's kernel slot must hold a kernel artifact")
       adjudicate(`kernel ${bundleRefId(desired.kernel)} on ${node.machineId}`, desired.kernel, capability)

@@ -1,4 +1,3 @@
-/** What a driver can and cannot do - the contract agents are checked against. */
 export type Granularity = "event" | "turn" | "run"
 export type ToolInjection = "native" | "mcp" | "none"
 export type StructuredOutput = "native" | "tool" | "text" | "none"
@@ -18,4 +17,3 @@ export interface Capabilities {
   readonly structuredOutput: StructuredOutput
   readonly sandbox: "enforced" | "delegated" | "none"
 }
-

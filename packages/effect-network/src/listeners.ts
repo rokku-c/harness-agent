@@ -19,7 +19,6 @@ export interface ListenerManagerOptions {
   }) => ListenerServer
 }
 
-/** Stop accepting immediately, but never await drainage: a request may close its own port. */
 const stopAccepting = (server: ListenerServer): void => {
   const drained = server.stop(false)
   if (drained) void drained.catch(cause => console.error("listener graceful drain failed", cause))
@@ -69,7 +68,6 @@ export const makeListenerManager = (options: ListenerManagerOptions) => {
     list: (): ListenerInfo[] => [...entries.values()].map(({ info }) => ({
       ...info, ...(info.apps === undefined ? {} : { apps: [...info.apps] }),
     })),
-    /** Resolves once all listeners stop accepting; active streams retain their natural lifetime. */
     close: (): Promise<void> => {
       if (closing) return closing
       closed = true

@@ -18,7 +18,6 @@ export interface JsonField {
 }
 export type JsonSchema = JsonField
 
-/** Mutable editor state; undefined is deliberately distinct from false / zero. */
 export interface FormNode {
   id: string
   key: string

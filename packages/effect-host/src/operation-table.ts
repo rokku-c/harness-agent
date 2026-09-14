@@ -1,10 +1,3 @@
-/**
- * The declaration of the host's control plane: the five `/-/planes` operations,
- * their methods, path templates and schemas — the single source of the control
- * paths. `operation-match.ts` compiles those paths into matchers and
- * `operation-run.ts` executes a match; the node operation table (effect-apps)
- * reads this array to place the host's operations next to the apps they govern.
- */
 import type { HostOperation } from "./operations.ts"
 
 const idParam = { type: "string", description: "target plugin id" } as const

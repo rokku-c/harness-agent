@@ -1,6 +1,5 @@
 import type { FormDocument, FormNode, JsonField, JsonSchema } from "./types.ts"
 
-/** Dependency-free factory, shared verbatim with the no-build browser runtime. */
 export function createFormModel() {
   let sequence = 0
   const build = (key: string, schema: JsonField, input: unknown, required = false): FormNode => {

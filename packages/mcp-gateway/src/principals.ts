@@ -1,12 +1,3 @@
-/**
- * mcp-gateway — the principal directory.
- *
- * Records which identities exist and whether they are still active. Tokens
- * reference a principal by key, so cutting someone off is one flag here rather
- * than a hunt through every live token. The registry only ever answers "does
- * this identity exist and is it on"; what it may do is effect-authz's job.
- */
-
 import { principalKey, type PrincipalKind } from "@effect-agent/effect-authz"
 
 export type PrincipalStatus = "active" | "disabled"
@@ -29,9 +20,7 @@ export interface PrincipalRegistry {
   register(input: RegisterPrincipalInput): PrincipalRecord
   get(key: string): PrincipalRecord | undefined
   list(): readonly PrincipalRecord[]
-  /** false when the key was never registered. */
   setStatus(key: string, status: PrincipalStatus): boolean
-  /** Unknown keys are not active; that is the point of asking. */
   active(key: string): boolean
 }
 

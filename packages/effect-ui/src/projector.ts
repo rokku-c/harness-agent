@@ -1,10 +1,3 @@
-/**
- * Project a RenderContract (+ data) into ANY representation the consumer
- * prefers — json / toml / compact text — while keeping every element's
- * interactivity markers visible in each output. Same rules, arbitrary
- * expressions.
- */
-
 import type { ContractElement, RenderContract } from "./contract.ts"
 import { show, valueAt } from "./pointer.ts"
 

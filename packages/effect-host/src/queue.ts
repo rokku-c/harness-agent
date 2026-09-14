@@ -1,4 +1,3 @@
-/** Same-id operations serialize; different plugins may load/stop independently. */
 export const makeLifecycleQueue = () => {
   const pending = new Map<string, Promise<unknown>>()
   let closing: Promise<void> | undefined
@@ -7,7 +6,6 @@ export const makeLifecycleQueue = () => {
     const result = (pending.get(id) ?? Promise.resolve()).then(operation, operation)
     pending.set(id, result)
     const release = () => { if (pending.get(id) === result) pending.delete(id) }
-    // Observe only for queue bookkeeping; the caller receives the original rejection.
     void result.then(release, release)
     return result
   }

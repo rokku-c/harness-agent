@@ -1,13 +1,3 @@
-/**
- * What a node push changes — the plan's `changes`, computed from two deployments.
- *
- * A node-level push has N placements, so "it changed" is not what an operator
- * needs: they need *which* placement moved. The diff is therefore addressable
- * (`ns::bundleId@version`) while the kernel is compared as a whole, because a
- * node runs exactly one and "update" is the honest word when either its version
- * or its declared lines moved.
- */
-
 import type { BundleArtifact } from "./bundle-artifact.ts"
 import { bundleRefId } from "./bundles.ts"
 import { nodeAppId } from "./node-placement.ts"

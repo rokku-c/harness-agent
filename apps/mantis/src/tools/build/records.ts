@@ -1,11 +1,3 @@
-/**
- * tools/build/records.ts - the READ + MUTATION ops over the workspace.
- *
- * Concept: recall (search) and note_read (full dump) expose the durable
- * store to the model; update_record/delete_record act on one existing record
- * by id (ids always come from recall/read outputs). Over-limit text and
- * unknown ids fail with explicit, readable errors - never silent.
- */
 import { Effect, Schema } from "effect"
 import { Op } from "@effect-agent/core"
 import { EntriesOut, manifestDescription, Text, toOut } from "../schemas.ts"

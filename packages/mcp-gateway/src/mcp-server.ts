@@ -1,16 +1,3 @@
-/**
- * The gateway's MCP door.
- *
- * It advertises the proxied catalog — one flat tool per (server, tool), each
- * name a key into that catalog — and answers every caller with its own
- * projection of it. There is no other shape: the multiplexed single-call entry
- * that predated the catalog said one thing to `tools/list` and another to the
- * page, and a door whose list is not its enforcement is a door that lies.
- *
- * The caller is whoever the transport verified. A request that resolves to no
- * principal is refused here, before the engine, so the engine never has to
- * answer about a caller nobody named.
- */
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from "@modelcontextprotocol/sdk/types.js"
 

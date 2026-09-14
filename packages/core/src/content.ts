@@ -1,8 +1,3 @@
-/**
- * The context is the agent's memory surface: an immutable log of content
- * entries. Drivers render it, append to it, and read it back - the loop is
- * context transformation.
- */
 export type Content =
   | { readonly _tag: "Text"; readonly text: string }
   | { readonly _tag: "Thinking"; readonly text: string }
@@ -27,4 +22,3 @@ export class AgentContext {
       )
       .join("\n")
 }
-

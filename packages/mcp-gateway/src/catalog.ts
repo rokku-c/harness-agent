@@ -1,19 +1,3 @@
-/**
- * mcp-gateway — the upstream tool catalog.
- *
- * The gateway advertises upstream tools as its own: one flat tool per
- * (server, tool) pair, so a client sees a real surface instead of a single
- * multiplexed call. Advertised names are keys into this table, never parsed
- * back into their parts — a tool whose own name contains the separator cannot
- * then be mistaken for a different server's.
- *
- *   advertised = "<serverId>.<tool>", every character outside [A-Za-z0-9_-] → "_"
- *
- * Two entries that would advertise the same name is a configuration error and
- * fails loudly here. Dropping one silently would hide a real tool behind a
- * view the operator never wrote.
- */
-
 import type { McpGatewayServer } from "./contract-sets.ts"
 
 export interface CatalogTool {
@@ -30,13 +14,11 @@ export interface CatalogEntry {
   readonly inputSchema?: unknown
 }
 
-/** How the gateway learns a server's tools. An upstream is one; a test is another. */
 export interface McpToolLister {
   list(server: McpGatewayServer): Promise<readonly CatalogTool[]>
 }
 
 export interface ToolCatalog {
-  /** Replaces one server's tools wholesale; throws if a name would collide. */
   replace(serverId: string, tools: readonly CatalogTool[]): void
   forget(serverId: string): void
   list(): readonly CatalogEntry[]

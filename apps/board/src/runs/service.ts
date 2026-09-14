@@ -1,8 +1,3 @@
-/**
- * The run-facing surface: agents announce themselves, hold a node while they
- * work, and report the outcome. Every mutation runs in the same transaction the
- * rest of board uses, so a run and the node state it changes commit together.
- */
 import type { TaskStore } from "../storage/store.ts"
 import { parse, type Task } from "../tasks/schema.ts"
 import { announced, withPresence } from "./presence.ts"
@@ -10,7 +5,6 @@ import { assertHolds, assertNodeExists, assertStartable, nodeStateFor } from "./
 import { announceSchema, finishSchema, progressSchema, startRunSchema, type Agent, type Run } from "./schema.ts"
 import type { RunStore } from "./store.ts"
 
-/** progress can be chatty; at most one progress event per run per window */
 export const PROGRESS_WINDOW_MS = 1_000
 
 export const makeRuns = (store: TaskStore, runs: RunStore, now: () => number = Date.now) => {
@@ -21,10 +15,6 @@ export const makeRuns = (store: TaskStore, runs: RunStore, now: () => number = D
   }
   const emittedAt = new Map<string, number>()
   return {
-    /**
-     * A heartbeat is not an event: agents announce on a timer, and recording each
-     * one would turn the event ring into a presence log nobody reads.
-     */
     announce: (input: unknown): Agent => store.transaction(() => {
       const value = parse(announceSchema, input)
       const agent = announced(runs.getAgent(value.agentId), value, now())
@@ -44,7 +34,6 @@ export const makeRuns = (store: TaskStore, runs: RunStore, now: () => number = D
         ...(value.sessionRef !== undefined ? { sessionRef: value.sessionRef } : {}),
       }
       runs.putRun(run)
-      // a leaf reflects the run it is hosting; a parent's state stays derived
       if (isLeaf(node.id)) revised(node, "doing", startedAt)
       store.event("run.started", node.id, run)
       return run

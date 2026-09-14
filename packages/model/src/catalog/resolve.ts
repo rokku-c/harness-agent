@@ -1,12 +1,3 @@
-/**
- * catalog/resolve.ts - CONFIG VALUE RESOLUTION.
- *
- * Concept: a config tree may reference the environment two ways - a bare
- * `env:NAME` value, or `${NAME}` interpolation inside any string. Resolution
- * walks the parsed TOML tree and substitutes from a merged env (file env <
- * process env < explicit options). Missing variables fail with a readable
- * ProviderConfigError at the offending path.
- */
 import type { ProviderConfigError } from "./contract.ts"
 
 const ENV_REFERENCE = /\$\{([A-Z_][A-Z0-9_]*)\}/g

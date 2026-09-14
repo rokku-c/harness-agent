@@ -1,24 +1,3 @@
-/**
- * Import-boundary checker.
- *
- * Enforces that apps/packages only touch each other through repo abstractions:
- *   R1 no relative import that escapes its own package root
- *      (cross-package goes through the workspace package name)
- *   R2 no deep import into a workspace package ("@effect-agent/x/src/…") —
- *      only the package's root export "."
- *   R3 an app must not import another app's internals; reach other apps only
- *      via exported interface contracts / effect-host / the package's export
- *   R4 no bun/node builtins from apps, R5 no direct fs/network/process calls
- *   W  workspace imports should be declared in the importer's dependencies
- *
- * The rules live in ./lib/boundary-*.ts; this file owns the walk, the report and
- * the exit code. Allowances live in ./effect.boundary.json (composer roots that
- * may load app plugin modules, etc.). Exit code 1 on any R violation; --strict
- * also fails on W.
- *
- *   bun scripts/check-boundary.ts [--strict]
- */
-
 import { readFileSync } from "node:fs"
 import { posix, resolve, sep } from "node:path"
 import { collectPackages, sourceFiles } from "./lib/package-graph.ts"
@@ -40,7 +19,6 @@ const rel = (p: string): string => posix.relative(ROOT, posixOf(p))
 
 const findings: Finding[] = []
 
-// R1-R4 and W, per source file
 for (const pkg of PKGS) {
   for (const file of files(pkg.dir + "/src")) {
     const src = readFileSync(file, "utf8")
@@ -48,7 +26,6 @@ for (const pkg of PKGS) {
   }
 }
 
-// R5 apps must not call bun/node system APIs directly (fs/network/process/env)
 for (const pkg of PKGS) {
   if (pkg.kind !== "app" || ioExempt(config, pkg)) continue
   for (const file of files(pkg.dir + "/src")) {

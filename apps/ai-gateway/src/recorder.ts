@@ -3,7 +3,6 @@ import type { GatewayEvent, GatewayRecorder } from "@effect-agent/ai-gateway"
 import { TypeOrmStore } from "@effect-agent/storage-typeorm"
 
 export interface StoredGatewayRecorder extends GatewayRecorder {
-  /** The recorded audit, oldest first, at most `limit` of the newest events. */
   events(limit: number): Promise<ReadonlyArray<GatewayEvent>>
   close(): Promise<void>
 }

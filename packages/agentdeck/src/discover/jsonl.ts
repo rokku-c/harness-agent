@@ -1,10 +1,3 @@
-/**
- * the JSONL session-store family: `<root>/<cwd-slug>/<session-id>.jsonl`, one
- * JSON object per line. claude code (`~/.claude/projects`) and pi
- * (`~/.pi/agent/sessions`) share this layout, so the reader is parameterised by
- * kind rather than duplicated - and a store that turns out to differ degrades
- * to "no sessions", it does not throw.
- */
 import { basename, join } from "node:path"
 import type { AgentKind } from "../kinds.ts"
 import { mapLimit, newest } from "./bounds.ts"
@@ -12,11 +5,9 @@ import { findFiles, jsonLines, readHead } from "./files.ts"
 import { firstField, headline, looksMachine, millis, record } from "./text.ts"
 import type { DiscoveredSession, SessionSource } from "./types.ts"
 
-/** session metadata lives at the top of the transcript; never read the rest */
 const HEAD_BYTES = 32 * 1024
 const CONCURRENCY = 8
 
-/** first human line of the conversation, skipping injected instructions */
 const firstUserText = (records: ReadonlyArray<unknown>): string | undefined => {
   for (const raw of records) {
     const entry = record(raw)

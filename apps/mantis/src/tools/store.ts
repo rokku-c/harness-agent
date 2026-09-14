@@ -1,16 +1,9 @@
-/**
- * tools/store.ts - NotesStore: the SHARED WORKSPACE.
- *
- * Concept: every declared resource kind lives in one SQLite workspace with search.
- * errors (limit exceeded) throw; ops convert them to explicit failures.
- */
 import { Database } from "bun:sqlite"
 import { mkdirSync } from "node:fs"
 import { dirname } from "node:path"
 import { MAX_RECORD_TEXT, overRecordLimit, type Entry, type EntrySource } from "./contract.ts"
 
 export interface NotesStoreOptions {
-  /** SQLite database; :memory: keeps tests isolated. */
   readonly file?: string
 }
 
@@ -35,7 +28,6 @@ export class NotesStore {
     this.#database.run("INSERT INTO mantis_notes VALUES (?, ?, ?, ?, ?)", [entry.id, entry.kind, entry.text, entry.ts, entry.source])
     return entry
   }
-  /** replace one record's text (provenance source unchanged; a new ts is stamped) */
   readonly update = (id: string, text: string): Entry | undefined => {
     const over = overRecordLimit(text)
     if (over !== undefined) throw new Error(over)
@@ -47,7 +39,6 @@ export class NotesStore {
     return updated
   }
 
-  /** delete one record by id (removed from search/all; durable via an op line) */
   readonly remove = (id: string): boolean => {
     const index = this.#entries.findIndex((e) => e.id === id)
     if (index === -1) return false

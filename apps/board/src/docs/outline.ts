@@ -1,8 +1,3 @@
-/**
- * Outline rewrites, as pure functions returning new trees. Nothing here knows
- * about versions or storage: the service owns when a write is allowed, this file
- * owns what the write does to the tree.
- */
 import { BoardError } from "../tasks/schema.ts"
 import type { NodeOp, OutlineNode } from "./schema.ts"
 
@@ -23,7 +18,6 @@ export const findNode = (nodes: readonly OutlineNode[], nodeId: string): Outline
   }
   return undefined
 }
-/** How many nodes a subtree holds, so a removal can say what went with it. */
 export const countNodes = (nodes: readonly OutlineNode[]): number =>
   nodes.reduce((total, node) => total + 1 + countNodes(node.children), 0)
 export const subtreeSize = (nodes: readonly OutlineNode[], nodeId: string): number => {
@@ -48,7 +42,6 @@ export const applyOp = (nodes: readonly OutlineNode[], op: NodeOp, newId: string
   if (op.kind === "update") return rewrite(nodes, (node) => node.nodeId === op.nodeId ? { ...node, text: op.text } : node)
   if (op.kind === "toggle") return rewrite(nodes, (node) => node.nodeId === op.nodeId ? { ...node, done: op.done } : node)
   if (op.kind === "remove") return removeNode(nodes, op.nodeId)
-  // a move into the node's own subtree would drop that subtree on the floor
   if (op.parentId === op.nodeId || (op.parentId !== null && findNode(target.children, op.parentId) !== undefined)) {
     throw new BoardError(409, `Cannot move ${op.nodeId} inside itself`)
   }

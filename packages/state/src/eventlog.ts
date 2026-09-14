@@ -1,9 +1,3 @@
-/**
- * EventLog: the append-only fact source (E9). Session facts are logged
- * before they are shown to the model - "model-visible ⟺ logged" (DSH
- * invariant). Derived state is a projection over the log, never the other
- * way around. Any replayable log implementation can be swapped in.
- */
 import { Context, Effect, Layer, Ref } from "effect"
 import type { HarnessEvent } from "@effect-agent/core"
 
@@ -16,7 +10,6 @@ export interface SessionEvent {
 }
 
 export interface EventLogService {
-  /** Append a fact; returns its sequence number. */
   readonly append: (session: string, type: string, data: unknown) => Effect.Effect<number>
   readonly stream: (session: string, afterSeq?: number) => Effect.Effect<ReadonlyArray<SessionEvent>>
   readonly all: () => Effect.Effect<ReadonlyArray<SessionEvent>>
@@ -41,10 +34,6 @@ export const MemoryEventLog = Effect.gen(function* () {
 
 export const MemoryEventLogLayer: Layer.Layer<EventLog> = Layer.effect(EventLog, MemoryEventLog)
 
-/**
- * Bridge: a core HarnessHook that mirrors loop events into the EventLog.
- * This is the Observability seam - the same loop, now auditable end to end.
- */
 export const eventLogHook = (session: string) => {
   const toEvent = (event: HarnessEvent): { readonly type: string; readonly data: unknown } => {
     switch (event._tag) {

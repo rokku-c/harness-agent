@@ -1,7 +1,3 @@
-/**
- * Supervision vocabulary: pure data. The shapes a runtime (any runtime)
- * exposes when it can fork agents and talk to them while they run.
- */
 export type Trigger = { readonly kind: "progress" | "completed" }
 
 export interface Watch {
@@ -22,7 +18,6 @@ export interface ChildResult {
   readonly status: ChildStatus
   readonly output?: unknown
   readonly error?: string
-  /** For paused children: the run id their checkpoint is stored under. */
   readonly checkpointRef?: string
 }
 
@@ -31,4 +26,3 @@ export interface ChildSummary {
   readonly agent: string
   readonly status: ChildStatus
 }
-

@@ -18,9 +18,8 @@ Conventions for every agent changing this repository (`packages/` and `apps/`).
   protocols, database structures, or behavior.
 - Delete replaced implementations and callers. Do not add compatibility layers, aliases,
   dual paths, legacy fallbacks, migrations, or old-format detection.
-- Do not preserve deleted product capabilities for historical tests; update tests to the current
-  contract. Do not rewrite or delete old data automatically; reject invalid formats clearly and
-  let the operator decide whether to rebuild.
+- Do not rewrite or delete old data automatically; reject invalid formats clearly and let the
+  operator decide whether to rebuild.
 - Make an exception only when the user explicitly requests compatibility, and state its scope
   and removal condition.
 
@@ -57,10 +56,28 @@ for text JSON and manually decoding/retrying it:
   protocol results fail explicitly.
 - The decision question is: “Models support tool calls now; why are we reimplementing them?”
 
+## Source files carry no comments
+
+- Write no comments in source or configuration: `.ts`, `.tsx`, `.js`, `.cjs`, `.lean`, `.css`,
+  `.sh`, `.yaml`, `.yml`, `.toml`, `.gitignore`. `bun scripts/check-comments.ts` enforces this;
+  `bun scripts/check-comments.ts --fix` removes them.
+- Good code explains itself. A comment is a symptom with a cause: rename the binding, split the
+  function, or move the code so the fact sits where it is read. Fix the cause, then delete the
+  comment.
+- Do not delete a fact the code depends on. If a comment says something the code cannot be read
+  to say, first make the code say it, then remove the comment. A rule that only exists in prose
+  is a rule nothing enforces.
+- Documents are not comments. `AGENTS.md`, `docs/**`, and `README.md` keep their prose, and a
+  fact too large for a name belongs in `docs/`, not beside the code.
+- Generated output is exempt: `apps/effect-server/public/` is built from source, and the comments
+  inside it belong to its dependencies. Rebuild it (`bun run --cwd apps/effect-server
+  build:client`) rather than editing it. The guard skips `public/`, `board-mcp/`, `.agents/`, and
+  `.claude/`.
+
 ## File size and decomposition (lint enforced)
 
-- Every implementation file under `packages/*/src`, `apps/*/src`, `scripts/`, `examples/`, and
-  test directories must be at most 100 lines. `bun scripts/check-lines.ts` enforces this.
+- Every implementation file under `packages/*/src`, `apps/*/src`, `scripts/`, and `examples/`
+  must be at most 100 lines. `bun scripts/check-lines.ts` enforces this.
 - Split by concept/layer and dependency direction. Each file owns one cohesive responsibility.
   Do not mechanically split a function by line number.
 - If one concept does not fit in 100 lines, it is a layer and must be split again.
@@ -73,14 +90,13 @@ Lessons from previous decompositions:
 - Check every relative import after moving files across directory levels. Type-only imports are
   erased at runtime, so use `tsc` for type validation as well as runtime probes.
 
-## Unit tests must protect behavior, not strings
+## No unit tests
 
-- Assertions must have behavioral meaning: run an action and verify its observable contract,
-  values, boundaries, failure path, merge precedence, or register/unregister symmetry.
-- Do not assert that a whole HTML/template string contains copy. That locks presentation text
-  while missing real bugs.
-- Page tests should cover stable HTTP status, content type, endpoint shape, and values. Copy and
-  scaffolding belong to browser or manual acceptance, not unit tests.
-- Do not use heuristic/count assertions such as “length > 1000” or “it runs, therefore green”.
-- Before adding an assertion, ask: does it catch a behavior bug or only a changed string? Delete it
-  if it only catches the latter.
+- Do not write unit tests. This repository has none, and none are to be added.
+- Do not create `*.test.ts`, `*.test.tsx`, `*.spec.ts`, or `*.spec.tsx` files, and do not add a
+  test-runner step to a `package.json` script or to CI.
+- Verify a change by running the real thing and reporting what was observed: the guards
+  (`bun scripts/check-lines.ts`, `check-boundary.ts`, `check-ui.ts`, `check-proofs.ts`), a
+  typecheck (`bunx tsc --noEmit`), a probe against a running server, or a one-off runtime command.
+- Do not propose adding a test, and do not describe a change as “needs a test”. If a behavior
+  cannot be demonstrated by running it, say that plainly instead of reaching for a test.

@@ -1,24 +1,3 @@
-/**
- * The shortcut sheet: `?`, generated from `console-keys.ts`'s registry.
- *
- * It is generated and not written beside the registry, and that is the only thing
- * that keeps it from lying. §6.3's last rule is that a key not in the registry
- * does not exist; the sheet is the reader's side of that rule, so a binding added
- * without a row is a key nobody can find, and a row added without a binding would
- * be a row teaching a key that does nothing. Neither can happen while this list
- * has exactly one source.
- *
- * It is a layer of its own rather than a mode of the palette, because it is not a
- * list of things to do — nothing here is selectable, and Enter does nothing. §6.2
- * rule 5 still holds: `Escape` closes it and focus returns to whatever opened it,
- * which is Radix's own behaviour for a dialog, and the reason this is a
- * `Dialog.Root` and not a plain box.
- *
- * The search field stays, because a sheet of every key is longer than a dialog:
- * typing narrows it the same way the palette's own search does, with the same
- * every-word rule (`console-command-search.ts`).
- */
-
 import * as React from "react"
 import { Box, Dialog, Flex, Kbd, ScrollArea, Text, TextField, VisuallyHidden } from "@radix-ui/themes"
 import { LAYER_BOX } from "./console-layer-box.ts"
@@ -27,7 +6,6 @@ import { matches } from "./console-command-search.ts"
 
 export const ConsoleShortcuts = ({ onClose, restore }: {
   readonly onClose: () => void
-  /** Where focus goes when the sheet closes. It navigates nowhere, so this is always the opener. */
   readonly restore: () => void
 }) => {
   const [search, setSearch] = React.useState("")

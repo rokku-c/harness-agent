@@ -8,7 +8,6 @@ const columns: ReadonlyArray<readonly [string, string, number, number, string | 
   ["initialized", "INTEGER", 1, 0, "0"],
 ]
 
-/** Create only a missing table. Existing incompatible tables are never altered. */
 export function initializeSchema(db: Database): void {
   db.transaction(() => {
     const existing = db.query<{ type: string }, []>("SELECT type FROM sqlite_master WHERE name = 'app_config'").get()

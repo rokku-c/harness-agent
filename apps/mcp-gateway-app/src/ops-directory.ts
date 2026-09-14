@@ -1,17 +1,3 @@
-/**
- * Who the door can name, and whether each of them is on.
- *
- * The listing answers the directory and its credentials at once, because that is
- * how it is read: an identity with no token is one nobody can present, and a
- * token whose identity is off is one that no longer opens anything, so either
- * list alone is half a fact. One read also means the screen says "this failed"
- * once instead of twice.
- *
- * Turning an identity off is a flag rather than a deletion: it keeps every token
- * it holds and refuses all of them at the door, and turning it back on restores
- * exactly what was there. That is the reversible half of cutting someone off;
- * `ops-token.ts` is the other.
- */
 import { z } from "@effect-agent/effect-config"
 import { OperationFault, noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { principalKey } from "@effect-agent/effect-authz"

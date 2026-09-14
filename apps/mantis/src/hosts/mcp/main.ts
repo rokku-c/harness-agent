@@ -1,14 +1,3 @@
-/**
- * mantis MCP server (stdio) - other agents drive mantis as tools.
- *
- * The server is a third host of the same mantis wiring (config.toml +
- * MANTIS_* env): same model, same protected tools, same approval semantics.
- *
- * Claude Code config (~/.claude.json "mcpServers"):
- *   "mantis": { "command": "bun", "args": ["run", "apps/mantis/src/hosts/mcp/main.ts"], "cwd": "<repo root>" }
- *
- * Run: bun apps/mantis/src/hosts/mcp/main.ts   (stdio transport)
- */
 import { envVar } from "../../env.ts"
 import { workspaceFile } from "../../paths.ts"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
@@ -21,8 +10,6 @@ import { makeMantisMcp } from "./mcp.ts"
 const config = loadConfig()
 const logLevel = (envVar("LOG_LEVEL") ?? "info") as LogLevel
 const logFile = envVar("LOG_FILE")
-/** stdio transport owns stdout for JSON-RPC frames: diagnostics go to
- *  stderr (or a file). consoleSink would corrupt the protocol. */
 const stderrSink: LogSink = {
   level: logLevel,
   write: (entry: LogEntry) => {

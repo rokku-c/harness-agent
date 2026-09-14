@@ -3,7 +3,6 @@ import type { AgentContext } from "./content.ts"
 import type { Driver, DriverEvent, RunRequest } from "./driver.ts"
 import { AgentFailure, type AgentError } from "./errors.ts"
 
-/** The observable loop: every phase is an event a hook can see. */
 export type HarnessEvent =
   | { readonly _tag: "RunStarted"; readonly agent: string; readonly context: AgentContext }
   | DriverEvent
@@ -18,7 +17,6 @@ export interface HarnessHook<E = never, R = never> {
   readonly handle: (event: HarnessEvent) => Effect.Effect<void, E, R>
 }
 
-/** A failing hook is an agent failure attributed to the hook. */
 const emit = <E, R>(hooks: ReadonlyArray<HarnessHook<E, R>>, event: HarnessEvent) =>
   Effect.forEach(
     hooks,
@@ -61,7 +59,6 @@ const instrument = <A, R, E, RH>(
 export const Harness = {
   hook: <E = never, R = never>(name: string, handle: HarnessHook<E, R>["handle"]): HarnessHook<E, R> => ({ name, handle }),
 
-  /** Wrap a driver with hooks: the same loop, now observable end to end. */
   withHooks: <E = never, RH = never, RD = never>(
     driver: Driver<RD>,
     ...hooks: ReadonlyArray<HarnessHook<E, RH>>
@@ -94,4 +91,3 @@ export const ConsoleHook = Harness.hook("console", (event) =>
         break
     }
   }))
-

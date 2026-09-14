@@ -1,13 +1,3 @@
-/**
- * Dogfood — I (the agent) connect to the running home over MCP and operate.
- *
- * Connects to http://<home>/effect-apps (stateless streamable HTTP), lists
- * the platform's own tools, then reads the apps: catalog, board ui + config.
- * Run while `bun run up` is live, with HOME_URL set (default :8266).
- * This is the platform's own dogfood client: it exercises discovery, UI,
- * config, state and tool invocation through the public MCP surface.
- */
-
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
 

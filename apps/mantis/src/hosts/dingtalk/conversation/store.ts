@@ -1,9 +1,3 @@
-/**
- * conversation/store.ts - the ConversationStore.
- *
- * Concept: in-memory per-conversation logs + enabled-tool meta behind the
- * same SQLite durability seam.
- */
 import { Database } from "bun:sqlite"
 import { mkdirSync } from "node:fs"
 import { join } from "node:path"
@@ -34,10 +28,8 @@ export class ConversationStore {
 
   readonly conversationIds = (): ReadonlyArray<string> => [...this.#log.keys(), ...this.#meta.keys()].filter((id, i, all) => all.indexOf(id) === i)
 
-  /** extended tools a conversation had enabled (persisted with the turns) */
   readonly enabled = (conversationId: string): ReadonlyArray<string> => [...(this.#meta.get(conversationId) ?? [])]
 
-  /** persist one more enabled tool for a conversation (append-only with the turns) */
   readonly recordEnabled = (conversationId: string, name: string): void => {
     const current = this.#meta.get(conversationId) ?? []
     if (current.includes(name)) return
@@ -55,7 +47,6 @@ export class ConversationStore {
   }
   readonly history = (conversationId: string): ReadonlyArray<Turn> => [...(this.#log.get(conversationId) ?? [])]
 
-  /** a read-only binding materialized into the session context each run */
   readonly historyBinding = (conversationId: string, maxTurns = 30): Binding<never, never, never> =>
     makeHistoryBinding(conversationId, () => renderHistory(this.history(conversationId), maxTurns))
 }

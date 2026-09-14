@@ -1,12 +1,3 @@
-/**
- * host/queue.ts - PER-CONVERSATION TURN SERIALIZATION.
- *
- * Concept: agent turns are serialized per conversation (one promise chain
- * each) to keep session state sane; the returned promise never rejects -
- * a turn failure is digested here (logged + onTurnFailure) instead of
- * crashing the host process (seen live: a decode AgentFailure killed the
- * pm2 console mid-session).
- */
 import type { Logger } from "@effect-agent/logger"
 
 export class TurnQueue {

@@ -1,14 +1,3 @@
-/**
- * The standalone stdio host: the same declarations, as an MCP server.
- *
- * `main.ts` is a UI runtime an agent drives rather than a browser, so it serves
- * no routes at all and takes the one projection of the operations it can use.
- * Registering a tool from the same `Operation` is what keeps this host and the
- * embedded one from drifting into two different canvases.
- *
- * The SDK takes a zod shape rather than the operation's own object schema, so
- * the shape is read from that one schema instead of being restated here.
- */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { uiOperations } from "./ops/index.ts"
 import type { UiSurfaces } from "./ops/surfaces.ts"

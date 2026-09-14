@@ -1,10 +1,3 @@
-/**
- * The default composition: registry + child kernel + boards + groups +
- * checkpoint store + session wiring (forward, watch), assembled into one
- * runtime layer. Every piece lives in its own module - this file only wires
- * them. Pause is the kernel's send with a Pause signal; resume looks up the
- * archive and spawns the same agent hydrated from it.
- */
 import { Effect, Layer, Option } from "effect"
 import { AgentFailure, AgentRegistry, AgentRuntime, Boards, CheckpointStore, Groups, type AgentProgram, type AgentRuntimeService } from "@effect-agent/core"
 import { CheckpointStoreLayer } from "./checkpoint.ts"
@@ -16,7 +9,6 @@ import { forwardChildEvents, startWatchers } from "./signals.ts"
 export type RuntimeAgents = Readonly<Record<string, AgentProgram<any, any, any, AgentRuntime | AgentRegistry | Boards | Groups>>>
 
 export const FiberAgentRuntime = {
-  /** Layer the runtime over an agent registry. */
   layer: (agents: RuntimeAgents) =>
     Effect.gen(function* () {
       const registry = {
@@ -57,11 +49,9 @@ export const FiberAgentRuntime = {
       Layer.provideMerge(GroupsLayer),
       Layer.provideMerge(CheckpointStoreLayer)
     ),
-  /** The registry layer for named agents. */
   registry: (agents: RuntimeAgents) =>
     Layer.succeed(AgentRegistry, {
       get: (name: string) => Option.fromNullable(agents[name]),
       names: () => Object.keys(agents)
     })
 }
-

@@ -1,19 +1,9 @@
-/**
- * gemini CLI session store: `~/.gemini/tmp/<project-hash>/chats/session-*.json`.
- * One JSON document per session (not JSONL), holding sessionId/startTime/
- * lastUpdated/messages. The store records no working directory - the hash names
- * a project the CLI keeps elsewhere - so cwd is left undefined rather than
- * guessed from an opaque hash.
- */
 import { join } from "node:path"
 import { mapLimit, newest } from "./bounds.ts"
 import { findFiles, readJson, readWhole } from "./files.ts"
 import { headline, looksMachine, millis, record } from "./text.ts"
 import type { DiscoveredSession, SessionSource } from "./types.ts"
 
-/** One JSON document per session, with the metadata we need AFTER the message
- *  array, so unlike the JSONL stores this cannot be head-read - the document is
- *  read whole. Real sessions here run to a couple of MB, hence the ceiling. */
 const MAX_BYTES = 8 * 1024 * 1024
 const CONCURRENCY = 4
 

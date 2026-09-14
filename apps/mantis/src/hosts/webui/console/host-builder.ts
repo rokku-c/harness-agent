@@ -1,11 +1,3 @@
-/**
- * console/host-builder.ts - WIRING the MantisHost for the console.
- *
- * Concept: one MantisHost per console with the console's seams injected:
- * turn failures leave a visible note, and
- * session events stream to the bus + the ACTIVE conversation's timeline via
- * AsyncLocalStorage attribution (safe when conversations interleave).
- */
 import type { Logger } from "@effect-agent/logger"
 import type { Model } from "@effect-agent/model"
 import type { Bus } from "../bus.ts"

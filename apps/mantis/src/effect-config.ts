@@ -1,15 +1,3 @@
-/**
- * mantis's *platform-facing* config — the embedded app's schema, registered with
- * the host. The standalone worker (`hosts/dingtalk`, `hosts/webui`, `hosts/mcp`)
- * reads `config.toml` instead, through `config/load.ts`; the two declare the same
- * six model knobs and their defaults differ on purpose, per surface.
- *
- * The defaults here are the embedded console's: a short session against a
- * workspace, not a long unattended DingTalk run. `config.example.toml` states the
- * worker's own (1024 steps, one reflection pass), which are clawyp's. Neither
- * set reaches the other surface — an operator tuning one does not move the other,
- * and `maxSteps` is where that is easiest to be wrong about.
- */
 import { z } from "@effect-agent/effect-config"
 import type { ConfigDeclaration } from "@effect-agent/effect-config"
 
@@ -29,7 +17,6 @@ const schema = z.object({
   model: model.default({ api: "openai.chat", model: "gpt-4o-mini", maxSteps: 12, maxReflections: 2 }),
 }).strict()
 
-/** mantis platform-facing config for the embedded app. */
 export const effectConfig = {
   appId: "mantis",
   title: "Mantis",

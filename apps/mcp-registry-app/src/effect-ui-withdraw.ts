@@ -1,24 +1,3 @@
-/**
- * Withdrawing a server: the record being taken out, and the token that
- * authorizes it.
- *
- * A screen rather than a press on the row, because the registry holds one token
- * per server id and only that server's token authorizes its removal. A press on
- * the list would have to read a credential entered on a surface that cannot say
- * which server it is being entered for, and an address pasted cold would arrive
- * at a press that had nothing to act with. Here the server is named by the
- * parameter the row carried, the token is entered under that name, and the two
- * are read together.
- *
- * With no server named there is nothing to withdraw, so the form is not drawn
- * over an empty record and a token is not asked for on behalf of nothing. The
- * line in its place says what is absent and the route it arrives by, which is
- * the row's own Withdraw door.
- *
- * The parameter is the address's own, under the reserved root screen parameters
- * live at, so the press that carried the id and a link pasted cold fill the same
- * field (`screen.ts`).
- */
 import { field, heading, press, row, text, NAV_ROOT, type UiActionSpec, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { answer } from "./effect-ui-answer.ts"
 import { refused, retry } from "./effect-ui-refusal.ts"
@@ -38,6 +17,8 @@ const form: UiNodeSpec = {
     { component: "Flex", props: { direction: "column", gap: "3" }, children: [
       field("Server token", { component: "TextField.Root", props: { type: "password" }, bind: TOKEN }),
       row([press("Withdraw", "registry.withdraw", undefined, { variant: "solid", size: "2" })]),
+      text("Lost the token? Rotate it: the server keeps its record and is authorized by a new one.", { size: "2", color: "gray" }),
+      row([press("Rotate token", "registry.openRotate", { serverId: { state: NAMED } }, { size: "1", variant: "soft" })]),
     ] },
     answer("Withdrawn", `${RESULT}/serverId`),
     refused("Withdraw was refused.", `${RESULT}/error`, retry("registry.withdraw")),

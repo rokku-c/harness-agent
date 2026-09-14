@@ -38,8 +38,6 @@ export class TypeOrmStore implements StoreService {
   query = (spec: QuerySpec) => Effect.promise(async () => {
     const where = spec.type === undefined ? {} : { type: spec.type }
     const paged = spec.limit !== undefined
-    // newest first and then flipped, so a page is the newest rows the caller
-    // asked for while every reader sees a page in the store's own order
     const rows = await this.repository().find({
       where,
       order: { createdAt: paged ? "DESC" : "ASC" },

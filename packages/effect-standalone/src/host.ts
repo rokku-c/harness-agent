@@ -5,40 +5,27 @@ import { serveMcpHttp } from "@effect-agent/effect-mcp-http"
 import { makeListenerManager, type ListenerManagerOptions } from "@effect-agent/effect-network"
 import { registerStandaloneApp, type StandaloneRegistrationOptions } from "./registration.ts"
 
-/** The one face a standalone host opens unless told otherwise. */
 export const DEFAULT_MCP_PATH = "/mcp"
 
 export interface StandaloneAppOptions extends StandaloneRegistrationOptions {
   readonly app: EffectAppDescriptor
   readonly hostname?: string
-  /** 0 = an ephemeral port, which is what a caller that does not care should pass. */
   readonly port?: number
   readonly mcpPath?: string
-  /** Also serve the app's own HTTP routes/UI. Off by default: hosted alone means the MCP face. */
   readonly appRoutes?: boolean
-  /** Seam for tests: bind a fake listener instead of Bun's. */
   readonly listen?: ListenerManagerOptions["listen"]
 }
 
 export interface StandaloneApp {
   readonly app: string
   readonly requires: readonly string[]
-  /** What is actually reachable, one entry per open face — read it, do not assume it. */
   readonly surface: readonly string[]
-  /** The config the app runs with, with per-key provenance. */
   readonly config: ConfigOutcome
   readonly url: string
   readonly mcpUrl: string
-  /** Idempotent: stops accepting, unregisters the app, closes the config store. */
   readonly stop: () => Promise<void>
 }
 
-/**
- * Host one app over streamable HTTP. The app's declared `routes`/`path` are
- * registered on the plugin host but are **not reachable** through this face
- * unless `appRoutes` is set: "MCP only" is a property of the composed face, and
- * the returned `surface` is the enumeration of what that face actually serves.
- */
 export const startStandaloneApp = async (options: StandaloneAppOptions): Promise<StandaloneApp> => {
   const mcpPath = options.mcpPath ?? DEFAULT_MCP_PATH
   const registration = await registerStandaloneApp(options.app, {

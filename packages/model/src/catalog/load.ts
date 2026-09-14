@@ -1,11 +1,3 @@
-/**
- * catalog/load.ts - LOADING: TOML document -> ModelCatalog.
- *
- * Concept: read providers.toml/config.toml (Bun TOML), resolve env refs,
- * validate every [providers.<name>] table (supported api + a model string),
- * and expose the result as the ModelCatalog service (a layer for the
- * runtime). Driver-building belongs to builtin; this only builds models.
- */
 import { Effect, Layer } from "effect"
 import { existsSync, readFileSync } from "node:fs"
 import { anthropicModel } from "../anthropic.ts"

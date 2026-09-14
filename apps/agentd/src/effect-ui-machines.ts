@@ -1,16 +1,3 @@
-/**
- * Every machine the center knows: the state the machine claims about itself,
- * and the two revisions it is under.
- *
- * What the *server* has observed is not in this table and cannot be: a machine's
- * `status` is a word someone chose and it keeps claiming `online` after the
- * process behind it dies. The observation is the liveness list beside this one,
- * which is derived from leases the server renews itself, and keeping them apart
- * is what stops a claim and a fact from becoming one cell.
- *
- * A machine has a name of its own, so the name leads the row and the id the
- * center addresses it by sits under it as the key it is.
- */
 import { emptyRows, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { MACHINES, STATUS_SOURCE } from "./effect-ui-paths.ts"
 import { block, cellOf, figure, identity, rowPress, table } from "./effect-ui-rows.ts"

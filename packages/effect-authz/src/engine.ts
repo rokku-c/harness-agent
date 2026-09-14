@@ -1,11 +1,3 @@
-/**
- * effect-authz — in-memory engine facade.
- *
- * Pure: no I/O, no token handling, no storage. Templates and grants live here;
- * `snapshot()` is the only seam a caller needs to persist them, and
- * `AuthzOptions.grants` is how it seeds them back.
- */
-
 import type { Action } from "./action.ts"
 import { noopRecorder } from "./audit.ts"
 import type { Authz, AuthzOptions, AuthzSnapshot } from "./contract.ts"

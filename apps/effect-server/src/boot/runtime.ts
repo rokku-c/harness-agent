@@ -1,19 +1,3 @@
-/**
- * Boot: build the services, the app half and the kernel half, then bring them up
- * in the one order that works (docs/architecture-rework.md §5, §6.1–§6.5).
- *
- * The order is the design, not the order they were written in:
- *   1. refuse a kernel this host cannot run, before any state exists (§5 gate);
- *   2. the plane stand-ins, so the routing table exists before a kernel fills it;
- *   3. the apps, because the kernel's planes load against a registry that already
- *      knows the apps they serve;
- *   4. the kernel itself, last of those three;
- *   5. the bundles, after the kernel is serving — they connect back into a host that
- *      is already up. One that will not load is *that app's* failure, not the
- *      home's: it is reported, never thrown.
- * A failure at any point tears down exactly what was built, in reverse.
- */
-
 import { sweep } from "../manifest-loader/generation.ts"
 import { registerInfra } from "./infra.ts"
 import { assertKernelBootable, SHIPPED_REVISION } from "./kernel.ts"
@@ -35,13 +19,8 @@ export const bootRuntime = async (
   const declaration = assertKernelBootable(options.kernel)
   if (process.env.EFFECT_KERNEL_LOG === "1") console.error(`[effect-server] kernel ${declaration.kernelId}`)
   const active = new Set(enabled)
-  // What an app declares it needs, satisfied the one way it can be: the registry
-  // that holds the servers, and the center that holds the sets and the bindings.
   if (active.has("mcp-gateway")) active.add("mcp-registry")
   if (active.has("mcp-gateway")) active.add("agentd")
-  // Reloading is the one capability handed to the host *after* construction: the
-  // reloaders are built from that host. The dispatch holds the binding (and reads
-  // it per request, never while booting) so the host can be built first.
   const dispatch = makeReloadDispatch()
   const services = makeServices(roots, options, dispatch.reload)
 
@@ -67,8 +46,6 @@ export const bootRuntime = async (
       stop: async () => {
         if (closed) return
         closed = true
-        // The active kernel is not "retired" — nothing displaces it — so it is
-        // stopped directly, after the listener has stopped feeding it requests.
         const live = kernel.supervisor.active()?.kernel
         await disposeAll([
           () => apps.watcher?.close(),

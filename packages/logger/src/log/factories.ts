@@ -1,9 +1,3 @@
-/**
- * log/factories.ts - READY-MADE LOGGERS.
- *
- * Concept: common combinations, exported once so hosts pick a logger by
- * name. All are makeLogger over one of log/sinks.ts.
- */
 import type { LogSink } from "./core.ts"
 import { makeLogger } from "./core.ts"
 import { compositeSink, consoleSink, jsonFileSink, noopSink, type SinkOptions } from "./sinks.ts"

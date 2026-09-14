@@ -1,11 +1,3 @@
-/**
- * groups/backend.ts - the GROUP BACKEND (service layer).
- *
- * Concept: an in-memory discussion log keyed by group uri. A group's members
- * are child ids; the backend itself only records and reads the log - posting
- * and cross-agent delivery are composed by the caller (see groups/ops.ts),
- * not baked in here.
- */
 import { Effect, Layer, Ref } from "effect"
 import {
   AgentFailure, eaUri, Groups, groupPost, groupRead, makeGroup, Uri, type GroupRef

@@ -1,12 +1,3 @@
-/**
- * mcp/workspace.ts - the DECLARATIVE WORKSPACE tools.
- *
- * Concept: the shared workspace is derived from the resource declarations -
- * one entry per resource kind (label + write capability + records) plus the
- * FULL capability surface, and direct operator writes (no agent turn, no
- * approval). The web console renders the same payload - no per-resource UI
- * or per-resource MCP code exists anywhere.
- */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { z } from "zod"
 import { text, err } from "./helpers.ts"

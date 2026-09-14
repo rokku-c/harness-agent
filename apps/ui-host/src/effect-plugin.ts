@@ -1,14 +1,8 @@
-/** Embedded UI owns a handler and SQLite, never a listener. */
 import type { AppRuntimeContext } from "@effect-agent/effect-apps"
 import { rewriteRequest, type EffectPlugin } from "@effect-agent/effect-host"
 import { effectConfig } from "./effect-config.ts"
 import { makeWebHandler, type WebHandlerOptions } from "./web.ts"
 
-/**
- * `tools` is optional because `make` is replaceable: a host that swaps in its
- * own handler has whatever surface that handler declares, and none is a legal
- * answer. The app's own handler carries the operations' tools through.
- */
 type WebApp = { handle(request: Request): Promise<Response>; tools?: readonly unknown[]; close(): void | Promise<void> }
 type MakeWeb = (options: WebHandlerOptions) => WebApp
 export const createUiHostPlugin = (

@@ -1,10 +1,3 @@
-/**
- * supervisor/lifecycle.ts - the LIFECYCLE op surface: spawn with declared
- * watch rules, wait, and resume from a checkpoint.
- *
- * Concept: verbs over children as a whole - fork, join, revive. Direct
- * per-child messaging lives in supervisor/child-ops.ts.
- */
 import { Effect, Schema } from "effect"
 import { AgentRuntime, notationText, Op, type Watch } from "@effect-agent/core"
 

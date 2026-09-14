@@ -44,7 +44,7 @@
 | b' | it defines **the whole set of operations that can be performed** | **missing**: the operation set today **has no single model**; it is scattered across descriptor fields + the MCP projection, and the host node's privileged surface is even more scattered control routes | §4 |
 | c | after startup, SDK behavior is **driven by our code** | **exists**: plugin lifecycle, route dispatch, config hot-read, UI hosting, MCP/agent surface, permissions, observe are all wrapped around the app's `load()` by the kernel | `packages/effect-apps/src/registration/runtime.ts:6-19` (including the comment "Instance interfaces live exactly as long as the loaded app, including reloads"); `effect-host/src/lifecycle.ts` |
 | d | **the core code can be hot-updated** | **half exists**: plugins can `enable/disable/unregister` at runtime and a bundle can be loaded repeatedly; but there is **no versioned kernel artifact, no shadow/staging slot, no kernel↔app version negotiation** | `effect-host/src/lifecycle.ts:19-52`; `/-/planes/:id/(enable|disable)` `effect-host/src/control.ts:9` |
-| e | the host **pushes upgrades** to **compatible** apps | **missing**: `abi: "effect-1"` is only declared and **no code validates it**; there is also no bundle distribution channel (agentd only pushes MCP config) | `effect-bundle/src/manifest.ts:9`; repo-wide `abi` appears only in the board manifest and a test fixture |
+| e | the host **pushes upgrades** to **compatible** apps | **missing**: `abi: "effect-1"` is only declared and **no code validates it**; there is also no bundle distribution channel (agentd only pushes MCP config) | `effect-bundle/src/manifest.ts:9`; repo-wide `abi` appears only in the board manifest and a test fixture that went with the deleted suite |
 | f | a crash can be **rolled back** | **missing**: only the config-side "do not retry a failure"; there is no last-known-good version pointer; `.effect-bundles/` already holds two board versions at once but has no index | `apps/effect-server/src/boot/runtime.ts:33,38-44` (`failedReloads`); `.effect-bundles/io.effect-agent.board@{0.13.0,1.0.0}.effect-bundle` |
 
 ## 3. Three-way attribution (the main axis of this plan)
@@ -96,7 +96,7 @@ Key points:
   disable / unregister) used to be just a regex in `control.ts`; now they are `HOST_OPERATIONS` data, each entry
   carrying `method`, a `path` template, `inputSchema`, `outputSchema`. `control.ts` keeps only execution:
   `matchHostOperation` → `runHostOperation`. **This is not a new layer, it is writing down the layer that already
-  existed** — the path shape now exists in exactly one place (a test pins that equation).
+  existed** — the path shape now exists in exactly one place.
 - **One table**: `packages/effect-apps/src/operations.ts`. `makeNodeOperationTable(host, apps)` puts the host's
   lifecycle and every app's interface tools into one `NodeOperation` table, addressed
   `${node}::${plane}::${name}` (on the host side `host::lifecycle::enable`; on the app side the node is itself
@@ -165,8 +165,8 @@ difference. The inputs are widened to the structured `AssessableTool` and `Versi
 - the decision logic is not duplicated: `assessAbiLine` / `assessRuntime` are shared by both lines, and
   `Incompatibility` gained a `line: "bootstrap" | "effect"` field — when something goes wrong the log shows
   directly **which line** broke.
-- the tests pin two things: a kernel wanting `bootstrap-2` while the host only has `bootstrap-1` → refused
-  (`abi-mismatch`, `line: bootstrap`); a kernel with `abi: effect-2` against a loaded `effect-1` app →
+- two outcomes follow from that decision logic: a kernel wanting `bootstrap-2` while the host only has `bootstrap-1` →
+  refused (`abi-mismatch`, `line: bootstrap`); a kernel with `abi: effect-2` against a loaded `effect-1` app →
   `assessKernelAgainst` names them one by one.
 - `apps/effect-server/src/boot/kernel.ts` declares this process's kernel, and `bootRuntime` gates **before creating
   any state**; a kernel can also be passed in through `EffectServerOptions.kernel` (the supervisor will eventually
@@ -254,8 +254,8 @@ problem; K2 has to solve it head-on with double buffering.
 - the kernel is the generic `K`: this state machine cares about revisions and pointers, not about what a kernel is.
   `load` is injected; today it returns this repository's kernel, in future it returns a compiled artifact — **the
   swap logic does not change**.
-- what the tests pin is the invariants themselves: the flip happens **before** the old kernel stops (asserting
-  `activate:B` precedes `stop:A`); a rejected candidate **executes not one line**; a candidate that fails its
+- the invariants are the point, not the happy path: the flip happens **before** the old kernel stops
+  (`activate:B` precedes `stop:A`); a rejected candidate **executes not one line**; a candidate that fails its
   physical only drops the candidate; a failed flip flips back to A; boot falls back to previous and warns; a
   revision already condemned is not retried next time.
 
@@ -335,7 +335,7 @@ in-memory state that cannot be rebuilt is what this architecture rework's checkl
   `rebuild-failed` event carries `restored: boolean`.
 - **§6.2's core invariant still holds in ②** (A is never `dispose`d before commit), and that is why every failure
   above has a way back. But ②'s window really is longer than ①'s, and this is **recorded honestly, not papered
-  over**: the app layer goes offline **before** the flip (the test asserts exactly this order:
+  over**: the app layer goes offline **before** the flip (the order is exactly this:
   `load:demo-app → stop:demo-app → load:B → load:demo-app`).
 - **Product wiring** (`apps/effect-server/src/boot/runtime.ts`): `rebuild.replay` is simply **running
   `bootManifests` again**, the same path as boot — the rebuilt app set must not come from a thinner registration
@@ -445,7 +445,7 @@ That is exactly the kind of window §6.3-① wants to avoid, so it **cannot be u
    **not**; requests inside the window must queue or fall back to A.
    *Landed* (`packages/effect-host/src/dispatch-point.ts`, P5's second leg): `run` grabs the current target on entry
    and counts it, `retire` waits for it to reach zero, **and refuses to retire the kernel currently in service**.
-   What the test asserts is the real property — with the flip committed and new requests being answered by the new
+   The real property is this — with the flip committed and new requests being answered by the new
    kernel, the old kernel is still answering the one in-flight request it holds, and only then is it `dispose`d.
    Note that it protects the **kernel-level** flip; the app-level rebuild window (§6.4's deviation) is not in it.
 6. **Compatibility matrix adjudicator**: the `effect-N` range the kernel declares it implements × each loaded app's
@@ -596,10 +596,10 @@ re-runnable), with `bun run check:inventory` as the gate. The measured conclusio
 
 **"Does not touch system APIs" ≠ "can run in a browser / sandbox"**: it only says that it does not touch them
 directly; a package it depends on may, or it may use semantics that only hold on OS. After P3 this criterion
-**has a sample that actually runs**: `fixtures/app-portable` really loads and executes on all three tiers, os /
-browser / sandbox (§7.5, §10 P3). But it is a **fixture written specifically for portability**, not any of the 10
-apps above — **the inventory's own conclusion is not overturned by that**: those 6 apps' ambient dependencies are
-still there.
+**had a sample that really ran**: the portability fixture (deleted with the test suite, 2026-09-14) loaded and
+executed on all three tiers, os / browser / sandbox (§7.5, §10 P3). But it was a **fixture written specifically for
+portability**, not any of the 10 apps above — **the inventory's own conclusion is not overturned by that**: those 6
+apps' ambient dependencies are still there.
 
 **Non-rebuildable state** from the manual review (the precondition for §6.3-②; a script cannot find it, only a human reading can):
 
@@ -672,8 +672,8 @@ kernel is swapped in place (§6.3-①) and the node's apps are unaffected.
 - **why not in `bindNode`** (this is a deviation from this document's original plan, for a measured reason):
   `announceNode` **overwrites** the machine record, so a node can withdraw its declaration **after** the binding was
   written. A rule written at the binding would keep handing out a deployment the node has already denied; written
-  at the plan, what is read is the **current** declaration. `apps/agentd/test/node-admission.test.ts` is the proof —
-  not one word of the binding moved, and one announce turned the same plan from 200 into 400.
+  at the plan, what is read is the **current** declaration. The proof at the time was a service-level test, since
+  deleted with the suite: not one word of the binding moved, and one announce turned the same plan from 200 into 400.
 - **an absent `maxApps` ≠ 0**: a node that did not declare a ceiling reads as "declared no ceiling", reported
   honestly; the platform does not invent a number for it. `0` is a different declaration — a node being drained
   takes no apps. The schema therefore **gives `maxApps` no default** (§11-Q17's answer).
@@ -686,12 +686,11 @@ kernel is swapped in place (§6.3-①) and the node's apps are unaffected.
   start) and `--max-apps n` (optional). The reason for requiring it is isomorphic to `--capabilities` but sharper:
   an empty ns set is a **legitimate** declaration ("carries nothing"), so a mistyped flag looks exactly like a
   deliberate drain at plan time.
-- 18 tests: `packages/agentd/test/capacity.test.ts` (rule 7),
-  `apps/agentd/test/node-admission.test.ts` (service surface 4), `apps/agentd/test/machine-schema.test.ts`
-  (the two strictness tiers 4), `apps/agentd/test/probe-cli.test.ts` (CLI startup gates 3).
-  Counterfactual: commenting out the one `admitApps` line in `plan()` turns **exactly** eight tests asserting
-  "refused" red (`capacity` 5, `node-admission` 3) and leaves the three asserting "let through" green — the rule
-  really is new, and no old test depends on it.
+- What these tests covered (all deleted with the suite, 2026-09-14): the rule itself, the service surface, the two
+  strictness tiers and the CLI startup gates.
+  Counterfactual recorded then: commenting out the one `admitApps` line in `plan()` turned **exactly** eight
+  assertions of "refused" red (`capacity` 5, `node-admission` 3) and left the "let through" ones green — the rule
+  really was new, and no older test depended on it.
 - **acceptance (a real control surface + a real resident probe)**: `bun run app:host agentd --app-routes --config @seed.json`
   starts the real control surface (node `m1` declares `namespaces: ["ops"]`, binding `ops::board@1.0.0`), and
   `bun run node:probe --namespaces ops` → `applied revision 3: place ops::board@1.0.0`;
@@ -788,15 +787,15 @@ is itself the source of recovery**.
 - **liveness and identity are two separate tables**: `machines` is what a node **is** (identity, capabilities —
   true whether it runs or not), `presence` is whether it **is here right now**. `GET /agentd` gives
   `machines[].status` (what the node says itself) and `nodeLiveness` (what the server sees) **side by side**, so a
-  reader can tell which is which — this is also the pair the HTTP tests assert.
+  reader can tell which is which — this is also the pair the HTTP surface keeps distinct.
 - **a deliberate divergence from mcp-registry**: its `static` lease (registered in code counts as alive) is not
   reused. On the node side there **is no** static tier, because "it is written in the config file" is exactly the
-  pretense this item exists to end. The test is "a machine declared in the config is offline before it announces".
+  pretense this item exists to end. The rule: a machine declared in the config is offline before it announces.
 - **the clock takes the larger of the two**: `age = max(0, wall-clock delta, monotonic delta)`. An NTP jump
   backwards makes the wall-clock age smaller, so a node that is already dead could extend its life off someone
   else's time correction; taking the maximum makes it **impossible to extend a lease by turning the clock back**
   (a jump forwards expires it early — fail-closed). The default monotonic source `performance.now()` has a lifetime
-  exactly equal to this in-memory table. Test: "turning the wall clock back cannot revive a dead lease".
+  exactly equal to this in-memory table. The property: "turning the wall clock back cannot revive a dead lease".
 - **expiry ≠ deletion**: a lease expiring only turns the node offline; the machine record, the binding and the
   desired set are unchanged byte for byte (`same(whileUp, desiredNode(...))` is true), and an offline node's
   `desired` is readable and reportable as usual. Because the desired set is itself the source of recovery (§8.4) —
@@ -822,12 +821,12 @@ is itself the source of recovery**.
 - service surface: `POST /agentd/node/{announce,heartbeat,withdraw}`, `GET /agentd/node/presence[?node=]`
   (without `node` it gives the whole table), MCP tools `agentd_announce_node` / `agentd_heartbeat_node` /
   `agentd_withdraw_node` / `agentd_node_presence`; `GET /agentd` gains `nodeLiveness`.
-- 24 tests: `packages/agentd/test/presence.test.ts` (mechanism 9),
-  `apps/agentd/test/node-liveness.test.ts` (transport surface 6), `packages/agentd/test/node-presence.test.ts`
-  (control surface 9).
-  Four counterfactuals each kill **only** one test: the monotonic clock → "turning the clock back cannot revive";
-  `rejectClientTime` → "a node cannot say itself when it was seen"; `parseBody`'s 400 mapping → "a malformed body is
-  a 400 that names the field"; taking the token from a header → "with a token, refuse and change no state".
+- What these tests covered (all deleted with the suite, 2026-09-14): the mechanism, the transport surface and the
+  control surface.
+  Four counterfactuals each killed **only** their own case: the monotonic clock → "turning the clock back cannot
+  revive"; `rejectClientTime` → "a node cannot say itself when it was seen"; `parseBody`'s 400 mapping → "a
+  malformed body is a 400 that names the field"; taking the token from a header → "with a token, refuse and change
+  no state".
 - **one honest cost**: this table **does not go to disk**, so after a control-surface restart all nodes show
   offline until the next announce/heartbeat. This is intentional — a lease table restored from disk is a pile of
   **declarations nobody ever made**; the TTL is 30s, so the cost window is about one heartbeat.
@@ -875,7 +874,7 @@ is itself the source of recovery**.
   withdraw exists to prevent. Memoized into a promise: SIGINT and SIGTERM arriving together still withdraw only
   **once**.
 - **`leaseTtlMs` went into the config surface** (`apps/agentd/src/effect-config.ts`): a lease TTL is an operator
-  policy, not a constant, and **an unsettable TTL is a lease nobody can watch expire** — the acceptance test uses
+  policy, not a constant, and **an unsettable TTL is a lease nobody can watch expire** — the acceptance run uses
   it, squeezing the TTL to 300ms to watch it really expire.
 - CLI: `bun run node:probe --url <base> --id <m> [--name] --capabilities a,b --namespaces a,b
   [--max-apps n] [--token] [--stage <dir>] [--interval]`,
@@ -883,16 +882,16 @@ is itself the source of recovery**.
   a clean exit is 0, a failed farewell is 1. Both `--namespaces` and `--capabilities` are startup gates:
   **missing means it refuses to start**, rather than letting a node come online with an empty declaration and then
   explaining it with a string of refusals (§8.3).
-- 22 tests: `packages/agentd-probe/test/` (transport 5, one beat 7, loop policy 4, exit 2) +
-  `apps/agentd/test/probe-acceptance.test.ts` (a real socket, 2) + `probe-refusal.test.ts` (the reverse direction,
-  2). Nine counterfactuals each kill **only** their own test: `unreachable`→`refused`, `refused` stalling,
+- What these tests covered (all deleted with the suite, 2026-09-14): transport, one beat, loop policy, exit
+  behaviour, and both directions over a real socket (a port with nobody listening, a wrong token).
+  Nine counterfactuals each killed **only** their own case: `unreachable`→`refused`, `refused` stalling,
   `lapsed` re-announcing, the `in-sync` skip, the failure receipt, the plan 400 classification, the `stale`
   classification, `stop` memoization, `leaseTtlMs` pass-through.
 - **acceptance (a real control surface, not a simulation)**: `bun run app:host agentd --app-routes` starts the
   real control surface and `bun run node:probe` starts the real resident probe — after the announce,
   `nodeLiveness` is online → the heartbeat renews (100ms beat / 1200ms lease; past a whole lease it is still
   online and `lastSeen` advances) → a `{ok:true, deployment}` receipt arrives (the placement is
-  `ops::board@1.0.0`) and `at` stops changing → the beat is stretched to 60s (**a real stall**, not a test hook)
+  `ops::board@1.0.0`) and `at` stops changing → the beat is stretched to 60s (**a real stall**, not a simulated one)
   and 300ms later the lease expires: `online:false` while `withdrawn:false`, with the machine record, the desired
   set and the receipt **unchanged byte for byte** → after `stop()`, `withdrawn:true` while the machine record and
   the deployment are still there (a clean shutdown is not a decommissioning). Two in the reverse direction: a port
@@ -936,7 +935,8 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   gateway adapter.
 - **the adjudication is not a second set of rules**: `assessBundleForMachine` routes an app to
   `assessBundleCompat` and a kernel to `assessKernelCompat` (both `effect-bundle` implementations) and does only
-  that one fan-out itself. The test asserts directly that "the push side's decision == the load side's decision".
+  that one fan-out itself — so the push side's decision and the load side's decision are the same decision, not
+  two that happen to agree.
 - **machine capabilities** are written in `Machine.capabilities` (`abi:effect-1` / `bootstrap:bootstrap-1` /
   `runtime:os`); absent means falling back to the SDK's own defaults, but **a misspelled `runtime:` errors rather
   than falling back** — a fallback would let an OS artifact be pushed to a browser machine.
@@ -1010,20 +1010,17 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - service surface: `GET /agentd/artifact?id=<bundleId@version>`, answering
   `{ ok, artifact: { id, digest, files[] } }`; `status()` gains `artifactIds` (the versions that have bytes —
   not the same thing as "published").
-- 28 tests: `packages/agentd/test/artifacts.test.ts` (reference-style artifact repo 6),
-  `artifact-wire.test.ts` (byte-for-byte round trip and refusals 6), `artifact-control.test.ts` (publish / read
-  back / credential / revision not moving 5), `packages/agentd-probe/test/stage.test.ts` (writing to disk 2) and
-  `stage-refusal.test.ts` (verify before write, path escape, id mismatch 3; the fixture is in
-  `artifact-fixture.ts`), `apps/agentd/test/artifact-route.test.ts` (service surface 4),
-  `apps/agentd/test/probe-staging.test.ts` (a real control surface + a real probe 2).
-  Counterfactual: turning off all three gates at once (`fromWire`'s two digest checks, `localOf`'s escape check,
-  `artifact()`'s credential check) turns **exactly** seven tests asserting "refused" red (wire 2, stage 2,
-  probe-staging 1, artifact-route 1, artifact-control 1) and leaves the other 1064 green — the three gates are each
-  new, and no old test depends on them.
-- **acceptance**: `apps/agentd/test/probe-staging.test.ts` starts a real control surface (with the bundle carrying
-  a `source` directory) + a real probe (`stage` pointing at an empty directory); the probe fetches and writes
+- What these tests covered (all deleted with the suite, 2026-09-14): the reference-style artifact repo; the
+  byte-for-byte wire round trip and its refusals; publish / read back / credential / revision not moving; writing
+  to disk; verify before write, path escape and id mismatch; the service surface; and a real control surface with a
+  real probe.
+  Counterfactual recorded then: turning off all three gates at once (`fromWire`'s two digest checks, `localOf`'s
+  escape check, `artifact()`'s credential check) turned **exactly** seven assertions of "refused" red and left the
+  rest of the suite green — the three gates were each new, and no older test depended on them.
+- **acceptance**: a real control surface (with the bundle carrying a `source` directory) + a real probe (`stage`
+  pointing at an empty directory): the probe fetches and writes
   `board@1.0.0.effect-bundle/entry.os.js`, and the receipt carries `staged: [{ id, dir, digest, files }]`;
-  the same case **edits the source file in place** after the control surface is up, and the receipt becomes
+  the same run **edits the source file in place** after the control surface is up, and the receipt becomes
   `ok:false, error: artifact board@1.0.0 file entry.os.js does not match its digest (…)` while **not a single byte**
   is written under the root directory.
 - **acceptance (a real control surface + a real probe, two processes)**:
@@ -1051,7 +1048,7 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 | ~~**P2**~~ ✅ | unified enumeration of the operation set (the host privileged surface included) + **host/kernel split**: splitting `bootRuntime` into bootstrap (invariants) and a kernel artifact | the operation-set half **is achieved** (`/-/operations` lists the host + every app, schema included); the other half of the split was completed in P5's second leg — `boot/runtime.ts` now keeps only the invariants, the kernel becomes an artifact contract under `src/kernel/`, and `loadKernel()` can `import()` **another** kernel from an artifact directory (P2-B deferred "artifact form" at the time, precisely for lack of a supervisor and request protection, see §6.1) |
 | ~~**P3**~~ ✅ | **multi-target compilation** + the runtime adaptation layer (capability injection) | **landed**: the same app artifact emits one entry per declared `runtimes`, and an OS host and a browser host given the same set of injected capabilities **behave byte-for-byte identically**; the capability set a sandbox host reports **equals the one actually injected** (an empty sandbox reports empty, not "the process has it so it has it"); a host that cannot supply the capabilities a `requires` declares → refuse before the import and name which is missing. **Not done**: a truly isolated sandbox (today the entry still runs in the host process), a real browser page host |
 | ~~**P4**~~ ✅ | **app hot swap**: health check + single-point switch (local) + a per-app previous pointer (the staging slot was not adopted, per §6.4's deviation note; `tools/list_changed` turned out not to be needed, see §6.4's correction note) | a single app changes version successfully and the other apps are uninterrupted; schema breakage is stopped by adjudication or warned; after the hot swap the agent gets the current tool surface; on failure the old version keeps serving |
-| ~~**P5**~~ ✅ | **kernel-level double-buffered** swap + active/previous pointers + boot crash rollback. First §6.3-① **compatible in-place hot swap**, then ② the full-rebuild tier | ① **landed and wired into the real process**: the kernel is loaded by `import()` from an artifact directory, and the flip happens after §5's two-line adjudication and the slot-coverage probe, with the old kernel stopping only after its drain finishes; apps are rebuilt zero times (the test asserts `load()` is called only once throughout). ② **landed** (2026-09-10, see below): an incompatible kernel switched to **install after rebuilding the apps** — the `rebuild` capability is injection-based and
+| ~~**P5**~~ ✅ | **kernel-level double-buffered** swap + active/previous pointers + boot crash rollback. First §6.3-① **compatible in-place hot swap**, then ② the full-rebuild tier | ① **landed and wired into the real process**: the kernel is loaded by `import()` from an artifact directory, and the flip happens after §5's two-line adjudication and the slot-coverage probe, with the old kernel stopping only after its drain finishes; apps are rebuilt zero times (`load()` is called only once throughout). ② **landed** (2026-09-10, see below): an incompatible kernel switched to **install after rebuilding the apps** — the `rebuild` capability is injection-based and
   without it the behavior is word-for-word as before (refuse the swap). The kernel artifact's **compiler** has also landed (2026-09-10, see below): the kernel is no longer a "hand-written directory", and `bun run kernel:build` produces an artifact the loader recognizes |
 | ~~**P6**~~ ✅ | agentd pushing kernel and app artifacts + receipts (remote, per machine, runtime matching included) | **landed**: the push goes through `makeBundleArtifactAdapter`, machine capabilities are read from `Machine.capabilities`, and a mismatch is refused **at plan time** (reusing `effect-bundle`'s adjudication, not a second set of rules); the pushed artifact becomes a stageable `KernelRevision` directly through `kernelRevisionOf`; the receipt revision matches and a stale one is 409. The cross-process transport layer **has landed** (§8.2's end: artifact repo + `GET /agentd/artifact` + probe staging) |
 
@@ -1059,7 +1056,7 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - `packages/effect-bundle/src/compat.ts` — `EffectRuntimeKind`, `KERNEL_ABI`, `assessBundleCompat` /
   `assertBundleCompat` / `describeCompat`, `BundleIncompatibleError`. Pure functions, computable **before** the
   load (§6.2's stage needs them).
-- `loadEffectBundle` gates **before** `import(entry)`: an incompatible artifact executes not a single line (the test proves the registry stays empty).
+- `loadEffectBundle` gates **before** `import(entry)`: an incompatible artifact executes not a single line — the registry stays empty.
 - `manifest.runtimes` defaults to `["os"]` — a conservative default, so the existing board bundle's behavior does not change; board already declares `["os"]` explicitly.
 - `bun run inventory` generates `docs/app-portability-inventory.md`; `bun run check:inventory` is the gate.
 - in passing, `scripts/check-boundary.ts`'s scanning primitives were extracted into
@@ -1097,8 +1094,8 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - `packages/effect-bundle/src/supervisor.ts` — `makeKernelSupervisor`: `stage` runs
   `§5 matrix → load → probe → flip → persist → stop the old one`, and a failed flip flips back; `boot(shipped?)`
   falls back to previous and warns.
-- acceptance rests on 12 tests, asserting the invariants (the old kernel never stops before commit; a rejected
-  candidate executes not one line), not "the happy path runs".
+- acceptance rested on assertions of the invariants (the old kernel never stops before commit; a rejected
+  candidate executes not one line), not on "the happy path runs".
 - **not done**: wiring it into `bootRuntime` (needs a facade + request protection), and compiling the kernel into an artifact. That is P5's second leg.
 
 **P5's second leg landed (2026-09-10) — kernel artifact-ization + a stable facade + request protection**:
@@ -1116,15 +1113,14 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   `health()`; `dispose` → `retire` first, then `dispose`. `supervisor.boot()` runs only **after all apps are
   registered** (the kernel's planes are loaded against known apps).
 - crash rollback became product behavior: `main.ts` passes `kernelStateFile: .effect-bundles/kernel-state.json`;
-  tests and embedded hosts do not pass it and get an in-memory index (no boot should depend on a writable cwd).
+  embedded hosts do not pass it and get an in-memory index (no boot should depend on a writable cwd).
 - the kernel can now be pushed from outside: `EffectServer.stageKernel(revision)` is P6's entry point, and `kernelBoot()` reports the fallback result.
-- acceptance (`apps/effect-server/test/kernel-swap.test.ts`, really starting the service, really writing an
-  artifact directory, really `import()`ing): the kernel is loaded from a temp directory and takes over; **when the
-  kernel is swapped the app's `load()` is called only once throughout** (zero rebuild); with the flip committed
-  and new requests answered by the new kernel, the old kernel is still answering the one in-flight request it
-  holds, and only then is it `dispose`d (the test asserts `dispose:hold` appears after the release); an artifact
-  left over a slot is refused and the old kernel does not move; a bad revision is recorded as `condemned` and
-  falls back on the next boot.
+- acceptance (really starting the service, really writing an artifact directory, really `import()`ing): the kernel
+  is loaded from a temp directory and takes over; **when the kernel is swapped the app's `load()` is called only
+  once throughout** (zero rebuild); with the flip committed and new requests answered by the new kernel, the old
+  kernel is still answering the one in-flight request it holds, and only then is it `dispose`d (the order shows
+  `dispose:hold` only after the release); an artifact left over a slot is refused and the old kernel does not
+  move; a bad revision is recorded as `condemned` and falls back on the next boot.
 - ~~**still not done**: a kernel artifact still has to be a **hand-written directory** — what P3 landed was
   multi-target compilation of **apps** (`compileEffectBundle`), and **the kernel artifact compiler was not part of
   it**; the push side is P6.~~ → **filled in (2026-09-10)**, see the "kernel artifact compiler" section below.
@@ -1139,21 +1135,20 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   `stage()`'s ② branch. **Injected means rebuild; not injected means word-for-word as before** (refuse the swap) —
   a capability, not a default.
 - **only the effect line's refusal goes to a rebuild**: a bootstrap-line mismatch is still always refused,
-  because rebuilding apps cannot save a kernel that cannot run on this machine. A test pins this specifically
-  (still refused after injecting `rebuild`, and `teardown` is not called once).
+  because rebuilding apps cannot save a kernel that cannot run on this machine. The behavior is narrower than
+  "a mismatch rebuilds": still refused after injecting `rebuild`, and `teardown` is not called once.
 - **the failure paths are load-bearing**: `adopt` / `activate` / `replay` each returning to A on failure and
   replaying the apps; if the replay fails too, it **says plainly that the node needs a restart** (the
   `rebuild-failed` event carries `restored: boolean`) rather than reporting a rollback that looks successful.
   §6.2's invariant still holds in ② (A is never disposed before commit).
 - product side (`apps/effect-server/src/boot/runtime.ts`): `replay` is running `bootManifests` again, sharing the
   same registration path as boot.
-- acceptance: `packages/effect-bundle/test/supervisor.test.ts` gains 7 (① unaffected, ②'s full order, the
-  bootstrap line still refused, the three failure paths, returning on a teardown failure);
-  `apps/effect-server/test/kernel-swap.test.ts` gains 2 product-level tests (really starting the service, really
-  importing the artifact, really sending a request), asserting the app layer goes offline **before** the flip and
-  comes back into service after it succeeds.
-- **load-bearing verified**: turning `stage()`'s ② branch back into a refusal → 5 new unit tests go red
-  immediately; removing the product side's `rebuild` injection → 2 product tests go red immediately.
+- acceptance (in tests since deleted with the suite, 2026-09-14): ① unaffected, ②'s full order, the bootstrap line
+  still refused, the three failure paths, returning on a teardown failure; and at the product level (really
+  starting the service, really importing the artifact, really sending a request) the app layer goes offline
+  **before** the flip and comes back into service after it succeeds.
+- **load-bearing verified at the time**: turning `stage()`'s ② branch back into a refusal turned 5 assertions red
+  immediately; removing the product side's `rebuild` injection turned 2 red immediately.
 - **not done**: the window itself was not shortened (§11-Q2) — §6.5-6's third disposition landed in the next section, shrinking the rebuild surface but not the window's length.
 
 **§6.5-6's third disposition landed (2026-09-10) — suspend only the incompatible apps; the ones that can live do not tag along**:
@@ -1173,15 +1168,14 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   `effect.bundle.json`; the rest would have been torn down along with them under ② — that is exactly the
   collateral damage this unit removes. Exact ABI matching + "refuse boot when there is a loaded bad app" means the
   "declared but cannot keep up" subset is unreachable today, so the end-to-end proof uses this real axis.
-- acceptance: `apps/effect-server/test/kernel-suspend.test.ts` (really starting the service, really swapping the
-  kernel: on both the succeeding and the failing line change, a declared app does `load→stop→load`, an undeclared
-  app gets only one `load`, and it is in service throughout);
-  `apps/effect-server/test/app-layer.test.ts` 5 (suspending keeps the slot, an unknown name is ignored, returning
-  restores the position, returning with a lost app speaks up, and returning to a slot that never existed speaks up
-  too); `packages/effect-bundle/test/supervisor.test.ts` and `kernel.test.ts` renamed to subset assertions.
-- **load-bearing verified** (each round turns exactly its own few red): A suspending ignores the subset + returns
-  everything → 4 red; B returning appends instead of placing → 1 red; C removing the "returning lost an app" check
-  → 2 red; D removing `declarationOf`'s `appId` check → exactly 1 red (the name-mismatch test).
+- acceptance (in tests since deleted with the suite, 2026-09-14; the service itself was really started and really
+  swapped): on both the succeeding and the failing line change, a declared app does `load→stop→load`, an undeclared
+  app gets only one `load`, and it is in service throughout; suspending keeps the slot, an unknown name is ignored,
+  returning restores the position, returning with a lost app speaks up, and returning to a slot that never existed
+  speaks up too; the earlier subset assertions were re-pointed at the subset behavior.
+- **load-bearing verified at the time** (each round turned exactly its own few red): A suspending ignores the
+  subset + returns everything → 4 red; B returning appends instead of placing → 1 red; C removing the "returning
+  lost an app" check → 2 red; D removing `declarationOf`'s `appId` check → exactly 1 red (the name-mismatch case).
 
 **The kernel artifact compiler landed (2026-09-10) — filling the one link missing from the P3 → P5 → P6 chain**:
 - every other link in this chain was already there: P3 can compile an **app** into an artifact
@@ -1208,15 +1202,15 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   declaration, and `bun run kernel:build [outDir]` (`scripts/build-kernel.ts`) produces the artifact directory
   under `.effect-bundles/` — the same root as the runtime's `kernel-state.json`, and what `KernelRevision.dir`
   points at.
-- acceptance: `packages/effect-bundle/test/compile-kernel.test.ts` 3 (the output is exactly the directory the
-  loader imports; a missing `bootstrapAbi` is refused **at compile time** and not one byte is written; a bad entry
-  reports `kernel build failed`); `apps/effect-server/test/kernel-artifact.test.ts` 3 (this repository's kernel
-  manifest and `KERNEL` are two statements of **the same kernel**; this repository's kernel really can be compiled
-  into a directory the loader recognizes; and **the compiled artifact really serves as a kernel revision** —
-  really starting the service, really flipping, with `/-/config` answered by the compiled bytes).
-- **load-bearing verified** (each round turns only its own few red): A the output manifest writes back the source
-  entry instead of `KERNEL_ENTRY` → 2 red; B swallowing `bun build`'s failure → 1 red; C giving a missing
-  `bootstrapAbi` a default → 1 red.
+- acceptance (in tests since deleted with the suite, 2026-09-14): the output is exactly the directory the loader
+  imports; a missing `bootstrapAbi` is refused **at compile time** and not one byte is written; a bad entry
+  reports `kernel build failed`; this repository's kernel manifest and `KERNEL` are two statements of **the same
+  kernel**; this repository's kernel really can be compiled into a directory the loader recognizes; and **the
+  compiled artifact really serves as a kernel revision** — really starting the service, really flipping, with
+  `/-/config` answered by the compiled bytes.
+- **load-bearing verified at the time** (each round turned only its own few red): A the output manifest writes back
+  the source entry instead of `KERNEL_ENTRY` → 2 red; B swallowing `bun build`'s failure → 1 red; C giving a
+  missing `bootstrapAbi` a default → 1 red.
 - **out of scope**: §11-Q2's artifact granularity (monolithic vs splittable); multi-target kernels (the kernel only declares `os`); runtime-state handover (§11-Q18).
 
 **P6 landed (2026-09-10) — artifact distribution connected to the load side**:
@@ -1226,16 +1220,16 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   holds `board@0.13.0` and `board@1.0.0` side by side).
 - the refusal happens **at plan time**: the adapter's `plan()` adjudicates each artifact against
   `Machine.capabilities`, and a failing one is a flat 400 with not a byte sent down. The criteria come from
-  `effect-bundle`'s `assessBundleCompat` / `assessKernelCompat`, and the test asserts the push side's and the load
-  side's decisions are **equal field by field**.
+  `effect-bundle`'s `assessBundleCompat` / `assessKernelCompat`, so the push side's and the load side's decisions
+  are **equal field by field** (it is the same call, not two sets of rules).
 - the two ABI lines do not mix: `publishBundle`, the adapter's validate, and `effect-config`'s superRefine all
   stop "a kernel missing `bootstrapAbi`" and "an app carrying `bootstrapAbi`".
 - the landing path: `kernelRevisionOf(pushed, revision, dir)` → `KernelRevision` → `stageKernel()`.
-  The test uses a real supervisor to prove a pushed artifact can be accepted, flipped, and have its predecessor
+  Verified against a real supervisor: a pushed artifact can be accepted, flipped, and have its predecessor
   recorded as `previous`.
 - service surface: `GET /agentd/plan?agent=<id>`; MCP tools `agentd_publish_bundle` / `agentd_bind_bundles` /
   `agentd_plan_bundles`; config seeds `bundles` + `bundleBindings`.
-- acceptance (`packages/agentd/test/bundles.test.ts` 14 + `apps/agentd/test/agentd-app.test.ts` 3): pushing a
+- acceptance (in tests since deleted with the suite, 2026-09-14): pushing a
   kernel + an app → the receipt revision matches; a runtime mismatch, an effect-line mismatch and a bootstrap-line
   mismatch are each refused and each **names names**; a stale receipt is 409; binding to the old version rolls back
   with no new mechanism; when a machine declares no capabilities the SDK defaults are used; a misspelled
@@ -1260,7 +1254,7 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - service surface: `GET /agentd/node`, `GET /agentd/node/plan`, `POST /agentd/node/report`; MCP tools
   `agentd_bind_node` / `agentd_desired_node` / `agentd_plan_node` / `agentd_report_node_applied`; config seed
   `nodeBindings`.
-- acceptance (`packages/agentd/test/nodes.test.ts` 7 + `apps/agentd/test/node-bindings.test.ts` 4): one plan
+- acceptance (in tests since deleted with the suite, 2026-09-14): one plan
   covering the kernel + N apps and one receipt; the same artifact in two namespaces is two placements, the same
   address twice is refused; the refusal message **names which placement landed on which machine**; the kernel slot
   and app slots are not interchangeable; a stale receipt is 409; rollback = change the binding.
@@ -1280,13 +1274,13 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - the dependency direction was deliberately set right: the decision belongs to `capabilities.ts` (it must refuse
   before the import) and the constructors to `runtime.ts`, and the loader imports only the former — otherwise the
   loader would have to depend on a runtime implementation just to do its gatekeeping.
-- acceptance (`packages/effect-bundle/test/runtime-portability.test.ts`, fixture `fixtures/app-portable`): the
+- acceptance (in tests since deleted with the suite, 2026-09-14, on the portability fixture): the
   same artifact's `stamp()` result on an os host and a browser host is **equal field by field** (a deterministic
   clock/crypto is injected, so "behaves identically" is not "both ran"); an empty sandbox's `capabilitiesOf` is
   `[]` rather than "whatever the process has it has"; a host that cannot supply `requires` → reports
   `requires [clock, crypto] but this host is sandbox: [storage]`, **and the error reported is the gate's, not the
-  entry's own "no clock was injected"** (commenting the gate out and re-running does turn the test red — this
-  assertion is verified load-bearing, not decoration); and the browser/sandbox output has no `node:` residue.
+  entry's own "no clock was injected"** (commenting the gate out and re-running did turn the case red — this
+  assertion was verified load-bearing, not decoration); and the browser/sandbox output has no `node:` residue.
 - **not done, and to be stated clearly**: the entry still runs **in the host process** today — "sandbox" is
   **about capability**, not **about isolation**; and the browser tier is only "a host with a browser capability
   set", with **no real page** ever having run it (§7.5-5/6).
@@ -1317,14 +1311,13 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - `scripts/rebuild-config.ts` (`bun run config:rebuild <appId...>`): drops only the records named, reports
   "record dropped / no record" one by one, **does not seed automatically**, and is not part of the startup path —
   a rebuild is always an explicit operator action.
-- acceptance: `packages/effect-config/test/rebuild.test.ts` 5 (a refusal is marked rebuildable **and the record is
-  untouched**; a non-rebuild failure does **not** carry the marker; dropping one does not touch the others; the
+- acceptance (in tests since deleted with the suite, 2026-09-14): a refusal is marked rebuildable **and the record
+  is untouched**; a non-rebuild failure does **not** carry the marker; dropping one does not touch the others; the
   next `initialize` re-seeds to revision 1 from the current schema + yaml layer; dropping a nonexistent record is a
-  no-op) + `record-rejection.test.ts` adding "the reason crosses the error boundary" (3 paths × 7 kinds of bad row)
-  + `apps/effect-server/test/config-rebuild.test.ts` 2 (the message contains the file and the command; **really
-  running the CLI once**, asserting the board row is unchanged field by field, that startup then succeeds, and that
-  the yaml layer is back in `sources`).
-- **four counterproofs** (each kills only its own): ① removing `storageFailure`'s reason → 7 red; ② removing
+  no-op; the reason crosses the error boundary (3 paths × 7 kinds of bad row); the message contains the file and
+  the command; and **really running the CLI once**, the board row is unchanged field by field, startup then
+  succeeds, and the yaml layer is back in `sources`.
+- **four counterproofs** (each killed only its own): ① removing `storageFailure`'s reason → 7 red; ② removing
   `validateStored`'s reason → exactly 2 red; ③ changing `deleteRecord` to delete the whole table → 4 red
   (including the product-side CLI one); ④ letting the CLI seed schema defaults in passing → the CLI one red (the
   yaml layer really does get eaten).
@@ -1340,8 +1333,7 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
 - the fact before the change: `requires` was declared in **two places** (the descriptor and the effect.yaml
   manifest) and **not one line of code read it**; the only real dependency edge (gateway → mcp-registry) was
   satisfied by one hard-coded line in `boot/runtime.ts`. So "this app depends on no other app" was a sentence
-  nobody verified, and "host one app alone" had no entry point at all — only bespoke stdio `main.ts` files and test
-  code.
+  nobody verified, and "host one app alone" had no entry point at all — only bespoke stdio `main.ts` files.
 - the new package `packages/effect-standalone`:
   - `registerStandaloneApp(app, { config })` = `makePluginHost()` (**without** `control: true`)
     + `makeEffectRegistry()` + an in-memory config store + `registerEffectApp`. kernel / listeners /
@@ -1353,7 +1345,7 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
     message naming who is missing. The same shape as effect-bundle's `capabilityGaps`
     (clock/storage/crypto/network), only a different axis: app↔app vs runtime capability.
   - `startStandaloneApp` (streamable HTTP) and `startStandaloneStdio` (stdio, no port opened).
-    **The default surface is enumerable**: `surface` is part of the return value and is asserted by a test. The
+    **The default surface is enumerable**: `surface` is part of the return value. The
     `routes`/`path` an app declares are still registered on the plugin host, but are unreachable without going
     through this face — "only MCP is open" is **a property of this face**, and `appRoutes: true` is what adds the
     app's own surface; the control surface is never opened.
@@ -1380,23 +1372,23 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
   `packages/effect-standalone` (R4/R5 only apply to `pkg.kind === "app"`), and **no name was added to
   `ioExemptApps`**; ports are opened by the **host** per the repository's convention, apps do not open ports, and
   the lifecycle is symmetrically unregistered.
-- acceptance (really running, a real socket):
-  - `apps/board/test/standalone-host.test.ts`: board really starts → a **real MCP client**
+- acceptance (really running, a real socket; these were written as tests, and the suite was deleted 2026-09-14):
+  - board really starts → a **real MCP client**
     (the SDK's `Client` + `StreamableHTTPClientTransport`) connects to the real port → listTools contains
     board_state → board_create lands in that store (`counts.todo === 1`) → on the same port both `/board` and
     `/-/planes` are 404; after `stop()` **the same port can be bound again** (the port really was released);
     plus one override case: `config` points at the manifest's file and `override` moves it elsewhere → the app
     opens **the one it was moved to**, and the one the manifest points at **never exists**.
-  - `apps/mcp-gateway-app/test/standalone-refusal.test.ts`: the repository's one real dependency edge — starting
-    gateway alone **fails**, and the message contains both `mcp-gateway` and `mcp-registry`.
-  - `packages/effect-standalone/test/`: the surface list, `appRoutes` opening the app surface while still not
-    opening the control surface, the refusal coming **before the port opens** (a fake listener asserting bind count
+  - the repository's one real dependency edge — starting gateway alone **fails**, and the message contains both
+    `mcp-gateway` and `mcp-registry`.
+  - the surface list, `appRoutes` opening the app surface while still not opening the
+    control surface, the refusal coming **before the port opens** (a fake listener asserting bind count
     0), the stdio surface (a real MCP client over an in-memory transport), and the shared registry being injected
-    (the fixture's plugin reads `context.mcpRegistry` and reports it back); `override.test.ts`: override beats yaml
-    key by key and `sources` records `override`, an empty override does not wipe the lower layer, and with no layer
-    the value comes from the schema and `sources` records `default`.
-  - `apps/board/test/host-cli.test.ts`: a real process runs `bun scripts/host-app.ts board` (a scratch cwd, a real
-    SIGINT, because the data file in the manifest is a **relative path** and the cwd is what decides which file is
+    (the plugin reads `context.mcpRegistry` and reports it back); override beats yaml key by key and `sources`
+    records `override`, an empty override does not wipe the lower layer, and with no layer the value comes from
+    the schema and `sources` records `default`.
+  - a real process runs `bun scripts/host-app.ts board` (a scratch cwd, a real SIGINT,
+    because the data file in the manifest is a **relative path** and the cwd is what decides which file is
     "the real one") — with `--config`, the `.effect-agent/board.sqlite` the manifest points at **is not created**,
     the file the override points at is created, and stderr reports `from override`; without it, the reverse
     (`from yaml` + the manifest file created), the two ends being each other's counterfactual.
@@ -1406,7 +1398,7 @@ goes from "one app" to "node × desired app set", and the receipt and stale deci
     a temp port + a temp config store → `/-/status` 200, `/-/operations` 200, `/board/` 200, the control surface
     404, and with gateway in the enabled set the registry closure still holds (the plugin did not throw "requires
     the shared MCP registry").
-- **five counterproofs** (each kills only its own): ① commenting out the dependency gate → exactly two refusal
+- **five counterproofs** (each killed only its own): ① commenting out the dependency gate → exactly two refusal
   cases red; ② the face ignoring `appRoutes` and letting everything through → the default-surface one red;
   ③ non-MCP paths always 404 → the `appRoutes` one red; ④ not injecting the shared registry → the injection one
   red; ⑤ removing the `closed` flag `stop()` built itself → **all green**, proving that guard is redundant

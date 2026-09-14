@@ -1,31 +1,14 @@
-/**
- * What a canvas can be built from: the component types the host's definition
- * store carries, and the extensions registered beside them.
- *
- * Both on one screen, because the two tables answer one question an operator
- * asks once — what is available to put on a canvas. Each list keeps its own read
- * state and its own empty sentence, since either can be empty while the other is
- * full, and a verdict shared between them would have to be wrong about one.
- *
- * Neither is a card: a table carries its own surface and its own hairlines, and
- * a card around a table is the composition the design system names as a defect
- * (design-system §7).
- */
 import type { UiNodeSpec } from "@effect-agent/effect-ui"
 import { cellOf, chip, emptyRows, heading, loadingRows, stateRows, table, whenRows } from "@effect-agent/effect-ui"
 import { readFailed, type UiHostSource } from "./effect-ui-sources.ts"
 
 interface Inventory {
   readonly title: string
-  /** The source's declared id, where its read verdict is kept. */
   readonly id: UiHostSource
-  /** The list's own path inside that source. */
   readonly path: string
   readonly column: string
-  /** The field a row is addressed by, which is also the repeat's key. */
   readonly key: string
   readonly empty: string
-  /** What this list's failed read says, with the press that reads it again. */
   readonly failed: string
 }
 

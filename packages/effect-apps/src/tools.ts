@@ -3,7 +3,6 @@ import type { AppEntry } from "./catalog.ts"
 import { canAccessAppPlane, requireAppPlane } from "./access.ts"
 import { validateAppArguments } from "./validation.ts"
 
-/** Namespaced tools take precedence; legacy tools may only come from this appId. */
 const scopedTools = (app: AppEntry): readonly ToolEntry[] => {
   if (app.ns.includes("::") || app.appId.includes("::")) return []
   const tools = app.registry?.tools() ?? []
@@ -21,7 +20,6 @@ const scopedTools = (app: AppEntry): readonly ToolEntry[] => {
 export const listAppTools = (app: AppEntry): readonly ToolEntry[] =>
   canAccessAppPlane(app, "interface") ? scopedTools(app) : []
 
-/** Resolve only this app's exact interfaceId + tool name, never a global name. */
 export const resolveAppTool = (app: AppEntry, name: string): ToolEntry => {
   requireAppPlane(app, "interface")
   const id = `${app.ns}::${app.appId}`
@@ -31,7 +29,6 @@ export const resolveAppTool = (app: AppEntry, name: string): ToolEntry => {
   return entry
 }
 
-/** Shared action boundary for MCP and mirror: authorize, resolve, validate, invoke. */
 export const invokeAppTool = async (app: AppEntry, name: string, args: unknown): Promise<unknown> => {
   const { tool } = resolveAppTool(app, name)
   validateAppArguments(tool, args)

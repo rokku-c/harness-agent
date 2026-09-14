@@ -1,8 +1,3 @@
-/**
- * The agent-side push surface: what this agent should run, why it cannot, and
- * the receipt for what it did run. A node is the same three verbs at a larger
- * unit, in `node-ops`.
- */
 import { json, noInput, operation, type Operation } from "@effect-agent/effect-interface"
 import { z } from "@effect-agent/effect-config"
 import { shownToReader } from "../desired-view.ts"

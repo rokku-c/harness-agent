@@ -1,21 +1,5 @@
-/**
- * The remote session index, as POSIX sh shipped over stdin (`sh -s`).
- *
- * Deliberately not the TypeScript readers: a target machine may have no bun and
- * certainly has no copy of this repo. `find`, `head`, `grep` and `stat` are on
- * every machine that has these agents installed, so the script is streamed in
- * and never written to disk.
- *
- * Output is one TAB-separated record per session - kind, id, cwd, mtime, size,
- * and the path the record lives at - because tabs need no quoting and no JSON
- * escaping in a shell loop. The path is what a tail is read from later; the
- * reading is a second call, so an index of a busy machine stays an index.
- */
 export const COLLECTOR_LIMIT = 200
 
-/** The kinds `COLLECTOR` emits, in its order. It sits beside the script because
- *  the script is the only thing that can name a kind: a kind it does not emit
- *  reaches the index as an unrecognised line and its sessions are dropped. */
 export const COLLECTOR_KINDS = ["claude-code", "pi", "codex", "gemini"] as const
 
 export const COLLECTOR = `set -u

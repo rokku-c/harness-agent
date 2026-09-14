@@ -8,7 +8,6 @@ const get = async (path: string): Promise<unknown> => {
 
 export const loadCatalogue = (): Promise<ConsoleCatalogue> => get("/-/apps") as Promise<ConsoleCatalogue>
 
-/** The status line reports the host's own plane table; it invents no second status source. */
 export const loadStatusLine = async (): Promise<string> => {
   try {
     const planes = await get("/-/status")

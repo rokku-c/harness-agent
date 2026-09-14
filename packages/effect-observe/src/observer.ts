@@ -1,9 +1,3 @@
-/**
- * startObserver: each tick samples the configured perspectives for a target
- * and records a frame only when the world state an observer would read
- * CHANGES. The first tick records a baseline per perspective and returns it;
- * later ticks return null while every sampled state is unchanged.
- */
 import { jsonHash, type ObservationSnapshot, type Perspective, type Sampler } from "./types.ts"
 import type { ObservationStore } from "./store.ts"
 
@@ -13,7 +7,6 @@ export interface ObserverOptions {
   target: string
   perspectives?: Perspective[]
   intervalMs: number
-  /** Change-detection hash override; defaults to stable jsonHash. */
   hashOf?: (data: unknown) => string
 }
 

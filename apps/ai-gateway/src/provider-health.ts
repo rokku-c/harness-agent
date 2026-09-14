@@ -11,7 +11,6 @@ export interface ProviderHealth {
   readonly error?: string
 }
 
-/** A live reachability probe through the same platform egress the proxy uses. */
 export const checkProvider = async (provider: GatewayProvider, send: HttpSend): Promise<ProviderHealth> => {
   const started = performance.now()
   try {

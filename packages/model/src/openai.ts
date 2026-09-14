@@ -1,4 +1,3 @@
-/** OpenAI-compatible chat completions provider. */
 import { Effect, Layer } from "effect"
 import { ModelTag, type ModelService } from "./service.ts"
 import { DEFAULT_MAX_OUTPUT_TOKENS, type ModelCapabilities, type WireMessage, type WireTool, type WireToolCall } from "./types.ts"
@@ -78,7 +77,6 @@ export const openaiModel = (config: OpenAiConfig): ModelService => ({
     })
 })
 
-/** M1: the provider as a scoped Layer - swap via provide(ModelTag), not code. */
 export const OpenAiLayer = (config: OpenAiConfig): Layer.Layer<ModelTag> => Layer.succeed(ModelTag, openaiModel(config))
 
 export type { WireMessage, WireTool }

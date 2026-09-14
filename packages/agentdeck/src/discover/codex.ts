@@ -1,13 +1,3 @@
-/**
- * codex CLI session store: `~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-*.jsonl`.
- * The first line is always `session_meta` carrying id, cwd and start time.
- *
- * Titles come from `~/.codex/session_index.jsonl` where codex has one (it names
- * the thread itself), NOT from the transcript head: a rollout injects AGENTS.md
- * instructions past the first 50KB and the human's actual prompt can sit
- * megabytes in, so scanning for it would mean reading whole 25MB rollouts to
- * label a list row.
- */
 import { basename, join } from "node:path"
 import { mapLimit, newest } from "./bounds.ts"
 import { findFiles, jsonLines, readHead, readWhole } from "./files.ts"
@@ -19,7 +9,6 @@ const INDEX_BYTES = 1024 * 1024
 const CONCURRENCY = 8
 const META = "session_meta"
 
-/** id -> the thread name codex recorded for it (last write wins) */
 const readIndex = async (home: string): Promise<ReadonlyMap<string, string>> => {
   const lines = jsonLines(await readWhole(join(home, ".codex", "session_index.jsonl"), INDEX_BYTES))
   const names = new Map<string, string>()

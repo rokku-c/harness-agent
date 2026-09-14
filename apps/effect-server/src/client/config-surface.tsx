@@ -11,12 +11,6 @@ const EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart."
 
 const STRATEGIES: readonly SaveStrategy[] = ["apply", "restart"]
 
-/**
- * One app's configuration: the server's own account of it, then the generated
- * form. The form mounts outside React, so its buttons are read from the node
- * rather than through a React handler — the same path for every control the
- * schema produced.
- */
 export const ConfigSurface = ({ id, api, mountConfig }: {
   readonly id: string
   readonly api: ConfigApi
@@ -33,8 +27,6 @@ export const ConfigSurface = ({ id, api, mountConfig }: {
     let live = true
     const made = makeConfigSession(api, id, {
       onState: setState,
-      // §6.2 rule 6's third announcement. The note is drawn beside the form and said
-      // aloud here, from one message rather than two: a save's outcome is one fact.
       onNote: (message, error) => { setNote({ message, error }); announce(message) },
       current: () => live,
     })

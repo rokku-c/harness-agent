@@ -1,16 +1,3 @@
-/**
- * console/ledger.ts - the CONVERSATION TIMELINE LEDGER.
- *
- * Concept: the console IS the state. Each conversation keeps an immutable,
- * bounded timeline (msg/tool/note entries in order, capped at 400 per
- * conversation) plus the set of known conversation ids. Reads never mutate.
- *
- * The timeline starts from memory the conversation already has: the host
- * persists every turn, so a conversation that began before this process did has
- * a history, and the ledger takes it up rather than starting at the first
- * message of the day. Tool steps and notes were never durable, so they exist
- * only from here on.
- */
 import type { Turn } from "../../dingtalk/conversation/contract.ts"
 import type { ConsoleTimelineEntry } from "./types.ts"
 
@@ -36,9 +23,6 @@ export class TimelineLedger {
     this.#timelines.set(conversationId, items)
   }
 
-  /** the first thing this console does with a conversation: open it onto what it
-   *  already holds. Only the first call seeds - the turns a later turn records
-   *  are already on the timeline it would be seeding from. */
   readonly begin = (conversationId: string, history: ReadonlyArray<Turn>): void => {
     this.#conversations.add(conversationId)
     if (this.#timelines.has(conversationId)) return
@@ -53,12 +37,10 @@ export class TimelineLedger {
     this.#append(conversationId, { ts, kind: "msg", role, text })
   }
 
-  /** a failed turn leaves a visible note in the conversation timeline */
   readonly recordNote = (conversationId: string, text: string): void => {
     this.#append(conversationId, { ts: Date.now(), kind: "note", text })
   }
 
-  /** tool steps are attributed to the conversation currently driving a turn */
   readonly recordTool = (conversationId: string, tool: string, state: "call" | "ok" | "fail", detail: string | undefined): void => {
     this.#append(conversationId, { ts: Date.now(), kind: "tool", tool, state, detail })
   }

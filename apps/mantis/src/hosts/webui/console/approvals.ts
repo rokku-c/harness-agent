@@ -1,10 +1,3 @@
-/**
- * console/approvals.ts - the CONSOLE AS OPERATOR.
- *
- * Concept: the console IS the operator: protected calls hang on a shared
- * ManualGate, and each pending Ask is announced on the bus (the panel + MCP
- * render it as an approval request). Resolving pushes approval.resolved.
- */
 import { Effect } from "effect"
 import { ManualGate, type PendingApproval } from "@effect-agent/gate"
 import type { Bus } from "../bus.ts"

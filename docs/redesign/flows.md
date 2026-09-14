@@ -1436,7 +1436,7 @@ Register (`registry.openRegister` → `#app/mcp-registry/register` → paste
 `/register/declaration` and `/register/token` → `registry.register`, refreshing `registry`) →
 Withdraw (row press `registry.openWithdraw` with the `serverId` → paste `/withdraw/token` →
 `registry.withdraw`, refreshing `registry`) → Preview (`registry.openPreview` → name
-`/preview/serverId` and `/preview/uri` → `registry.preview`, GET `/-/registry/preview`).
+`/preview/serverId` and `/preview/uri` → `registry.preview`, GET `/mcp-registry/preview`).
 
 **Exit.** Return to the server list, which is where every operation's outcome lands.
 
@@ -1452,11 +1452,13 @@ Withdraw (row press `registry.openWithdraw` with the `serverId` → paste `/with
    (`app-surfaces: mcp-registry-app`). **Fix:** the row press carries the id into
    `#app/mcp-registry/preview?serverId=<id>`; the field stays editable.
 3. **A declaration is pasted blind and validated after the fact.** **Fix:** M1 step 5.
-4. **`registry.preview` reads `/-/registry/preview`.** That is a host-level path carrying an
+4. **`registry.preview` read `/-/registry/preview`.** That is a host-level path carrying an
    app's operation. Under `CLAUDE.md` ("apps declare routes through the SDK, and the host
-   registers and revokes them with lifecycle symmetry") this is a boundary defect: the
+   registers and revokes them with lifecycle symmetry") that is a boundary defect: the
    operation is the app's and must be declared as such, so the console, the human and any agent
-   reach it by one name.
+   reach it by one name. **Fix:** it is declared as `GET /mcp-registry/preview` beside the app's
+   other operations and projected to MCP by the same list. The `/-/registry/` prefix keeps only
+   the registry's own protocol (announce, heartbeat, withdraw, servers) — one prefix, one owner.
 
 ### 7.7 ui-host
 
@@ -1607,7 +1609,7 @@ action that recovers. Agent-facing codes are specified in A3 and repeated here o
 | A channel refuses to start | DingTalk without an owner or a template; dws without `meUserId` (`auxiliary-hosts §1`) | An Inbox action item naming the missing setting (today: a startup refusal and a stderr line) | Open `#settings`, where the field is named |
 | An address resolves to nothing | the route (`console-surface §6`) | Not found, address preserved, what failed named (H13) | `Go to Home`, or `Search for "<text>"` |
 | A registry registration was refused | the registry app | At the field, with the declaration preserved | Fix the field |
-| A server's token is lost | the registry app | At the withdraw field, with no path forward today | `Rotate token` (new, §7.6) |
+| A server's token is lost | the registry app | At the withdraw field, behind the `Rotate token` door (§7.6), which names the server and says the old token stops working | Paste the new token and press |
 | An extension lacks a permission | `ui-extension` (`auxiliary-hosts §2`) | The refusal naming the missing `render` permission | Fix the extension's manifest |
 | A sandbox request was refused | `ui-sandbox` (`auxiliary-hosts §2`) | The refusal naming which rule (size, permission, `execute:script`, dependency) | Fix the request |
 | A canvas patch was stale | the definition store (`auxiliary-hosts §2`) | The Conflict sheet, in the ui-host app's own shape | Re-read and re-apply |

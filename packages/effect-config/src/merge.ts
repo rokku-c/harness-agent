@@ -2,7 +2,6 @@ import type { z } from "zod"
 import type { ConfigDeclaration, ConfigLayerInput, ConfigOutcome, ConfigSource } from "./contract.ts"
 import { failure, isRecord, validateConfig } from "./validation.ts"
 
-/** Pure first-import layering: defaults < YAML < explicit override. */
 export function mergeConfig<S extends z.ZodType>(
   decl: ConfigDeclaration<S>,
   layers: ConfigLayerInput = {},

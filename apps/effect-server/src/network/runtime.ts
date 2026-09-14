@@ -1,7 +1,6 @@
 import { makeEgressRouter, type EgressPolicy, type EgressRouter } from "@effect-agent/effect-network"
 import { networkSchema } from "./config.ts"
 
-/** Stable SDK handle, with replaceable node transport and application policies. */
 export const makeNetworkRuntime = (getConfig: () => unknown) => {
   let egress = makeEgressRouter(networkSchema.parse(getConfig()))
   const apps = new Map<string, EgressPolicy>()

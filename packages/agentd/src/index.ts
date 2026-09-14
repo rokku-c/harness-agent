@@ -31,11 +31,9 @@ export type { NodeAppArtifact } from "./node-placement.ts"
 export { validateNodeDeployment } from "./nodes.ts"
 export type { NodeAdapter, NodeAdapterPlan, NodeDeployment } from "./nodes.ts"
 
-/** §8.3: what a node says it carries, and whether a deployment fits inside it. */
 export { admitApps, requirableRuntimes } from "./capacity.ts"
 export type { DeclaredCapacity } from "./capacity.ts"
 
-/** §8.2/P6: a published version's bytes — the store, the listing, and the wire. */
 export { listingDigest, readListing } from "./artifact-listing.ts"
 export type { ArtifactFile, ArtifactListing } from "./artifact-listing.ts"
 export { makeArtifactStore } from "./artifacts.ts"

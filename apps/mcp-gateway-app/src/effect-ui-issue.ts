@@ -1,36 +1,9 @@
-/**
- * Issuing a credential, and holding the one look at it.
- *
- * The reveal is the dead end M3 fixes, and its shape follows from what the
- * gateway can honestly promise. The token is answered once and stored only as
- * its hash, so there is no second read of it and no screen that could show it
- * again: the reveal is not a view of a record, it is the record's only
- * appearance, and everything about the card says so before the operator leaves
- * it.
- *
- * It lives at a path of its own instead of beside the form because the form is
- * cleared on success — `clear` empties the draft the press consumed — and a
- * reveal kept in the draft would vanish with it. It survives every screen change
- * for the same reason the choice on the question does: it is view state, and the
- * store outlives the screen the press happened on. Changing app unmounts the
- * view and takes it, which is why the sentence names the recovery rather than
- * claiming the token is safe.
- *
- * `Copy` is not a control here, and its absence is deliberate: a press runs a
- * declared action, the console has no clipboard action, and a button that
- * claimed to copy and did not would be worse than a mono value the operator
- * selects. The sentence says which gesture it wants.
- *
- * Dismissing means what it says — the next press of `Issue` answers a new token
- * — so the copy under the value states the consequence rather than the action.
- */
 import { field, press, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { refused, retry } from "./effect-ui-refusal.ts"
 import { DRAFT_DAYS, DRAFT_ID, DRAFT_KIND, DRAFT_NAME, ISSUE_DISMISSED, ISSUE_RESULT } from "./effect-ui-paths.ts"
 
 const KINDS = ["app", "user", "system"]
 
-/** The kinds on offer are the three the engine knows, and they are literal: nothing serves a list of them. */
 const kindPicker: UiNodeSpec = {
   component: "Select.Root",
   bind: DRAFT_KIND,
@@ -50,7 +23,6 @@ const entry: UiNodeSpec = section("Issue a token", [
   row([press("Issue", "gateway.issueToken", undefined, { variant: "solid", size: "2" })]),
 ])
 
-/** A labelled value, shown only where the answer carried one — an expiry the token does not have leaves no label behind. */
 const named = (label: string, path: string, visible?: UiNodeSpec["visible"]): UiNodeSpec =>
   ({ ...row([text(label, { size: "1", color: "gray" }), { component: "Code", bind: path }]),
     ...(visible === undefined ? {} : { visible }) })
