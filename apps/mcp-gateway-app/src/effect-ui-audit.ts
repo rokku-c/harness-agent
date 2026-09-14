@@ -1,36 +1,68 @@
 /**
- * What the gateway decided, newest first. A decision event is read for what was
- * called and what was decided about it, so the row leads with the tool: the
- * call id is the repeat key, and a column of them would be a column of keys.
+ * What the door did, newest first.
  *
- * `detail` is not a column. The request event carries none, so half the rows
- * would be blank, and the event that does carry one carries the whole upstream
- * payload or a machine token — neither is a table cell.
- */
-
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { sourceStates, stateRows, whenRows } from "@effect-agent/effect-ui"
-import { cell, cellOf, stateBadge, table } from "./effect-ui-nodes.ts"
-
-/**
- * The event's type is always there; a decision is only there on the events that
- * made one, so the request rows show the type alone rather than an empty pill.
- */
-const decision: UiNodeSpec = { ...stateBadge("decision"), visible: { source: { item: "decision" } } }
-
-/**
- * The read is this screen's own, so it states its loading, its emptiness and its
- * failure once — and the rows are drawn only while there is a first one.
- * `sourceStates` already says the list is empty; a header row over no rows is
- * the same fact stated a second time and stated wrong, and this is the screen an
- * operator opens to find out what the gateway refused.
+ * The rows are the gateway's own records rather than a log the console keeps: a
+ * preview on the access screen and a live call produce one record shape, which
+ * is the property that lets a preview be trusted at all (M4 step 2), and the
+ * host's Activity reads the same store with the actor filter applied rather than
+ * a second account of it (M6, J3).
  *
- * No heading, and no card around it: the bar above the screen carries its name,
- * and the table is the whole of what the screen is.
+ * One row per event, keyed by the call it belongs to. A call leaves several —
+ * the call itself, the access decision, a rule, the response — and they are
+ * separate rows rather than one wide row because the door writes them as they
+ * happen and a call that never finished has no response row to fold into. `Call`
+ * is therefore the column that groups them, and it is the id the caller was
+ * given, so an agent's own report and this table are matched by a value and not
+ * by a timestamp.
+ *
+ * `At` is rendered exactly as the record carries it. An epoch millisecond is
+ * what the operation answers with, and reformatting it in the view would be a
+ * second value behind a name an agent calling the same operation reads as a
+ * number — the one disagreement a console for this door must not have.
  */
-export const auditNodes: readonly UiNodeSpec[] = [
-  ...sourceStates("audit", "No decisions recorded yet."),
-  whenRows(stateRows("/audit/events"),
-    table(["Tool", "Type", "Decision"], [cell("tool"), cellOf(stateBadge("type")), cellOf(decision)],
-      { source: { state: "/audit/events" }, key: "callId" })),
+import {
+  cellOf, emptyRows, heading, loadingRows, region, section, stateBadge, stateRows, table, text, whenRows,
+  type UiNodeSpec,
+} from "@effect-agent/effect-ui"
+import { chipRow, chipWhen } from "./effect-ui-cells.ts"
+import { readFailed } from "./effect-ui-refusal.ts"
+import { toneFor } from "./effect-ui-tone.ts"
+import { AUDIT, RECORDS } from "./effect-ui-paths.ts"
+
+const head: UiNodeSpec = {
+  component: "Flex", props: { direction: "column", gap: "3" },
+  children: [
+    heading("Audit", { size: "4" }),
+    text("One row per thing that happened to one call. The host's Activity reads the same records with the actor filter applied.", { size: "2", color: "gray" }),
+  ],
+}
+
+const events: UiNodeSpec = section("Decisions", [
+  emptyRows(AUDIT, RECORDS, "Nothing has been decided yet. A row appears the moment the door carries a call."),
+  whenRows(stateRows(RECORDS), table(
+    ["At (epoch ms)", "Call", "Kind", "Principal", "Subject", "Verdict", "Outcome"],
+    [
+      cellOf(chipWhen("at")),
+      cellOf(chipWhen("callId")),
+      cellOf(stateBadge("type")),
+      cellOf(chipWhen("principal")),
+      cellOf(chipRow(["tool", "serverId", "setId"])),
+      cellOf([
+        toneFor("decision", "allow", "ok", "Allow"),
+        toneFor("decision", "deny", "denied", "Deny"),
+        toneFor("decision", "log", "info", "Log"),
+      ]),
+      cellOf([
+        chipWhen("status"),
+        { component: "Text", item: "detail", props: { size: "2", color: "gray" },
+          visible: { source: { item: "detail" } } },
+      ]),
+    ],
+    { source: { state: RECORDS } },
+  )),
+])
+
+export const auditScreen: readonly UiNodeSpec[] = [
+  head,
+  region([loadingRows(AUDIT, 6), readFailed("The audit could not be read.", AUDIT, "gateway.readAudit"), events]),
 ]

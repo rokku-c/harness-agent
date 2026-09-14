@@ -1,77 +1,69 @@
 /**
- * What the gateway is made of: the servers the registry holds, the sets that
- * group them, and the agents bound to those sets. All three lists are read from
- * one source, so whether that read is still running or failed is stated once,
- * above the group: per list it would be nine skeletons for one slow read and
- * three identical callouts for one failed one. Each list still says its own
- * emptiness, which is a fact about the list rather than about the read.
+ * The topology screen: what the door can offer, and the grants it decides with.
  *
- * No heading: this is a screen, and the bar above it already carries its name.
+ * The read behind it is the catalog rebuild itself rather than a second opinion
+ * about it — asking here is the same call `tools/list` makes — so a server drawn
+ * as listed is one a call would actually route through, and a set drawn as
+ * reaching a server is one the engine would route through. A console that
+ * derived its own answer would be able to disagree with the door it describes,
+ * which is the one thing this screen must not do.
+ *
+ * The address may name one server (`?serverId=`), which is how a server read in
+ * another app arrives here already narrowed to itself (J6). The filter is shown
+ * above the tables and never only inside them: a narrowed list with nothing
+ * saying why it is short is indistinguishable from a gateway that lost its
+ * servers, and the way out is a press rather than a second address to know.
+ *
+ * Nothing here is in a region but the reads. The heading, the grant revision and
+ * the filter strip stay where they are while a topology of any size scrolls
+ * under them, so the answer to "which revision am I looking at" is not something
+ * the operator has to scroll back up to find.
  */
+import {
+  heading, loadingRows, press, region, row, text, type UiNodeSpec,
+} from "@effect-agent/effect-ui"
+import { offerTables } from "./effect-ui-offer.ts"
+import { bindingsTable, setsTable } from "./effect-ui-grants.ts"
+import { readFailed } from "./effect-ui-refusal.ts"
+import { GRANTS_REVISION, NAV_SERVER, TOPOLOGY } from "./effect-ui-paths.ts"
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { failureNotice, loadingRows } from "@effect-agent/effect-ui"
-import { cell, cellOf, chip, chipList, line, list, listCard, stateBadge } from "./effect-ui-nodes.ts"
+const head: UiNodeSpec = {
+  component: "Flex", props: { direction: "column", gap: "3" },
+  children: [
+    heading("Topology", { size: "4" }),
+    text("What the door can offer, and the sets and bindings it decides with. Sets and bindings are declared in the agentd center and read here.", { size: "2", color: "gray" }),
+    row([text("Grants at revision", { size: "1", color: "gray" }), { component: "Code", bind: GRANTS_REVISION }]),
+  ],
+}
 
 /**
- * The tool names a set allows or refuses, or the word that says the set
- * declares no such list. Both are optional in the config, so a set that
- * restricts nothing — the common case — would otherwise leave a blank cell,
- * which reads like a table whose data never arrived.
+ * A door to this same screen with no parameters, which is what drops the filter.
+ *
+ * It stands above the tables rather than standing in for them when they come out
+ * empty, and that is the one place this screen departs from §9.1's "empty
+ * because of a filter" copy. The filter decides row by row, so a view that cannot
+ * count the rows it filtered cannot tell "this server owns nothing" from "this
+ * server is not registered" — and a strip that named the filter, on every state,
+ * says the true thing in both without inventing the count it does not have.
  */
-const tools = (field: string, none: string): UiNodeSpec =>
-  cellOf({ component: "Flex", props: { direction: "column", gap: "1" }, children: [
-    list({ source: { item: field } }, line("", { size: "1", color: "gray" })),
-    { component: "Text", props: { value: none, size: "1", color: "gray" },
-      visible: { source: { item: field }, not: true } },
-  ] })
+const strip: UiNodeSpec = {
+  component: "Flex", props: { gap: "2", align: "center", wrap: "wrap" },
+  visible: { source: { state: NAV_SERVER } },
+  children: [
+    text("Showing rows for one server only.", { size: "2", color: "gray" }),
+    { component: "Code", bind: NAV_SERVER },
+    press("Show all", "gateway.showEveryServer", undefined, { size: "1", variant: "soft" }),
+  ],
+}
 
-/**
- * Whether the door can offer anything through a server, and what listing it
- * said when it could not. A failure is the one state here that earns colour, and
- * it carries its own sentence: a badge that said "failed" and nothing else would
- * send the operator to the log to learn what the gateway already knows.
- */
-const listing: UiNodeSpec = cellOf({ component: "Flex", props: { direction: "column", gap: "1", align: "start" }, children: [
-  { component: "Badge", props: { variant: "soft" }, item: "listing/state",
-    visible: { source: { item: "listing/state" }, equals: "failed", not: true } },
-  { component: "Badge", props: { variant: "soft", color: "red" }, item: "listing/state",
-    visible: { source: { item: "listing/state" }, equals: "failed" } },
-  { component: "Text", props: { size: "1", color: "red" }, item: "listing/detail",
-    visible: { source: { item: "listing/detail" } } },
-] })
-
-/**
- * A server leads with its name: an operator reads a topology, not a key. Its id
- * is the repeat key, since the membership list in the Sets table is the one
- * place an id is the content — a second rendering of it here would be a rival
- * answer to what a set contains.
- */
-const servers: UiNodeSpec = listCard({
-  title: "Servers", id: "topology", empty: "No servers registered yet.",
-  headings: ["Server", "Era", "Status", "Tools"],
-  cells: [cell("name"), cellOf(stateBadge("era")), cellOf(stateBadge("status")), listing],
-  repeat: { source: { state: "/gateway/servers" }, key: "serverId" },
-})
-
-/** A set's own identity is its name; the ids it holds are what it contains. */
-const sets: UiNodeSpec = listCard({
-  title: "Sets", id: "topology", empty: "No sets configured yet.",
-  headings: ["Set", "Servers", "Allow tools", "Deny tools"],
-  cells: [cell("name"), cellOf(chipList({ source: { item: "servers" } }, "")),
-    tools("allowTools", "any"), tools("denyTools", "none")],
-  repeat: { source: { state: "/gateway/sets" }, key: "setId" },
-})
-
-/** A binding is about one agent, and an agent is an address with no name. */
-const bindings: UiNodeSpec = listCard({
-  title: "Bindings", id: "topology", empty: "No agents bound to a set yet.",
-  headings: ["Agent", "Sets"],
-  cells: [cellOf(chip("agentId")), cellOf(chipList({ source: { item: "setIds" } }, ""))],
-  repeat: { source: { state: "/gateway/bindings" }, key: "agentId" },
-})
-
-/** The read's own state, stated once above the three lists it feeds, then the lists. */
-export const topologyNodes: readonly UiNodeSpec[] = [
-  loadingRows("topology", 3), failureNotice("topology"), servers, sets, bindings,
+export const topologyScreen: readonly UiNodeSpec[] = [
+  head,
+  strip,
+  region([
+    loadingRows(TOPOLOGY, 6),
+    readFailed("The topology could not be read.", TOPOLOGY, "gateway.readTopology"),
+    ...offerTables,
+    setsTable,
+    bindingsTable,
+  ]),
 ]

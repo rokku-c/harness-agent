@@ -1,87 +1,58 @@
 /**
- * The gateway console: who may reach which server, and why.
+ * The MCP gateway console, declared once.
  *
- * The first screen is the question, and nothing else: an operator comes here to
- * ask whether one agent may reach one tool, and that answer is read in the card
- * they pressed in. The three things they read to understand or change the answer
- * are screens of their own — the identities the door can name, the topology
- * that decides, and the log of what it decided — reached from the doors under
- * the heading, so each gets the whole area it is read in and the question stays
- * beside it when the window is wide.
+ * The app's loop is a question, so the question is the screen it starts on: two
+ * chosen values and a press that asks the door's own engine whether this
+ * principal reaches this tool. Everything else on this surface is the evidence
+ * around that answer — the directory the principal comes from, the topology the
+ * grants are declared in, and the records of what the door decided — which is
+ * why the three are destinations rather than panels, and why every one of them
+ * is reachable from the question.
  *
- * The order of those doors is the order of a request's own journey: it is
- * identified, then authorized, and only then is anything carried and recorded.
- * An operator following a failure down the list finds the first thing that broke
- * rather than all of them.
+ * The answer is a screen and not a section, because a screen is what an address
+ * can name and a screen is what can read itself on arrival (`onEnter`): that is
+ * the whole of M4's third point, and it is what turns a denial from a screenshot
+ * into a link a colleague can re-run.
  *
- * Each list is built by `listCard` or by the row builders, which give a list the
- * emptiness of its own; whether the read behind it is running or failed belongs
- * to the source, and the screen that owns the source says it once, above every
- * list that read feeds.
+ * The operations are declared once in `ops.ts` and served to the console and to
+ * an agent from there, so what this file adds is where a value comes from and
+ * which screen a press enters — never a second account of what a gateway
+ * operation is.
  */
-
-import type { EffectUiView, UiActionSpec, UiNodeSpec } from "@effect-agent/effect-ui"
-import { accessSection } from "./effect-ui-access.ts"
-import { auditNodes } from "./effect-ui-audit.ts"
-import { identityNodes } from "./effect-ui-identity.ts"
-import { draft, heading, identitiesPath, identitiesSource, identitiesUrl, issueResult, press, principalResult, revokeResult, row, text } from "./effect-ui-nodes.ts"
-import { topologyNodes } from "./effect-ui-topology.ts"
-
-/** The three places the rest of the console is: named the way their own screens are named. */
-const doors: UiNodeSpec = row([
-  press("Identities", "gateway.openIdentities", undefined, { variant: "soft" }),
-  press("Topology", "gateway.openTopology", undefined, { variant: "soft" }),
-  press("Recent decisions", "gateway.openAudit", undefined, { variant: "soft" }),
-])
-
-/**
- * Every press the console can make. Issuing and revoking both settle the list
- * they were made from, so both re-read it: the answer a press writes stays where
- * it was written while the list beside it catches up.
- */
-const actions: readonly UiActionSpec[] = [
-  { name: "gateway.previewAccess", method: "GET", url: "/mcp-gateway/access", result: "/access/result" },
-  {
-    name: "gateway.issueToken", method: "POST", url: "/mcp-gateway/tokens", result: issueResult,
-    params: {
-      kind: { state: draft("kind") }, id: { state: draft("id") },
-      displayName: { state: draft("name") }, ttlDays: { state: draft("days") },
-    },
-    clear: [draft("id")], refresh: [identitiesSource],
-  },
-  { name: "gateway.revokeToken", method: "POST", url: "/mcp-gateway/tokens/revoke", result: revokeResult, refresh: [identitiesSource] },
-  { name: "gateway.setStatus", method: "POST", url: "/mcp-gateway/principals/status", result: principalResult, refresh: [identitiesSource] },
-  // entering a screen is a behaviour like any other, and there is one way to say what a press does
-  { name: "gateway.openIdentities", opens: "identities" },
-  { name: "gateway.openTopology", opens: "topology" },
-  { name: "gateway.openAudit", opens: "audit" },
-]
+import type { EffectUiView } from "@effect-agent/effect-ui"
+import { gatewayActions } from "./effect-ui-actions.ts"
+import { answerScreen } from "./effect-ui-answer.ts"
+import { auditScreen } from "./effect-ui-audit.ts"
+import { ACCESS_SCREEN, AUDIT_SCREEN, PRINCIPALS_SCREEN, TOPOLOGY_SCREEN } from "./effect-ui-paths.ts"
+import { principalsScreen } from "./effect-ui-principals.ts"
+import { questionScreen } from "./effect-ui-question.ts"
+import { gatewaySources } from "./effect-ui-source.ts"
+import { topologyScreen } from "./effect-ui-topology.ts"
 
 export const effectUiView: EffectUiView = {
   viewId: "mcp-gateway-console",
   title: "MCP Gateway",
+  /**
+   * One subtree per read, at the paths the reads land on, plus what the operator
+   * has chosen and what a press answered. The three drafts and the two answers
+   * start absent rather than blank: a refusal is read off the path it was written
+   * to, and an empty string there would paint a readout nobody earned.
+   */
   state: {
-    gateway: { servers: [], sets: [], bindings: [] },
+    gateway: { servers: [], sets: [], bindings: [], tools: [], revision: 0 },
     audit: { events: [] },
     identities: { principals: [], tokens: [] },
     access: { agent: "", tool: "", result: undefined },
-    issue: { draft: { kind: "app", id: "", name: "", days: "" } },
+    issue: { draft: { kind: "app", id: "", name: "", days: "" }, result: undefined, dismissed: undefined },
+    principals: { result: undefined, revoked: undefined },
   },
-  sources: [
-    { id: "topology", url: "/mcp-gateway", state: "/gateway", refreshMs: 10000 },
-    { id: "audit", url: "/mcp-gateway/audit", state: "/audit", refreshMs: 10000 },
-    { id: identitiesSource, url: identitiesUrl, state: identitiesPath, refreshMs: 10000 },
-  ],
-  actions,
-  nodes: [
-    heading("MCP Gateway", { size: "6" }),
-    text("One governed MCP entry point for every agent.", { size: "2", color: "gray" }),
-    doors,
-    accessSection,
-  ],
+  sources: gatewaySources,
+  actions: gatewayActions,
+  nodes: questionScreen,
   screens: [
-    { id: "identities", title: "Identities", nodes: identityNodes },
-    { id: "topology", title: "Topology", nodes: topologyNodes },
-    { id: "audit", title: "Recent decisions", nodes: auditNodes },
+    { id: ACCESS_SCREEN, title: "Access decision", onEnter: "gateway.previewAccess", nodes: answerScreen },
+    { id: PRINCIPALS_SCREEN, title: "Principals", nodes: principalsScreen },
+    { id: TOPOLOGY_SCREEN, title: "Topology", nodes: topologyScreen },
+    { id: AUDIT_SCREEN, title: "Audit", nodes: auditScreen },
   ],
 }

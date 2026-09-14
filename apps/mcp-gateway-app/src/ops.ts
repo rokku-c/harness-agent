@@ -58,6 +58,10 @@ export const mcpGatewayOperations = (surfaces: GatewaySurfaces): readonly Operat
         servers: withListings(surfaces.registry.list(), surfaces.live.report()),
         sets: facts.sets,
         bindings: facts.bindings,
+        // The center's own write counter, read beside the declarations it counts.
+        // A grant edit reaches every principal bound to the set, so the console
+        // that shows the grants has to say which revision it is showing (J2).
+        revision: facts.revision,
         tools: surfaces.offered.list(),
         audit: surfaces.audit.list(),
       }
