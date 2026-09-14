@@ -1,19 +1,31 @@
 /**
- * The shapes both editable records are built from — a labelled control, the
- * state picker, the refusal under a write, and the row an outcome lands in.
+ * The controls both editable records are built from.
  *
- * A write's failure lands in the card that issued it, on that card's own result
- * path, so the builders take the path rather than reaching for one.
+ * A field's name sits above its control and never beside it, and the name is the
+ * label role rather than body text: at 12 px medium it is read as the name of the
+ * control under it, where a body-size grey line reads as a sentence about it.
+ * That is also why this is not the package's own `field` builder, which sets the
+ * name in the body register.
+ *
+ * The state picker offers the same five states the columns wall draws and the
+ * filter chips name, read from one list: a picker offering a state no column has
+ * is how a task becomes invisible on the board that holds it.
+ *
+ * `refusal` is the package's failure callout with the fill the design system
+ * requires of every tone surface — step 11 text over a step 3 ground is the one
+ * combination that fails contrast in the light appearance, and `highContrast` is
+ * the system's own switch to step 12 rather than a hand-written colour.
  */
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { stateOptions } from "./effect-ui-board.ts"
 
-/** A field's name above the control the design system renders for it. */
+import { failureCallout, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { stateOptions } from "./effect-ui-states.ts"
+
+/** The name above the control. */
 const labelled = (label: string, control: UiNodeSpec): UiNodeSpec => ({
   component: "Flex",
   props: { direction: "column", gap: "1" },
   children: [
-    { component: "Text", props: { value: label, size: "2", weight: "medium" } },
+    { component: "Text", props: { value: label, size: "1", weight: "medium" } },
     control,
   ],
 })
@@ -21,7 +33,7 @@ const labelled = (label: string, control: UiNodeSpec): UiNodeSpec => ({
 export const entry = (label: string, bind: string): UiNodeSpec => labelled(label, { component: "TextField.Root", bind })
 export const memo = (label: string, bind: string): UiNodeSpec => labelled(label, { component: "TextArea", bind })
 
-/** One control for five states; a `Select.Item`'s label is a child, since `value` is its value. */
+/** One control for five states; a `Select.Item`'s label is a child, since `value` is its own value. */
 export const picker = (bind: string): UiNodeSpec => labelled("State", {
   component: "Select.Root",
   bind,
@@ -35,26 +47,8 @@ export const picker = (bind: string): UiNodeSpec => labelled("State", {
   ],
 })
 
-/**
- * The presses, and beside them the mark the write's own answer carries: a
- * created or saved task has an `id`, a deleted one answers `ok`. Neither is a
- * field a successful read of the same path would happen to have.
- *
- * The marks sit in a row with the presses rather than under them: the card's
- * stack is a column, and a column stretches whatever it holds, so either a lone
- * "Created" badge or a lone button would paint as a bar across the card. A row
- * whose marks are all hidden has nothing in it and takes no height, which is
- * what an outcome that has not happened yet should look like.
- */
-export const withOutcome = (presses: readonly UiNodeSpec[], path: string, marks: readonly (readonly [string, string])[]): UiNodeSpec => ({
-  component: "Flex",
-  props: { gap: "3", wrap: "wrap", align: "center" },
-  children: [
-    ...presses,
-    ...marks.map(([state, label]): UiNodeSpec => ({
-      component: "Badge",
-      props: { color: "green", variant: "soft", value: label },
-      visible: { source: { state } },
-    })),
-  ],
-})
+/** A refused write, said where the values it refused are still on screen. */
+export const refusal = (bind: string): UiNodeSpec => {
+  const callout = failureCallout(bind)
+  return { ...callout, props: { ...callout.props, highContrast: true } }
+}
