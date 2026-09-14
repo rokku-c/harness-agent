@@ -349,3 +349,73 @@ Two operational notes that are not visible from a file list:
   git-tracked bundle from disk and does not re-read on request. Neither the
   deletion nor the rebuild restarts it; it keeps serving the old console until
   the new bundle is built, which is the intended behaviour and not a failure.
+
+---
+
+## 8. What `flows.md` requires, and how much of it these six layers carry
+
+`flows.md` is binding on the reimplementation exactly as `design-system.md` is.
+Its §9 lists **16 mechanisms** the flows need. They do not all live in the
+console, and a plan that let them be read as "part of L1–L6" would be promising
+a build it has not scoped. Laid against the layers:
+
+| `flows.md` §9 mechanism | where it lands |
+|---|---|
+| 9 · a contribution registry for the places | **L2** — it is the mechanism that keeps the new IA from becoming the old special-casing |
+| 10 · a route resolver with an explicit not-found outcome | **L2** |
+| 11 · a command registry, single-sourced for keys and the shortcut sheet | **L2** |
+| 12 · focus management on route change, one live region | **L2** |
+| 13 · a live event cursor per surface, with the scroll rule | **L2** (the cursor) and **L3** (per-app intervals) |
+| 14 · a session-held reveal for one-time values | **L3** — a screen behaviour, not chrome |
+| 5 · *the conflict presentation* | **L3** — the Conflict sheet is one surface; see the split below |
+| 1 · a durable decision store | **not in L1–L6** |
+| 2 · an action-item kind | **not in L1–L6** |
+| 3 · a channel router | **not in L1–L6** (L4 touches the DingTalk host, but delivery is host work) |
+| 4 · an actor on every mutation and every record | **not in L1–L6** |
+| 5 · *an expected version on every editable record* | **not in L1–L6** — a store contract, and §8 of `flows.md` shows it spans four stores |
+| 6 · a principal-scoped grant revision plus list-changed | **not in L1–L6** |
+| 7 · one operation declaration projected to both transports | **not in L1–L6** — this is the mantis MCP host's eleven hand-registered tools |
+| 8 · one refusal vocabulary, `recovery` mandatory | **not in L1–L6**, though its build-time check is a guard like `check-ui.ts` |
+| 15 · egress policy from the platform, never replayed | **not in L1–L6** — `CLAUDE.md` already owns it |
+| 16 · a record durable across a host restart | **not in L1–L6** — the same store as 1 |
+
+**Six land in the console; nine are host-side; one splits.** This boundary is
+the same finding as §2's, one level up: *a redesign of the console is not a
+redesign of the host*, and the flows design reaches past the console into the
+platform because the joins it fixes are platform joins. The six layers rebuild
+the console and the nine app views. The other nine mechanisms are a second body
+of work with its own order, and they are named here so that "the redesign is
+done" is never said about a product whose Inbox has nowhere to read a decision
+from.
+
+**The flows design also changes behaviour, not only appearance.** Nine changes
+are product policy rather than presentation, and each is a decision this plan
+makes deliberately and visibly rather than one the reimplementation discovers:
+
+1. `agentd.launch` becomes `write.protected` (`flows.md` §7.2) — the console's
+   most consequential write, gated so a human's one press is held to the same
+   rule as an agent's write.
+2. Mantis's eleven hand-registered MCP tools become operation declarations
+   (`flows.md` §3.0), which is what makes one refusal vocabulary and one audit
+   record possible.
+3. The mcp-gateway's bindings become editable operations, so a denial can name
+   the edit that would change it (`flows.md` §7.5).
+4. `registry.preview` moves off the host-level `/-/registry/preview` onto the
+   app's own declared route (`flows.md` §7.6).
+5. The mcp-registry gains a `Rotate token` operation, because a lost token has
+   no path today (`flows.md` §7.6).
+6. Deckconsole's `new` screen gains the consent-policy fields (`flows.md`
+   §7.8) — and this is the one row where **not carrying it loses a capability
+   rather than moving it**: §5 deletes the deck's legacy page, which is where
+   that policy lives today.
+7. The board gains `documents` and `outline` screens (`flows.md` §7.1), so the
+   console carries the capability its own web host has before that host is
+   deleted.
+8. Five renames, because one word in two apps is a defect the operator pays
+   for: mantis `workspace`→**records**, herdr keeps **workspaces**; agentd
+   `registry`→**MCP servers**; ui-host `activity`→**announcements**; ai-gateway
+   `activity`→**exchanges**; mcp-gateway `identities`→**principals**
+   (`flows.md` §1.7).
+9. `#view/<app>` splits into a view address and a tools address, so an app with
+   both stops losing its tools — verified in source at `view-route.ts:32`,
+   where the `kind: "view"` branch returns before the tools branch is reached.
