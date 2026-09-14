@@ -19,6 +19,7 @@
 import * as React from "react"
 import { Button, Text } from "@radix-ui/themes"
 import { Renderer, type ComponentRegistry } from "@json-render/react"
+import { Unresolved } from "./adapt/unresolved.tsx"
 import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
 
 /**
@@ -38,8 +39,14 @@ const ScreenBar = ({ depth, title, onBack }: { readonly depth: number; readonly 
     <Text size="2" weight="medium" className="screen-bar-title">{title}</Text>
   </div>
 
+/**
+ * A screen's own spec, drawn by the engine. The registry is the one the runtime
+ * built for the whole view; the fallback is the single report for a name that
+ * registry does not carry, which no screen should reach and none may be dropped
+ * by — a node that cannot be drawn is named in place, not left out.
+ */
 const Pane = ({ screen, registry }: { readonly screen: ScreenPayload; readonly registry: ComponentRegistry }) =>
-  <div className="screen-body"><Renderer spec={screen.spec} registry={registry} /></div>
+  <div className="screen-body"><Renderer spec={screen.spec} registry={registry} fallback={Unresolved} /></div>
 
 export const ScreenPanes = ({ chain, registry, menu, onBack }: {
   readonly chain: readonly ScreenPayload[]

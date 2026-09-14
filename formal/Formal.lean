@@ -9,6 +9,7 @@
   One import per module, alphabetical, so a missing one is visible.
 -/
 
+import Formal.Adapt
 import Formal.AppLayer
 import Formal.Arming
 import Formal.Authorize

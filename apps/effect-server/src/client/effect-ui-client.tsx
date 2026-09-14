@@ -2,11 +2,12 @@ import * as React from "react"
 import "@radix-ui/themes/styles.css"
 import "./console-shell.css"
 import { createRoot } from "react-dom/client"
-import { makeEffectUiRegistry } from "./effect-ui-catalog.tsx"
+import type { ComponentRegistry } from "@json-render/react"
 import { EffectUiRuntime } from "./effect-ui-runtime.tsx"
 import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 import { makeConfigMount } from "./config-react-mount.tsx"
-import { configComponents } from "./config-fields.tsx"
+import { configComponents } from "./adapt/config-fields.tsx"
+import { Preview } from "./adapt/preview.tsx"
 import { createConfigApi } from "./config-api.ts"
 import { createConsoleViews } from "./console-views.tsx"
 import { ConsoleShell } from "./console-shell.tsx"
@@ -19,12 +20,19 @@ interface EffectUiApi {
 }
 declare global { interface Window { effectUi?: EffectUiApi } }
 
-const registry = makeEffectUiRegistry()
+/**
+ * What a view may name that the design system does not have. It is a constant
+ * rather than a fresh object per mount because `@json-render` keys its own
+ * per-registry metadata on the registry's identity: a new object is a new
+ * registry, and everything under it is rebuilt from nothing.
+ */
+const own: ComponentRegistry = { Preview }
+
 window.effectUi = {
   mount: (container, runtime) => {
     container.replaceChildren()
     const root = createRoot(container)
-    root.render(<EffectUiRuntime registry={registry} runtime={runtime} />)
+    root.render(<EffectUiRuntime ours={own} runtime={runtime} />)
     return () => { root.unmount() }
   },
 }
@@ -37,7 +45,7 @@ const start = () => {
   if (root === null) return
   const surfaces: ConsoleSurfaces = {
     view: createConsoleViews(),
-    config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(makeEffectUiRegistry(configComponents)) },
+    config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(configComponents) },
   }
   createRoot(root).render(<ConsoleShell surfaces={surfaces} />)
 }

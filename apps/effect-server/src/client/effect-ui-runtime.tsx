@@ -17,6 +17,8 @@ import * as React from "react"
 import { JSONUIProvider, type ComponentRegistry } from "@json-render/react"
 import { ROOT_SCREEN } from "@effect-agent/effect-ui"
 import { makeActionHandlers, type OpenScreen } from "./effect-ui-action-runtime.ts"
+import { adaptRegistry } from "./adapt/registry.ts"
+import { adaptComponent } from "./adapt/render.tsx"
 import { ConsoleTheme } from "./console-theme.tsx"
 import { ScreenMenu } from "./effect-ui-screen-menu.tsx"
 import { ScreenPanes } from "./effect-ui-screen-panes.tsx"
@@ -27,14 +29,31 @@ import { openScreen, navigate } from "./console-nav.ts"
 import { canGoBack } from "./console-stack.ts"
 import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 
-type Props = { readonly registry: ComponentRegistry; readonly runtime?: EffectUiRuntimeSpec }
+type Props = {
+  /** The components the host renders itself, when a view names one the library does not have. */
+  readonly ours?: ComponentRegistry
+  readonly runtime?: EffectUiRuntimeSpec
+}
 
 /** A parameter rides in a link, so it arrives as the strings a query string can carry. */
 const asParams = (values: Record<string, unknown>): Record<string, string> =>
   Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]))
 
-export const EffectUiRuntime = ({ registry, runtime }: Props) => {
-  const screens = runtime?.screens ?? [], sources = runtime?.sources ?? [], appId = runtime?.appId ?? ""
+export const EffectUiRuntime = ({ ours, runtime }: Props) => {
+  const screens = React.useMemo(() => runtime?.screens ?? [], [runtime])
+  const sources = React.useMemo(() => runtime?.sources ?? [], [runtime])
+  const appId = runtime?.appId ?? ""
+  /**
+   * One registry for the whole view: every name any screen uses, resolved once.
+   * Built across all the screens rather than one at a time because the provider
+   * holds the registry too — a registry per screen would be two answers to what
+   * a name means inside one view, and the two would not agree the moment a
+   * screen was added.
+   */
+  const registry = React.useMemo(
+    () => Object.assign({}, ...screens.map((screen) => adaptRegistry(screen.spec, adaptComponent, ours))),
+    [screens, ours],
+  )
   const store = useViewStore(screens[0]?.spec.state, sources)
   const fetcher = React.useMemo(() => window.fetch.bind(window), [])
   const { chain, current, params } = useScreenView(screens)
