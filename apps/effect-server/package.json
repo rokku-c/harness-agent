@@ -16,8 +16,8 @@
   "dependencies": {
     "@effect-agent/effect-apps": "workspace:*",
     "@effect-agent/effect-bundle": "workspace:*",
-    "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-compat": "workspace:*",
+    "@effect-agent/effect-config": "workspace:*",
     "@effect-agent/effect-host": "workspace:*",
     "@effect-agent/effect-interface": "workspace:*",
     "@effect-agent/effect-mcp-http": "workspace:*",
@@ -25,9 +25,10 @@
     "@effect-agent/effect-observe": "workspace:*",
     "@effect-agent/effect-parity": "workspace:*",
     "@effect-agent/effect-ui": "workspace:*",
-    "@effect-agent/mcp-registry": "workspace:*",
     "@effect-agent/mcp-gateway": "workspace:*",
+    "@effect-agent/mcp-registry": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.30.0",
+    "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/themes": "^3.3.0",
     "yaml": "^2.4.0",
     "zod": "^3.25.0"

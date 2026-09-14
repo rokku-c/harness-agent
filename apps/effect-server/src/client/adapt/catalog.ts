@@ -1,11 +1,14 @@
 /**
- * A view's component name, resolved against the design system.
+ * A view's component name, resolved against the design system, and against the
+ * icon family's closed table when the design system has no such name.
  *
  * A node names what it wants the way `@radix-ui/themes` exports it, dotted for
  * a subcomponent: `"Card"`, `"Badge"`, `"Table.Row"`. Resolving is a walk into
  * the library's own exports, so a name we have never heard of works the moment
  * the library has it. There is no list of names here, and that is the point:
- * the vocabulary belongs to the design system, not to us.
+ * the vocabulary belongs to the design system, not to us. Glyphs are the one
+ * exception and `glyphs.ts` says why; the design system is still tried first,
+ * so nothing about this walk weakens for the names that are already its.
  *
  * What the walk has to be is total. A name that misses, a name that stops on a
  * namespace, a name with a dot where a segment should be — each is the same
@@ -16,6 +19,7 @@
 
 import * as RadixThemes from "@radix-ui/themes"
 import type { ComponentType } from "react"
+import { glyphs } from "./glyphs.ts"
 
 /** The library as a plain bag of exports — the walk knows nothing else about it. */
 const library = RadixThemes as unknown as Record<string, unknown>
@@ -47,5 +51,10 @@ const walk = (name: string): unknown => {
 
 export const libraryComponent = (name: string): ComponentType<never> | undefined => {
   const node = walk(name)
-  return isComponent(node) ? node as ComponentType<never> : undefined
+  if (isComponent(node)) return node as ComponentType<never>
+  // A glyph is named from `glyphs.ts` and not walked, and the reason is size:
+  // the icon family exports 3024 components, so the open walk that serves the
+  // design system would import every one of them into the bundle. §8 wants one
+  // glyph per concept anyway, so the closed table is the design's own shape.
+  return glyphs[name]
 }
