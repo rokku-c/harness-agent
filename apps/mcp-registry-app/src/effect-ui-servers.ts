@@ -1,74 +1,86 @@
 /**
- * The server list: what is registered, and the state each server is in.
+ * The registered servers, one row each.
  *
- * A row declares ui:// resources or it declares none, so the resources are read
- * inside the row's identity instead of standing in a column that would be empty
- * on nearly every line.
+ * A row declares ui:// resources or it declares none, so they are read inside
+ * the row's identity rather than in a column that would be empty on nearly every
+ * line, where the one thing a reader is looking for is the one thing they have
+ * to hunt for.
  *
- * The list is a read surface and nothing else, which is why the one act an
- * operator makes from a row is a door rather than a press: taking a server out
- * is irreversible and only the server's own token authorizes it, so the act has
- * a screen of its own where that token is entered and the record being removed
- * is named (`effect-ui-withdraw.ts`). A dialog on this surface would have had to
- * ask for the token without ever saying which server it was for.
+ * The root is named here rather than built by the vocabulary's `table`, which
+ * carries no size. §5's dense row is `Table size="1"`: the system's 14 px type
+ * over `--space-2` of cell padding, which the system's own default of `2` does
+ * not reach. The cells, chips and rows are the vocabulary's.
  */
+import { cellOf, chipList, press, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { SERVERS } from "./effect-ui-registry-source.ts"
+import { toneBadgeOf, type Tone } from "./effect-ui-tone.ts"
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { cell, cellOf, list, row, section, sourceStates, table, text } from "@effect-agent/effect-ui"
+/**
+ * One status value's badge, guarded on its own value — a tone belongs to a
+ * declared field, so the three the contract can carry are three nodes and a
+ * status nobody declared renders as nothing rather than as the wrong tone.
+ */
+const status = (value: string, tone: Tone): UiNodeSpec =>
+  ({ ...toneBadgeOf(tone, "status"), visible: { source: { item: "status" }, equals: value } })
 
 /**
  * The resources a row declares, under the id it declares them from. Guarded on
- * the first entry rather than on the array, because an empty array is truthy
- * and would leave the label over nothing.
+ * the first entry rather than on the array: an empty array is truthy, and the
+ * label would stand over nothing.
  */
-const declaredResources: UiNodeSpec = { component: "Flex", props: { direction: "column", gap: "1" },
+const resources: UiNodeSpec = {
+  component: "Flex",
+  props: { direction: "column", gap: "1" },
   visible: { source: { item: "apps/0" } },
   children: [
-    text("ui:// resources", { size: "1", color: "gray" }),
-    // Each uri is a chip, so the list column holds rows: a column stretches what
-    // it holds, and a stretched uri would paint as a bar.
-    list({ source: { item: "apps" } }, row([{ component: "Code", props: { variant: "ghost", size: "1" }, item: "" }])),
-  ] }
+    { component: "Text", props: { value: "ui:// resources", size: "1", color: "gray" } },
+    chipList({ source: { item: "apps" } }, ""),
+  ],
+}
+
+/** The name a person reads, over the id the server is addressed by. */
+const identity: UiNodeSpec = cellOf({
+  component: "Flex",
+  props: { direction: "column", gap: "1", align: "start" },
+  children: [
+    { component: "Text", props: { weight: "medium" }, item: "name" },
+    { component: "Code", item: "serverId" },
+    resources,
+  ],
+})
 
 /**
- * A row's identity: the name an operator reads, over the id and the resources it
- * declares. The stack is aligned to its start, because a column stretches what
- * it holds and a stretched id would paint as a bar under the name rather than as
- * the chip it is.
+ * Both doors name the server the row already stands on, so neither asks for an
+ * id the operator can see. Withdraw is a door and not a press: removing a server
+ * is authorized by that server's own token, and this row has nowhere to enter
+ * one — the screen it opens is where the token and the record meet.
  */
-const identity: UiNodeSpec = cellOf({ component: "Flex", props: { direction: "column", gap: "1", align: "start" }, children: [
-  { component: "Text", item: "name" },
-  { component: "Code", props: { variant: "soft", size: "1" }, item: "serverId" },
-  declaredResources,
-] })
+const doors: UiNodeSpec = cellOf(row([
+  press("Preview", "registry.openPreview", { serverId: { item: "serverId" } }, { size: "1", variant: "soft" }),
+  press("Withdraw", "registry.openWithdraw", { serverId: { item: "serverId" } }, { size: "1", variant: "soft" }),
+]))
 
-/**
- * The door out of a row, carrying the id it stands for: an operator who wants a
- * server gone should not have to retype the id it is listed under. It is a soft
- * red press because it leads to the destruction of this row, not because it
- * performs it — the pressing is done on the screen it opens.
- */
-const withdraw: UiNodeSpec = cellOf({ component: "Button",
-  props: { value: "Withdraw", size: "1", variant: "soft", color: "red" },
-  onPress: "registry.openWithdraw",
-  params: { serverId: { item: "serverId" } } })
+/** §2's column header: one step under the row it labels, and never bold by accident. */
+const column = (value: string): UiNodeSpec =>
+  ({ component: "Table.ColumnHeaderCell", children: [{ component: "Text", props: { value, size: "1", weight: "medium" } }] })
 
 const cells: readonly UiNodeSpec[] = [
   identity,
-  cell("version"),
-  // One row carries one badge: the status it is in, named by its value. An era
-  // is a fixed tag rather than a state, so it is text, and colour is left for
-  // the signals a row cannot name as an enumeration.
-  cell("era"),
-  cellOf({ component: "Badge", props: { variant: "soft" }, item: "status" }),
-  withdraw,
+  cellOf({ component: "Code", item: "version" }),
+  cellOf(toneBadgeOf("info", "era")),
+  cellOf(row([status("healthy", "ok"), status("warn", "pending"), status("offline", "failed")])),
+  doors,
 ]
 
-/** The list, and the states of the one read behind it. */
-export const serversSection: UiNodeSpec = section("Servers", [
-  text("One row per registered server; a row's Withdraw opens the act that removes it.", { size: "2", color: "gray" }),
-  ...sourceStates("registry", "No MCP servers are registered yet."),
-  table(["Server", "Version", "Era", "Status", "Withdraw"], cells,
-    { source: { state: "/registry/servers" }, key: "serverId" }),
-])
-
+export const serversTable: UiNodeSpec = {
+  component: "Table.Root",
+  props: { variant: "surface", size: "1" },
+  children: [
+    { component: "Table.Header", children: [{
+      component: "Table.Row",
+      children: ["Server", "Version", "Era", "Status", "Actions"].map(column),
+    }] },
+    { component: "Table.Body", repeat: { source: { state: SERVERS }, key: "serverId" },
+      children: [{ component: "Table.Row", children: [...cells] }] },
+  ],
+}

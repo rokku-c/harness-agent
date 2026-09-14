@@ -1,47 +1,52 @@
 /**
- * Previewing a ui:// resource a registered server declares.
+ * Previewing a ui:// resource a server declares.
  *
- * Every press replaces the whole result, so the renderings below cannot hold at
- * once: a failure takes the body of an earlier success with it, and a body of
- * any kind is a result, which is what the placeholder's guard reads. The result
- * is presented with the design system's own components wherever it can be —
- * nothing asked yet, a failure, a text body — so the one component of ours, the
- * sandboxed `Preview`, is left with the kinds a Radix component genuinely
- * cannot show: a page, an image. Those two are one node guarded by an `any` of
- * two equalities rather than two nodes.
+ * One node renders the answer, and it is the only component in a view that is
+ * ours (§11.3): a sandboxed frame, which no design system component is, because
+ * what it shows is a document from a server this page does not trust. Its five
+ * outcomes are decided inside it, in their order — a failure the resource
+ * reported, nothing chosen yet, a page, an image, any other body as text — so
+ * the whole answer is bound to it and nothing about the answer is decided here.
+ * A node per outcome on this screen would be a second copy of that order, free
+ * to disagree with the first, which is the failure the one node prevents.
  *
- * It replaces the list on screen rather than sitting under it because a preview
- * is a body of someone else's document, and a document given a slice of a page
- * under a registry of any length is a document read through a letterbox.
+ * The server field is bound to the address's own parameter rather than to a
+ * second copy of it, which is what lets a row's Preview carry the id it stands
+ * on: an operator who wants to see a resource should not have to retype the id
+ * it is already listed under. The field stays editable, because what the row
+ * carried is a starting value and not a lock.
+ *
+ * The body is the one thing in a region. A resource is a document of someone
+ * else's making and can be any height, and the form and the press that produced
+ * it keep their place above it rather than scrolling away under it.
  */
+import { field, heading, press, region, row, text, NAV_ROOT, type UiActionSpec, type UiNodeSpec } from "@effect-agent/effect-ui"
 
-import { failureCallout, field, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
+const SERVER = `${NAV_ROOT}/serverId`
+const URI = `${NAV_ROOT}/uri`
+const RESULT = "/preview/result"
 
-/** A preview body that is only text: a card and a code block, no sandbox needed. */
-const textBody: UiNodeSpec =
-  ({ component: "Card", props: { variant: "surface" },
-    visible: { source: { state: "/preview/result/kind" }, equals: "text" },
-    children: [{ component: "Code", props: { style: { whiteSpace: "pre-wrap" } }, bind: "/preview/result/body" }] })
+const form: UiNodeSpec = {
+  component: "Flex",
+  props: { direction: "column", gap: "3" },
+  children: [
+    field("Server id", { component: "TextField.Root", bind: SERVER }),
+    field("Resource URI", { component: "TextField.Root", props: { placeholder: "ui://server/console" }, bind: URI }),
+    row([press("Load preview", "registry.preview", undefined, { variant: "solid", size: "2" })]),
+  ],
+}
 
-/** The kinds that need a document of their own: an html page, an image. */
-const sandboxed: UiNodeSpec =
-  ({ component: "Preview", props: { height: 420 }, bind: "/preview/result",
-    visible: { any: [
-      { source: { state: "/preview/result/kind" }, equals: "html" },
-      { source: { state: "/preview/result/kind" }, equals: "image" },
-    ] } })
-
-export const previewNodes: readonly UiNodeSpec[] = [
-  section("Preview a ui:// resource", [
-    text("Reads a resource a server declares, over that server's own MCP endpoint.", { size: "2", color: "gray" }),
-    field("Server id", { component: "TextField.Root", bind: "/preview/serverId" }),
-    field("Resource URI", { component: "TextField.Root", props: { placeholder: "ui://server/console" }, bind: "/preview/uri" }),
-    row([{ component: "Button", props: { value: "Load preview" }, onPress: "registry.preview",
-      params: { serverId: { state: "/preview/serverId" }, uri: { state: "/preview/uri" } } }]),
-    failureCallout("/preview/result/error"),
-    { component: "Card", props: { variant: "surface" }, visible: { source: { state: "/preview/result" }, not: true },
-      children: [{ component: "Text", props: { value: "Load a resource to see it here.", size: "2", color: "gray" } }] },
-    textBody,
-    sandboxed,
-  ]),
+export const previewScreen: readonly UiNodeSpec[] = [
+  heading("Preview a resource", { size: "4" }),
+  text("Reads a ui:// resource a server declares, over that server's own MCP endpoint.", { size: "2", color: "gray" }),
+  form,
+  region([{ component: "Preview", props: { height: 420 }, bind: RESULT }]),
 ]
+
+export const previewAction: UiActionSpec = {
+  name: "registry.preview",
+  method: "GET",
+  url: "/-/registry/preview",
+  params: { serverId: { state: SERVER }, uri: { state: URI } },
+  result: RESULT,
+}
