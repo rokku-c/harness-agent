@@ -1,13 +1,37 @@
-export interface ConsoleEntry { id: string; title: string; hasView: boolean; hasConfig: boolean; icon: string; color: string }
-export type ConsoleSurface = "home" | "settings" | "view"
+/**
+ * What the console plans from: one entry per app the host has, and how it opens.
+ *
+ * An app is listed the way it declared itself — the registry holds what an app
+ * registered, so the console adds no table of app ids and no name of its own
+ * (`console-surface` §1). The three surfaces stay three flags, because an app can
+ * have any combination of them and the address for each is its own: `#app/<id>`
+ * is a view, `#tools/<app>` is a tool set, `#settings/<app>` is an editor. Today
+ * one flag stands for "an app that registers tools" as well as "an app that
+ * draws", which is what made a tools-only app open its inspector at the view
+ * address and lose it again the moment it drew anything (`flows.md` §1.6).
+ */
+
+import type { ConsoleRoute } from "./console-route.ts"
+
+export interface ConsoleEntry {
+  id: string
+  title: string
+  /** The app declared a view, so `#app/<id>` has a start screen to show. */
+  hasView: boolean
+  /** The app registered operations, so `#tools/<app>` has a list to scope. */
+  hasTools: boolean
+  hasConfig: boolean
+  icon: string
+  color: string
+}
+
 export interface ConsoleCatalogue {
   readonly ui?: ReadonlyArray<{ readonly interfaceId?: string; readonly title?: string; readonly icon?: string; readonly color?: string }>
   readonly views?: ReadonlyArray<string>
-  /** Interfaces that registered tools — an app that only speaks MCP has this. */
   readonly tools?: ReadonlyArray<{ readonly interfaceId?: string; readonly title?: string }>
   readonly config?: ReadonlyArray<{ readonly appId: string; readonly title?: string; readonly icon?: string; readonly color?: string }>
 }
-export interface HomeApp { readonly id: string; readonly title: string; readonly opensConfig: boolean }
+
 /**
  * The mark and colour an entry draws with, when the app did not send its own.
  * An app that declares neither still gets a stable, distinct tile: its initial
@@ -20,12 +44,13 @@ export const defaultColor = (id: string): string => {
   for (const char of id) hash = (hash * 31 + char.codePointAt(0)!) >>> 0
   return PALETTE[hash % PALETTE.length]!
 }
+
 export const planConsole = (catalogue: ConsoleCatalogue): ConsoleEntry[] => {
   const map = new Map<string, ConsoleEntry>()
   const touch = (id: string, title: string): ConsoleEntry => {
     const old = map.get(id)
-    if (old) return old
-    const entry = { id, title, hasView: false, hasConfig: false, icon: "", color: defaultColor(id) }
+    if (old !== undefined) return old
+    const entry = { id, title, hasView: false, hasTools: false, hasConfig: false, icon: "", color: defaultColor(id) }
     map.set(id, entry)
     return entry
   }
@@ -41,60 +66,13 @@ export const planConsole = (catalogue: ConsoleCatalogue): ConsoleEntry[] => {
     if (app.color) entry.color = app.color
   }
   for (const id of catalogue.views ?? []) touch(id, id).hasView = true
-  // An app that registers tools and no view still opens something — its tool
-  // inspector — so it belongs in the launcher beside the apps that draw.
-  for (const app of catalogue.tools ?? []) if (app.interfaceId) touch(app.interfaceId, app.title ?? app.interfaceId).hasView = true
+  for (const app of catalogue.tools ?? []) if (app.interfaceId) touch(app.interfaceId, app.title ?? app.interfaceId).hasTools = true
   for (const app of catalogue.config ?? []) touch(app.appId, app.title ?? app.appId).hasConfig = true
   for (const entry of map.values()) if (entry.icon === "") entry.icon = entry.title.slice(0, 1).toUpperCase()
   return [...map.values()]
 }
-/** Home is an app springboard; config-only entries stay in Settings. */
-export const homeApps = (plan: ConsoleEntry[]): HomeApp[] => plan.filter((entry) => entry.hasView).map((entry) => ({ id: entry.id, title: entry.title, opensConfig: false }))
-export const configApps = (plan: ConsoleEntry[]) => plan.filter((entry) => entry.hasConfig).map(({ id, title }) => ({ id, title }))
-/**
- * Which screen of an app the address bar names, and what it was opened with.
- *
- * Parameters ride in the query string, so a screen reads them as strings: a
- * number arrives as its digits. That is the one thing to know about them — they
- * are a *link's* worth of data, which is exactly what they are.
- */
-export interface ConsoleDestination {
-  readonly screen?: string
-  /** Absent when the screen was entered with nothing, which is how it stays absent through a round trip. */
-  readonly params?: Readonly<Record<string, string>>
-}
-export type ConsoleRoute = { kind: ConsoleSurface | "settings-config"; id?: string } & Partial<ConsoleDestination>
 
-/** `#view/<app>`, then optionally `/<screen>` and `?<name>=<value>`. Written once, read in both places below. */
-const DESTINATION = /^#view\/([^/?]+)(?:\/([^?]*))?(?:\?(.*))?$/
-const decode = (value: string): string => { try { return decodeURIComponent(value) } catch { return value } }
-
-/** The destination a hash names, on its own — no catalogue needed, because the view in the panel is what asks. */
-export const parseDestination = (hash: string): ConsoleDestination => {
-  const match = hash.match(DESTINATION)
-  const screen = match?.[2]
-  const params: Record<string, string> = {}
-  for (const [name, value] of new URLSearchParams(match?.[3] ?? "")) params[name] = value
-  return { ...(screen === undefined || screen === "" ? {} : { screen: decode(screen) }), ...(Object.keys(params).length === 0 ? {} : { params }) }
-}
-
-/**
- * The route a hash names, resolved against what is actually registered.
- *
- * `#config/<app>` is a link to an app's configuration, and configuration has one
- * surface: Settings, one row per configurable app (F5). So the link resolves to
- * the Settings page that holds the form — not to a second config surface that
- * would have to be kept in step with the first. An app with no configuration
- * lands on Settings, which is where a reader can see what there is to configure.
- */
-export const parseConsoleHash = (hash: string, plan: ConsoleEntry[]): ConsoleRoute => {
-  if (hash === "#settings") return { kind: "settings" }; if (hash === "#" || hash === "") return { kind: "home" }
-  const settingsMatch = hash.match(/^#settings\/config\/([^/?]+)/); if (settingsMatch) { try { const entry = plan.find((item) => item.id === decodeURIComponent(settingsMatch[1]) && item.hasConfig); return entry ? { kind: "settings-config", id: entry.id } : { kind: "settings" } } catch { return { kind: "settings" } } }
-  const configMatch = hash.match(/^#config\/([^/?]+)/); if (configMatch) { try { const entry = plan.find((item) => item.id === decodeURIComponent(configMatch[1]) && item.hasConfig); return entry ? { kind: "settings-config", id: entry.id } : { kind: "settings" } } catch { return { kind: "settings" } } }
-  const match = hash.match(DESTINATION); if (!match) return { kind: "home" }
-  // The app id stops at the first `/`, so a screen name is never mistaken for it.
-  try { const entry = plan.find((item) => item.id === decodeURIComponent(match[1]) && item.hasView); return entry ? { kind: "view", id: entry.id, ...parseDestination(hash) } : { kind: "home" } } catch { return { kind: "home" } }
-}
-/** Where an app's own tile goes: the app's view. Everything that has a tile has one. */
-export const appRoute = (id: string): ConsoleRoute =>
-  id === "settings" ? { kind: "settings" } : { kind: "view", id }
+/** Settings' rows: one configurable app, one editor. The whole entry, because a row draws the app's own mark. */
+export const configApps = (plan: readonly ConsoleEntry[]): readonly ConsoleEntry[] => plan.filter((entry) => entry.hasConfig)
+/** Where an app's own tile goes. Every app that has one draws at its own address, with no id special-cased. */
+export const appRoute = (id: string): ConsoleRoute => ({ kind: "app", id })

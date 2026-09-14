@@ -29,7 +29,7 @@ test("console catalogs registered apps and config apps", async () => {
   expect(cat.ui[0].resourceUri).toBe("ui://apps/demo/console")
   expect(cat.ui[0].path).toBe("/demo")
   expect(cat.config.map((c) => c.appId)).toContain("board")
-  expect(cat.ui.map((a) => a.interfaceId)).toEqual(["apps/demo", "activity", "settings"])
+  expect(cat.ui.map((a) => a.interfaceId)).toEqual(["apps/demo"])
 })
 
 test("console serves a view DESCRIPTION (with json-render spec) for client rendering", async () => {

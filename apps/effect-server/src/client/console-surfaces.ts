@@ -1,21 +1,20 @@
 /**
- * What the shell can put on screen, and how it hands it over.
+ * What the shell is handed to pass down: the config editor's two dependencies,
+ * and nothing else.
  *
- * A view mounts a React root of its own into a node the shell owns, so it is
- * opened imperatively: `current` tells the opener whether that node is still on
- * screen, so a slow fetch cannot paint over the route the reader moved to, and
- * the returned disposer unmounts that root — a view polls its sources on a
- * timer, so leaving one mounted on a route nobody is looking at keeps it
- * fetching forever. A config form needs none of that — it is an ordinary
- * component, and this is what it needs to render itself.
+ * An app's declarative view used to be here too, as an imperative opener that
+ * fetched the payload and mounted whichever surface the server named. That
+ * opener is gone with the address split (`flows.md` §1.6): a view address is a
+ * view and a tools address is a tool set, so the app's payload may now fail to
+ * be a surface at all — the app may have no view, or no screen by that name —
+ * and an outcome of the route belongs where the route is rendered, not inside a
+ * fetch that has already been told what to do. `console-app-surface.tsx` reads
+ * the payload and decides; this is what the places that render config need.
  */
 
 import type { ConfigApi } from "./config-api.ts"
 import type { ConfigMountFactory } from "./config-spec.ts"
 
-export type OpenPanel = (panel: HTMLElement, id: string, current: () => boolean) => Promise<() => void>
-
 export interface ConsoleSurfaces {
-  readonly view: OpenPanel
   readonly config: { readonly api: ConfigApi; readonly mountConfig: ConfigMountFactory }
 }

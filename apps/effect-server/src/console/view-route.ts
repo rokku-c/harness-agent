@@ -1,6 +1,5 @@
 import { screensOf, viewToJsonSpec } from "@effect-agent/effect-ui"
 import type { EffectUiView, UiScreen } from "@effect-agent/effect-ui"
-import { inspectorTools } from "./tools-route.ts"
 import type { ConsoleOptions } from "./options.ts"
 
 /**
@@ -17,10 +16,18 @@ const payload = (view: EffectUiView, screen: UiScreen) => ({
 })
 
 /**
- * What the console should mount for an app id: the app's own declarative view
- * when it declared one, else the tool inspector when it registered tools, else
- * nothing to draw. Deciding here — where the registry is — keeps the client
- * from asking twice, and keeps "this app has no surface" a single answer.
+ * What an app's view address draws: the app's own declarative view, or nothing.
+ *
+ * This used to answer with the tool inspector when an app registered MCP and drew
+ * nothing, which meant one address rendering one of two unrelated surfaces
+ * depending on what an app happened to register — and an app with both a view and
+ * operations losing the operations entirely (`flows.md` §1.6, verified in
+ * source). A view address is a view now, and operations are the Tools place's,
+ * which every app that registered any is inspectable at whether or not it draws.
+ *
+ * An app with no view is a 404 rather than a redirect: the client renders Not
+ * found at the address that was asked for, and offers the addresses that do exist
+ * for that app (§2.H8, §2.H13).
  *
  * The screens arrive lowered and in order, the first one being where the app
  * starts. Which of them is on top is the address bar's business, not this
@@ -30,16 +37,12 @@ const payload = (view: EffectUiView, screen: UiScreen) => ({
  */
 export const viewRoute = (options: ConsoleOptions, id: string): Response => {
   const view = options.uiViews?.get(id)
-  if (view !== undefined) {
-    const screens = screensOf(view)
-    return Response.json({ kind: "view", id, view, languages: ["effect-ui", "json-render"],
-      screens: screens.map((screen) => payload(view, screen)),
-      menu: view.screens === undefined && screens.length > 1,
-    })
+  if (view === undefined) {
+    return Response.json({ kind: "none", id, detail: `"${id}" declares no view` }, { status: 404 })
   }
-  const tools = inspectorTools(options.registry, id)
-  if (tools.length > 0) {
-    return Response.json({ kind: "tools", id, title: options.registry.find(id)?.title ?? id, tools })
-  }
-  return Response.json({ kind: "none", id, detail: "no declarative description" }, { status: 404 })
+  const screens = screensOf(view)
+  return Response.json({ kind: "view", id, view, languages: ["effect-ui", "json-render"],
+    screens: screens.map((screen) => payload(view, screen)),
+    menu: view.screens === undefined && screens.length > 1,
+  })
 }

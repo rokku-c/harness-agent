@@ -1,29 +1,44 @@
 /**
- * Reading the console's route out of the address bar.
+ * Writing the console's address, and reading it back.
  *
- * The hash is the only route record; React state is derived from it, so a
- * back button, a pasted link and a click all take the same path. Nothing here
- * keeps a second copy of where the reader is.
+ * The hash is the only route record; React state is derived from it, so a back
+ * button, a pasted link and a click all take one path, and nothing here keeps a
+ * second copy of where the reader is. This file is the write half — the one
+ * place that may change the address — and `console-route-hooks.ts` is the read
+ * half.
+ *
+ * What is *not* here any more is the truth-rewriting pass (`useAddressTruth`):
+ * an address that names nothing used to be replaced with the nearest address
+ * that did, which makes a broken deep link look like a working one and costs the
+ * operator the one fact they need. A stale address now stays exactly as written
+ * and renders Not found (`flows.md` §2.H13).
  */
 
-import * as React from "react"
-import type { ConsoleDestination, ConsoleRoute } from "./console-plan.ts"
+import { ROOT_SCREEN } from "@effect-agent/effect-ui"
+import type { ConsoleDestination, ConsoleRoute } from "./console-route.ts"
 import { pushed } from "./console-stack.ts"
 
-/** The screen and its parameters, as the tail of an app's hash. */
-const tailOf = (route: ConsoleRoute): string => {
-  const screen = route.screen === undefined ? "" : `/${encodeURIComponent(route.screen)}`
-  const query = new URLSearchParams(Object.entries(route.params ?? {})).toString()
-  return query === "" ? screen : `${screen}?${query}`
+/** One path segment, encoded, or nothing at all when the part is not there. */
+const segment = (value: string | undefined): string => value === undefined || value === "" ? "" : `/${encodeURIComponent(value)}`
+/** Only the filters an address actually carries: an absent one is absent, not written as the word `undefined`. */
+const query = (params: object | undefined): string => {
+  const search = new URLSearchParams()
+  for (const [name, value] of Object.entries(params ?? {})) if (typeof value === "string" && value !== "") search.set(name, value)
+  return search.toString() === "" ? "" : `?${search.toString()}`
 }
 
 export const hashOf = (route: ConsoleRoute): string => {
-  const id = route.id === undefined ? "" : encodeURIComponent(route.id)
   switch (route.kind) {
     case "home": return "#"
-    case "settings": return "#settings"
-    case "settings-config": return `#settings/config/${id}`
-    default: return `#${route.kind}/${id}${tailOf(route)}`
+    case "inbox": return `#inbox${segment(route.decisionId)}`
+    case "activity": return `#activity${query(route.filter)}`
+    case "tools": return `#tools${segment(route.app)}${segment(route.operation)}`
+    case "settings": return `#settings${segment(route.app)}`
+    // The first screen is the address that names no screen, so one screen has one address and not two.
+    case "app": return `#app/${encodeURIComponent(route.id)}${segment(route.screen === ROOT_SCREEN ? undefined : route.screen)}${query(route.params)}`
+    case "app-settings": return `#app/${encodeURIComponent(route.id)}/settings`
+    // A not-found keeps the address it failed to resolve; writing it again is how that stays true.
+    case "not-found": return route.address === "" ? "#" : route.address
   }
 }
 
@@ -51,29 +66,9 @@ export const navigate = (route: ConsoleRoute): void => {
  * the one thing that already keeps it.
  *
  * It is also recorded as a step this session walked (console-stack.ts), which is
- * what lets the back control on that screen use the browser's own history when
- * there is one, and the screen's parent when the reader pasted the address.
+ * what lets the return control on that screen use the browser's own history when
+ * there is one, and the screen's declared parent when the reader pasted the
+ * address.
  */
 export const openScreen = (id: string, destination: ConsoleDestination): void =>
-  navigate({ kind: "view", id, ...destination })
-
-/**
- * Keeps the address bar naming the place that is actually on screen.
- *
- * A link that no longer names anything true — an app this host does not have, an
- * app with nothing to configure, the one-time `#config/<app>` spelling — resolves
- * to the closest thing that does. Left as it was, the bar would keep naming a
- * place that is not there: a link the reader cannot tell is stale, and cannot
- * re-share.
- *
- * Rewritten, not pushed, because the reader did not navigate: nothing behind them
- * changed, and Back must not return them to the same stale link. Held until the
- * catalogue lands, since until it does every app looks absent.
- */
-export const useAddressTruth = (route: ConsoleRoute, ready: boolean): void => {
-  React.useEffect(() => {
-    if (!ready) return
-    const truth = hashOf(route)
-    if (here() !== truth) window.history.replaceState(null, "", truth)
-  }, [ready, route])
-}
+  navigate({ kind: "app", id, ...destination })

@@ -1,89 +1,82 @@
 /**
  * The console shell.
  *
- * A strip that says what this host is, the surface below it, and, under a
- * document screen that is not the springboard, the dock.
+ * A strip that says what this host is, the surface the address names, and — on
+ * every route except Home — the dock.
  *
- * There is one way Home from an app screen and it is the strip's own control
- * (console-status-bar.tsx): an app screen carries no navigation of its own
- * except the way up to the screen it came from. Two controls that both go Home
- * are two destinations to a reader — and the same holds between the springboard
- * and the dock, which is why the dock is not drawn under the springboard that
- * already is one.
+ * The shell resolves an address by asking the registry which surface claims it,
+ * and then draws whatever that surface returns. It holds no list of place names,
+ * no branch per place, and no branch for the address that resolves to nothing:
+ * the not-found pane registers like everything else (`console-places.tsx`), so
+ * "what draws this route" is one lookup for all seven cases. That is `flows.md`
+ * §9.9 and §9.10 in one line, and it is the difference between five places and
+ * the old three-way special-casing with five names.
  *
- * The two kinds of screen are framed differently, and deliberately. A document
- * screen — the launcher, settings — is the design system's own `Section` for
- * vertical rhythm and `Container` for how wide a page reads, so it stays as
- * tall as what it holds. An app surface is not a page: it is a tool, so it
- * takes exactly the area the chrome leaves and says for itself which part of
- * itself scrolls. That is the whole difference between a control and the answer
- * it produced being visible together, and the answer being somewhere below the
- * fold — and it is why the app route does not get a `Container`.
+ * How a surface is framed is the surface's own declaration. A place is a document
+ * — the design system's `Section` for vertical rhythm and `Container` for how
+ * wide a page reads, so it stays as tall as what it holds. An app is not a page:
+ * it is a tool, so it takes exactly the area the chrome leaves and says for
+ * itself which part of itself scrolls. That is the whole difference between a
+ * control and the answer it produced being visible together, and the answer being
+ * somewhere below the fold.
  */
 
 import * as React from "react"
-import { Callout, Container, Flex, Section } from "@radix-ui/themes"
+import { Container, Flex, Section } from "@radix-ui/themes"
 import { ConsoleTheme } from "./console-theme.tsx"
 import { ConsoleStatusBar } from "./console-status-bar.tsx"
 import { ConsoleDock } from "./console-dock.tsx"
-import { ConsoleHome } from "./console-home.tsx"
-import { ConsoleSettings } from "./console-settings.tsx"
-import { ConsoleActivity } from "./console-activity-view.tsx"
-import { MountedSurface } from "./console-mounted.tsx"
-import { useAddressTruth } from "./console-nav.ts"
-import { useRoute } from "./console-route-hooks.ts"
+import { useAddress } from "./console-route-hooks.ts"
 import { loadCatalogue, loadStatusLine } from "./console-boot.ts"
-import { planConsole, type ConsoleCatalogue, type ConsoleEntry, type ConsoleRoute } from "./console-plan.ts"
+import { useSource, sourceValue } from "./console-source.ts"
+import { planConsole } from "./console-plan.ts"
+import { parseConsoleHash, surfaceFor, titleOf } from "./console-places.tsx"
 import type { ConsoleSurfaces } from "./console-surfaces.ts"
+import type { PlaceContext } from "./console-place.ts"
 
-/** The desktop is where the launcher shows; an app route takes the whole surface. */
-const isDesktop = (route: ConsoleRoute): boolean =>
-  route.kind === "home" || route.kind === "settings" || route.kind === "settings-config"
-
-const titleOf = (route: ConsoleRoute, plan: readonly ConsoleEntry[]): string => {
-  if (route.kind === "settings" || route.kind === "settings-config") return "Settings"
-  if (route.id === undefined) return "effect-agent"
-  return plan.find((entry) => entry.id === route.id)?.title ?? "effect-agent"
-}
-
-const Content = ({ route, plan, surfaces }: {
-  readonly route: ConsoleRoute
-  readonly plan: readonly ConsoleEntry[]
-  readonly surfaces: ConsoleSurfaces
-}) => {
-  if (route.kind === "home") return <ConsoleHome plan={plan} />
-  if (route.kind === "settings" || route.kind === "settings-config") {
-    return <ConsoleSettings plan={plan} selected={route.kind === "settings-config" ? route.id : undefined} config={surfaces.config} />
-  }
-  if (route.id === undefined) return null
-  if (route.id === "activity" && route.kind === "view") return <ConsoleActivity />
-  return <MountedSurface id={route.id} open={surfaces.view} />
-}
-
-export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces }) => {
-  const [catalogue, setCatalogue] = React.useState<ConsoleCatalogue | undefined>(undefined)
+/**
+ * The host's own plane table, read once for the chrome. It is not a source with a
+ * freshness marker: the status line is chrome, and chrome that says "stale" is
+ * noise on every route — a failed read here says so in its own words.
+ */
+const useStatusLine = (): string => {
   const [status, setStatus] = React.useState("Loading system status…")
-  const [failure, setFailure] = React.useState<string | undefined>(undefined)
   React.useEffect(() => {
     let live = true
-    void loadCatalogue().then((value) => { if (live) setCatalogue(value) }, (cause: Error) => { if (live) setFailure(cause.message) })
     void loadStatusLine().then((value) => { if (live) setStatus(value) })
     return () => { live = false }
   }, [])
-  const plan = React.useMemo(() => planConsole(catalogue ?? {}), [catalogue])
-  const route = useRoute(plan)
-  useAddressTruth(route, catalogue !== undefined)
-  const desktop = isDesktop(route)
-  const notice = failure === undefined ? null : <Callout.Root color="red" mb={desktop ? "5" : "3"}><Callout.Text>{failure}</Callout.Text></Callout.Root>
+  return status
+}
+
+export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces }) => {
+  const catalogue = useSource("catalogue", loadCatalogue)
+  const status = useStatusLine()
+  const plan = React.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state])
+  const hash = useAddress()
+  // Re-resolved when the plan changes, so a deep link to an app resolves the moment the catalogue
+  // lands rather than staying Not found until the next navigation. Resolution reads the plan and
+  // never rewrites the address on account of what it finds (§2.H13).
+  const route = React.useMemo(() => parseConsoleHash(hash, plan), [hash, plan])
+  const surface = surfaceFor(route)
+  const context = React.useMemo<PlaceContext>(() => ({
+    plan, surfaces, status,
+    catalogue: {
+      ...(catalogue.state.status === "failed" ? { failure: catalogue.state.error } : {}),
+      retry: catalogue.retry,
+    },
+  }), [plan, surfaces, status, catalogue.state, catalogue.retry])
+  const home = route.kind === "home"
+  const body = surface?.view(route, context) ?? null
   return <ConsoleTheme>
     <Flex direction="column" height="100dvh">
-      <ConsoleStatusBar status={status} title={titleOf(route, plan)} home={route.kind === "home"} />
-      <div className="shell-body" data-shell-view={desktop ? "home" : "app"}>
-        {desktop
-          ? <Section size="1" px="4"><Container>{notice}<Content route={route} plan={plan} surfaces={surfaces} /></Container></Section>
-          : <Flex className="view-fill" direction="column" p="4">{notice}<Content route={route} plan={plan} surfaces={surfaces} /></Flex>}
+      <ConsoleStatusBar status={status} title={titleOf(route, plan)} home={home} />
+      <div className="shell-body" data-shell-view={surface?.chrome ?? "page"} data-dock={home ? "off" : "on"}>
+        {surface?.chrome === "fill"
+          ? <Flex className="view-fill" direction="column" p="4">{body}</Flex>
+          : <Section size="1" px="4"><Container>{body}</Container></Section>}
       </div>
-      {desktop && route.kind !== "home" ? <ConsoleDock plan={plan} route={route} /> : null}
+      {home ? null : <ConsoleDock plan={plan} route={route} />}
     </Flex>
   </ConsoleTheme>
 }

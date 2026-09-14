@@ -1,14 +1,16 @@
 /**
- * The surface an app gets when it registers tools and draws nothing.
+ * Operations, and calling them: the server half of the Tools place.
  *
- * Some apps are MCP only: they publish tools over the registry and never declare
- * a view. Without a surface the console can only say "no declarative
- * description" — and that is exactly the app an operator most needs to poke at
- * while wiring it up. So an interface that has tools and no view opens the tool
- * inspector instead: pick a tool, read its schema, fill the form, call it, see
- * what came back. It is the debugging surface MCP Inspector made familiar,
- * built here on the registry we already serve agents from, so what the
- * inspector shows cannot drift from what an agent gets.
+ * Operations used to have no address of their own — the inspector was what an app
+ * *got* when it registered MCP and drew nothing, so an app that also had a view
+ * could not reach its own operations at all (`flows.md` §1.6, verified in
+ * source). Tools is a place now, and the whole catalogue arrives in one read so
+ * that `#tools` can list apps the reader has not reached yet, `#tools/<app>` can
+ * scope to one of them, and an app with both a view and operations is inspectable
+ * like any other.
+ *
+ * It is the same registry MCP serves agents from, projected the same way, so what
+ * an operator sees here cannot drift from what an agent gets.
  */
 
 import { invoke, type EffectRegistry } from "@effect-agent/effect-interface"
@@ -33,6 +35,16 @@ export const inspectorTools = (registry: EffectRegistry, id: string): readonly I
       // are validated against one schema
       inputSchema: registry.schemaFor(key)?.parameters ?? { type: "object" },
     }))
+
+/** Every interface that registered an operation, under the title it carries, with its operations. */
+export const toolsRoute = (registry: EffectRegistry): Response =>
+  Response.json({
+    apps: [...new Set(registry.tools().map((entry) => entry.interfaceId))].map((id) => ({
+      id,
+      title: registry.find(id)?.title ?? id,
+      tools: inspectorTools(registry, id),
+    })),
+  })
 
 /** Arguments are the request body; an empty body is an empty argument set. */
 const argsOf = async (request: Request): Promise<unknown> => {

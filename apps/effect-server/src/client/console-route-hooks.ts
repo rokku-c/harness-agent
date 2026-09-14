@@ -2,16 +2,26 @@
  * The address, as React reads it.
  *
  * The address bar is the only route record and console-nav.ts is the only place
- * that writes it; what is here is the other half — a component subscribing to it
- * and getting a route back. Both hooks re-read on `hashchange`, so a click, a
- * pasted link and the browser's own back button all arrive the same way.
+ * that writes it; what is here is the other half — a component subscribing to it,
+ * so a click, a pasted link and the browser's own back button all arrive the same
+ * way.
+ *
+ * Resolving the hash to a route is not here. Resolution needs the registry, the
+ * registry holds React components, and no `.ts` module in this client may reach a
+ * `.tsx` one (the repository's root typecheck compiles `.ts` with no `jsx`
+ * setting). The shell does it, where the plan and the registry are already in
+ * hand.
+ *
+ * `useDestination` is separate because the screen a mounted view is on is the
+ * *view's* question, not the shell's: a view asks what screen the address names
+ * without needing to know what place claims it.
  */
 
 import * as React from "react"
-import { parseConsoleHash, parseDestination, type ConsoleDestination, type ConsoleEntry, type ConsoleRoute } from "./console-plan.ts"
+import { parseDestination, type ConsoleDestination } from "./console-route.ts"
 
 /** The hash, and a subscription that re-renders when it changes. */
-const useHash = (): string => {
+export const useAddress = (): string => {
   const [hash, setHash] = React.useState(() => window.location.hash)
   React.useEffect(() => {
     const onHash = () => setHash(window.location.hash)
@@ -23,12 +33,6 @@ const useHash = (): string => {
 
 /** The screen the address bar names. Read on its own: the view in the panel is what asks, not the shell. */
 export const useDestination = (): ConsoleDestination => {
-  const hash = useHash()
+  const hash = useAddress()
   return React.useMemo(() => parseDestination(hash), [hash])
-}
-
-/** Re-parsed whenever the plan changes, so a deep link resolves once the catalogue lands. */
-export const useRoute = (plan: readonly ConsoleEntry[]): ConsoleRoute => {
-  const hash = useHash()
-  return React.useMemo(() => parseConsoleHash(hash, plan as ConsoleEntry[]), [hash, plan])
 }

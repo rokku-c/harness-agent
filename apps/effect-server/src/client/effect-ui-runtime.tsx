@@ -26,7 +26,8 @@ import { useNavState, useScreenView } from "./effect-ui-screen-nav.ts"
 import { useScreenEnter } from "./effect-ui-screen-entry.ts"
 import { SourceLoader, useViewStore } from "./effect-ui-view-state.tsx"
 import { openScreen, navigate } from "./console-nav.ts"
-import { canGoBack } from "./console-stack.ts"
+import { canGoBack, backTarget } from "./console-stack.ts"
+import { parseDestination } from "./console-route.ts"
 import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 
 type Props = {
@@ -70,8 +71,20 @@ export const EffectUiRuntime = ({ ours, runtime }: Props) => {
     if (canGoBack()) { window.history.back(); return }
     // The first screen is `nodes`, and the address names it by saying nothing.
     const parent = chain[chain.length - 2]?.id
-    navigate({ kind: "view", id: appId, screen: parent === ROOT_SCREEN ? undefined : parent })
+    navigate({ kind: "app", id: appId, ...(parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent }) })
   }, [appId, chain])
+  /**
+   * Where the return control goes, named by that destination's own title (§2.H5):
+   * a walked screen is the one the history is about to land on, a pasted one is
+   * the parent the view declares. It is never the word "Back", because two
+   * controls that both read as "back" is the defect this replaces.
+   */
+  const returnTo = React.useMemo(() => {
+    const parent = chain[chain.length - 2]
+    if (!canGoBack()) return parent
+    const screen = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN
+    return screens.find((candidate) => candidate.id === screen) ?? parent
+  }, [chain, screens])
   const handlers = React.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open, fetcher), [runtime?.actions, sources, store, open, fetcher])
   useScreenEnter(handlers, current, params)
   if (current === undefined) return null
@@ -79,7 +92,7 @@ export const EffectUiRuntime = ({ ours, runtime }: Props) => {
   return <ConsoleTheme fill>
     <JSONUIProvider store={store} registry={registry} handlers={handlers}>
       <SourceLoader sources={sources} store={store} fetcher={fetcher} />
-      <ScreenPanes chain={chain} registry={registry} menu={menu} onBack={back} />
+      <ScreenPanes chain={chain} registry={registry} menu={menu} onBack={back} returnLabel={returnTo?.title} />
     </JSONUIProvider>
   </ConsoleTheme>
 }

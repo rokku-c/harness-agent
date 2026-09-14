@@ -11,8 +11,9 @@
 
 .shell-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: none }
 .shell-body::-webkit-scrollbar { display: none }
-/* The dock floats over the page, so the page keeps room for it. */
-.shell-body[data-shell-view="home"] { padding-bottom: calc(var(--dock-height) + var(--dock-lift) + var(--space-5)) }
+/* The dock floats over the page, so every route that carries it keeps room for it. Home does not:
+   it is the index itself, so the dock is not drawn under it (console-dock.tsx). */
+.shell-body[data-dock="on"] { padding-bottom: calc(var(--dock-height) + var(--dock-lift) + var(--space-5)) }
 
 /**
  * An app surface is a screen, not a document: it is exactly as tall as the area
@@ -21,12 +22,12 @@
  * `.shell-body` keeps its scrollbar and stays the only scroller — a view that
  * overflows this chain simply scrolls there, exactly as it did before.
  *
- * Scoped to an app route, because a document screen — settings, a config form —
+ * Scoped to an app route, because a document screen — a place, a config form —
  * wants the opposite: as tall as its content, and the class is inert there. Each
  * link is one of ours; the design system's own `Theme` is given this class
  * rather than a layout prop, because it takes a className and not a height.
  */
-.shell-body[data-shell-view="app"] .view-fill { height: 100%; min-height: 0; display: flex; flex-direction: column }
+.shell-body[data-shell-view="fill"] .view-fill { height: 100%; min-height: 0; display: flex; flex-direction: column }
 
 /**
  * The panes an app's screens are shown in: two at the design system's own `md`,
@@ -96,23 +97,11 @@
 }
 .shell-dock-divider { flex: none; align-self: center; width: 1px; height: 34px; margin: 0 var(--space-1); background: var(--gray-a5) }
 
-/* In an app the dock is gone and the surface belongs to the app; this is the way back. */
-.shell-menu {
-  position: fixed; z-index: 30; right: max(var(--space-5), env(safe-area-inset-right));
-  bottom: max(var(--space-5), env(safe-area-inset-bottom));
-  display: grid; place-items: center; width: 58px; height: 58px; padding: 0;
-  border: 1px solid var(--gray-a5); border-radius: 50%;
-  background: var(--color-panel-translucent); box-shadow: var(--shadow-5);
-  backdrop-filter: blur(22px) saturate(1.35);
-  color: var(--accent-9); font-size: 24px; line-height: 1; cursor: pointer;
-}
-
 @media (max-width: 700px) {
   :root { --dock-height: 100px }
   .shell-dock { gap: var(--space-1); padding: var(--space-2) 6px }
   .shell-dock-item { width: 72px; height: 80px; min-height: 80px; border-radius: var(--radius-3) }
   .shell-dock-icon { width: 64px; height: 64px; border-radius: var(--radius-4); font-size: 24px }
   .shell-dock-label { max-width: 72px; font-size: 10px; line-height: 1.1 }
-  .shell-menu { width: 54px; height: 54px }
 }
 @media (prefers-reduced-motion: reduce) { .shell-dock-item { transition: none } }

@@ -5,7 +5,7 @@ import { consolePage } from "./console-page.ts"
 import { makeConfigRuntime } from "./config-runtime/runtime.ts"
 import { appsCatalogue } from "./console/apps-catalogue.ts"
 import { configRoute } from "./console/config-route.ts"
-import { callRoute } from "./console/tools-route.ts"
+import { callRoute, toolsRoute } from "./console/tools-route.ts"
 import { viewRoute } from "./console/view-route.ts"
 import type { ConsoleOptions } from "./console/options.ts"
 export type { ConsoleOptions } from "./console/options.ts"
@@ -54,6 +54,10 @@ export const makeConsolePlugin = (options: ConsoleOptions): EffectPlugin => ({
         }
         const view = path.match(/^\/console\/api\/view\/([^/]+)$/)
         if (view) return viewRoute(options, decodeURIComponent(view[1]))
+        // The whole catalogue, which is what `#tools` lists; the call below is
+        // one operation of one app, and the two cannot collide: a call names two
+        // more segments.
+        if (path === "/console/api/tools") return toolsRoute(options.registry)
         const call = path.match(/^\/console\/api\/tools\/([^/]+)\/([^/]+)$/)
         if (call) return callRoute(options.registry, decodeURIComponent(call[1]), decodeURIComponent(call[2]), request)
         if (path === "/console" || path === "/console/") return new Response(consolePage, { headers: { "content-type": "text/html; charset=utf-8" } })

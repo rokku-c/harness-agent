@@ -9,7 +9,6 @@ import { makeConfigMount } from "./config-react-mount.tsx"
 import { configComponents } from "./adapt/config-fields.tsx"
 import { Preview } from "./adapt/preview.tsx"
 import { createConfigApi } from "./config-api.ts"
-import { createConsoleViews } from "./console-views.tsx"
 import { ConsoleShell } from "./console-shell.tsx"
 import { bootThemeMode } from "./theme-runtime.ts"
 import type { ConsoleSurfaces } from "./console-surfaces.ts"
@@ -44,7 +43,6 @@ const start = () => {
   const root = document.getElementById("console-root")
   if (root === null) return
   const surfaces: ConsoleSurfaces = {
-    view: createConsoleViews(),
     config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(configComponents) },
   }
   createRoot(root).render(<ConsoleShell surfaces={surfaces} />)
