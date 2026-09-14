@@ -50,6 +50,37 @@ So the default surface should be a **scheduling console**, not a wall metaphor.
 - To do: when the unified information protocol with the mantis console (a same-layer state protocol for
   people and agents) is chartered, use this table as the field-set reference.
 
+## Amendment — what the default drawing is, and what "Worktable" turned out to mean (2026-09)
+
+This record is kept for its argument, not as a description of the current client, and one sentence
+in it now reads against the code. It said **"Default view Worktable (main table)"**; the client
+opens on **Tree**. Leaving both standing would leave the next reader two records that disagree, so
+the judgement is written down here.
+
+**The decision is Tree as the default, and Table as the scanning drawing.** The reasoning is that
+the paragraph above states what a row must carry — identity, state, the blocking reason, reached
+without a click — and that is a requirement on **a row**, not a ranking of layouts. Every drawing in
+the client now satisfies it: the blocking reason is a field on the task and is drawn wherever a row
+is drawn. What is left to decide the default is the second axis this record did not have in view:
+**rooting**. Tree is the only drawing that can be rooted at an arbitrary node and redrawn from
+there, which is the whole of "the same graph seen from any node, including the subtree one agent
+holds". A default that could not be rooted would make the product's second axis something you have
+to go somewhere else to reach.
+
+**The other correction is structural.** "Kanban kept as an optional view (top-bar Table ⇄ Board
+toggle)" was right about the mechanism and wrong about the scope: the client now names **three
+destinations** — Work (the plan), Runs (the record), Setup (this machine) — and the five layouts of
+the task graph are **drawings inside Work**, chosen by a control rather than by leaving the place.
+They were five destinations for a while, and it cost a node: because the model said "you have gone
+somewhere else" about a change of layout, opening a node in the tree and then looking at the same
+node on the board closed it. Measured, `open=t-5ec98498` was in the address before the press and
+gone after it. A change of drawing is not a change of subject, and the address now says so.
+
+The four real tasks this record named — assign work → watch blockers → arrange resources → chase
+failures — are covered as: Work and the node's own panel for the first two, Runs for the fourth.
+**Arranging resources is still deliberately not built**: the board shows who holds a node and
+offers nothing for moving them, because scheduling belongs to the center and not to the graph.
+
 ## Verification toolchain memo
 
 Local Chrome has been upgraded to 152: the CLI dump-dom of `--headless=new` fails intermittently,
