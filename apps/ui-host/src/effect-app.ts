@@ -12,7 +12,7 @@ export const effectApp = defineApp({
   title: "UI Canvas",
   description: "ui runtime host console",
   path: "/ui",
-  icon: "▣", color: "iris",
+  icon: "Browsers", color: "iris",
   egress: "main-first",
   config: effectConfig,
   ui: effectUiView,

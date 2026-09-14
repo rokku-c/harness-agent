@@ -11,14 +11,18 @@
  *
  * Nothing here interprets a node. A screen is a spec, and the same renderer that
  * drew every view before this one draws it.
+ *
+ * It is an ordinary component of the console's own tree: the shell and the view
+ * are one bundle and one React instance, so one owner draws into one container.
  */
 
 import * as React from "react"
-import { JSONUIProvider, type ComponentRegistry } from "@json-render/react"
+import { JSONUIProvider } from "@json-render/react"
 import { ROOT_SCREEN } from "@effect-agent/effect-ui"
 import { makeActionHandlers, type OpenScreen } from "./effect-ui-action-runtime.ts"
 import { adaptRegistry } from "./adapt/registry.ts"
 import { adaptComponent } from "./adapt/render.tsx"
+import { ownComponents } from "./effect-ui-own-components.tsx"
 import { ConsoleTheme } from "./console-theme.tsx"
 import { ScreenMenu } from "./effect-ui-screen-menu.tsx"
 import { ScreenPanes } from "./effect-ui-screen-panes.tsx"
@@ -30,17 +34,13 @@ import { canGoBack, backTarget } from "./console-stack.ts"
 import { parseDestination } from "./console-route.ts"
 import type { EffectUiRuntimeSpec } from "./effect-ui-runtime-types.ts"
 
-type Props = {
-  /** The components the host renders itself, when a view names one the library does not have. */
-  readonly ours?: ComponentRegistry
-  readonly runtime?: EffectUiRuntimeSpec
-}
+type Props = { readonly runtime?: EffectUiRuntimeSpec }
 
 /** A parameter rides in a link, so it arrives as the strings a query string can carry. */
 const asParams = (values: Record<string, unknown>): Record<string, string> =>
   Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]))
 
-export const EffectUiRuntime = ({ ours, runtime }: Props) => {
+export const EffectUiRuntime = ({ runtime }: Props) => {
   const screens = React.useMemo(() => runtime?.screens ?? [], [runtime])
   const sources = React.useMemo(() => runtime?.sources ?? [], [runtime])
   const appId = runtime?.appId ?? ""
@@ -52,8 +52,8 @@ export const EffectUiRuntime = ({ ours, runtime }: Props) => {
    * screen was added.
    */
   const registry = React.useMemo(
-    () => Object.assign({}, ...screens.map((screen) => adaptRegistry(screen.spec, adaptComponent, ours))),
-    [screens, ours],
+    () => Object.assign({}, ...screens.map((screen) => adaptRegistry(screen.spec, adaptComponent, ownComponents))),
+    [screens],
   )
   const store = useViewStore(screens[0]?.spec.state, sources)
   const fetcher = React.useMemo(() => window.fetch.bind(window), [])
@@ -88,7 +88,9 @@ export const EffectUiRuntime = ({ ours, runtime }: Props) => {
   const handlers = React.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open, fetcher), [runtime?.actions, sources, store, open, fetcher])
   useScreenEnter(handlers, current, params)
   if (current === undefined) return null
-  const menu = runtime?.menu === true && current.id === ROOT_SCREEN ? <ScreenMenu appId={appId} screens={screens} /> : null
+  const menu = runtime?.menu === true && current.id === ROOT_SCREEN
+    ? <ScreenMenu appId={appId} title={runtime.title ?? appId} screens={screens} />
+    : null
   return <ConsoleTheme fill>
     <JSONUIProvider store={store} registry={registry} handlers={handlers}>
       <SourceLoader sources={sources} store={store} fetcher={fetcher} />

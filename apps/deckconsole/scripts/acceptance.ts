@@ -21,8 +21,6 @@ for (let i = 0; i < 80; i++) { try { if ((await fetch(base + "/api/deck")).ok) b
 const post = async (path: string, body: unknown): Promise<any> => (await fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json()
 const get = async (path: string): Promise<any> => (await fetch(base + path)).json()
 
-const page = await fetch(base + "/")
-check("page served", page.ok)
 const open = await post("/api/session", { kind: "demo", sessionId: "acc-1", config: { label: "验收" } })
 check("open session", open.ok === true, JSON.stringify(open))
 const hi = await post("/api/session/acc-1/send", { text: "hi" })

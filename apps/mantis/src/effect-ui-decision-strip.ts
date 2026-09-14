@@ -18,8 +18,8 @@
  * nothing. A block that matches nothing takes no height at all.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { row, rowValue, toneProps } from "./effect-ui-nodes.ts"
+import { toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { row, rowValue } from "./effect-ui-nodes.ts"
 import { verdictPresses } from "./effect-ui-decisions.ts"
 
 const stripRow: UiNodeSpec = {
@@ -28,7 +28,7 @@ const stripRow: UiNodeSpec = {
   visible: { source: { item: "session" }, equals: { state: "/mantis/conversation/conversationId" } },
   children: [
     row([
-      { component: "Badge", props: { ...toneProps("pending"), value: "Waiting decision" } },
+      toneBadge("pending", "Waiting decision"),
       rowValue("tool"),
       rowValue("callId", { color: "gray" }),
     ]),

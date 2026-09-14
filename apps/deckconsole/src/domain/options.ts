@@ -8,5 +8,4 @@ export interface DeckOptions {
   readonly claudeSdk?: { readonly query: NonNullable<ClaudeCodeOptions["query"]> }
   readonly launchers?: ReadonlyArray<Launcher>
   readonly configFile?: string
-  readonly basePath?: string
 }

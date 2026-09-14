@@ -24,6 +24,7 @@ import { useSource, sourceValue } from "./console-source.ts"
 import { loadInbox } from "./console-decision.ts"
 import { FirstSteps } from "./console-first-steps.tsx"
 import { HomeGrid } from "./console-home-grid.tsx"
+import { SETTINGS } from "./console-place-settings.tsx"
 import type { Place, PlaceContext } from "./console-place.ts"
 
 /** One count, as the link that opens the place it counts. */
@@ -63,7 +64,7 @@ const HomePlace = ({ context }: { readonly context: PlaceContext }) => {
     <NeedsYou />
     {apps.length === 0
       ? <FirstSteps status={context.status} quiet={context.plan.length === 0} />
-      : <HomeGrid apps={apps} />}
+      : <HomeGrid apps={apps} settings={SETTINGS} />}
   </Flex>
 }
 
@@ -71,7 +72,7 @@ export const HOME: Place = {
   id: "home",
   title: "Home",
   route: { kind: "home" },
-  mark: "⌂",
+  mark: "House",
   color: "jade",
   chrome: "page",
   kinds: ["home"],

@@ -36,6 +36,9 @@ export const deckActions: readonly UiActionSpec[] = [
     params: { sessionId: { state: `${NAV_ROOT}/sessionId` } } },
   { name: "deck.create", method: "POST", url: "/deck/api/session", result: "/result/open",
     clear: ["/create/sessionId", "/create/prompt"], refresh: ["deck"] },
+  // The door beside a create that worked. It carries no call, so it has nothing to
+  // fail at, and its parameter is the id the create's own answer brought back.
+  { name: "deck.openCreated", opens: "session", params: { sessionId: { state: "/result/open/session/sessionId" } } },
   // Closing a session changes what its transcript says, so the transcript is read
   // again: the read of a session that is gone refuses, and that refusal is read on
   // the screen showing that transcript. Clearing the detail here instead would

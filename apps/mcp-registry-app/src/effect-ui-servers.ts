@@ -11,9 +11,8 @@
  * over `--space-2` of cell padding, which the system's own default of `2` does
  * not reach. The cells, chips and rows are the vocabulary's.
  */
-import { cellOf, chipList, press, row, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { cellOf, chipList, press, row, toneField, type Tone, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { SERVERS } from "./effect-ui-registry-source.ts"
-import { toneBadgeOf, type Tone } from "./effect-ui-tone.ts"
 
 /**
  * One status value's badge, guarded on its own value — a tone belongs to a
@@ -21,7 +20,7 @@ import { toneBadgeOf, type Tone } from "./effect-ui-tone.ts"
  * status nobody declared renders as nothing rather than as the wrong tone.
  */
 const status = (value: string, tone: Tone): UiNodeSpec =>
-  ({ ...toneBadgeOf(tone, "status"), visible: { source: { item: "status" }, equals: value } })
+  ({ ...toneField(tone, "status"), visible: { source: { item: "status" }, equals: value } })
 
 /**
  * The resources a row declares, under the id it declares them from. Guarded on
@@ -67,7 +66,7 @@ const column = (value: string): UiNodeSpec =>
 const cells: readonly UiNodeSpec[] = [
   identity,
   cellOf({ component: "Code", item: "version" }),
-  cellOf(toneBadgeOf("info", "era")),
+  cellOf(toneField("info", "era")),
   cellOf(row([status("healthy", "ok"), status("warn", "pending"), status("offline", "failed")])),
   doors,
 ]

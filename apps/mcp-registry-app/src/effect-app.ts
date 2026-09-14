@@ -5,7 +5,7 @@ import { createMcpRegistryPlugin } from "./effect-plugin.ts"
 
 export const effectApp = defineApp({
   id: "mcp-registry", title: "MCP Registry", description: "MCP server lease registry", path: "/mcp-registry",
-  icon: "◇", color: "sky",
+  icon: "Books", color: "sky",
   routes: [{ path: "/mcp-registry", match: "prefix" }, { path: "/-/registry", match: "prefix" }],
   egress: "main-first", config: effectConfig, ui: effectUiView,
   createPlugin: (getConfig, context) => createMcpRegistryPlugin(getConfig, context),

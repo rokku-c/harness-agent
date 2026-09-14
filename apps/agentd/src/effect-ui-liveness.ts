@@ -14,10 +14,9 @@
  * leaving on its own terms, which is a deploy rather than an incident, and it is
  * a fact worth telling apart from both of the others.
  */
-import { row, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { row, stateRows, toneBadge, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { NODES } from "./effect-ui-paths.ts"
 import { block, cellOf, chip, table } from "./effect-ui-rows.ts"
-import { failed, info, ok, whenFalse, whenTrue } from "./effect-ui-tone.ts"
 
 /**
  * The two readings of one boolean, each with the tone its reading earns.
@@ -30,15 +29,15 @@ import { failed, info, ok, whenFalse, whenTrue } from "./effect-ui-tone.ts"
  * is not a state anyone needs told apart.
  */
 const presence: UiNodeSpec = cellOf([row([
-  whenTrue(ok("Online"), "online"),
-  whenFalse(failed("Offline"), "online"),
+  { ...toneBadge("ok", "Online"), visible: { source: { item: "online" }, equals: true } },
+  { ...toneBadge("failed", "Offline"), visible: { source: { item: "online" }, not: true } },
 ])])
 
 const cells: readonly UiNodeSpec[] = [
   cellOf([chip("nodeId")]),
   presence,
   cellOf([row([
-    whenTrue(info("Withdrawn"), "withdrawn"),
+    { ...toneBadge("info", "Withdrawn"), visible: { source: { item: "withdrawn" }, equals: true } },
     { component: "Text", props: { value: "No", size: "2", color: "gray" },
       visible: { source: { item: "withdrawn" }, not: true } },
   ])]),

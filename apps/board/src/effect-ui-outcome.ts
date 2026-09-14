@@ -12,11 +12,11 @@
  * A row whose children are all hidden has no content and takes no height.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { okBadge } from "./effect-ui-tone.ts"
+import { row, toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 export const outcome = (presses: readonly UiNodeSpec[], marks: readonly (readonly [string, string])[]): UiNodeSpec =>
   row([
     ...presses,
-    ...marks.map(([path, word]): UiNodeSpec => okBadge(word, { source: { state: path } })),
+    ...marks.map(([path, word]): UiNodeSpec =>
+      ({ ...toneBadge("ok", word), visible: { source: { state: path } } })),
   ])

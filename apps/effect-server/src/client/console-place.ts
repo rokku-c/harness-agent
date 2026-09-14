@@ -20,6 +20,7 @@
  */
 
 import type * as React from "react"
+import type { GlyphName } from "./adapt/glyphs.ts"
 import type { Address, ConsoleRoute } from "./console-route.ts"
 import type { ConsoleEntry } from "./console-plan.ts"
 import type { ConsoleSurfaces } from "./console-surfaces.ts"
@@ -64,7 +65,12 @@ export interface Place extends Surface {
   readonly title: string
   /** What this place is with nothing of its own selected: its address, and what its dock tile opens. */
   readonly route: ConsoleRoute
-  /** The mark and palette the place draws with, declared for the same reason an app declares its own. */
-  readonly mark: string
+  /**
+   * The mark and palette the place draws with, declared for the same reason an
+   * app declares its own. The mark is a name from `adapt/glyphs.ts` and not a
+   * character, because §8 allows no textual stand-in in a tile's mark; naming
+   * the type is what makes a place's mark a typo the compiler catches.
+   */
+  readonly mark: GlyphName
   readonly color: string
 }

@@ -18,7 +18,9 @@ test("port-free HTTP facade exposes task artifacts and rejects removed control c
       expect((await request(path, "POST", {})).status).toBe(404)
     }
     expect((await request("/api/tasks", "POST", { title: "", executorId: "old" })).status).toBe(400)
-    expect((await request("/")).headers.get("content-type")?.split(";")[0]).toBe("text/html")
+    // the board's UI is its declarative view in the console, not a page here
+    expect((await request("/")).status).toBe(404)
+    expect((await request("/app.js")).status).toBe(404)
     expect((await request(`/api/tasks/${task.id}`, "DELETE")).status).toBe(200)
     expect((await request(`/api/tasks/${task.id}`)).status).toBe(404)
   } finally { board.close() }

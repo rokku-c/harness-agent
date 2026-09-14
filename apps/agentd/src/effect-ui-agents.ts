@@ -13,11 +13,10 @@
  * bar are one arrival with one read behind both, and no answer about one agent
  * is ever written under the list of all of them.
  */
-import { emptyRows, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { emptyRows, stateRows, toneField, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { AGENTS, STATUS_SOURCE } from "./effect-ui-paths.ts"
 import { cellOf, chip, figure, rowPress, stated, table, block } from "./effect-ui-rows.ts"
 import { reading } from "./effect-ui-read.ts"
-import { infoOf } from "./effect-ui-tone.ts"
 
 /** A badge for one of several spelled states, with no colour: an enumeration has no worse member. */
 const state: UiNodeSpec = cellOf([{ component: "Badge", props: { variant: "soft" }, item: "status" }])
@@ -38,7 +37,7 @@ const headings = [
 const cells: readonly UiNodeSpec[] = [
   cellOf([chip("agentId")]),
   cellOf([chip("machineId")]),
-  cellOf([infoOf("kind")]),
+  cellOf([toneField("info", "kind")]),
   state,
   figure("desired/revision", "desired", "not bound"),
   figure("applied/revision", "applied", "not reported"),

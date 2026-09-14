@@ -20,7 +20,7 @@ test("SDK mounts Deck without listening; reload and unregister dispose SQLite an
     const dispose = await registerEffectApp({ host, activeConfig: () => active }, {
       ...effectApp, createPlugin: (get, ctx) => createDeckPlugin(get, ctx, make),
     })
-    expect(created).toEqual([{ configFile: ":memory:", basePath: "/deck" }])
+    expect(created).toEqual([{ configFile: ":memory:" }])
     expect(host.routes()).toEqual([{ appId: "deckconsole", path: "/deck", match: "prefix" }])
     const opened = await host.handle(new Request("http://deck/deck/api/session", { method: "POST", body: JSON.stringify({ sessionId: "owned" }) }))
     expect(await opened.json()).toMatchObject({ ok: true })
@@ -31,7 +31,7 @@ test("SDK mounts Deck without listening; reload and unregister dispose SQLite an
     expect(close).toHaveBeenCalledTimes(1)
     expect(apps[0].deck.sessions()).toEqual([])
     expect(await (await host.handle(new Request("http://deck/deck/api/deck"))).json()).toMatchObject({ sessions: [] })
-    expect(created[1]).toEqual({ configFile: ":memory:", basePath: "/deck" })
+    expect(created[1]).toEqual({ configFile: ":memory:" })
     await dispose()
     expect(host.routes()).toEqual([])
     expect(close).toHaveBeenCalledTimes(2)
@@ -45,7 +45,7 @@ test("schema defaults never fall through to DECK_FILE and invalid config allocat
   const make = mock((_options: DeckOptions) => ({ handle: async (r: Request) => Response.json({ path: new URL(r.url).pathname }), close: () => {} }))
   try {
     const plane = await createDeckPlugin(() => ({}), context, make).load()
-    expect(make.mock.calls[0][0]).toEqual({ configFile: ".effect-agent/deckconsole.sqlite", basePath: "/deck" })
+    expect(make.mock.calls[0][0]).toEqual({ configFile: ".effect-agent/deckconsole.sqlite" })
     expect(await (await plane.handle(new Request("http://deck/deck/api/config"))).json()).toEqual({ path: "/api/config" })
     expect((await plane.handle(new Request("http://deck/deck-other"))).status).toBe(404)
     await plane.stop?.()

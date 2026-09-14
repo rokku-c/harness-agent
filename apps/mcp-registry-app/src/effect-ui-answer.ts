@@ -12,8 +12,7 @@
  * the console's own answer being yes is what §3.1 reserves the accent for, and
  * the word is the verb that was done, so the meaning never rests on the colour.
  */
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { toneBadge } from "./effect-ui-tone.ts"
+import { row, toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 /**
  * @param done the verb the registry performed, e.g. `Withdrawn`

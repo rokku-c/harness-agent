@@ -16,6 +16,7 @@ import type { UiSourceSpec } from "@effect-agent/effect-ui"
 import { NAV_ROOT } from "@effect-agent/effect-ui"
 import { initialStatus } from "@effect-agent/effect-ui/source-status"
 import { loadSource } from "./effect-ui-source-runtime.ts"
+import { useReadNow } from "./console-read-now.ts"
 
 /**
  * The declared state, with every source's status alongside it. Seeding here
@@ -38,6 +39,9 @@ export const useViewStore = (state: Record<string, unknown> | undefined, sources
 }
 
 export const SourceLoader = ({ sources, store, fetcher }: { readonly sources: readonly UiSourceSpec[]; readonly store: StateStore; readonly fetcher: typeof fetch }) => {
+  // A mounted view is a React root of its own, so the console's `r` reaches its sources
+  // through the same window signal every other reader listens to (`console-read-now.ts`).
+  const read = useReadNow()
   React.useEffect(() => {
     const timers: number[] = []
     for (const source of sources) {
@@ -46,6 +50,6 @@ export const SourceLoader = ({ sources, store, fetcher }: { readonly sources: re
       if (source.refreshMs !== undefined) timers.push(window.setInterval(load, source.refreshMs))
     }
     return () => timers.forEach((timer) => window.clearInterval(timer))
-  }, [sources, store, fetcher])
+  }, [sources, store, fetcher, read])
   return null
 }

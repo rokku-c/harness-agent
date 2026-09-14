@@ -82,7 +82,7 @@ describe("host shares ONE durable workspace across conversations + the human UI"
     const pair = InMemoryTransport.createLinkedPair()
     await mcpServer.connect(pair[0])
     await client.connect(pair[1])
-    server = serveConsole({ client, publicDir: join(import.meta.dir, "../src/hosts/webui/public"), port: 0 })
+    server = serveConsole({ client, port: 0 })
   })
   afterAll(() => {
     server.stop()

@@ -3,25 +3,24 @@
  *
  * The console reuses the exact live config (config.toml + env) of the other
  * hosts: same [agent] model, same MANTIS_PROTECTED approval policy - except
- * that here the operator IS the web page: pending approvals render as cards
- * and are resolved with a click, and the page reads session events from its
- * own polls.
+ * that here the caller IS the operator: a pending approval is resolved with one
+ * call, and events are read from polls against a stateless cursor.
  *
  *
  * The browser cannot speak MCP stdio, so this process maps every /api call
- * onto the in-process mantis MCP server (InMemoryTransport) - the web panel
+ * onto the in-process mantis MCP server (InMemoryTransport) - the HTTP client
  * IS an MCP client, like Claude Code; there is no other path into the host.
  *
- * This is the standalone host, and it is the only one that serves the built
- * panel (server/assets.ts). The embedded app serves the same API through the
- * platform console, which renders mantis from its declarative view instead.
+ * This host serves that API and nothing else: mantis's UI is its declarative
+ * view in the platform console (src/effect-ui.ts), rendered by the console in
+ * the console's own design system. The embedded app mounts the same API through
+ * makeApiHandler at "/mantis" and opens no listener at all.
  *
  * Env: MANTIS_WEB_HOST (default 127.0.0.1), MANTIS_WEB_PORT (default 3737),
  * plus the standard MANTIS_* env (config/model/protected).
  *
  * Run: bun apps/mantis/src/hosts/webui/main.ts
  */
-import { join } from "node:path"
 import { envVar } from "../../env.ts"
 import { workspaceFile } from "../../paths.ts"
 import { loadConfig } from "../../config.ts"
@@ -78,7 +77,6 @@ await mcpClient.connect(mcpPair[1])
 
 const { url } = serveConsole({
   client: mcpClient,
-  publicDir: join(import.meta.dir, "public"),
   host: envVar("WEB_HOST") ?? "127.0.0.1",
   port: Number(envVar("WEB_PORT") ?? 3737)
 })

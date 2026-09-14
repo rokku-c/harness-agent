@@ -19,22 +19,21 @@
  * Both tables answer the address's `serverId`, which is how a server read in
  * another app arrives here already narrowed to itself (J6).
  */
-import { cellOf, chip, emptyRows, section, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { cellOf, chip, emptyRows, section, stateRows, toneWhen, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { titled } from "./effect-ui-cells.ts"
 import { filtered, filteredTable } from "./effect-ui-filtered.ts"
-import { toneFor } from "./effect-ui-tone.ts"
 import { NAV_SERVER, SERVERS, TOOLS, TOPOLOGY } from "./effect-ui-paths.ts"
 
 const statuses: readonly UiNodeSpec[] = [
-  toneFor("status", "healthy", "ok", "Healthy"),
-  toneFor("status", "warn", "pending", "Warn"),
-  toneFor("status", "offline", "failed", "Offline"),
+  toneWhen("status", "healthy", "ok", "Healthy"),
+  toneWhen("status", "warn", "pending", "Warn"),
+  toneWhen("status", "offline", "failed", "Offline"),
 ]
 
 const listed: readonly UiNodeSpec[] = [
-  toneFor("listing/state", "listed", "ok", "Listed"),
-  toneFor("listing/state", "failed", "failed", "Listing failed"),
-  toneFor("listing/state", "not asked", "info", "Not asked"),
+  toneWhen("listing/state", "listed", "ok", "Listed"),
+  toneWhen("listing/state", "failed", "failed", "Listing failed"),
+  toneWhen("listing/state", "not asked", "info", "Not asked"),
   { component: "Text", item: "listing/detail", props: { size: "1", color: "gray" },
     visible: { source: { item: "listing/detail" } } },
 ]

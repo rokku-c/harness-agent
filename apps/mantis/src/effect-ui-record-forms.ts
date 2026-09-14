@@ -18,9 +18,9 @@
  * that one as a red failure.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { failedBadge, outcome, refusedBadge, refusedWriteBadge } from "./effect-ui-feedback.ts"
-import { field, press, row, stateTone } from "./effect-ui-nodes.ts"
+import { field, press, row } from "./effect-ui-nodes.ts"
 
 /** An item's own label is a child: the item's `value` is its value, not its text. */
 const kindItem: UiNodeSpec = { component: "Select.Item", item: "kind", children: [{ component: "Text", item: "label" }] }
@@ -57,7 +57,7 @@ export const recordForm: UiNodeSpec = {
     ]),
     row([...outcome("/mantis/recordUpdate", "/mantis/recordUpdate/ok", "Record updated")]),
     row([
-      stateTone("/mantis/recordDelete/ok", true, "Record deleted", "ok"),
+      { ...toneBadge("ok", "Record deleted"), visible: { source: { state: "/mantis/recordDelete/ok" }, equals: true } },
       refusedWriteBadge("/mantis/recordDelete"),
       failedBadge("/mantis/recordDelete"),
     ]),

@@ -20,8 +20,8 @@
  * keys on.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
-import { emptyMessage, itemTone, row, rowValue, section, stateBadge } from "./effect-ui-nodes.ts"
+import { toneWhen, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { emptyMessage, row, rowValue, section, stateBadge } from "./effect-ui-nodes.ts"
 
 /** A field a turn may not have at all — a message has no tool, a note has no role. */
 const present = (item: string, node: UiNodeSpec): UiNodeSpec => ({ ...node, visible: { source: { item } } })
@@ -32,9 +32,9 @@ const present = (item: string, node: UiNodeSpec): UiNodeSpec => ({ ...node, visi
  * words is how a reader stops trusting either of them.
  */
 export const toolStateBadges: readonly UiNodeSpec[] = [
-  itemTone("state", "call", "Running", "pending"),
-  itemTone("state", "ok", "Succeeded", "ok"),
-  itemTone("state", "fail", "Failed", "failed"),
+  toneWhen("state", "call", "pending", "Running"),
+  toneWhen("state", "ok", "ok", "Succeeded"),
+  toneWhen("state", "fail", "failed", "Failed"),
 ]
 
 const entryHead: UiNodeSpec = row([

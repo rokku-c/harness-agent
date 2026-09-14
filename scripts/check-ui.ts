@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join, relative, resolve } from "node:path"
+import { glyphNames } from "../apps/effect-server/src/client/adapt/glyphs.ts"
 
 const ROOT = resolve(import.meta.dir, "..")
 const APPS = join(ROOT, "apps")
@@ -29,6 +30,17 @@ for (const app of readdirSync(APPS)) {
   if (builtIn && !existsSync(viewFile)) {
     errors.push(`${rel(appDir)}: built-in apps must declare src/effect-ui.ts`)
     continue
+  }
+  // A built-in app draws, so it declares the mark its tile carries, and §8 rule 2
+  // leaves no textual stand-in: the mark is a name from the console's own closed
+  // table. Nothing else holds those two sides together — the app's declaration is
+  // server-side and the table is the client's — so an app naming a glyph the
+  // console does not have would draw a colour and no mark, silently.
+  const descriptor = join(src, "effect-app.ts")
+  const [icon] = existsSync(descriptor) ? matches(readFileSync(descriptor, "utf8"), /\bicon:\s*"([^"]*)"/g) : []
+  if (builtIn && icon === undefined) errors.push(`${rel(appDir)}: built-in apps must declare an icon`)
+  if (icon !== undefined && !glyphNames.includes(icon)) {
+    errors.push(`${rel(appDir)}: icon is not a glyph of the console's table: ${icon}`)
   }
   if (descriptorPage) errors.push(`${rel(src)}: built-in apps cannot use raw page directories`)
   if (!existsSync(viewFile)) continue

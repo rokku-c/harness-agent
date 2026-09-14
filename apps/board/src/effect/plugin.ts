@@ -8,9 +8,8 @@ export const createBoardPlugin = (getConfig: () => unknown): EffectPlugin => ({
   id: "board",
   load: async () => {
     const board = makeBoard(boardSettings(getConfig()))
-    const handle = makeBoardWeb(board, "/board/")
+    const handle = makeBoardWeb(board)
     return { tools: makeBoardTools(board), handle: async (request) => {
-      if (new URL(request.url).pathname === "/board") return Response.redirect(new URL("/board/", request.url), 307)
       const inner = rewriteRequest(request, "/board")
       return inner ? handle(inner) : new Response(null, { status: 404 })
     }, stop: () => board.close() }

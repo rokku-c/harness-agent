@@ -1,9 +1,10 @@
 export type ThemeMode = "system" | "light" | "dark"
 /** Raised on the window whenever the document element's mode changes. */
 export const THEME_CHANGE = "effect-theme-change"
-const modes: ThemeMode[] = ["system", "light", "dark"]
+/** The three modes, in the order the appearance control and the palette's three rows offer them. */
+export const THEME_MODES: readonly ThemeMode[] = ["system", "light", "dark"]
 export const normalizeThemeMode = (value: string | null | undefined): ThemeMode => value === "light" || value === "dark" ? value : "system"
-export const nextThemeMode = (mode: ThemeMode): ThemeMode => modes[(modes.indexOf(mode) + 1) % modes.length]
+export const nextThemeMode = (mode: ThemeMode): ThemeMode => THEME_MODES[(THEME_MODES.indexOf(mode) + 1) % THEME_MODES.length]
 export const themeLabel = (mode: ThemeMode): string => mode === "system" ? "Follow system" : mode === "light" ? "Light mode" : "Dark mode"
 export const readThemeMode = (storage: Storage | undefined): ThemeMode => { try { return normalizeThemeMode(storage?.getItem("effect-theme")) } catch { return "system" } }
 /** The document element carries the mode; the design system reads it from there. */

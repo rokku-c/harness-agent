@@ -89,7 +89,7 @@ export const INBOX: Place = {
   id: "inbox",
   title: "Inbox",
   route: { kind: "inbox" },
-  mark: "✉",
+  mark: "Tray",
   color: "violet",
   chrome: "page",
   kinds: ["inbox"],

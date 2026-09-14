@@ -2,8 +2,8 @@
  * server/routes/message.ts - CHAT routes.
  *
  * Concept: post a user message and answer whether it was taken. Two ways to be
- * answered, and the caller says which it can use. Fired (`wait: false`, what the
- * panel's streaming view wants) the reply arrives later as a "reply" event, so
+ * answered, and the caller says which it can use. Fired (`wait: false`, what a
+ * streaming client wants) the reply arrives later as a "reply" event, so
  * the answer is only the acceptance. Waited out, the answer is the turn's own
  * outcome — for a caller with no event stream to catch the reply on, waiting is
  * how the reply reaches it at all.

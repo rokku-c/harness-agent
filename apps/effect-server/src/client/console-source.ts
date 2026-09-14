@@ -12,6 +12,7 @@
  */
 
 import * as React from "react"
+import { useReadNow } from "./console-read-now.ts"
 
 export type SourceState<T> =
   | { readonly status: "loading" }
@@ -22,6 +23,9 @@ export type SourceState<T> =
 export const useSource = <T,>(key: string, load: (key: string) => Promise<T>) => {
   const [state, setState] = React.useState<SourceState<T>>({ status: "loading" })
   const [attempt, setAttempt] = React.useState(0)
+  // `r`, or the palette's `Read now`: every source on the screen reads again, now. It is
+  // a dependency and not a call, because which sources are on screen is the screen's question.
+  const read = useReadNow()
   React.useEffect(() => {
     let live = true
     void load(key).then(
@@ -34,7 +38,7 @@ export const useSource = <T,>(key: string, load: (key: string) => Promise<T>) =>
       },
     )
     return () => { live = false }
-  }, [key, load, attempt])
+  }, [key, load, attempt, read])
   const retry = React.useCallback(() => setAttempt((count) => count + 1), [])
   return { state, retry }
 }

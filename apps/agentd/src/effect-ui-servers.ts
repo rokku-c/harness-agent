@@ -22,11 +22,12 @@
  * which is what mono is for. The literal rule is carried by the transport beside
  * it, and by the credential reference, which is one of a small closed set.
  */
-import { chipList, emptyRows, row, sourceStatusPath, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
+import {
+  chipList, emptyRows, row, sourceStatusPath, stateRows, toneField, whenRows, type UiNodeSpec,
+} from "@effect-agent/effect-ui"
 import { SERVERS, SETS, STATUS_SOURCE } from "./effect-ui-paths.ts"
 import { readFailure, reading, sourceFailed } from "./effect-ui-read.ts"
 import { block, cellOf, chip, figure, linkCell, screenHead, table } from "./effect-ui-rows.ts"
-import { infoOf } from "./effect-ui-tone.ts"
 
 /** Where a server's binding and its grants are edited: the MCP Gateway's own topology screen. */
 const BINDING_EDITOR = "#app/mcp-gateway/topology"
@@ -42,7 +43,7 @@ const servers: UiNodeSpec = block(
     emptyRows(STATUS_SOURCE, SERVERS, "No MCP server is registered. agentd's configuration names the servers a fleet agent can be given, so one appears here once it is added there."),
     whenRows(stateRows(SERVERS), table(
       ["Server", "Transport", "Endpoint", "Credential", "Binding editor"],
-      [chip("serverId"), infoOf("transport"), chip("endpoint"), figure("authRef", "authRef", "None"), linkCell(BINDING_EDITOR, "Open")],
+      [chip("serverId"), toneField("info", "transport"), chip("endpoint"), figure("authRef", "authRef", "None"), linkCell(BINDING_EDITOR, "Open")],
       { source: { state: SERVERS }, key: "serverId" },
     )),
   ],

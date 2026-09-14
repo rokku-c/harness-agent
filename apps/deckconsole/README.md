@@ -1,14 +1,14 @@
 # deckconsole · agentdeck control room (product layer v1)
 
-A small product wrapped around the packages/agentdeck component: an HTTP control room (JSON API +
-a single dark admin page) that exposes the three unified surfaces directly for human use:
+A small product wrapped around the packages/agentdeck component: an HTTP JSON API that exposes the
+three unified surfaces directly for human use, and the deck's declarative view in the platform
+console (src/effect-ui.ts):
 
 - session/flow: POST /api/session (open; any kind + raw config auto-normalized),
   POST /api/session/:id/send, POST /api/session/:id/close
 - session→consent: GET /api/deck returns pending and the per-session mapping stats;
   POST /api/consent/:callId { allow } decides one call
-- config→unified: GET /api/config/preview?kind=&raw= (raw JSON → normalized result, interactive preview in the page)
-- page GET / (session table, one-click approval trigger, allow/deny, config normalization preview)
+- config→unified: GET /api/config/preview?kind=&raw= (raw JSON → normalized result)
 
 Start: bun apps/deckconsole/src/main.ts (DECK_PORT defaults to 4851).
 The built-in demo agent (no model / no binary) demonstrates the full open→send→ask→approve
@@ -22,7 +22,6 @@ Verification: apps/deckconsole/test/deckconsole.test.ts (3 e2e cases, starts a r
 
 | method path | purpose |
 |---|---|
-| GET / | admin page |
 | GET /api/deck | kinds/launchers/sessions/pending/mapping stats/samples |
 | POST /api/session | open a session {kind, sessionId?, config(raw config→auto-normalized), prompt?} |
 | POST /api/session/:id/send | run one turn {text} (the demo triggers an approval on an ask:tool JSON marker) |

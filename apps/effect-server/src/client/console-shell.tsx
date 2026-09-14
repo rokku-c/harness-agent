@@ -1,8 +1,8 @@
 /**
  * The console shell.
  *
- * A strip that says what this host is, the surface the address names, and — on
- * every route except Home — the dock.
+ * The surface the address names, framed the way that surface asked to be framed,
+ * with the dock under every route except Home.
  *
  * The shell resolves an address by asking the registry which surface claims it,
  * and then draws whatever that surface returns. It holds no list of place names,
@@ -11,6 +11,10 @@
  * "what draws this route" is one lookup for all seven cases. That is `flows.md`
  * §9.9 and §9.10 in one line, and it is the difference between five places and
  * the old three-way special-casing with five names.
+ *
+ * The bar, the keyboard and the command palette are not here: they are about the
+ * operator rather than about the address, so `console-chrome.tsx` owns them and
+ * this file is the framing they explain themselves against.
  *
  * How a surface is framed is the surface's own declaration. A place is a document
  * — the design system's `Section` for vertical rhythm and `Container` for how
@@ -24,13 +28,13 @@
 import * as React from "react"
 import { Container, Flex, Section } from "@radix-ui/themes"
 import { ConsoleTheme } from "./console-theme.tsx"
-import { ConsoleStatusBar } from "./console-status-bar.tsx"
+import { ConsoleChrome } from "./console-chrome.tsx"
 import { ConsoleDock } from "./console-dock.tsx"
 import { useAddress } from "./console-route-hooks.ts"
 import { loadCatalogue, loadStatusLine } from "./console-boot.ts"
 import { useSource, sourceValue } from "./console-source.ts"
 import { planConsole } from "./console-plan.ts"
-import { parseConsoleHash, surfaceFor, titleOf } from "./console-places.tsx"
+import { parseConsoleHash, surfaceFor } from "./console-places.tsx"
 import type { ConsoleSurfaces } from "./console-surfaces.ts"
 import type { PlaceContext } from "./console-place.ts"
 
@@ -67,14 +71,18 @@ export const ConsoleShell = ({ surfaces }: { readonly surfaces: ConsoleSurfaces 
     },
   }), [plan, surfaces, status, catalogue.state, catalogue.retry])
   const home = route.kind === "home"
-  const body = surface?.view(route, context) ?? null
+  const view = surface?.view(route, context) ?? null
+  // The shell's own body. It is a real focus target rather than a plain div for two reasons §10.3
+  // gives it: a skip link moves focus here, and a route with no heading of its own lands here.
+  const main = React.useRef<HTMLDivElement>(null)
   return <ConsoleTheme>
     <Flex direction="column" height="100dvh">
-      <ConsoleStatusBar status={status} title={titleOf(route, plan)} home={home} />
-      <div className="shell-body" data-shell-view={surface?.chrome ?? "page"} data-dock={home ? "off" : "on"}>
+      <ConsoleChrome plan={plan} route={route} status={status} home={home} body={main} />
+      <div className="shell-body" ref={main} tabIndex={-1} id="console-main"
+        data-shell-view={surface?.chrome ?? "page"} data-dock={home ? "off" : "on"}>
         {surface?.chrome === "fill"
-          ? <Flex className="view-fill" direction="column" p="4">{body}</Flex>
-          : <Section size="1" px="4"><Container>{body}</Container></Section>}
+          ? <Flex className="view-fill" direction="column" p="4">{view}</Flex>
+          : <Section size="1" px="4"><Container>{view}</Container></Section>}
       </div>
       {home ? null : <ConsoleDock plan={plan} route={route} />}
     </Flex>

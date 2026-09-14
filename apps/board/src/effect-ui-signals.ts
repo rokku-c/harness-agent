@@ -13,8 +13,7 @@
  * children are all hidden takes no height.
  */
 
-import { row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { failedBadge, pendingBadge } from "./effect-ui-tone.ts"
+import { row, toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 /** The row carries this field at all. */
 const has = (field: string): UiNodeSpec["visible"] => ({ source: { item: field } })
@@ -32,8 +31,8 @@ export const taskSignals: UiNodeSpec = row([
   labelled("in", "parentTitle", { component: "Text", props: { size: "1" }, item: "parentTitle" }),
   // What this row is blocked on is a pending step, and the titles it names are
   // the server's own list rather than a count this view would have to make up.
-  toned("waits", pendingBadge("Waiting", has("waits")), { component: "Text", props: { size: "1" }, item: "waits" }),
+  toned("waits", { ...toneBadge("pending", "Waiting"), visible: has("waits") }, { component: "Text", props: { size: "1" }, item: "waits" }),
   // A reason is a value the server wrote, so it is set in mono like every other
   // one, and it is stated on the row rather than saved for a tooltip.
-  toned("failure", failedBadge("Failed", has("failure")), { component: "Code", props: { size: "1" }, item: "failure" }),
+  toned("failure", { ...toneBadge("failed", "Failed"), visible: has("failure") }, { component: "Code", props: { size: "1" }, item: "failure" }),
 ])

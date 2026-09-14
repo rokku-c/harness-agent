@@ -1,8 +1,8 @@
 /**
  * The web console's observability bus: every noteworthy event (session
  * activity, tool calls, messages, approvals, agent UI updates, replies) is
- * pushed here and streamed to open console pages over SSE, with a small ring
- * kept for late joiners / the state endpoint.
+ * pushed here and read by clients over the state endpoint, with a small ring
+ * kept for late readers.
  */
 export type BusEvent =
   | { readonly type: "message.in"; readonly conversationId: string; readonly text: string }

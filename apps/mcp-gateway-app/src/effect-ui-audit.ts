@@ -21,12 +21,11 @@
  * number — the one disagreement a console for this door must not have.
  */
 import {
-  cellOf, emptyRows, heading, loadingRows, region, section, stateBadge, stateRows, table, text, whenRows,
+  cellOf, emptyRows, heading, loadingRows, region, section, stateBadge, stateRows, table, text, toneWhen, whenRows,
   type UiNodeSpec,
 } from "@effect-agent/effect-ui"
 import { chipRow, chipWhen } from "./effect-ui-cells.ts"
 import { readFailed } from "./effect-ui-refusal.ts"
-import { toneFor } from "./effect-ui-tone.ts"
 import { AUDIT, RECORDS } from "./effect-ui-paths.ts"
 
 const head: UiNodeSpec = {
@@ -48,9 +47,9 @@ const events: UiNodeSpec = section("Decisions", [
       cellOf(chipWhen("principal")),
       cellOf(chipRow(["tool", "serverId", "setId"])),
       cellOf([
-        toneFor("decision", "allow", "ok", "Allow"),
-        toneFor("decision", "deny", "denied", "Deny"),
-        toneFor("decision", "log", "info", "Log"),
+        toneWhen("decision", "allow", "ok", "Allow"),
+        toneWhen("decision", "deny", "denied", "Deny"),
+        toneWhen("decision", "log", "info", "Log"),
       ]),
       cellOf([
         chipWhen("status"),

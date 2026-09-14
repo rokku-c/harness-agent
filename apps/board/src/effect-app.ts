@@ -5,7 +5,7 @@ import { createBoardPlugin } from "./effect/plugin.ts"
 
 export const effectApp = defineApp({
   id: "board", title: "Board", description: "Task board: data, hierarchy and events", path: "/board/",
-  icon: "▦", color: "grass",
+  icon: "Kanban", color: "grass",
   egress: "local-only",
   config: effectConfig, ui: effectUiView, createPlugin: createBoardPlugin,
 })

@@ -21,6 +21,13 @@ export interface ScreenPayload {
 export interface EffectUiRuntimeSpec {
   /** The app this panel is showing — what a press that opens a screen navigates within. */
   readonly appId: string
+  /**
+   * What the app is called, for the one label the host writes about it: the screen
+   * menu's group name (§10.2.5). The console holds the name — the app registered
+   * it — and the mounted view cannot look it up for itself, so it is handed over
+   * rather than guessed from the id.
+   */
+  readonly title?: string
   /** Every screen, the one the app starts on first. */
   readonly screens: readonly ScreenPayload[]
   /**

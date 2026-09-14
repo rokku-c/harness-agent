@@ -1,7 +1,7 @@
 /**
  * server/routes/workspace.ts - the DECLARATIVE WORKSPACE HTTP routes.
  *
- * Concept: the panel reads the whole workspace (derived from the resource
+ * Concept: a client reads the whole workspace (derived from the resource
  * declarations) and writes records directly (no agent turn, no approval) -
  * the same MCP tools an agent client would use, over HTTP. Errors carry the
  * readable detail from the tool answer.

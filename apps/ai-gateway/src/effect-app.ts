@@ -9,7 +9,7 @@ export const effectApp = defineApp({
   title: "AI Gateway",
   description: "Model proxy (OpenAI Chat / Responses / Anthropic Messages)",
   path: "/models",
-  icon: "✦", color: "amber",
+  icon: "Brain", color: "amber",
   config: effectConfig,
   ui: effectUiView,
   egress: "main-first",

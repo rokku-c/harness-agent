@@ -1,5 +1,5 @@
 /**
- * Barrel: the mantis web console - the panel's STATE SOURCE, split by
+ * Barrel: the mantis web console - the app's STATE SOURCE, split by
  * CONCEPT (see ./console/). types.ts = contract; ledger.ts = conversation
  * timelines; event-hook.ts = session events; approvals.ts = the console as
  * operator; host-builder.ts = MantisHost

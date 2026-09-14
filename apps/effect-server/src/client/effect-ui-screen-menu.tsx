@@ -15,15 +15,24 @@
  */
 
 import * as React from "react"
-import { Button } from "@radix-ui/themes"
+import { Button, Flex } from "@radix-ui/themes"
 import { ROOT_SCREEN } from "@effect-agent/effect-ui"
 import { openScreen } from "./console-nav.ts"
 import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
 
-/** A screen entered from here is entered with nothing: a read screen takes no parameters by construction. */
-export const ScreenMenu = ({ appId, screens }: { readonly appId: string; readonly screens: readonly ScreenPayload[] }) =>
-  <div className="screen-menu">
+/**
+ * §10.2.5's shape: a wrapping row of soft buttons at the chrome's own size, inside
+ * a group named for the app. The group name is not decoration — eight buttons
+ * with no name around them are eight buttons a reader arrives at with no idea
+ * what they belong to.
+ */
+export const ScreenMenu = ({ appId, title, screens }: {
+  readonly appId: string
+  readonly title: string
+  readonly screens: readonly ScreenPayload[]
+}) =>
+  <Flex wrap="wrap" gap="2" pt="3" role="group" aria-label={`Screens of ${title}`}>
     {screens.filter((screen) => screen.id !== ROOT_SCREEN).map((screen) =>
-      <Button key={screen.id} variant="soft" size="2"
+      <Button key={screen.id} variant="soft" size="1"
         onClick={() => openScreen(appId, { screen: screen.id })}>{screen.title}</Button>)}
-  </div>
+  </Flex>

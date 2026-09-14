@@ -4,7 +4,7 @@ import { createAgentdPlugin } from "./effect-plugin.ts"
 import { effectUiView } from "./effect-ui.ts"
 export const effectApp = defineApp({
   id: "agentd", title: "Agentd", description: "Machine and Agent configuration center", path: "/agentd",
-  icon: "⬢", color: "gray",
+  icon: "Robot", color: "gray",
   config: effectConfig, ui: effectUiView,
   /**
    * A machine that is not the main node reaches the main node's gateways through

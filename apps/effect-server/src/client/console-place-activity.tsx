@@ -84,7 +84,7 @@ export const ACTIVITY: Place = {
   id: "activity",
   title: "Activity",
   route: { kind: "activity", filter: {} },
-  mark: "◔",
+  mark: "ListBullets",
   color: "orange",
   chrome: "page",
   kinds: ["activity"],

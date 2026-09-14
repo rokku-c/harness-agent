@@ -3,11 +3,41 @@
  *
  * A floating launcher is the one thing the design system has no component for,
  * so it is written here — in the design system's own tokens, and without naming
- * a single colour. An app's tile takes the palette the app declared for itself;
- * the chrome takes the theme's surface, line and accent. Light and dark both
- * follow from that, with no second definition to keep in step.
+ * a single colour. The tile the dock draws is the app's own declared mark, which
+ * is the `Avatar` the springboard draws, so the palette below is the library's.
  */
-:root { --dock-height: 112px; --dock-lift: 0.875rem }
+:root { --dock-height: 80px; --dock-lift: 0.875rem }
+
+/**
+ * §10.2.1's bar: one line, 48 px, on the panel's own solid ground, with one
+ * hairline under it. It is the first child of the shell's column and outside
+ * `.shell-body`, which is the only scroller — so it stays where it is while a
+ * page moves under it, which is what "sticky" asks for without a stacking
+ * context to get wrong.
+ *
+ * Below 700 px the trigger keeps its glyph and loses its key hint, and the status
+ * line goes: the three controls a reader needs on a narrow screen are the way
+ * home, where they are, and the time.
+ */
+.shell-bar { height: 48px; background: var(--color-panel-solid); box-shadow: inset 0 -1px 0 var(--gray-a4) }
+@media (max-width: 700px) {
+  .shell-bar-status, .shell-bar-key { display: none }
+  /**
+   * §12's target floor. Below 700 px every press in the bar and every control a
+   * form is filled in through is 44 px, the size a finger hits without aiming;
+   * the dock's items are already 64 x 64. It is a floor and not a size, so
+   * anything already taller keeps its own height, and it is set on the
+   * library's own wrappers — `TextField.Root`, `Select.Trigger` — so the border
+   * the operator sees is the thing that grows rather than a box inside it.
+   */
+  .shell-bar button, .screen-pane button { box-sizing: border-box; min-height: 44px }
+  .shell-bar button { min-width: 44px }
+  .screen-pane :is(.rt-TextFieldRoot, .rt-SelectTrigger, .rt-TextAreaRoot,
+    .rt-SegmentedControlRoot, .rt-SegmentedControlItem, .rt-CheckboxRoot, .rt-SwitchRoot) { min-height: 44px }
+  /* A row's own press keeps the row's height: a table is dense on purpose, and a
+     44 px control in it would make a page hold one row. */
+  .screen-pane .rt-TableRootTable button { min-height: 0 }
+}
 
 .shell-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: none }
 .shell-body::-webkit-scrollbar { display: none }
@@ -50,9 +80,10 @@
 .screen-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto }
 .screen-bar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding-bottom: var(--space-3) }
 .screen-bar-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.screen-menu { flex: none; display: flex; flex-wrap: wrap; gap: var(--space-2); padding-top: var(--space-3) }
 
-@media (min-width: 1024px) {
+/* Radix's own `md`, the same width the apps' own `md:` grids switch at, so a split does not
+   happen at a width the view inside it is not laid out for. */
+@media (min-width: 768px) {
   .screen-panes[data-split="on"] { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) }
   .screen-panes[data-split="on"] > .screen-parent { display: flex }
 }
@@ -61,7 +92,7 @@
   position: fixed; z-index: 30; left: 50%; bottom: max(var(--dock-lift), env(safe-area-inset-bottom));
   transform: translateX(-50%); display: flex; align-items: flex-start; gap: var(--space-2);
   width: max-content; max-width: calc(100vw - 20px); height: var(--dock-height);
-  box-sizing: border-box; padding: var(--space-3) var(--space-4);
+  box-sizing: border-box; padding: var(--space-2) var(--space-4);
   border: 1px solid var(--gray-a5); border-radius: var(--radius-6);
   background: var(--color-panel-translucent); box-shadow: var(--shadow-6);
   backdrop-filter: blur(24px) saturate(1.35);
@@ -70,8 +101,8 @@
 .shell-dock::-webkit-scrollbar { display: none }
 
 .shell-dock-item {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
-  flex: none; width: 86px; height: 88px; min-height: 88px; padding: 0;
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--space-1);
+  flex: none; width: 64px; height: 64px; min-height: 64px; padding: 0;
   border: 0; border-radius: var(--radius-4); background: transparent; color: var(--gray-12);
   cursor: pointer; transition: transform .18s ease, background .18s ease;
 }
@@ -81,27 +112,22 @@
   content: ""; position: absolute; bottom: -5px; width: 5px; height: 5px;
   border-radius: 50%; background: var(--accent-9);
 }
-.shell-dock-icon {
-  display: grid; place-items: center; width: 68px; height: 68px; border-radius: var(--radius-5);
-  background-image: linear-gradient(180deg, var(--tile-9, var(--accent-9)), var(--tile-10, var(--accent-10)));
-  /* The mark's colour is the palette's own answer to "what reads on step 9", which is
-     not always white: `amber` and `sky` take a dark ink, and white on `orange` or
-     `gray` is under AA. The design system already decides this per palette and the
-     avatar on the springboard already asks it; the tile is the one place that did not. */
-  color: var(--tile-contrast, var(--accent-contrast));
-  font-size: 27px; font-weight: 700; line-height: 1; box-shadow: var(--shadow-3);
-}
 .shell-dock-label {
-  max-width: 86px; font-size: var(--font-size-2); font-weight: 600; line-height: 1.15;
+  max-width: 64px; font-size: var(--font-size-1); font-weight: 600; line-height: 1.15;
   text-align: center; overflow-wrap: anywhere;
 }
-.shell-dock-divider { flex: none; align-self: center; width: 1px; height: 34px; margin: 0 var(--space-1); background: var(--gray-a5) }
-
-@media (max-width: 700px) {
-  :root { --dock-height: 100px }
-  .shell-dock { gap: var(--space-1); padding: var(--space-2) 6px }
-  .shell-dock-item { width: 72px; height: 80px; min-height: 80px; border-radius: var(--radius-3) }
-  .shell-dock-icon { width: 64px; height: 64px; border-radius: var(--radius-4); font-size: 24px }
-  .shell-dock-label { max-width: 72px; font-size: 10px; line-height: 1.1 }
-}
 @media (prefers-reduced-motion: reduce) { .shell-dock-item { transition: none } }
+
+/*
+ * The command palette (§10.3). The box itself is anchored inline, because Radix
+ * lays the dialog out itself and no stylesheet order can be relied on to move it.
+ *
+ * The list is bounded so the dialog keeps its place near the top of the viewport
+ * and the search field never scrolls out of reach. The cursor is a cursor and not
+ * focus — the operator's hands stay in the field — so the row it is on is drawn
+ * rather than focused, and a row is a full-width control whose content starts at
+ * its own leading edge.
+ */
+.command-palette-list { max-height: min(60vh, 420px) }
+.command-palette-row { width: 100%; justify-content: flex-start; text-align: left }
+.command-palette-row[data-active="on"] { background: var(--gray-a3) }

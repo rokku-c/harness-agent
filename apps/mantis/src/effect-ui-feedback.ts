@@ -17,8 +17,7 @@
  * sentence of its own needs the second condition `refusedWriteBadge` explains.
  */
 
-import { failureBadge, row, type UiNodeSpec } from "@effect-agent/effect-ui"
-import { toneBadge } from "./effect-ui-nodes.ts"
+import { failureBadge, row, toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 
 /** A refusal the route itself answered: a 200, with the reason in `detail`. */
 export const refusedBadge = (result: string): UiNodeSpec => failureBadge(`${result}/detail`)
@@ -48,4 +47,5 @@ export const refusedWriteBadge = (result: string): UiNodeSpec => ({
  * hides itself while it has nothing to say.
  */
 export const outcome = (result: string, accepted: string, label: string): readonly UiNodeSpec[] =>
-  [toneBadge(label, "ok", { source: { state: accepted }, equals: true }), refusedBadge(result), failedBadge(result)]
+  [{ ...toneBadge("ok", label), visible: { source: { state: accepted }, equals: true } },
+    refusedBadge(result), failedBadge(result)]

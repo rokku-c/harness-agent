@@ -1,12 +1,10 @@
 /**
- * server/mount.ts - the MOUNT PREFIX, and the arithmetic it needs.
+ * server/mount.ts - the MOUNT PREFIX, and the one translation it needs.
  *
- * Concept: one panel, two mounts. Standalone the console owns "/"; embedded
- * in the platform console the host mounts it at "/mantis". Two directions of
- * translation live here and nowhere else - an incoming URL to the path the
- * panel means, and the built markup's own "/app-shell.js" and "/api/..."
- * references to where they now resolve. Both are string arithmetic over one
- * prefix, which is why they are one file.
+ * Concept: one API, two mounts. Standalone the host owns "/"; embedded in the
+ * platform console it is mounted at "/mantis". An incoming URL becomes the path
+ * the API means here and nowhere else - string arithmetic over one prefix, which
+ * is why it is one file.
  */
 
 /** "/mantis" -> "/mantis"; "" or "/" -> "" (the root mount) */
@@ -17,12 +15,3 @@ export const baseOf = (value: string | undefined): string =>
 export const internalPath = (path: string, base: string): string | undefined => base === "" || path === base
   ? base === "" ? path : "/"
   : path.startsWith(base + "/") ? path.slice(base.length) : undefined
-
-/** rewrite one reference the built markup makes to one of its own files */
-export const prefix = (body: string, base: string, name: string, kind: "href" | "src"): string =>
-  base === "" ? body : body.replaceAll(`${kind}="${name}"`, `${kind}="${base}${name}"`)
-
-/** rewrite the built bundle's own "/api/..." calls for the mount */
-export const prefixApi = (body: string, base: string): string => base === ""
-  ? body
-  : body.replaceAll('"/api/', `"${base}/api/`).replaceAll("'/api/", `'${base}/api/`)

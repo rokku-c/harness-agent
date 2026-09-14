@@ -1,7 +1,8 @@
 # Board
 
-The task board. It is reached at `/board/` through declarative SDK routes and opens no listener of
-its own; the standalone hosts below are for running it on its own.
+The task board. Its HTTP API is reached at `/board/api/...` through declarative SDK routes and it
+opens no listener of its own; the standalone hosts below are for running it on its own. Its UI is
+the board's view in the platform console (`src/effect-ui.ts`), not a page this host serves.
 
 Design and rationale: `docs/board.md`. The exact tool and route contract: `docs/board-tools.md`.
 The product-level introduction: `docs/board-white-paper.md`. Diagrams: `docs/board-architecture.md`.

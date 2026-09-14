@@ -10,10 +10,9 @@ no mantis code copied. One package, three sides:
    talking to DingTalk over two channels (robot / dws), configured from the
    ORIGINAL mantis config.toml.
 3. **the web console** (`src/hosts/webui/`): observability + access over HTTP -
-   chat with mantis from the browser, resolve approvals, read the workspace and
-   watch live events. The same panel is what the platform serves when mantis
-   runs embedded, and `src/effect-ui.ts` declares the same three surfaces in the
-   platform console's own vocabulary.
+   chat with mantis, resolve approvals, read the records and watch live events.
+   `src/effect-ui.ts` declares those same surfaces as mantis's view in the
+   platform console, in the console's own design system.
 
 | mantis mechanism | expression here |
 |---|---|
@@ -73,37 +72,36 @@ default is silent so libraries never print by accident.
 
 ## Web console: observability + access (webui host)
 
-A React + Mantine single page (sources under `src/hosts/webui/panel/`, bundled
-into `public/app-shell.{js,css}`) that observes and drives the whole mantis
-system. Three views over one store:
+An HTTP API over the whole mantis system, and nothing else - mantis's UI is its
+own view in the platform console (`src/effect-ui.ts`), rendered there in the
+console's design system:
 
-- **Chat** - send messages to mantis from the browser; every conversation is a
-  real mantis session (same MantisHost + conversation memory as dingtalk);
-- **Approvals** - the page IS the operator: protected calls render as pending
-  cards and resolve with one click (same ManualGate as every other host);
+- **Chat** - send messages to mantis; every conversation is a real mantis
+  session (same MantisHost + conversation memory as dingtalk);
+- **Approvals** - the operator console: protected calls render as pending cards
+  and resolve with one click (same ManualGate as every other host);
 - **Workspace** - the durable records, with their provenance;
 - **Events** - session activity, replies, approvals, tool steps and log lines,
   read as a stateless `?after=` window (recent 200 kept).
 
-The panel never talks to the backend directly: every `/api` call is translated
-by a thin Bun.serve shell onto the in-process mantis **MCP server**
-(InMemoryTransport) - the web console is just another MCP client, exactly like
+No browser talks to the backend directly: every `/api` call is translated by a
+thin Bun.serve shell onto the in-process mantis **MCP server**
+(InMemoryTransport) - an HTTP caller is just another MCP client, exactly like
 Claude Code.
 
 It is STATE-FIRST: the console records every conversation turn (message.in ->
 tool steps -> reply) into per-conversation timelines and serves them as
-snapshots (`mantis_conversation` / the `/api/conversation` route), so the panel
-simply polls state every ~700ms and renders it, and the event ring advances on
-its own timer. **There is no event-stream subscription anywhere** - nothing to
-reconnect, replay or dedupe. The conversation timeline folds the agent's tool
-steps (call/ok/fail + payload summaries) between messages.
+snapshots (`mantis_conversation` / the `/api/conversation` route), so a view
+simply polls state and renders it, and the event ring advances on its own timer.
+**There is no event-stream subscription anywhere** - nothing to reconnect,
+replay or dedupe. The conversation timeline folds the agent's tool steps
+(call/ok/fail + payload summaries) between messages.
 
-The embedded app serves this same panel: `src/effect-plugin.ts` hands
-`publicDir` and `basePath: "/mantis"` to the same handler, so `/mantis` in the
-platform console is the panel above, over the same routes.
+The embedded app is the same routes and no listener: `src/effect-plugin.ts`
+hands `basePath: "/mantis"` to the same handler, so `/mantis/api/...` in the
+platform host is the API above.
 
 ```bash
-bun run build:web        # bundle the React+Mantine panel into public/app-shell.{js,css} (after npm installs)
 bun apps/mantis/src/hosts/webui/main.ts        # http://127.0.0.1:3737
 # env: MANTIS_WEB_HOST / MANTIS_WEB_PORT + the standard
 # MANTIS_* config/model/protected env of every host
@@ -112,8 +110,8 @@ bun apps/mantis/src/hosts/webui/main.ts        # http://127.0.0.1:3737
 The web host shares the live config: same config.toml model, same
 `MANTIS_PROTECTED` policy. pm2: `mantis-web` in ecosystem.config.cjs.
 
-Try it end-to-end from the chat tab: give mantis a multi-step task and watch tool steps,
-workspace records land with provenance, and protected writes pause as approval cards.
+Try it end-to-end from the console's mantis view: give mantis a multi-step task and watch tool
+steps, records land with provenance, and protected writes pause as approval cards.
 
 ## MCP server: other agents drive mantis as tools
 

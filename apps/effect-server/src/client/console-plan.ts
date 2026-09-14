@@ -33,10 +33,15 @@ export interface ConsoleCatalogue {
 }
 
 /**
- * The mark and colour an entry draws with, when the app did not send its own.
- * An app that declares neither still gets a stable, distinct tile: its initial
- * over one colour is derived from the id, so it never looks like another app and
- * the host still holds no list of app ids.
+ * The colour an entry draws with when the app did not send its own: one palette
+ * step derived from the id, so an app that declared no colour still gets a
+ * stable tile that looks like no other app's, and the host still holds no list
+ * of app ids.
+ *
+ * A *mark* is not derived this way. §8 rule 2 forbids a textual stand-in in a
+ * tile's mark, so the only alternatives to the app's own declaration are an
+ * invented glyph — which is a mark the app never chose — or nothing, and
+ * `console-app-icon.tsx` draws nothing.
  */
 export const PALETTE = ["jade", "iris", "grass", "sky", "cyan", "amber", "crimson", "violet", "orange", "teal"] as const
 export const defaultColor = (id: string): string => {
@@ -68,7 +73,6 @@ export const planConsole = (catalogue: ConsoleCatalogue): ConsoleEntry[] => {
   for (const id of catalogue.views ?? []) touch(id, id).hasView = true
   for (const app of catalogue.tools ?? []) if (app.interfaceId) touch(app.interfaceId, app.title ?? app.interfaceId).hasTools = true
   for (const app of catalogue.config ?? []) touch(app.appId, app.title ?? app.appId).hasConfig = true
-  for (const entry of map.values()) if (entry.icon === "") entry.icon = entry.title.slice(0, 1).toUpperCase()
   return [...map.values()]
 }
 

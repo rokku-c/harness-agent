@@ -12,7 +12,7 @@ export const effectApp = defineApp({
   title: "Deck control room",
   description: "agent sessions + consent console",
   path: "/deck",
-  icon: "⌘", color: "violet",
+  icon: "Cards", color: "violet",
   egress: "main-first",
   config: effectConfig,
   ui: effectUiView,

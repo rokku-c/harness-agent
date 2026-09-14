@@ -51,7 +51,7 @@ export const SETTINGS: Place = {
   id: "settings",
   title: "Settings",
   route: { kind: "settings" },
-  mark: "⚙",
+  mark: "Gear",
   color: "gray",
   chrome: "page",
   kinds: ["settings"],

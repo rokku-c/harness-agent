@@ -15,11 +15,10 @@
  * so a cell reading "a command" is the true answer, while an empty cell would
  * read as a column the read did not carry.
  */
-import { emptyRows, sourceStatusPath, stateRows, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { emptyRows, sourceStatusPath, stateRows, toneBadge, whenRows, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { LAUNCHES, LAUNCHES_SOURCE } from "./effect-ui-paths.ts"
 import { readFailure, reading, sourceFailed } from "./effect-ui-read.ts"
 import { cellOf, chip, screenHead, table } from "./effect-ui-rows.ts"
-import { pending } from "./effect-ui-tone.ts"
 
 /**
  * The states an intent is still in a machine's hands during. Guarded on those
@@ -45,7 +44,7 @@ const cells: readonly UiNodeSpec[] = [
   cellOf([{ component: "Badge", props: { variant: "soft" }, item: "state" }]),
   cellOf([
     { component: "Text", props: { size: "2" }, item: "detail" },
-    { ...pending("Pending"), visible: inFlight },
+    { ...toneBadge("pending", "Pending"), visible: inFlight },
   ]),
 ]
 

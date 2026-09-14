@@ -17231,7 +17231,7 @@ var require_react_jsx_dev_runtime_development = __commonJS((exports) => {
       try {
         testStringCoercion(value);
         var JSCompiler_inline_result = false;
-      } catch (e76) {
+      } catch (e92) {
         JSCompiler_inline_result = true;
       }
       if (JSCompiler_inline_result) {
@@ -17401,8 +17401,8 @@ var require_jsx_dev_runtime = __commonJS((exports, module) => {
 // src/client/effect-ui-client.tsx
 var import_client2 = __toESM(require_client(), 1);
 
-// src/client/effect-ui-runtime.tsx
-var React67 = __toESM(require_react(), 1);
+// src/client/config-react-mount.tsx
+var import_client = __toESM(require_client(), 1);
 
 // ../../node_modules/zod/v4/classic/external.js
 var exports_external = {};
@@ -38755,183 +38755,18 @@ function useBoundProp(propValue, bindingPath) {
   }, [bindingPath, set2]);
   return [propValue, setValue];
 }
-// ../../packages/effect-ui/src/screen.ts
-var ROOT_SCREEN = "root";
-var NAV_ROOT = "/_nav";
-var chainOf = (screens, id) => {
-  const byId = new Map(screens.map((screen) => [screen.id, screen]));
-  const chain = [];
-  const seen = new Set;
-  let cursor = id;
-  while (cursor !== undefined && !seen.has(cursor)) {
-    seen.add(cursor);
-    const screen = byId.get(cursor);
-    if (screen === undefined)
-      break;
-    chain.unshift(screen);
-    cursor = screen.parent ?? (screen.id === ROOT_SCREEN ? undefined : ROOT_SCREEN);
-  }
-  return chain;
-};
-// ../../packages/effect-ui/src/source-status.ts
-var sourceStatusPath = (id) => `/_sources/${id}`;
-var initialStatus = () => ({ state: "loading", answered: false, error: null, count: 0, at: 0 });
-var sourceStateOf = (answered, error61, count) => error61 !== null ? "failed" : !answered ? "loading" : count === 0 ? "empty" : "ready";
-var readStatus = (value) => {
-  const record2 = value ?? {};
-  return { ...initialStatus(), ...record2 };
-};
-// ../../packages/effect-ui/src/schema-parts.ts
-var stateRef = exports_external.object({ state: exports_external.string() });
-var itemRef = exports_external.object({ item: exports_external.string() });
-var actionParam = exports_external.union([exports_external.string(), exports_external.number(), exports_external.boolean(), exports_external.null(), stateRef, itemRef]);
-var repeat = exports_external.object({ source: exports_external.union([stateRef, itemRef]), key: exports_external.string().optional() });
-var condition = exports_external.object({
-  source: exports_external.union([stateRef, itemRef]),
-  equals: exports_external.union([exports_external.string(), exports_external.number(), exports_external.boolean(), exports_external.null(), stateRef]).optional(),
-  not: exports_external.boolean().optional()
-});
-var visible = exports_external.union([condition, exports_external.object({ any: exports_external.array(condition) })]);
-var source = exports_external.object({ id: exports_external.string().min(1), url: exports_external.string().min(1), state: exports_external.string().min(1), refreshMs: exports_external.number().positive().optional() });
-var action = exports_external.object({
-  name: exports_external.string().min(1),
-  method: exports_external.enum(["GET", "POST", "PATCH", "DELETE"]).optional(),
-  url: exports_external.string().min(1).optional(),
-  opens: exports_external.string().min(1).optional(),
-  params: exports_external.record(exports_external.string(), actionParam).optional(),
-  result: exports_external.string().min(1).optional(),
-  clear: exports_external.array(exports_external.string()).optional(),
-  refresh: exports_external.array(exports_external.string()).optional()
-}).superRefine((value, ctx) => {
-  if (value.url === undefined && value.opens === undefined && (value.refresh ?? []).length === 0) {
-    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url, opens a screen, or re-runs a read; this one does none" });
-  }
-});
-
-// ../../packages/effect-ui/src/schema.ts
-var NODE_FIELDS = ["component", "props", "children", "id", "bind", "item", "as", "repeat", "visible", "onPress", "params"];
-var nodeProps = exports_external.record(exports_external.string(), exports_external.unknown()).superRefine((value, ctx) => {
-  for (const field of NODE_FIELDS) {
-    if (field in value) {
-      ctx.addIssue({ code: "custom", path: [field], message: `"${field}" is a node field, not a prop. Write it beside props, not inside them.` });
-    }
-  }
-});
-// src/client/effect-ui-source-runtime.ts
-var rowsIn = (body) => {
-  if (Array.isArray(body))
-    return body.length;
-  if (typeof body !== "object" || body === null)
-    return 0;
-  return Object.values(body).reduce((total, value) => total + (Array.isArray(value) ? value.length : 0), 0);
-};
-var readError = (body, status) => {
-  if (typeof body === "object" && body !== null) {
-    const detail = body.detail ?? body.error;
-    if (typeof detail === "string")
-      return detail;
-  }
-  return `HTTP ${status}`;
-};
-var loadSource = async (source2, store, fetcher) => {
-  const statusPath = sourceStatusPath(source2.id), previous = readStatus(store.get(statusPath));
-  if (!previous.answered)
-    store.set(statusPath, { ...previous, state: "loading" });
-  try {
-    const response = await fetcher(source2.url, { cache: "no-store", headers: { accept: "application/json" } });
-    const body = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
-    if (!response.ok)
-      throw new Error(readError(body, response.status));
-    store.set(source2.state, body);
-    const count = rowsIn(body);
-    store.set(statusPath, { state: sourceStateOf(true, null, count), answered: true, error: null, count, at: Date.now() });
-  } catch (error61) {
-    const message = error61 instanceof Error ? error61.message : String(error61);
-    store.set(statusPath, { ...previous, state: "failed", error: message, at: Date.now() });
-  }
-};
-
-// src/client/effect-ui-action-call.ts
-var headers = (method) => method === "GET" ? { accept: "application/json" } : { accept: "application/json", "content-type": "application/json" };
-var template = () => /\{([^}]+)\}/g;
-var pathKeys = (url2) => [...url2.matchAll(template())].map((match) => match[1]);
-var addressed = (url2, params) => pathKeys(url2).every((key) => params[key] !== undefined && params[key] !== null && params[key] !== "");
-var payloadOf = (params, url2) => {
-  const consumed = pathKeys(url2);
-  return Object.fromEntries(Object.entries(params).filter(([key]) => !consumed.includes(key)));
-};
-var init = (url2, method, params) => ({ method, headers: headers(method), ...method === "GET" ? {} : { body: JSON.stringify(payloadOf(params, url2)) } });
-var requestUrl = (url2, method, params, baseUrl) => {
-  const templated = url2.replace(template(), (_, key) => encodeURIComponent(String(params[key] ?? "")));
-  const query = payloadOf(params, url2);
-  if (method !== "GET" || Object.keys(query).length === 0)
-    return templated;
-  const target = new URL(templated, baseUrl);
-  for (const [key, value] of Object.entries(query))
-    target.searchParams.set(key, String(value ?? ""));
-  return target.pathname + target.search;
-};
-var bodyOf = (body, status) => typeof body === "object" && body !== null ? body : { ok: status >= 200 && status < 300, value: body };
-var refusal = (parsed, status) => {
-  const body = parsed;
-  return { ok: false, error: body?.detail ?? body?.error ?? `HTTP ${status}` };
-};
-var isStateRef = (value) => typeof value === "object" && value !== null && ("state" in value) && typeof value.state === "string";
-var declared = (params, store) => Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, isStateRef(value) ? store.get(value.state) : value]));
-
-// src/client/effect-ui-action-runtime.ts
-var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin) => {
-  const declaredOf = (action2, runtimeParams) => ({ ...declared(action2.params, store), ...runtimeParams });
-  const call = async (action2, params) => {
-    const url2 = action2.url;
-    if (url2 === undefined || !addressed(url2, params))
-      return false;
-    const method = action2.method ?? "POST";
-    try {
-      const response = await fetcher(requestUrl(url2, method, params, baseUrl), init(url2, method, params));
-      const parsed = bodyOf(await response.json().catch(() => {
-        return;
-      }), response.status);
-      if (action2.result !== undefined)
-        store.set(action2.result, response.ok ? parsed : refusal(parsed, response.status));
-      return response.ok;
-    } catch (error61) {
-      if (action2.result !== undefined)
-        store.set(action2.result, { ok: false, error: error61 instanceof Error ? error61.message : String(error61) });
-      return false;
-    }
-  };
-  return Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
-    const params = declaredOf(action2, runtimeParams);
-    const ran = action2.url !== undefined && await call(action2, params);
-    if (ran)
-      for (const path of action2.clear ?? [])
-        store.set(path, "");
-    if (ran || action2.url === undefined)
-      await Promise.all((action2.refresh ?? []).map(async (id) => {
-        const source2 = sources.find((candidate) => candidate.id === id);
-        if (source2 !== undefined)
-          return loadSource(source2, store, fetcher);
-        const read = actions.find((candidate) => candidate.name === id);
-        if (read !== undefined)
-          await call(read, declaredOf(read, {}));
-      }));
-    if (action2.opens !== undefined)
-      open2(action2.opens, params);
-  }]));
-};
 
 // src/client/adapt/registry.ts
-var usedNames = (spec2) => {
+var usedNames = (spec) => {
   const names = new Set;
-  for (const element of Object.values(spec2.elements ?? {})) {
+  for (const element of Object.values(spec.elements ?? {})) {
     const type = element?.type;
     if (typeof type === "string")
       names.add(type);
   }
   return [...names];
 };
-var adaptRegistry = (spec2, adapt, ours) => Object.fromEntries(usedNames(spec2).map((name) => [name, ours?.[name] ?? adapt(name)]));
+var adaptRegistry = (spec, adapt, ours) => Object.fromEntries(usedNames(spec).map((name) => [name, ours?.[name] ?? adapt(name)]));
 
 // src/client/adapt/contract.ts
 var CONTENT = "value";
@@ -40109,7 +39944,7 @@ function isFunction(value) {
 }
 __name10(isFunction, "isFunction");
 var SYNC_STATE = Symbol("RADIX:SYNC_STATE");
-function useControllableStateReducer(reducer, userArgs, initialArg, init2) {
+function useControllableStateReducer(reducer, userArgs, initialArg, init) {
   const { prop: controlledState, defaultProp, onChange: onChangeProp, caller } = userArgs;
   const isControlled = controlledState !== undefined;
   const onChange = useEffectEvent(onChangeProp);
@@ -40126,14 +39961,14 @@ function useControllableStateReducer(reducer, userArgs, initialArg, init2) {
     }, [isControlled, caller]);
   }
   const args = [{ ...initialArg, state: defaultProp }];
-  if (init2) {
-    args.push(init2);
+  if (init) {
+    args.push(init);
   }
-  const [internalState, dispatch] = React23.useReducer((state2, action2) => {
-    if (action2.type === SYNC_STATE) {
-      return { ...state2, state: action2.state };
+  const [internalState, dispatch] = React23.useReducer((state2, action) => {
+    if (action.type === SYNC_STATE) {
+      return { ...state2, state: action.state };
     }
-    const next = reducer(state2, action2);
+    const next = reducer(state2, action);
     if (isControlled && !Object.is(next.state, state2.state)) {
       onChange(next.state);
     }
@@ -40916,7 +40751,7 @@ function getTabbableEdges(container) {
 }
 __name16(getTabbableEdges, "getTabbableEdges");
 function getTabbableCandidates(container) {
-  const nodes2 = [];
+  const nodes = [];
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
     acceptNode: /* @__PURE__ */ __name16((node2) => {
       const isHiddenInput = node2.tagName === "INPUT" && node2.type === "hidden";
@@ -40926,8 +40761,8 @@ function getTabbableCandidates(container) {
     }, "acceptNode")
   });
   while (walker.nextNode())
-    nodes2.push(walker.currentNode);
-  return nodes2;
+    nodes.push(walker.currentNode);
+  return nodes;
 }
 __name16(getTabbableCandidates, "getTabbableCandidates");
 function findVisible(elements, container) {
@@ -41413,7 +41248,7 @@ var zeroGap = {
   right: 0,
   gap: 0
 };
-var parse6 = function(x) {
+var parse5 = function(x) {
   return parseInt(x || "", 10) || 0;
 };
 var getOffset = function(gapMode) {
@@ -41421,7 +41256,7 @@ var getOffset = function(gapMode) {
   var left = cs[gapMode === "padding" ? "paddingLeft" : "marginLeft"];
   var top = cs[gapMode === "padding" ? "paddingTop" : "marginTop"];
   var right = cs[gapMode === "padding" ? "paddingRight" : "marginRight"];
-  return [parse6(left), parse6(top), parse6(right)];
+  return [parse5(left), parse5(top), parse5(right)];
 };
 var getGapWidth = function(gapMode) {
   if (gapMode === undefined) {
@@ -46589,15 +46424,15 @@ function excludeTouch(eventHandler) {
 }
 __name32(excludeTouch, "excludeTouch");
 function getTabbableNodes(container) {
-  const nodes2 = [];
+  const nodes = [];
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
     acceptNode: /* @__PURE__ */ __name32((node2) => {
       return node2.tabIndex >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     }, "acceptNode")
   });
   while (walker.nextNode())
-    nodes2.push(walker.currentNode);
-  return nodes2;
+    nodes.push(walker.currentNode);
+  return nodes;
 }
 __name32(getTabbableNodes, "getTabbableNodes");
 var Root26 = HoverCard;
@@ -47279,7 +47114,7 @@ var FocusGroupItem = /* @__PURE__ */ React50.forwardRef(/* @__PURE__ */ __name34
   }) });
 }, "FocusGroupItem"));
 function getTabbableCandidates2(container) {
-  const nodes2 = [];
+  const nodes = [];
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
     acceptNode: /* @__PURE__ */ __name34((node2) => {
       const isHiddenInput = node2.tagName === "INPUT" && node2.type === "hidden";
@@ -47289,8 +47124,8 @@ function getTabbableCandidates2(container) {
     }, "acceptNode")
   });
   while (walker.nextNode())
-    nodes2.push(walker.currentNode);
-  return nodes2;
+    nodes.push(walker.currentNode);
+  return nodes;
 }
 __name34(getTabbableCandidates2, "getTabbableCandidates");
 function focusFirst4(candidates) {
@@ -48206,7 +48041,7 @@ var ScrollAreaScrollbar = /* @__PURE__ */ React212.forwardRef(/* @__PURE__ */ __
 var ScrollAreaScrollbarHover = /* @__PURE__ */ React212.forwardRef(/* @__PURE__ */ __name39(function ScrollAreaScrollbarHover2(props, forwardedRef) {
   const { forceMount, ...scrollbarProps } = props;
   const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
-  const [visible2, setVisible] = React212.useState(false);
+  const [visible, setVisible] = React212.useState(false);
   React212.useEffect(() => {
     const scrollArea = context.scrollArea;
     let hideTimer = 0;
@@ -48227,8 +48062,8 @@ var ScrollAreaScrollbarHover = /* @__PURE__ */ React212.forwardRef(/* @__PURE__ 
       };
     }
   }, [context.scrollArea, context.scrollHideDelay]);
-  return /* @__PURE__ */ import_jsx_runtime34.jsx(Presence, { present: forceMount || visible2, children: /* @__PURE__ */ import_jsx_runtime34.jsx(ScrollAreaScrollbarAuto, {
-    "data-state": visible2 ? "visible" : "hidden",
+  return /* @__PURE__ */ import_jsx_runtime34.jsx(Presence, { present: forceMount || visible, children: /* @__PURE__ */ import_jsx_runtime34.jsx(ScrollAreaScrollbarAuto, {
+    "data-state": visible ? "visible" : "hidden",
     ...scrollbarProps,
     ref: forwardedRef
   }) });
@@ -48291,7 +48126,7 @@ var ScrollAreaScrollbarScroll = /* @__PURE__ */ React212.forwardRef(/* @__PURE__
 var ScrollAreaScrollbarAuto = /* @__PURE__ */ React212.forwardRef(/* @__PURE__ */ __name39(function ScrollAreaScrollbarAuto2(props, forwardedRef) {
   const context = useScrollAreaContext(SCROLLBAR_NAME, props.__scopeScrollArea);
   const { forceMount, ...scrollbarProps } = props;
-  const [visible2, setVisible] = React212.useState(false);
+  const [visible, setVisible] = React212.useState(false);
   const isHorizontal = props.orientation === "horizontal";
   const handleResize = useDebounceCallback(() => {
     if (context.viewport) {
@@ -48302,8 +48137,8 @@ var ScrollAreaScrollbarAuto = /* @__PURE__ */ React212.forwardRef(/* @__PURE__ *
   }, 10);
   useResizeObserver2(context.viewport, handleResize);
   useResizeObserver2(context.content, handleResize);
-  return /* @__PURE__ */ import_jsx_runtime34.jsx(Presence, { present: forceMount || visible2, children: /* @__PURE__ */ import_jsx_runtime34.jsx(ScrollAreaScrollbarVisible, {
-    "data-state": visible2 ? "visible" : "hidden",
+  return /* @__PURE__ */ import_jsx_runtime34.jsx(Presence, { present: forceMount || visible, children: /* @__PURE__ */ import_jsx_runtime34.jsx(ScrollAreaScrollbarVisible, {
+    "data-state": visible ? "visible" : "hidden",
     ...scrollbarProps,
     ref: forwardedRef
   }) });
@@ -53268,727 +53103,1221 @@ var r49 = o60.forwardRef((e47, c6) => /* @__PURE__ */ o60.createElement(p37, { r
 r49.displayName = "ArrowClockwiseIcon";
 var m16 = r49;
 
+// ../../node_modules/@phosphor-icons/react/dist/csr/AppWindow.es.js
+var o61 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/AppWindow.es.js
+var e47 = __toESM(require_react(), 1);
+var a41 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e47.createElement(e47.Fragment, null, /* @__PURE__ */ e47.createElement("path", { d: "M216,36H40A20,20,0,0,0,20,56V200a20,20,0,0,0,20,20H216a20,20,0,0,0,20-20V56A20,20,0,0,0,216,36Zm-4,160H44V60H212ZM60,92a16,16,0,1,1,16,16A16,16,0,0,1,60,92Zm48,0a16,16,0,1,1,16,16A16,16,0,0,1,108,92Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e47.createElement(e47.Fragment, null, /* @__PURE__ */ e47.createElement("path", {
+      d: "M224,56V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ e47.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,160H40V56H216V200ZM80,84A12,12,0,1,1,68,72,12,12,0,0,1,80,84Zm40,0a12,12,0,1,1-12-12A12,12,0,0,1,120,84Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e47.createElement(e47.Fragment, null, /* @__PURE__ */ e47.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM68,96A12,12,0,1,1,80,84,12,12,0,0,1,68,96Zm40,0a12,12,0,1,1,12-12A12,12,0,0,1,108,96Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e47.createElement(e47.Fragment, null, /* @__PURE__ */ e47.createElement("path", { d: "M216,42H40A14,14,0,0,0,26,56V200a14,14,0,0,0,14,14H216a14,14,0,0,0,14-14V56A14,14,0,0,0,216,42Zm2,158a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V56a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2ZM78,84A10,10,0,1,1,68,74,10,10,0,0,1,78,84Zm40,0a10,10,0,1,1-10-10A10,10,0,0,1,118,84Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e47.createElement(e47.Fragment, null, /* @__PURE__ */ e47.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40Zm0,160H40V56H216V200ZM80,84A12,12,0,1,1,68,72,12,12,0,0,1,80,84Zm40,0a12,12,0,1,1-12-12A12,12,0,0,1,120,84Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e47.createElement(e47.Fragment, null, /* @__PURE__ */ e47.createElement("path", { d: "M216,44H40A12,12,0,0,0,28,56V200a12,12,0,0,0,12,12H216a12,12,0,0,0,12-12V56A12,12,0,0,0,216,44Zm4,156a4,4,0,0,1-4,4H40a4,4,0,0,1-4-4V56a4,4,0,0,1,4-4H216a4,4,0,0,1,4,4ZM76,84a8,8,0,1,1-8-8A8,8,0,0,1,76,84Zm40,0a8,8,0,1,1-8-8A8,8,0,0,1,116,84Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/AppWindow.es.js
+var p38 = o61.forwardRef((e48, r50) => /* @__PURE__ */ o61.createElement(p37, { ref: r50, ...e48, weights: a41 }));
+p38.displayName = "AppWindowIcon";
+var m17 = p38;
+
 // ../../node_modules/@phosphor-icons/react/dist/csr/ArrowSquareOut.es.js
 var r50 = __toESM(require_react(), 1);
 
 // ../../node_modules/@phosphor-icons/react/dist/defs/ArrowSquareOut.es.js
-var a41 = __toESM(require_react(), 1);
-var e47 = /* @__PURE__ */ new Map([
+var a42 = __toESM(require_react(), 1);
+var e48 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M228,104a12,12,0,0,1-24,0V69l-59.51,59.51a12,12,0,0,1-17-17L187,52H152a12,12,0,0,1,0-24h64a12,12,0,0,1,12,12Zm-44,24a12,12,0,0,0-12,12v64H52V84h64a12,12,0,0,0,0-24H48A20,20,0,0,0,28,80V208a20,20,0,0,0,20,20H176a20,20,0,0,0,20-20V140A12,12,0,0,0,184,128Z" }))
+    /* @__PURE__ */ a42.createElement(a42.Fragment, null, /* @__PURE__ */ a42.createElement("path", { d: "M228,104a12,12,0,0,1-24,0V69l-59.51,59.51a12,12,0,0,1-17-17L187,52H152a12,12,0,0,1,0-24h64a12,12,0,0,1,12,12Zm-44,24a12,12,0,0,0-12,12v64H52V84h64a12,12,0,0,0,0-24H48A20,20,0,0,0,28,80V208a20,20,0,0,0,20,20H176a20,20,0,0,0,20-20V140A12,12,0,0,0,184,128Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", {
+    /* @__PURE__ */ a42.createElement(a42.Fragment, null, /* @__PURE__ */ a42.createElement("path", {
       d: "M184,80V208a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H176A8,8,0,0,1,184,80Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a41.createElement("path", { d: "M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z" }))
+    }), /* @__PURE__ */ a42.createElement("path", { d: "M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M192,136v72a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V80A16,16,0,0,1,48,64h72a8,8,0,0,1,0,16H48V208H176V136a8,8,0,0,1,16,0Zm32-96a8,8,0,0,0-8-8H152a8,8,0,0,0-5.66,13.66L172.69,72l-42.35,42.34a8,8,0,0,0,11.32,11.32L184,83.31l26.34,26.35A8,8,0,0,0,224,104Z" }))
+    /* @__PURE__ */ a42.createElement(a42.Fragment, null, /* @__PURE__ */ a42.createElement("path", { d: "M192,136v72a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V80A16,16,0,0,1,48,64h72a8,8,0,0,1,0,16H48V208H176V136a8,8,0,0,1,16,0Zm32-96a8,8,0,0,0-8-8H152a8,8,0,0,0-5.66,13.66L172.69,72l-42.35,42.34a8,8,0,0,0,11.32,11.32L184,83.31l26.34,26.35A8,8,0,0,0,224,104Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M222,104a6,6,0,0,1-12,0V54.49l-69.75,69.75a6,6,0,0,1-8.48-8.48L201.51,46H152a6,6,0,0,1,0-12h64a6,6,0,0,1,6,6Zm-38,26a6,6,0,0,0-6,6v72a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V80a2,2,0,0,1,2-2h72a6,6,0,0,0,0-12H48A14,14,0,0,0,34,80V208a14,14,0,0,0,14,14H176a14,14,0,0,0,14-14V136A6,6,0,0,0,184,130Z" }))
+    /* @__PURE__ */ a42.createElement(a42.Fragment, null, /* @__PURE__ */ a42.createElement("path", { d: "M222,104a6,6,0,0,1-12,0V54.49l-69.75,69.75a6,6,0,0,1-8.48-8.48L201.51,46H152a6,6,0,0,1,0-12h64a6,6,0,0,1,6,6Zm-38,26a6,6,0,0,0-6,6v72a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V80a2,2,0,0,1,2-2h72a6,6,0,0,0,0-12H48A14,14,0,0,0,34,80V208a14,14,0,0,0,14,14H176a14,14,0,0,0,14-14V136A6,6,0,0,0,184,130Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z" }))
+    /* @__PURE__ */ a42.createElement(a42.Fragment, null, /* @__PURE__ */ a42.createElement("path", { d: "M224,104a8,8,0,0,1-16,0V59.32l-66.33,66.34a8,8,0,0,1-11.32-11.32L196.68,48H152a8,8,0,0,1,0-16h64a8,8,0,0,1,8,8Zm-40,24a8,8,0,0,0-8,8v72H48V80h72a8,8,0,0,0,0-16H48A16,16,0,0,0,32,80V208a16,16,0,0,0,16,16H176a16,16,0,0,0,16-16V136A8,8,0,0,0,184,128Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a41.createElement(a41.Fragment, null, /* @__PURE__ */ a41.createElement("path", { d: "M220,104a4,4,0,0,1-8,0V49.66l-73.16,73.17a4,4,0,0,1-5.66-5.66L206.34,44H152a4,4,0,0,1,0-8h64a4,4,0,0,1,4,4Zm-36,28a4,4,0,0,0-4,4v72a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V80a4,4,0,0,1,4-4h72a4,4,0,0,0,0-8H48A12,12,0,0,0,36,80V208a12,12,0,0,0,12,12H176a12,12,0,0,0,12-12V136A4,4,0,0,0,184,132Z" }))
+    /* @__PURE__ */ a42.createElement(a42.Fragment, null, /* @__PURE__ */ a42.createElement("path", { d: "M220,104a4,4,0,0,1-8,0V49.66l-73.16,73.17a4,4,0,0,1-5.66-5.66L206.34,44H152a4,4,0,0,1,0-8h64a4,4,0,0,1,4,4Zm-36,28a4,4,0,0,0-4,4v72a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V80a4,4,0,0,1,4-4h72a4,4,0,0,0,0-8H48A12,12,0,0,0,36,80V208a12,12,0,0,0,12,12H176a12,12,0,0,0,12-12V136A4,4,0,0,0,184,132Z" }))
   ]
 ]);
 
 // ../../node_modules/@phosphor-icons/react/dist/csr/ArrowSquareOut.es.js
-var o61 = r50.forwardRef((e48, t37) => /* @__PURE__ */ r50.createElement(p37, { ref: t37, ...e48, weights: e47 }));
-o61.displayName = "ArrowSquareOutIcon";
-var n25 = o61;
+var o62 = r50.forwardRef((e49, t37) => /* @__PURE__ */ r50.createElement(p37, { ref: t37, ...e49, weights: e48 }));
+o62.displayName = "ArrowSquareOutIcon";
+var n25 = o62;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/CaretLeft.es.js
-var e49 = __toESM(require_react(), 1);
-
-// ../../node_modules/@phosphor-icons/react/dist/defs/CaretLeft.es.js
-var e48 = __toESM(require_react(), 1);
-var a42 = /* @__PURE__ */ new Map([
-  [
-    "bold",
-    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M168.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L97,128Z" }))
-  ],
-  [
-    "duotone",
-    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M160,48V208L80,128Z", opacity: "0.2" }), /* @__PURE__ */ e48.createElement("path", { d: "M163.06,40.61a8,8,0,0,0-8.72,1.73l-80,80a8,8,0,0,0,0,11.32l80,80A8,8,0,0,0,168,208V48A8,8,0,0,0,163.06,40.61ZM152,188.69,91.31,128,152,67.31Z" }))
-  ],
-  [
-    "fill",
-    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M168,48V208a8,8,0,0,1-13.66,5.66l-80-80a8,8,0,0,1,0-11.32l80-80A8,8,0,0,1,168,48Z" }))
-  ],
-  [
-    "light",
-    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M164.24,203.76a6,6,0,1,1-8.48,8.48l-80-80a6,6,0,0,1,0-8.48l80-80a6,6,0,0,1,8.48,8.48L88.49,128Z" }))
-  ],
-  [
-    "regular",
-    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z" }))
-  ],
-  [
-    "thin",
-    /* @__PURE__ */ e48.createElement(e48.Fragment, null, /* @__PURE__ */ e48.createElement("path", { d: "M162.83,205.17a4,4,0,0,1-5.66,5.66l-80-80a4,4,0,0,1,0-5.66l80-80a4,4,0,1,1,5.66,5.66L85.66,128Z" }))
-  ]
-]);
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/CaretLeft.es.js
-var t37 = e49.forwardRef((o62, r51) => /* @__PURE__ */ e49.createElement(p37, { ref: r51, ...o62, weights: a42 }));
-t37.displayName = "CaretLeftIcon";
-var s26 = t37;
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Check.es.js
-var e51 = __toESM(require_react(), 1);
-
-// ../../node_modules/@phosphor-icons/react/dist/defs/Check.es.js
-var e50 = __toESM(require_react(), 1);
-var a43 = /* @__PURE__ */ new Map([
-  [
-    "bold",
-    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z" }))
-  ],
-  [
-    "duotone",
-    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", {
-      d: "M232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Z",
-      opacity: "0.2"
-    }), /* @__PURE__ */ e50.createElement("path", { d: "M205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z" }))
-  ],
-  [
-    "fill",
-    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z" }))
-  ],
-  [
-    "light",
-    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M228.24,76.24l-128,128a6,6,0,0,1-8.48,0l-56-56a6,6,0,0,1,8.48-8.48L96,191.51,219.76,67.76a6,6,0,0,1,8.48,8.48Z" }))
-  ],
-  [
-    "regular",
-    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" }))
-  ],
-  [
-    "thin",
-    /* @__PURE__ */ e50.createElement(e50.Fragment, null, /* @__PURE__ */ e50.createElement("path", { d: "M226.83,74.83l-128,128a4,4,0,0,1-5.66,0l-56-56a4,4,0,0,1,5.66-5.66L96,194.34,221.17,69.17a4,4,0,1,1,5.66,5.66Z" }))
-  ]
-]);
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Check.es.js
-var o62 = e51.forwardRef((c6, r51) => /* @__PURE__ */ e51.createElement(p37, { ref: r51, ...c6, weights: a43 }));
-o62.displayName = "CheckIcon";
-var n26 = o62;
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Desktop.es.js
+// ../../node_modules/@phosphor-icons/react/dist/csr/Books.es.js
 var o63 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/Desktop.es.js
-var a44 = __toESM(require_react(), 1);
-var e52 = /* @__PURE__ */ new Map([
+// ../../node_modules/@phosphor-icons/react/dist/defs/Books.es.js
+var a43 = __toESM(require_react(), 1);
+var e49 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,36H48A28,28,0,0,0,20,64V172a28,28,0,0,0,28,28h68v12H96a12,12,0,0,0,0,24h64a12,12,0,0,0,0-24H140V200h68a28,28,0,0,0,28-28V64A28,28,0,0,0,208,36ZM48,60H208a4,4,0,0,1,4,4v72H44V64A4,4,0,0,1,48,60ZM208,176H48a4,4,0,0,1-4-4V160H212v12A4,4,0,0,1,208,176Z" }))
+    /* @__PURE__ */ a43.createElement(a43.Fragment, null, /* @__PURE__ */ a43.createElement("path", { d: "M235.57,193.73,202.38,35.93a20,20,0,0,0-23.76-15.48L131.81,30.51a19.82,19.82,0,0,0-11,6.65A20,20,0,0,0,104,28H56A20,20,0,0,0,36,48V208a20,20,0,0,0,20,20h48a20,20,0,0,0,20-20V90.25l25.62,121.82A20,20,0,0,0,169.15,228a20.27,20.27,0,0,0,4.23-.45l46.81-10.06A20.1,20.1,0,0,0,235.57,193.73ZM148.19,88.65l39-8.38,2.53,12-39,8.38Zm7.46,35.5,39-8.38,9.16,43.58-39,8.38Zm24.06-79.39,2.53,12-39,8.38-2.53-12ZM60,88h40v80H60Zm40-36V64H60V52ZM60,204V192h40v12Zm112.29-.76-2.53-12,39-8.38,2.53,12Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a43.createElement(a43.Fragment, null, /* @__PURE__ */ a43.createElement("path", {
+      d: "M48,72h64V184H48ZM190.64,38.39a8,8,0,0,0-9.5-6.21l-46.81,10a8.07,8.07,0,0,0-6.15,9.57L139.79,107l62.46-13.42Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a43.createElement("path", { d: "M231.65,194.55,198.46,36.75a16,16,0,0,0-19-12.39L132.65,34.42a16.08,16.08,0,0,0-12.3,19l33.19,157.8A16,16,0,0,0,169.16,224a16.25,16.25,0,0,0,3.38-.36l46.81-10.06A16.09,16.09,0,0,0,231.65,194.55ZM136,50.15c0-.06,0-.09,0-.09l46.8-10,3.33,15.87L139.33,66Zm6.62,31.47,46.82-10.05,3.34,15.9L146,97.53Zm6.64,31.57,46.82-10.06,13.3,63.24-46.82,10.06ZM216,197.94l-46.8,10-3.33-15.87L212.67,182,216,197.85C216,197.91,216,197.94,216,197.94ZM104,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V48A16,16,0,0,0,104,32ZM56,48h48V64H56Zm0,32h48v96H56Zm48,128H56V192h48v16Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a43.createElement(a43.Fragment, null, /* @__PURE__ */ a43.createElement("path", { d: "M231.65,194.55,198.46,36.75a16,16,0,0,0-19-12.39L132.65,34.42a16.08,16.08,0,0,0-12.3,19l33.19,157.8A16,16,0,0,0,169.16,224a16.25,16.25,0,0,0,3.38-.36l46.81-10.06A16.09,16.09,0,0,0,231.65,194.55ZM136,50.15c0-.06,0-.09,0-.09l46.8-10,3.33,15.87L139.33,66Zm10,47.38-3.35-15.9,46.82-10.06,3.34,15.9Zm70,100.41-46.8,10-3.33-15.87L212.67,182,216,197.85C216,197.91,216,197.94,216,197.94ZM104,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V48A16,16,0,0,0,104,32ZM56,48h48V64H56Zm48,160H56V192h48v16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a43.createElement(a43.Fragment, null, /* @__PURE__ */ a43.createElement("path", { d: "M104,34H56A14,14,0,0,0,42,48V208a14,14,0,0,0,14,14h48a14,14,0,0,0,14-14V48A14,14,0,0,0,104,34ZM54,78h52V178H54Zm2-32h48a2,2,0,0,1,2,2V66H54V48A2,2,0,0,1,56,46Zm48,164H56a2,2,0,0,1-2-2V190h52v18A2,2,0,0,1,104,210Zm125.7-15L196.51,37.16a14,14,0,0,0-16.63-10.85L133.07,36.37A14.09,14.09,0,0,0,122.3,53l33.19,157.81a14,14,0,0,0,6.1,8.9,13.85,13.85,0,0,0,7.57,2.26,13.55,13.55,0,0,0,3-.32l46.81-10.05A14.09,14.09,0,0,0,229.7,195Zm-82.81-83.32,50.73-10.9,14.12,67.16L161,178.81Zm-6.63-31.56L191,69.19,195.15,89l-50.73,10.9Zm-4.66-32,46.8-10.05a2.18,2.18,0,0,1,.42,0,1.89,1.89,0,0,1,1.05.32,2,2,0,0,1,.89,1.31l3.75,17.82L137.79,68.34l-3.74-17.78A2.07,2.07,0,0,1,135.6,48.1Zm80.81,151.8L169.6,210a1.92,1.92,0,0,1-1.47-.27,2,2,0,0,1-.89-1.31l-3.75-17.82,50.72-10.9L218,197.43A2.07,2.07,0,0,1,216.41,199.9Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a43.createElement(a43.Fragment, null, /* @__PURE__ */ a43.createElement("path", { d: "M231.65,194.55,198.46,36.75a16,16,0,0,0-19-12.39L132.65,34.42a16.08,16.08,0,0,0-12.3,19l33.19,157.8A16,16,0,0,0,169.16,224a16.25,16.25,0,0,0,3.38-.36l46.81-10.06A16.09,16.09,0,0,0,231.65,194.55ZM136,50.15c0-.06,0-.09,0-.09l46.8-10,3.33,15.87L139.33,66Zm6.62,31.47,46.82-10.05,3.34,15.9L146,97.53Zm6.64,31.57,46.82-10.06,13.3,63.24-46.82,10.06ZM216,197.94l-46.8,10-3.33-15.87L212.67,182,216,197.85C216,197.91,216,197.94,216,197.94ZM104,32H56A16,16,0,0,0,40,48V208a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V48A16,16,0,0,0,104,32ZM56,48h48V64H56Zm0,32h48v96H56Zm48,128H56V192h48v16Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a43.createElement(a43.Fragment, null, /* @__PURE__ */ a43.createElement("path", { d: "M104,36H56A12,12,0,0,0,44,48V208a12,12,0,0,0,12,12h48a12,12,0,0,0,12-12V48A12,12,0,0,0,104,36ZM52,76h56V180H52Zm4-32h48a4,4,0,0,1,4,4V68H52V48A4,4,0,0,1,56,44Zm48,168H56a4,4,0,0,1-4-4V188h56v20A4,4,0,0,1,104,212Zm123.74-16.62L194.55,37.57a12,12,0,0,0-14.25-9.3L133.49,38.32a12.1,12.1,0,0,0-9.23,14.3l33.19,157.81a12,12,0,0,0,14.25,9.3l46.81-10.06h0A12.08,12.08,0,0,0,227.74,195.38Zm-83.21-85.27,54.63-11.73,15,71.07-54.63,11.74Zm-6.64-31.56,54.64-11.74,5,23.74-54.64,11.73Zm-2.71-32.4L182,36.09a4,4,0,0,1,.84-.09,3.94,3.94,0,0,1,2.14.64,4,4,0,0,1,1.76,2.58L190.88,59,136.24,70.72,132.09,51A4.07,4.07,0,0,1,135.18,46.15Zm81.65,155.7L170,211.91a4,4,0,0,1-3-.55,4,4,0,0,1-1.76-2.58L161.12,189l54.64-11.73L219.91,197A4.07,4.07,0,0,1,216.83,201.85Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Books.es.js
+var e50 = o63.forwardRef((r51, s26) => /* @__PURE__ */ o63.createElement(p37, { ref: s26, ...r51, weights: e49 }));
+e50.displayName = "BooksIcon";
+var n26 = e50;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Brain.es.js
+var o64 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Brain.es.js
+var a44 = __toESM(require_react(), 1);
+var e51 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M252,124a60.14,60.14,0,0,0-32-53.08,52,52,0,0,0-92-32.11A52,52,0,0,0,36,70.92a60,60,0,0,0,0,106.14,52,52,0,0,0,92,32.13,52,52,0,0,0,92-32.13A60.05,60.05,0,0,0,252,124ZM88,204a28,28,0,0,1-26.85-20.07c1,0,1.89.07,2.85.07h8a12,12,0,0,0,0-24H64A36,36,0,0,1,52,90.05a12,12,0,0,0,8-11.32V72a28,28,0,0,1,56,0v60.18a51.61,51.61,0,0,0-7.2-3.85,12,12,0,1,0-9.6,22A28,28,0,0,1,88,204Zm104-44h-8a12,12,0,0,0,0,24h8c1,0,1.9,0,2.85-.07a28,28,0,1,1-38-33.61,12,12,0,1,0-9.6-22,51.61,51.61,0,0,0-7.2,3.85V72a28,28,0,0,1,56,0v6.73a12,12,0,0,0,8,11.32,36,36,0,0,1-12,70Zm16-44a12,12,0,0,1-12,12,40,40,0,0,1-40-40V84a12,12,0,0,1,24,0v4a16,16,0,0,0,16,16A12,12,0,0,1,208,116ZM100,88a40,40,0,0,1-40,40,12,12,0,0,1,0-24A16,16,0,0,0,76,88V84a12,12,0,0,1,24,0Z" }))
   ],
   [
     "duotone",
     /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", {
-      d: "M224,64v88H32V64A16,16,0,0,1,48,48H208A16,16,0,0,1,224,64Z",
+      d: "M240,124a48,48,0,0,1-32,45.27h0V176a40,40,0,0,1-80,0,40,40,0,0,1-80,0v-6.73h0a48,48,0,0,1,0-90.54V72a40,40,0,0,1,80,0,40,40,0,0,1,80,0v6.73A48,48,0,0,1,240,124Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a44.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40ZM48,56H208a8,8,0,0,1,8,8v80H40V64A8,8,0,0,1,48,56ZM208,184H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+    }), /* @__PURE__ */ a44.createElement("path", { d: "M248,124a56.11,56.11,0,0,0-32-50.61V72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.2V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.41A56.09,56.09,0,0,0,248,124ZM88,208a32,32,0,0,1-31.81-28.56A55.87,55.87,0,0,0,64,180h8a8,8,0,0,0,0-16H64A40,40,0,0,1,50.67,86.27,8,8,0,0,0,56,78.73V72a32,32,0,0,1,64,0v68.26A47.8,47.8,0,0,0,88,128a8,8,0,0,0,0,16,32,32,0,0,1,0,64Zm104-44h-8a8,8,0,0,0,0,16h8a55.87,55.87,0,0,0,7.81-.56A32,32,0,1,1,168,144a8,8,0,0,0,0-16,47.8,47.8,0,0,0-32,12.26V72a32,32,0,0,1,64,0v6.73a8,8,0,0,0,5.33,7.54A40,40,0,0,1,192,164Zm16-52a8,8,0,0,1-8,8h-4a36,36,0,0,1-36-36V80a8,8,0,0,1,16,0v4a20,20,0,0,0,20,20h4A8,8,0,0,1,208,112ZM60,120H56a8,8,0,0,1,0-16h4A20,20,0,0,0,80,84V80a8,8,0,0,1,16,0v4A36,36,0,0,1,60,120Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm0,144H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M212,76V72a44,44,0,0,0-74.86-31.31,3.93,3.93,0,0,0-1.14,2.8v88.72a4,4,0,0,0,6.2,3.33A47.67,47.67,0,0,1,167.68,128a8.18,8.18,0,0,1,8.31,7.58,8,8,0,0,1-8,8.42,32,32,0,0,0-32,32v33.88a4,4,0,0,0,1.49,3.12,47.92,47.92,0,0,0,74.21-17.16,4,4,0,0,0-4.49-5.56A68.06,68.06,0,0,1,192,192h-7.73a8.18,8.18,0,0,1-8.25-7.47,8,8,0,0,1,8-8.53h8a51.6,51.6,0,0,0,24-5.88v0A52,52,0,0,0,212,76Zm-12,36h-4a36,36,0,0,1-36-36V72a8,8,0,0,1,16,0v4a20,20,0,0,0,20,20h4a8,8,0,0,1,0,16ZM88,28A44.05,44.05,0,0,0,44,72v4a52,52,0,0,0-4,94.12h0A51.6,51.6,0,0,0,64,176h7.73A8.18,8.18,0,0,1,80,183.47,8,8,0,0,1,72,192H64a67.48,67.48,0,0,1-15.21-1.73,4,4,0,0,0-4.5,5.55A47.93,47.93,0,0,0,118.51,213a4,4,0,0,0,1.49-3.12V176a32,32,0,0,0-32-32,8,8,0,0,1-8-8.42A8.18,8.18,0,0,1,88.32,128a47.67,47.67,0,0,1,25.48,7.54,4,4,0,0,0,6.2-3.33V43.49a4,4,0,0,0-1.14-2.81A43.85,43.85,0,0,0,88,28Zm8,48a36,36,0,0,1-36,36H56a8,8,0,0,1,0-16h4A20,20,0,0,0,80,76V72a8,8,0,0,1,16,0Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,42H48A22,22,0,0,0,26,64V176a22,22,0,0,0,22,22h74v20H96a6,6,0,0,0,0,12h64a6,6,0,0,0,0-12H134V198h74a22,22,0,0,0,22-22V64A22,22,0,0,0,208,42ZM48,54H208a10,10,0,0,1,10,10v82H38V64A10,10,0,0,1,48,54ZM208,186H48a10,10,0,0,1-10-10V158H218v18A10,10,0,0,1,208,186Z" }))
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M246,124a54.13,54.13,0,0,0-32-49.33V72a46,46,0,0,0-86-22.67A46,46,0,0,0,42,72v2.67a54,54,0,0,0,0,98.63V176a46,46,0,0,0,86,22.67A46,46,0,0,0,214,176v-2.7A54.07,54.07,0,0,0,246,124ZM88,210a34,34,0,0,1-34-32.94A53.67,53.67,0,0,0,64,178h8a6,6,0,0,0,0-12H64A42,42,0,0,1,50,84.39a6,6,0,0,0,4-5.66V72a34,34,0,0,1,68,0v73.05A45.89,45.89,0,0,0,88,130a6,6,0,0,0,0,12,34,34,0,0,1,0,68Zm104-44h-8a6,6,0,0,0,0,12h8a53.67,53.67,0,0,0,10-.94A34,34,0,1,1,168,142a6,6,0,0,0,0-12,45.89,45.89,0,0,0-34,15.05V72a34,34,0,0,1,68,0v6.73a6,6,0,0,0,4,5.66A42,42,0,0,1,192,166Zm14-54a6,6,0,0,1-6,6h-4a34,34,0,0,1-34-34V80a6,6,0,0,1,12,0v4a22,22,0,0,0,22,22h4A6,6,0,0,1,206,112ZM60,118H56a6,6,0,0,1,0-12h4A22,22,0,0,0,82,84V80a6,6,0,0,1,12,0v4A34,34,0,0,1,60,118Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40ZM48,56H208a8,8,0,0,1,8,8v80H40V64A8,8,0,0,1,48,56ZM208,184H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M248,124a56.11,56.11,0,0,0-32-50.61V72a48,48,0,0,0-88-26.49A48,48,0,0,0,40,72v1.39a56,56,0,0,0,0,101.2V176a48,48,0,0,0,88,26.49A48,48,0,0,0,216,176v-1.41A56.09,56.09,0,0,0,248,124ZM88,208a32,32,0,0,1-31.81-28.56A55.87,55.87,0,0,0,64,180h8a8,8,0,0,0,0-16H64A40,40,0,0,1,50.67,86.27,8,8,0,0,0,56,78.73V72a32,32,0,0,1,64,0v68.26A47.8,47.8,0,0,0,88,128a8,8,0,0,0,0,16,32,32,0,0,1,0,64Zm104-44h-8a8,8,0,0,0,0,16h8a55.87,55.87,0,0,0,7.81-.56A32,32,0,1,1,168,144a8,8,0,0,0,0-16,47.8,47.8,0,0,0-32,12.26V72a32,32,0,0,1,64,0v6.73a8,8,0,0,0,5.33,7.54A40,40,0,0,1,192,164Zm16-52a8,8,0,0,1-8,8h-4a36,36,0,0,1-36-36V80a8,8,0,0,1,16,0v4a20,20,0,0,0,20,20h4A8,8,0,0,1,208,112ZM60,120H56a8,8,0,0,1,0-16h4A20,20,0,0,0,80,84V80a8,8,0,0,1,16,0v4A36,36,0,0,1,60,120Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M208,44H48A20,20,0,0,0,28,64V176a20,20,0,0,0,20,20h76v24H96a4,4,0,0,0,0,8h64a4,4,0,0,0,0-8H132V196h76a20,20,0,0,0,20-20V64A20,20,0,0,0,208,44ZM48,52H208a12,12,0,0,1,12,12v84H36V64A12,12,0,0,1,48,52ZM208,188H48a12,12,0,0,1-12-12V156H220v20A12,12,0,0,1,208,188Z" }))
+    /* @__PURE__ */ a44.createElement(a44.Fragment, null, /* @__PURE__ */ a44.createElement("path", { d: "M244,124a52.1,52.1,0,0,0-32-48V72a44,44,0,0,0-84-18.3A44,44,0,0,0,44,72v4a52,52,0,0,0,0,96v4a44,44,0,0,0,84,18.3A44,44,0,0,0,212,176v-4A52.07,52.07,0,0,0,244,124ZM88,212a36,36,0,0,1-36-36v-1.41A52.13,52.13,0,0,0,64,176h8a4,4,0,0,0,0-8H64A44,44,0,0,1,49.33,82.5,4,4,0,0,0,52,78.73V72a36,36,0,0,1,72,0v78.75A44,44,0,0,0,88,132a4,4,0,0,0,0,8,36,36,0,0,1,0,72Zm104-44h-8a4,4,0,0,0,0,8h8a52.13,52.13,0,0,0,12-1.41V176a36,36,0,1,1-36-36,4,4,0,0,0,0-8,44,44,0,0,0-36,18.75V72a36,36,0,0,1,72,0v6.73a4,4,0,0,0,2.67,3.77A44,44,0,0,1,192,168Zm12-56a4,4,0,0,1-4,4h-4a32,32,0,0,1-32-32V80a4,4,0,0,1,8,0v4a24,24,0,0,0,24,24h4A4,4,0,0,1,204,112ZM92,84a32,32,0,0,1-32,32H56a4,4,0,0,1,0-8h4A24,24,0,0,0,84,84V80a4,4,0,0,1,8,0Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Desktop.es.js
-var e53 = o63.forwardRef((t38, r51) => /* @__PURE__ */ o63.createElement(p37, { ref: r51, ...t38, weights: e52 }));
-e53.displayName = "DesktopIcon";
-var c6 = e53;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Brain.es.js
+var r51 = o64.forwardRef((a45, e52) => /* @__PURE__ */ o64.createElement(p37, { ref: e52, ...a45, weights: e51 }));
+r51.displayName = "BrainIcon";
+var c6 = r51;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/DotsThree.es.js
-var e55 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/Browsers.es.js
+var o65 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/DotsThree.es.js
-var e54 = __toESM(require_react(), 1);
-var a45 = /* @__PURE__ */ new Map([
+// ../../node_modules/@phosphor-icons/react/dist/defs/Browsers.es.js
+var a45 = __toESM(require_react(), 1);
+var e52 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M144,128a16,16,0,1,1-16-16A16,16,0,0,1,144,128ZM60,112a16,16,0,1,0,16,16A16,16,0,0,0,60,112Zm136,0a16,16,0,1,0,16,16A16,16,0,0,0,196,112Z" }))
+    /* @__PURE__ */ a45.createElement(a45.Fragment, null, /* @__PURE__ */ a45.createElement("path", { d: "M220,32H76A20,20,0,0,0,56,52V72H36A20,20,0,0,0,16,92V204a20,20,0,0,0,20,20H180a20,20,0,0,0,20-20V184h20a20,20,0,0,0,20-20V52A20,20,0,0,0,220,32ZM176,96v16H40V96Zm0,104H40V136H176Zm40-40H200V92a20,20,0,0,0-20-20H80V56H216Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", {
-      d: "M240,96v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V96A16,16,0,0,1,32,80H224A16,16,0,0,1,240,96Z",
+    /* @__PURE__ */ a45.createElement(a45.Fragment, null, /* @__PURE__ */ a45.createElement("path", {
+      d: "M224,56V168a8,8,0,0,1-8,8H192V88a8,8,0,0,0-8-8H64V56a8,8,0,0,1,8-8H216A8,8,0,0,1,224,56Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ e54.createElement("path", { d: "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" }))
+    }), /* @__PURE__ */ a45.createElement("path", { d: "M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,88H184v16H40ZM184,200H40V120H184v80Zm32-32H200V88a16,16,0,0,0-16-16H72V56H216Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M224,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V96A16,16,0,0,0,224,80ZM60,140a12,12,0,1,1,12-12A12,12,0,0,1,60,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,196,140Z" }))
+    /* @__PURE__ */ a45.createElement(a45.Fragment, null, /* @__PURE__ */ a45.createElement("path", { d: "M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM184,88v16H40V88Zm32,80H200V88a16,16,0,0,0-16-16H72V56H216Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M138,128a10,10,0,1,1-10-10A10,10,0,0,1,138,128ZM60,118a10,10,0,1,0,10,10A10,10,0,0,0,60,118Zm136,0a10,10,0,1,0,10,10A10,10,0,0,0,196,118Z" }))
+    /* @__PURE__ */ a45.createElement(a45.Fragment, null, /* @__PURE__ */ a45.createElement("path", { d: "M216,42H72A14,14,0,0,0,58,56V74H40A14,14,0,0,0,26,88V200a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V182h18a14,14,0,0,0,14-14V56A14,14,0,0,0,216,42ZM40,86H184a2,2,0,0,1,2,2v18H38V88A2,2,0,0,1,40,86ZM186,200a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V118H186Zm32-32a2,2,0,0,1-2,2H198V88a14,14,0,0,0-14-14H70V56a2,2,0,0,1,2-2H216a2,2,0,0,1,2,2Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" }))
+    /* @__PURE__ */ a45.createElement(a45.Fragment, null, /* @__PURE__ */ a45.createElement("path", { d: "M216,40H72A16,16,0,0,0,56,56V72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V184h16a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM184,88v16H40V88Zm0,112H40V120H184v80Zm32-32H200V88a16,16,0,0,0-16-16H72V56H216Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M136,128a8,8,0,1,1-8-8A8,8,0,0,1,136,128Zm-76-8a8,8,0,1,0,8,8A8,8,0,0,0,60,120Zm136,0a8,8,0,1,0,8,8A8,8,0,0,0,196,120Z" }))
+    /* @__PURE__ */ a45.createElement(a45.Fragment, null, /* @__PURE__ */ a45.createElement("path", { d: "M216,44H72A12,12,0,0,0,60,56V76H40A12,12,0,0,0,28,88V200a12,12,0,0,0,12,12H184a12,12,0,0,0,12-12V180h20a12,12,0,0,0,12-12V56A12,12,0,0,0,216,44ZM40,84H184a4,4,0,0,1,4,4v20H36V88A4,4,0,0,1,40,84ZM188,200a4,4,0,0,1-4,4H40a4,4,0,0,1-4-4V116H188Zm32-32a4,4,0,0,1-4,4H196V88a12,12,0,0,0-12-12H68V56a4,4,0,0,1,4-4H216a4,4,0,0,1,4,4Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/DotsThree.es.js
-var o64 = e55.forwardRef((r51, t38) => /* @__PURE__ */ e55.createElement(p37, { ref: t38, ...r51, weights: a45 }));
-o64.displayName = "DotsThreeIcon";
-var n27 = o64;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Browsers.es.js
+var r52 = o65.forwardRef((e53, s26) => /* @__PURE__ */ o65.createElement(p37, { ref: s26, ...e53, weights: e52 }));
+r52.displayName = "BrowsersIcon";
+var n27 = r52;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Gear.es.js
-var e56 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/Cards.es.js
+var o66 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/Gear.es.js
+// ../../node_modules/@phosphor-icons/react/dist/defs/Cards.es.js
 var a46 = __toESM(require_react(), 1);
-var l14 = /* @__PURE__ */ new Map([
+var e53 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,76a52,52,0,1,0,52,52A52.06,52.06,0,0,0,128,76Zm0,80a28,28,0,1,1,28-28A28,28,0,0,1,128,156Zm92-27.21v-1.58l14-17.51a12,12,0,0,0,2.23-10.59A111.75,111.75,0,0,0,225,71.89,12,12,0,0,0,215.89,66L193.61,63.5l-1.11-1.11L190,40.1A12,12,0,0,0,184.11,31a111.67,111.67,0,0,0-27.23-11.27A12,12,0,0,0,146.3,22L128.79,36h-1.58L109.7,22a12,12,0,0,0-10.59-2.23A111.75,111.75,0,0,0,71.89,31.05,12,12,0,0,0,66,40.11L63.5,62.39,62.39,63.5,40.1,66A12,12,0,0,0,31,71.89,111.67,111.67,0,0,0,19.77,99.12,12,12,0,0,0,22,109.7l14,17.51v1.58L22,146.3a12,12,0,0,0-2.23,10.59,111.75,111.75,0,0,0,11.29,27.22A12,12,0,0,0,40.11,190l22.28,2.48,1.11,1.11L66,215.9A12,12,0,0,0,71.89,225a111.67,111.67,0,0,0,27.23,11.27A12,12,0,0,0,109.7,234l17.51-14h1.58l17.51,14a12,12,0,0,0,10.59,2.23A111.75,111.75,0,0,0,184.11,225a12,12,0,0,0,5.91-9.06l2.48-22.28,1.11-1.11L215.9,190a12,12,0,0,0,9.06-5.91,111.67,111.67,0,0,0,11.27-27.23A12,12,0,0,0,234,146.3Zm-24.12-4.89a70.1,70.1,0,0,1,0,8.2,12,12,0,0,0,2.61,8.22l12.84,16.05A86.47,86.47,0,0,1,207,166.86l-20.43,2.27a12,12,0,0,0-7.65,4,69,69,0,0,1-5.8,5.8,12,12,0,0,0-4,7.65L166.86,207a86.47,86.47,0,0,1-10.49,4.35l-16.05-12.85a12,12,0,0,0-7.5-2.62c-.24,0-.48,0-.72,0a70.1,70.1,0,0,1-8.2,0,12.06,12.06,0,0,0-8.22,2.6L99.63,211.33A86.47,86.47,0,0,1,89.14,207l-2.27-20.43a12,12,0,0,0-4-7.65,69,69,0,0,1-5.8-5.8,12,12,0,0,0-7.65-4L49,166.86a86.47,86.47,0,0,1-4.35-10.49l12.84-16.05a12,12,0,0,0,2.61-8.22,70.1,70.1,0,0,1,0-8.2,12,12,0,0,0-2.61-8.22L44.67,99.63A86.47,86.47,0,0,1,49,89.14l20.43-2.27a12,12,0,0,0,7.65-4,69,69,0,0,1,5.8-5.8,12,12,0,0,0,4-7.65L89.14,49a86.47,86.47,0,0,1,10.49-4.35l16.05,12.85a12.06,12.06,0,0,0,8.22,2.6,70.1,70.1,0,0,1,8.2,0,12,12,0,0,0,8.22-2.6l16.05-12.85A86.47,86.47,0,0,1,166.86,49l2.27,20.43a12,12,0,0,0,4,7.65,69,69,0,0,1,5.8,5.8,12,12,0,0,0,7.65,4L207,89.14a86.47,86.47,0,0,1,4.35,10.49l-12.84,16.05A12,12,0,0,0,195.88,123.9Z" }))
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M180,72H36A20,20,0,0,0,16,92V204a20,20,0,0,0,20,20H180a20,20,0,0,0,20-20V92A20,20,0,0,0,180,72Zm-4,128H40V96H176ZM240,52V176a12,12,0,0,1-24,0V56H64a12,12,0,0,1,0-24H220A20,20,0,0,1,240,52Z" }))
   ],
   [
     "duotone",
     /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", {
-      d: "M207.86,123.18l16.78-21a99.14,99.14,0,0,0-10.07-24.29l-26.7-3a81,81,0,0,0-6.81-6.81l-3-26.71a99.43,99.43,0,0,0-24.3-10l-21,16.77a81.59,81.59,0,0,0-9.64,0l-21-16.78A99.14,99.14,0,0,0,77.91,41.43l-3,26.7a81,81,0,0,0-6.81,6.81l-26.71,3a99.43,99.43,0,0,0-10,24.3l16.77,21a81.59,81.59,0,0,0,0,9.64l-16.78,21a99.14,99.14,0,0,0,10.07,24.29l26.7,3a81,81,0,0,0,6.81,6.81l3,26.71a99.43,99.43,0,0,0,24.3,10l21-16.77a81.59,81.59,0,0,0,9.64,0l21,16.78a99.14,99.14,0,0,0,24.29-10.07l3-26.7a81,81,0,0,0,6.81-6.81l26.71-3a99.43,99.43,0,0,0,10-24.3l-16.77-21A81.59,81.59,0,0,0,207.86,123.18ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z",
+      d: "M192,88V200a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V88a8,8,0,0,1,8-8H184A8,8,0,0,1,192,88Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a46.createElement("path", { d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8.06,8.06,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8.06,8.06,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" }))
+    }), /* @__PURE__ */ a46.createElement("path", { d: "M184,72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V88A16,16,0,0,0,184,72Zm0,128H40V88H184V200ZM232,56V176a8,8,0,0,1-16,0V56H64a8,8,0,0,1,0-16H216A16,16,0,0,1,232,56Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M216,130.16q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z" }))
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M200,88V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V88A16,16,0,0,1,40,72H184A16,16,0,0,1,200,88Zm16-48H64a8,8,0,0,0,0,16H216V176a8,8,0,0,0,16,0V56A16,16,0,0,0,216,40Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162ZM214,130.84c.06-1.89.06-3.79,0-5.68L229.33,106a6,6,0,0,0,1.11-5.29A105.34,105.34,0,0,0,219.76,74.9a6,6,0,0,0-4.53-3l-24.45-2.71q-1.93-2.07-4-4l-2.72-24.46a6,6,0,0,0-3-4.53,105.65,105.65,0,0,0-25.77-10.66A6,6,0,0,0,150,26.68l-19.2,15.37c-1.89-.06-3.79-.06-5.68,0L106,26.67a6,6,0,0,0-5.29-1.11A105.34,105.34,0,0,0,74.9,36.24a6,6,0,0,0-3,4.53L69.23,65.22q-2.07,1.94-4,4L40.76,72a6,6,0,0,0-4.53,3,105.65,105.65,0,0,0-10.66,25.77A6,6,0,0,0,26.68,106l15.37,19.2c-.06,1.89-.06,3.79,0,5.68L26.67,150.05a6,6,0,0,0-1.11,5.29A105.34,105.34,0,0,0,36.24,181.1a6,6,0,0,0,4.53,3l24.45,2.71q1.94,2.07,4,4L72,215.24a6,6,0,0,0,3,4.53,105.65,105.65,0,0,0,25.77,10.66,6,6,0,0,0,5.29-1.11L125.16,214c1.89.06,3.79.06,5.68,0l19.21,15.38a6,6,0,0,0,3.75,1.31,6.2,6.2,0,0,0,1.54-.2,105.34,105.34,0,0,0,25.76-10.68,6,6,0,0,0,3-4.53l2.71-24.45q2.07-1.93,4-4l24.46-2.72a6,6,0,0,0,4.53-3,105.49,105.49,0,0,0,10.66-25.77,6,6,0,0,0-1.11-5.29Zm-3.1,41.63-23.64,2.63a6,6,0,0,0-3.82,2,75.14,75.14,0,0,1-6.31,6.31,6,6,0,0,0-2,3.82l-2.63,23.63A94.28,94.28,0,0,1,155.14,218l-18.57-14.86a6,6,0,0,0-3.75-1.31h-.36a78.07,78.07,0,0,1-8.92,0,6,6,0,0,0-4.11,1.3L100.87,218a94.13,94.13,0,0,1-17.34-7.17L80.9,187.21a6,6,0,0,0-2-3.82,75.14,75.14,0,0,1-6.31-6.31,6,6,0,0,0-3.82-2l-23.63-2.63A94.28,94.28,0,0,1,38,155.14l14.86-18.57a6,6,0,0,0,1.3-4.11,78.07,78.07,0,0,1,0-8.92,6,6,0,0,0-1.3-4.11L38,100.87a94.13,94.13,0,0,1,7.17-17.34L68.79,80.9a6,6,0,0,0,3.82-2,75.14,75.14,0,0,1,6.31-6.31,6,6,0,0,0,2-3.82l2.63-23.63A94.28,94.28,0,0,1,100.86,38l18.57,14.86a6,6,0,0,0,4.11,1.3,78.07,78.07,0,0,1,8.92,0,6,6,0,0,0,4.11-1.3L155.13,38a94.13,94.13,0,0,1,17.34,7.17l2.63,23.64a6,6,0,0,0,2,3.82,75.14,75.14,0,0,1,6.31,6.31,6,6,0,0,0,3.82,2l23.63,2.63A94.28,94.28,0,0,1,218,100.86l-14.86,18.57a6,6,0,0,0-1.3,4.11,78.07,78.07,0,0,1,0,8.92,6,6,0,0,0,1.3,4.11L218,155.13A94.13,94.13,0,0,1,210.85,172.47Z" }))
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M184,74H40A14,14,0,0,0,26,88V200a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V88A14,14,0,0,0,184,74Zm2,126a2,2,0,0,1-2,2H40a2,2,0,0,1-2-2V88a2,2,0,0,1,2-2H184a2,2,0,0,1,2,2ZM230,56V176a6,6,0,0,1-12,0V56a2,2,0,0,0-2-2H64a6,6,0,0,1,0-12H216A14,14,0,0,1,230,56Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" }))
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M184,72H40A16,16,0,0,0,24,88V200a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V88A16,16,0,0,0,184,72Zm0,128H40V88H184V200ZM232,56V176a8,8,0,0,1-16,0V56H64a8,8,0,0,1,0-16H216A16,16,0,0,1,232,56Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M128,84a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,84Zm0,80a36,36,0,1,1,36-36A36,36,0,0,1,128,164Zm83.93-32.49q.13-3.51,0-7l15.83-19.79a4,4,0,0,0,.75-3.53A103.64,103.64,0,0,0,218,75.9a4,4,0,0,0-3-2l-25.19-2.8c-1.58-1.71-3.24-3.37-4.95-4.95L182.07,41a4,4,0,0,0-2-3A104,104,0,0,0,154.82,27.5a4,4,0,0,0-3.53.74L131.51,44.07q-3.51-.14-7,0L104.7,28.24a4,4,0,0,0-3.53-.75A103.64,103.64,0,0,0,75.9,38a4,4,0,0,0-2,3l-2.8,25.19c-1.71,1.58-3.37,3.24-4.95,4.95L41,73.93a4,4,0,0,0-3,2A104,104,0,0,0,27.5,101.18a4,4,0,0,0,.74,3.53l15.83,19.78q-.14,3.51,0,7L28.24,151.3a4,4,0,0,0-.75,3.53A103.64,103.64,0,0,0,38,180.1a4,4,0,0,0,3,2l25.19,2.8c1.58,1.71,3.24,3.37,4.95,4.95l2.8,25.2a4,4,0,0,0,2,3,104,104,0,0,0,25.28,10.46,4,4,0,0,0,3.53-.74l19.78-15.83q3.51.13,7,0l19.79,15.83a4,4,0,0,0,2.5.88,4,4,0,0,0,1-.13A103.64,103.64,0,0,0,180.1,218a4,4,0,0,0,2-3l2.8-25.19c1.71-1.58,3.37-3.24,4.95-4.95l25.2-2.8a4,4,0,0,0,3-2,104,104,0,0,0,10.46-25.28,4,4,0,0,0-.74-3.53Zm.17,42.83-24.67,2.74a4,4,0,0,0-2.55,1.32,76.2,76.2,0,0,1-6.48,6.48,4,4,0,0,0-1.32,2.55l-2.74,24.66a95.45,95.45,0,0,1-19.64,8.15l-19.38-15.51a4,4,0,0,0-2.5-.87h-.24a73.67,73.67,0,0,1-9.16,0,4,4,0,0,0-2.74.87l-19.37,15.5a95.33,95.33,0,0,1-19.65-8.13l-2.74-24.67a4,4,0,0,0-1.32-2.55,76.2,76.2,0,0,1-6.48-6.48,4,4,0,0,0-2.55-1.32l-24.66-2.74a95.45,95.45,0,0,1-8.15-19.64l15.51-19.38a4,4,0,0,0,.87-2.74,77.76,77.76,0,0,1,0-9.16,4,4,0,0,0-.87-2.74l-15.5-19.37A95.33,95.33,0,0,1,43.9,81.66l24.67-2.74a4,4,0,0,0,2.55-1.32,76.2,76.2,0,0,1,6.48-6.48,4,4,0,0,0,1.32-2.55l2.74-24.66a95.45,95.45,0,0,1,19.64-8.15l19.38,15.51a4,4,0,0,0,2.74.87,73.67,73.67,0,0,1,9.16,0,4,4,0,0,0,2.74-.87l19.37-15.5a95.33,95.33,0,0,1,19.65,8.13l2.74,24.67a4,4,0,0,0,1.32,2.55,76.2,76.2,0,0,1,6.48,6.48,4,4,0,0,0,2.55,1.32l24.66,2.74a95.45,95.45,0,0,1,8.15,19.64l-15.51,19.38a4,4,0,0,0-.87,2.74,77.76,77.76,0,0,1,0,9.16,4,4,0,0,0,.87,2.74l15.5,19.37A95.33,95.33,0,0,1,212.1,174.34Z" }))
+    /* @__PURE__ */ a46.createElement(a46.Fragment, null, /* @__PURE__ */ a46.createElement("path", { d: "M184,76H40A12,12,0,0,0,28,88V200a12,12,0,0,0,12,12H184a12,12,0,0,0,12-12V88A12,12,0,0,0,184,76Zm4,124a4,4,0,0,1-4,4H40a4,4,0,0,1-4-4V88a4,4,0,0,1,4-4H184a4,4,0,0,1,4,4ZM228,56V176a4,4,0,0,1-8,0V56a4,4,0,0,0-4-4H64a4,4,0,0,1,0-8H216A12,12,0,0,1,228,56Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Gear.es.js
-var o65 = e56.forwardRef((r51, a47) => /* @__PURE__ */ e56.createElement(p37, { ref: a47, ...r51, weights: l14 }));
-o65.displayName = "GearIcon";
-var n28 = o65;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Cards.es.js
+var r53 = o66.forwardRef((a47, e54) => /* @__PURE__ */ o66.createElement(p37, { ref: e54, ...a47, weights: e53 }));
+r53.displayName = "CardsIcon";
+var n28 = r53;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Hourglass.es.js
-var o66 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/CaretLeft.es.js
+var e55 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/Hourglass.es.js
-var a47 = __toESM(require_react(), 1);
-var e57 = /* @__PURE__ */ new Map([
+// ../../node_modules/@phosphor-icons/react/dist/defs/CaretLeft.es.js
+var e54 = __toESM(require_react(), 1);
+var a47 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M204,75.64V40a20,20,0,0,0-20-20H72A20,20,0,0,0,52,40V76a20.1,20.1,0,0,0,8,16l48,36L60,164a20.1,20.1,0,0,0-8,16v36a20,20,0,0,0,20,20H184a20,20,0,0,0,20-20V180.36a20.13,20.13,0,0,0-7.94-16L147.9,128l48.16-36.4A20.13,20.13,0,0,0,204,75.64ZM180,212H76V182l52-39,52,39.33Zm0-138.35L128,113,76,74V44H180Z" }))
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M168.49,199.51a12,12,0,0,1-17,17l-80-80a12,12,0,0,1,0-17l80-80a12,12,0,0,1,17,17L97,128Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", {
-      d: "M188.82,82,128,128,67.2,82.4A8,8,0,0,1,64,76V40a8,8,0,0,1,8-8H184a8,8,0,0,1,8,8V75.64A8,8,0,0,1,188.82,82ZM64,180v36a8,8,0,0,0,8,8H184a8,8,0,0,0,8-8V180.36a8,8,0,0,0-3.18-6.38L128,128,67.2,173.6A8,8,0,0,0,64,180Z",
-      opacity: "0.2"
-    }), /* @__PURE__ */ a47.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.59A16.09,16.09,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z" }))
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M160,48V208L80,128Z", opacity: "0.2" }), /* @__PURE__ */ e54.createElement("path", { d: "M163.06,40.61a8,8,0,0,0-8.72,1.73l-80,80a8,8,0,0,0,0,11.32l80,80A8,8,0,0,0,168,208V48A8,8,0,0,0,163.06,40.61ZM152,188.69,91.31,128,152,67.31Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z" }))
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M168,48V208a8,8,0,0,1-13.66,5.66l-80-80a8,8,0,0,1,0-11.32l80-80A8,8,0,0,1,168,48Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M198,75.64V40a14,14,0,0,0-14-14H72A14,14,0,0,0,58,40V76a14.06,14.06,0,0,0,5.6,11.2L118,128,63.6,168.8A14.06,14.06,0,0,0,58,180v36a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V180.36a14.08,14.08,0,0,0-5.56-11.17L138,128l54.49-41.19A14.08,14.08,0,0,0,198,75.64ZM186,180.36V216a2,2,0,0,1-2,2H72a2,2,0,0,1-2-2V180a2,2,0,0,1,.8-1.6L128,135.51l57.22,43.25A2,2,0,0,1,186,180.36Zm0-104.72a2,2,0,0,1-.79,1.6L128,120.49,70.8,77.6A2,2,0,0,1,70,76V40a2,2,0,0,1,2-2H184a2,2,0,0,1,2,2Z" }))
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M164.24,203.76a6,6,0,1,1-8.48,8.48l-80-80a6,6,0,0,1,0-8.48l80-80a6,6,0,0,1,8.48,8.48L88.49,128Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.6A16.05,16.05,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z" }))
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M165.66,202.34a8,8,0,0,1-11.32,11.32l-80-80a8,8,0,0,1,0-11.32l80-80a8,8,0,0,1,11.32,11.32L91.31,128Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a47.createElement(a47.Fragment, null, /* @__PURE__ */ a47.createElement("path", { d: "M196,75.64V40a12,12,0,0,0-12-12H72A12,12,0,0,0,60,40V76a12,12,0,0,0,4.8,9.6L121.33,128,64.8,170.4A12,12,0,0,0,60,180v36a12,12,0,0,0,12,12H184a12,12,0,0,0,12-12V180.36a12.05,12.05,0,0,0-4.76-9.57L134.63,128l56.61-42.79A12.05,12.05,0,0,0,196,75.64Zm-8,104.72V216a4,4,0,0,1-4,4H72a4,4,0,0,1-4-4V180a4,4,0,0,1,1.6-3.2L128,133l58.42,44.16A4,4,0,0,1,188,180.36Zm0-104.72a4,4,0,0,1-1.59,3.19L128,123,69.6,79.2A4,4,0,0,1,68,76V40a4,4,0,0,1,4-4H184a4,4,0,0,1,4,4Z" }))
+    /* @__PURE__ */ e54.createElement(e54.Fragment, null, /* @__PURE__ */ e54.createElement("path", { d: "M162.83,205.17a4,4,0,0,1-5.66,5.66l-80-80a4,4,0,0,1,0-5.66l80-80a4,4,0,1,1,5.66,5.66L85.66,128Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Hourglass.es.js
-var r51 = o66.forwardRef((s27, a48) => /* @__PURE__ */ o66.createElement(p37, { ref: a48, ...s27, weights: e57 }));
-r51.displayName = "HourglassIcon";
-var n29 = r51;
+// ../../node_modules/@phosphor-icons/react/dist/csr/CaretLeft.es.js
+var t37 = e55.forwardRef((o67, r54) => /* @__PURE__ */ e55.createElement(p37, { ref: r54, ...o67, weights: a47 }));
+t37.displayName = "CaretLeftIcon";
+var s26 = t37;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/House.es.js
+// ../../node_modules/@phosphor-icons/react/dist/csr/Chats.es.js
 var o67 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/House.es.js
+// ../../node_modules/@phosphor-icons/react/dist/defs/Chats.es.js
 var a48 = __toESM(require_react(), 1);
-var e58 = /* @__PURE__ */ new Map([
+var e56 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M222.14,105.85l-80-80a20,20,0,0,0-28.28,0l-80,80A19.86,19.86,0,0,0,28,120v96a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V164h24v52a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V120A19.86,19.86,0,0,0,222.14,105.85ZM204,204H164V152a12,12,0,0,0-12-12H104a12,12,0,0,0-12,12v52H52V121.65l76-76,76,76Z" }))
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M216,76H188V48a20,20,0,0,0-20-20H40A20,20,0,0,0,20,48V176a12,12,0,0,0,19.54,9.33l28.46-23V184a20,20,0,0,0,20,20h92.17l36.29,29.33A12,12,0,0,0,236,224V96A20,20,0,0,0,216,76ZM44,150.87V52H164v80H71.58A12,12,0,0,0,64,134.67Zm168,48-20-16.2a12,12,0,0,0-7.54-2.67H92V156h76a20,20,0,0,0,20-20V100h24Z" }))
   ],
   [
     "duotone",
     /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", {
-      d: "M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z",
+      d: "M224,96V224l-39.58-32H88a8,8,0,0,1-8-8V144h88a8,8,0,0,0,8-8V88h40A8,8,0,0,1,224,96Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a48.createElement("path", { d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" }))
+    }), /* @__PURE__ */ a48.createElement("path", { d: "M216,80H184V48a16,16,0,0,0-16-16H40A16,16,0,0,0,24,48V176a8,8,0,0,0,13,6.22L72,154V184a16,16,0,0,0,16,16h93.59L219,230.22a8,8,0,0,0,5,1.78,8,8,0,0,0,8-8V96A16,16,0,0,0,216,80ZM66.55,137.78,40,159.25V48H168v88H71.58A8,8,0,0,0,66.55,137.78ZM216,207.25l-26.55-21.47a8,8,0,0,0-5-1.78H88V152h80a16,16,0,0,0,16-16V96h32Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z" }))
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M232,96a16,16,0,0,0-16-16H184V48a16,16,0,0,0-16-16H40A16,16,0,0,0,24,48V176a8,8,0,0,0,13,6.22L72,154V184a16,16,0,0,0,16,16h93.59L219,230.22a8,8,0,0,0,5,1.78,8,8,0,0,0,8-8Zm-42.55,89.78a8,8,0,0,0-5-1.78H88V152h80a16,16,0,0,0,16-16V96h32V207.25Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M217.9,110.1l-80-80a14,14,0,0,0-19.8,0l-80,80A13.92,13.92,0,0,0,34,120v96a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V158h36v58a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V120A13.92,13.92,0,0,0,217.9,110.1ZM210,210H158V152a6,6,0,0,0-6-6H104a6,6,0,0,0-6,6v58H46V120a2,2,0,0,1,.58-1.42l80-80a2,2,0,0,1,2.84,0l80,80A2,2,0,0,1,210,120Z" }))
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M216,82H182V48a14,14,0,0,0-14-14H40A14,14,0,0,0,26,48V176a6,6,0,0,0,3.42,5.41A5.86,5.86,0,0,0,32,182a6,6,0,0,0,3.77-1.33L73.71,150H74v34a14,14,0,0,0,14,14h94.29l37.94,30.67A6,6,0,0,0,224,230a5.86,5.86,0,0,0,2.58-.59A6,6,0,0,0,230,224V96A14,14,0,0,0,216,82ZM71.58,138a6,6,0,0,0-3.77,1.33L38,163.43V48a2,2,0,0,1,2-2H168a2,2,0,0,1,2,2v88a2,2,0,0,1-2,2ZM218,211.43l-29.81-24.1a6,6,0,0,0-3.77-1.33H88a2,2,0,0,1-2-2V150h82a14,14,0,0,0,14-14V94h34a2,2,0,0,1,2,2Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" }))
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M216,80H184V48a16,16,0,0,0-16-16H40A16,16,0,0,0,24,48V176a8,8,0,0,0,13,6.22L72,154V184a16,16,0,0,0,16,16h93.59L219,230.22a8,8,0,0,0,5,1.78,8,8,0,0,0,8-8V96A16,16,0,0,0,216,80ZM66.55,137.78,40,159.25V48H168v88H71.58A8,8,0,0,0,66.55,137.78ZM216,207.25l-26.55-21.47a8,8,0,0,0-5-1.78H88V152h80a16,16,0,0,0,16-16V96h32Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M216.49,111.51l-80-80a12,12,0,0,0-17,0l-80,80A12,12,0,0,0,36,120v96a4,4,0,0,0,4,4h64a4,4,0,0,0,4-4V156h40v60a4,4,0,0,0,4,4h64a4,4,0,0,0,4-4V120A12,12,0,0,0,216.49,111.51ZM212,212H156V152a4,4,0,0,0-4-4H104a4,4,0,0,0-4,4v60H44V120a4,4,0,0,1,1.17-2.83l80-80a4,4,0,0,1,5.66,0l80,80A4,4,0,0,1,212,120Z" }))
+    /* @__PURE__ */ a48.createElement(a48.Fragment, null, /* @__PURE__ */ a48.createElement("path", { d: "M216,84H180V48a12,12,0,0,0-12-12H40A12,12,0,0,0,28,48V176a4,4,0,0,0,4,4,4,4,0,0,0,2.51-.89L73,148h3v36a12,12,0,0,0,12,12h95l38.49,31.11A4,4,0,0,0,224,228a4,4,0,0,0,4-4V96A12,12,0,0,0,216,84ZM71.58,140a4,4,0,0,0-2.51.89L36,167.62V48a4,4,0,0,1,4-4H168a4,4,0,0,1,4,4v88a4,4,0,0,1-4,4ZM220,215.62l-33.07-26.73a4,4,0,0,0-2.51-.89H88a4,4,0,0,1-4-4V148h84a12,12,0,0,0,12-12V92h36a4,4,0,0,1,4,4Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/House.es.js
-var e59 = o67.forwardRef((r52, s27) => /* @__PURE__ */ o67.createElement(p37, { ref: s27, ...r52, weights: e58 }));
-e59.displayName = "HouseIcon";
-var n30 = e59;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Chats.es.js
+var t38 = o67.forwardRef((a49, e57) => /* @__PURE__ */ o67.createElement(p37, { ref: e57, ...a49, weights: e56 }));
+t38.displayName = "ChatsIcon";
+var n29 = t38;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Info.es.js
-var o68 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/Check.es.js
+var e58 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/Info.es.js
-var e60 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/defs/Check.es.js
+var e57 = __toESM(require_react(), 1);
 var a49 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M108,84a16,16,0,1,1,16,16A16,16,0,0,1,108,84Zm128,44A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128Zm-72,36.68V132a20,20,0,0,0-20-20,12,12,0,0,0-4,23.32V168a20,20,0,0,0,20,20,12,12,0,0,0,4-23.32Z" }))
+    /* @__PURE__ */ e57.createElement(e57.Fragment, null, /* @__PURE__ */ e57.createElement("path", { d: "M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e60.createElement("path", { d: "M144,176a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176Zm88-48A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128ZM124,96a12,12,0,1,0-12-12A12,12,0,0,0,124,96Z" }))
-  ],
-  [
-    "fill",
-    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-4,48a12,12,0,1,1-12,12A12,12,0,0,1,124,72Zm12,112a16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40a8,8,0,0,1,0,16Z" }))
-  ],
-  [
-    "light",
-    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M142,176a6,6,0,0,1-6,6,14,14,0,0,1-14-14V128a2,2,0,0,0-2-2,6,6,0,0,1,0-12,14,14,0,0,1,14,14v40a2,2,0,0,0,2,2A6,6,0,0,1,142,176ZM124,94a10,10,0,1,0-10-10A10,10,0,0,0,124,94Zm106,34A102,102,0,1,1,128,26,102.12,102.12,0,0,1,230,128Zm-12,0a90,90,0,1,0-90,90A90.1,90.1,0,0,0,218,128Z" }))
-  ],
-  [
-    "regular",
-    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z" }))
-  ],
-  [
-    "thin",
-    /* @__PURE__ */ e60.createElement(e60.Fragment, null, /* @__PURE__ */ e60.createElement("path", { d: "M140,176a4,4,0,0,1-4,4,12,12,0,0,1-12-12V128a4,4,0,0,0-4-4,4,4,0,0,1,0-8,12,12,0,0,1,12,12v40a4,4,0,0,0,4,4A4,4,0,0,1,140,176ZM124,92a8,8,0,1,0-8-8A8,8,0,0,0,124,92Zm104,36A100,100,0,1,1,128,28,100.11,100.11,0,0,1,228,128Zm-8,0a92,92,0,1,0-92,92A92.1,92.1,0,0,0,220,128Z" }))
-  ]
-]);
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Info.es.js
-var e61 = o68.forwardRef((r52, t38) => /* @__PURE__ */ o68.createElement(p37, { ref: t38, ...r52, weights: a49 }));
-e61.displayName = "InfoIcon";
-var c7 = e61;
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Key.es.js
-var e63 = __toESM(require_react(), 1);
-
-// ../../node_modules/@phosphor-icons/react/dist/defs/Key.es.js
-var a50 = __toESM(require_react(), 1);
-var e62 = /* @__PURE__ */ new Map([
-  [
-    "bold",
-    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M196,76a16,16,0,1,1-16-16A16,16,0,0,1,196,76Zm48,22.74A84.3,84.3,0,0,1,160.11,180H160a83.52,83.52,0,0,1-23.65-3.38l-7.86,7.87A12,12,0,0,1,120,188H108v12a12,12,0,0,1-12,12H84v12a12,12,0,0,1-12,12H40a20,20,0,0,1-20-20V187.31a19.86,19.86,0,0,1,5.86-14.14l53.52-53.52A84,84,0,1,1,244,98.74ZM202.43,53.57A59.48,59.48,0,0,0,158,36c-32,1-58,27.89-58,59.89a59.69,59.69,0,0,0,4.2,22.19,12,12,0,0,1-2.55,13.21L44,189v23H60V200a12,12,0,0,1,12-12H84V176a12,12,0,0,1,12-12h19l9.65-9.65a12,12,0,0,1,13.22-2.55A59.58,59.58,0,0,0,160,156h.08c32,0,58.87-26.07,59.89-58A59.55,59.55,0,0,0,202.43,53.57Z" }))
-  ],
-  [
-    "duotone",
-    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", {
-      d: "M232,98.36C230.73,136.92,198.67,168,160.09,168a71.68,71.68,0,0,1-26.92-5.17h0L120,176H96v24H72v24H40a8,8,0,0,1-8-8V187.31a8,8,0,0,1,2.34-5.65l58.83-58.83h0A71.68,71.68,0,0,1,88,95.91c0-38.58,31.08-70.64,69.64-71.87A72,72,0,0,1,232,98.36Z",
+    /* @__PURE__ */ e57.createElement(e57.Fragment, null, /* @__PURE__ */ e57.createElement("path", {
+      d: "M232,56V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a50.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z" }))
+    }), /* @__PURE__ */ e57.createElement("path", { d: "M205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM180,92a16,16,0,1,1,16-16A16,16,0,0,1,180,92Z" }))
+    /* @__PURE__ */ e57.createElement(e57.Fragment, null, /* @__PURE__ */ e57.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM205.66,85.66l-96,96a8,8,0,0,1-11.32,0l-40-40a8,8,0,0,1,11.32-11.32L104,164.69l90.34-90.35a8,8,0,0,1,11.32,11.32Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z" }))
+    /* @__PURE__ */ e57.createElement(e57.Fragment, null, /* @__PURE__ */ e57.createElement("path", { d: "M228.24,76.24l-128,128a6,6,0,0,1-8.48,0l-56-56a6,6,0,0,1,8.48-8.48L96,191.51,219.76,67.76a6,6,0,0,1,8.48,8.48Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z" }))
+    /* @__PURE__ */ e57.createElement(e57.Fragment, null, /* @__PURE__ */ e57.createElement("path", { d: "M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a50.createElement(a50.Fragment, null, /* @__PURE__ */ a50.createElement("path", { d: "M213.74,42.26A76,76,0,0,0,88.51,121.84l-57,57A11.93,11.93,0,0,0,28,187.31V216a12,12,0,0,0,12,12H72a4,4,0,0,0,4-4V204H96a4,4,0,0,0,4-4V180h20a4,4,0,0,0,2.83-1.17l11.33-11.34A75.72,75.72,0,0,0,160,172h.1A76,76,0,0,0,213.74,42.26Zm14.22,56c-1.15,36.22-31.6,65.72-67.87,65.77H160a67.52,67.52,0,0,1-25.21-4.83,4,4,0,0,0-4.45.83l-12,12H96a4,4,0,0,0-4,4v20H72a4,4,0,0,0-4,4v20H40a4,4,0,0,1-4-4V187.31a4.06,4.06,0,0,1,1.17-2.83L96,125.66a4,4,0,0,0,.83-4.45A67.51,67.51,0,0,1,92,95.91C92,59.64,121.55,29.19,157.77,28A68,68,0,0,1,228,98.23ZM188,76a8,8,0,1,1-8-8A8,8,0,0,1,188,76Z" }))
+    /* @__PURE__ */ e57.createElement(e57.Fragment, null, /* @__PURE__ */ e57.createElement("path", { d: "M226.83,74.83l-128,128a4,4,0,0,1-5.66,0l-56-56a4,4,0,0,1,5.66-5.66L96,194.34,221.17,69.17a4,4,0,1,1,5.66,5.66Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Key.es.js
-var o69 = e63.forwardRef((r52, t38) => /* @__PURE__ */ e63.createElement(p37, { ref: t38, ...r52, weights: e62 }));
-o69.displayName = "KeyIcon";
-var n31 = o69;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Check.es.js
+var o68 = e58.forwardRef((c7, r54) => /* @__PURE__ */ e58.createElement(p37, { ref: r54, ...c7, weights: a49 }));
+o68.displayName = "CheckIcon";
+var n30 = o68;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/ListBullets.es.js
-var t38 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/CircleHalf.es.js
+var e60 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/ListBullets.es.js
-var a51 = __toESM(require_react(), 1);
-var e64 = /* @__PURE__ */ new Map([
+// ../../node_modules/@phosphor-icons/react/dist/defs/CircleHalf.es.js
+var e59 = __toESM(require_react(), 1);
+var a50 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M76,64A12,12,0,0,1,88,52H216a12,12,0,0,1,0,24H88A12,12,0,0,1,76,64Zm140,52H88a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24Zm0,64H88a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24ZM44,112a16,16,0,1,0,16,16A16,16,0,0,0,44,112Zm0-64A16,16,0,1,0,60,64,16,16,0,0,0,44,48Zm0,128a16,16,0,1,0,16,16A16,16,0,0,0,44,176Z" }))
+    /* @__PURE__ */ e59.createElement(e59.Fragment, null, /* @__PURE__ */ e59.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm12,24.87a83.53,83.53,0,0,1,24,7.25V203.88a83.53,83.53,0,0,1-24,7.25ZM44,128a84.12,84.12,0,0,1,72-83.13V211.13A84.12,84.12,0,0,1,44,128Zm144,58.71V69.29a83.81,83.81,0,0,1,0,117.42Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M216,64V192H88V64Z", opacity: "0.2" }), /* @__PURE__ */ a51.createElement("path", { d: "M80,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H88A8,8,0,0,1,80,64Zm136,56H88a8,8,0,1,0,0,16H216a8,8,0,0,0,0-16Zm0,64H88a8,8,0,1,0,0,16H216a8,8,0,0,0,0-16ZM44,52A12,12,0,1,0,56,64,12,12,0,0,0,44,52Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,116Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,180Z" }))
+    /* @__PURE__ */ e59.createElement(e59.Fragment, null, /* @__PURE__ */ e59.createElement("path", {
+      d: "M224,128a96,96,0,0,1-96,96V32A96,96,0,0,1,224,128Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ e59.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a88.11,88.11,0,0,1,80-87.63V215.63A88.11,88.11,0,0,1,40,128Zm96,87.63V40.37a88,88,0,0,1,0,175.26Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM68,188a12,12,0,1,1,12-12A12,12,0,0,1,68,188Zm0-48a12,12,0,1,1,12-12A12,12,0,0,1,68,140Zm0-48A12,12,0,1,1,80,80,12,12,0,0,1,68,92Zm124,92H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Zm0-48H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Zm0-48H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Z" }))
+    /* @__PURE__ */ e59.createElement(e59.Fragment, null, /* @__PURE__ */ e59.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24ZM40,128a88.1,88.1,0,0,1,88-88V216A88.1,88.1,0,0,1,40,128Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z" }))
+    /* @__PURE__ */ e59.createElement(e59.Fragment, null, /* @__PURE__ */ e59.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm6,12.2a89.86,89.86,0,0,1,20,3.63V214.17a89.86,89.86,0,0,1-20,3.63Zm32,8.23a90.48,90.48,0,0,1,20,12.81V196.76a90.48,90.48,0,0,1-20,12.81ZM38,128a90.12,90.12,0,0,1,84-89.8V217.8A90.12,90.12,0,0,1,38,128Zm160,56.5V71.5a89.81,89.81,0,0,1,0,113Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M80,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H88A8,8,0,0,1,80,64Zm136,56H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM44,52A12,12,0,1,0,56,64,12,12,0,0,0,44,52Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,116Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,180Z" }))
+    /* @__PURE__ */ e59.createElement(e59.Fragment, null, /* @__PURE__ */ e59.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm8,16.37a86.4,86.4,0,0,1,16,3V212.67a86.4,86.4,0,0,1-16,3Zm32,9.26a87.81,87.81,0,0,1,16,10.54V195.83a87.81,87.81,0,0,1-16,10.54ZM40,128a88.11,88.11,0,0,1,80-87.63V215.63A88.11,88.11,0,0,1,40,128Zm160,50.54V77.46a87.82,87.82,0,0,1,0,101.08Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M84,64a4,4,0,0,1,4-4H216a4,4,0,0,1,0,8H88A4,4,0,0,1,84,64Zm132,60H88a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8Zm0,64H88a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8ZM44,120a8,8,0,1,0,8,8A8,8,0,0,0,44,120Zm0-64a8,8,0,1,0,8,8A8,8,0,0,0,44,56Zm0,128a8,8,0,1,0,8,8A8,8,0,0,0,44,184Z" }))
+    /* @__PURE__ */ e59.createElement(e59.Fragment, null, /* @__PURE__ */ e59.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm4,8.09a91.58,91.58,0,0,1,24,4.27V215.64a91.58,91.58,0,0,1-24,4.27Zm32,7.25a92.21,92.21,0,0,1,24,15V197.69a92.21,92.21,0,0,1-24,15ZM36,128a92.11,92.11,0,0,1,88-91.91V219.91A92.11,92.11,0,0,1,36,128Zm160,61.9V66.1a91.83,91.83,0,0,1,0,123.8Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/ListBullets.es.js
-var e65 = t38.forwardRef((o70, s27) => /* @__PURE__ */ t38.createElement(p37, { ref: s27, ...o70, weights: e64 }));
-e65.displayName = "ListBulletsIcon";
-var m17 = e65;
+// ../../node_modules/@phosphor-icons/react/dist/csr/CircleHalf.es.js
+var o69 = e60.forwardRef((r54, a51) => /* @__PURE__ */ e60.createElement(p37, { ref: a51, ...r54, weights: a50 }));
+o69.displayName = "CircleHalfIcon";
+var l14 = o69;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/MagnifyingGlass.es.js
-var a53 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/Desktop.es.js
+var o70 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/MagnifyingGlass.es.js
-var e66 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/defs/Desktop.es.js
+var a51 = __toESM(require_react(), 1);
+var e61 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,36H48A28,28,0,0,0,20,64V172a28,28,0,0,0,28,28h68v12H96a12,12,0,0,0,0,24h64a12,12,0,0,0,0-24H140V200h68a28,28,0,0,0,28-28V64A28,28,0,0,0,208,36ZM48,60H208a4,4,0,0,1,4,4v72H44V64A4,4,0,0,1,48,60ZM208,176H48a4,4,0,0,1-4-4V160H212v12A4,4,0,0,1,208,176Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", {
+      d: "M224,64v88H32V64A16,16,0,0,1,48,48H208A16,16,0,0,1,224,64Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a51.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40ZM48,56H208a8,8,0,0,1,8,8v80H40V64A8,8,0,0,1,48,56ZM208,184H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40Zm0,144H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,42H48A22,22,0,0,0,26,64V176a22,22,0,0,0,22,22h74v20H96a6,6,0,0,0,0,12h64a6,6,0,0,0,0-12H134V198h74a22,22,0,0,0,22-22V64A22,22,0,0,0,208,42ZM48,54H208a10,10,0,0,1,10,10v82H38V64A10,10,0,0,1,48,54ZM208,186H48a10,10,0,0,1-10-10V158H218v18A10,10,0,0,1,208,186Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,40H48A24,24,0,0,0,24,64V176a24,24,0,0,0,24,24h72v16H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V200h72a24,24,0,0,0,24-24V64A24,24,0,0,0,208,40ZM48,56H208a8,8,0,0,1,8,8v80H40V64A8,8,0,0,1,48,56ZM208,184H48a8,8,0,0,1-8-8V160H216v16A8,8,0,0,1,208,184Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a51.createElement(a51.Fragment, null, /* @__PURE__ */ a51.createElement("path", { d: "M208,44H48A20,20,0,0,0,28,64V176a20,20,0,0,0,20,20h76v24H96a4,4,0,0,0,0,8h64a4,4,0,0,0,0-8H132V196h76a20,20,0,0,0,20-20V64A20,20,0,0,0,208,44ZM48,52H208a12,12,0,0,1,12,12v84H36V64A12,12,0,0,1,48,52ZM208,188H48a12,12,0,0,1-12-12V156H220v20A12,12,0,0,1,208,188Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Desktop.es.js
+var e62 = o70.forwardRef((t39, r54) => /* @__PURE__ */ o70.createElement(p37, { ref: r54, ...t39, weights: e61 }));
+e62.displayName = "DesktopIcon";
+var c7 = e62;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/DotsThree.es.js
+var e64 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/DotsThree.es.js
+var e63 = __toESM(require_react(), 1);
 var a52 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M232.49,215.51,185,168a92.12,92.12,0,1,0-17,17l47.53,47.54a12,12,0,0,0,17-17ZM44,112a68,68,0,1,1,68,68A68.07,68.07,0,0,1,44,112Z" }))
+    /* @__PURE__ */ e63.createElement(e63.Fragment, null, /* @__PURE__ */ e63.createElement("path", { d: "M144,128a16,16,0,1,1-16-16A16,16,0,0,1,144,128ZM60,112a16,16,0,1,0,16,16A16,16,0,0,0,60,112Zm136,0a16,16,0,1,0,16,16A16,16,0,0,0,196,112Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M192,112a80,80,0,1,1-80-80A80,80,0,0,1,192,112Z", opacity: "0.2" }), /* @__PURE__ */ e66.createElement("path", { d: "M229.66,218.34,179.6,168.28a88.21,88.21,0,1,0-11.32,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }))
+    /* @__PURE__ */ e63.createElement(e63.Fragment, null, /* @__PURE__ */ e63.createElement("path", {
+      d: "M240,96v64a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V96A16,16,0,0,1,32,80H224A16,16,0,0,1,240,96Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ e63.createElement("path", { d: "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z" }))
+    /* @__PURE__ */ e63.createElement(e63.Fragment, null, /* @__PURE__ */ e63.createElement("path", { d: "M224,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V96A16,16,0,0,0,224,80ZM60,140a12,12,0,1,1,12-12A12,12,0,0,1,60,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm68,0a12,12,0,1,1,12-12A12,12,0,0,1,196,140Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M228.24,219.76l-51.38-51.38a86.15,86.15,0,1,0-8.48,8.48l51.38,51.38a6,6,0,0,0,8.48-8.48ZM38,112a74,74,0,1,1,74,74A74.09,74.09,0,0,1,38,112Z" }))
+    /* @__PURE__ */ e63.createElement(e63.Fragment, null, /* @__PURE__ */ e63.createElement("path", { d: "M138,128a10,10,0,1,1-10-10A10,10,0,0,1,138,128ZM60,118a10,10,0,1,0,10,10A10,10,0,0,0,60,118Zm136,0a10,10,0,1,0,10,10A10,10,0,0,0,196,118Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }))
+    /* @__PURE__ */ e63.createElement(e63.Fragment, null, /* @__PURE__ */ e63.createElement("path", { d: "M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128Zm56-12a12,12,0,1,0,12,12A12,12,0,0,0,196,116ZM60,116a12,12,0,1,0,12,12A12,12,0,0,0,60,116Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M226.83,221.17l-52.7-52.7a84.1,84.1,0,1,0-5.66,5.66l52.7,52.7a4,4,0,0,0,5.66-5.66ZM36,112a76,76,0,1,1,76,76A76.08,76.08,0,0,1,36,112Z" }))
+    /* @__PURE__ */ e63.createElement(e63.Fragment, null, /* @__PURE__ */ e63.createElement("path", { d: "M136,128a8,8,0,1,1-8-8A8,8,0,0,1,136,128Zm-76-8a8,8,0,1,0,8,8A8,8,0,0,0,60,120Zm136,0a8,8,0,1,0,8,8A8,8,0,0,0,196,120Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/MagnifyingGlass.es.js
-var o70 = a53.forwardRef((s27, n32) => /* @__PURE__ */ a53.createElement(p37, { ref: n32, ...s27, weights: a52 }));
-o70.displayName = "MagnifyingGlassIcon";
-var f21 = o70;
+// ../../node_modules/@phosphor-icons/react/dist/csr/DotsThree.es.js
+var o71 = e64.forwardRef((r54, t39) => /* @__PURE__ */ e64.createElement(p37, { ref: t39, ...r54, weights: a52 }));
+o71.displayName = "DotsThreeIcon";
+var n31 = o71;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Plugs.es.js
-var o71 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/Gear.es.js
+var e65 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/Plugs.es.js
-var a54 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/defs/Gear.es.js
+var a53 = __toESM(require_react(), 1);
 var l15 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M137,168l11.52-11.51a12,12,0,0,0-17-17L120,151l-15-15,11.52-11.51a12,12,0,0,0-17-17L88,119,72.49,103.51a12,12,0,0,0-17,17L59,124,38.54,144.49a36,36,0,0,0,0,50.91l2.55,2.54L15.51,223.51a12,12,0,0,0,17,17l25.57-25.58,2.54,2.55a36.06,36.06,0,0,0,50.91,0L132,197l3.51,3.52a12,12,0,0,0,17-17ZM94.54,200.49a12,12,0,0,1-17,0L55.51,178.43a12,12,0,0,1,0-17L76,141l39,39Zm146-185a12,12,0,0,0-17,0L197.94,41.09l-2.54-2.55a36.05,36.05,0,0,0-50.91,0L124,59l-3.51-3.52a12,12,0,0,0-17,17l80,80a12,12,0,0,0,17-17L197,132l20.49-20.49a36,36,0,0,0,0-50.91l-2.55-2.54,25.58-25.57A12,12,0,0,0,240.49,15.51Zm-40,79L180,115,141,76l20.49-20.49a12,12,0,0,1,17,0l22.06,22.06a12,12,0,0,1,0,17Z" }))
+    /* @__PURE__ */ a53.createElement(a53.Fragment, null, /* @__PURE__ */ a53.createElement("path", { d: "M128,76a52,52,0,1,0,52,52A52.06,52.06,0,0,0,128,76Zm0,80a28,28,0,1,1,28-28A28,28,0,0,1,128,156Zm92-27.21v-1.58l14-17.51a12,12,0,0,0,2.23-10.59A111.75,111.75,0,0,0,225,71.89,12,12,0,0,0,215.89,66L193.61,63.5l-1.11-1.11L190,40.1A12,12,0,0,0,184.11,31a111.67,111.67,0,0,0-27.23-11.27A12,12,0,0,0,146.3,22L128.79,36h-1.58L109.7,22a12,12,0,0,0-10.59-2.23A111.75,111.75,0,0,0,71.89,31.05,12,12,0,0,0,66,40.11L63.5,62.39,62.39,63.5,40.1,66A12,12,0,0,0,31,71.89,111.67,111.67,0,0,0,19.77,99.12,12,12,0,0,0,22,109.7l14,17.51v1.58L22,146.3a12,12,0,0,0-2.23,10.59,111.75,111.75,0,0,0,11.29,27.22A12,12,0,0,0,40.11,190l22.28,2.48,1.11,1.11L66,215.9A12,12,0,0,0,71.89,225a111.67,111.67,0,0,0,27.23,11.27A12,12,0,0,0,109.7,234l17.51-14h1.58l17.51,14a12,12,0,0,0,10.59,2.23A111.75,111.75,0,0,0,184.11,225a12,12,0,0,0,5.91-9.06l2.48-22.28,1.11-1.11L215.9,190a12,12,0,0,0,9.06-5.91,111.67,111.67,0,0,0,11.27-27.23A12,12,0,0,0,234,146.3Zm-24.12-4.89a70.1,70.1,0,0,1,0,8.2,12,12,0,0,0,2.61,8.22l12.84,16.05A86.47,86.47,0,0,1,207,166.86l-20.43,2.27a12,12,0,0,0-7.65,4,69,69,0,0,1-5.8,5.8,12,12,0,0,0-4,7.65L166.86,207a86.47,86.47,0,0,1-10.49,4.35l-16.05-12.85a12,12,0,0,0-7.5-2.62c-.24,0-.48,0-.72,0a70.1,70.1,0,0,1-8.2,0,12.06,12.06,0,0,0-8.22,2.6L99.63,211.33A86.47,86.47,0,0,1,89.14,207l-2.27-20.43a12,12,0,0,0-4-7.65,69,69,0,0,1-5.8-5.8,12,12,0,0,0-7.65-4L49,166.86a86.47,86.47,0,0,1-4.35-10.49l12.84-16.05a12,12,0,0,0,2.61-8.22,70.1,70.1,0,0,1,0-8.2,12,12,0,0,0-2.61-8.22L44.67,99.63A86.47,86.47,0,0,1,49,89.14l20.43-2.27a12,12,0,0,0,7.65-4,69,69,0,0,1,5.8-5.8,12,12,0,0,0,4-7.65L89.14,49a86.47,86.47,0,0,1,10.49-4.35l16.05,12.85a12.06,12.06,0,0,0,8.22,2.6,70.1,70.1,0,0,1,8.2,0,12,12,0,0,0,8.22-2.6l16.05-12.85A86.47,86.47,0,0,1,166.86,49l2.27,20.43a12,12,0,0,0,4,7.65,69,69,0,0,1,5.8,5.8,12,12,0,0,0,7.65,4L207,89.14a86.47,86.47,0,0,1,4.35,10.49l-12.84,16.05A12,12,0,0,0,195.88,123.9Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", {
-      d: "M76,124l56,56-29,29a24,24,0,0,1-33.94,0L47,186.91A24,24,0,0,1,47,153ZM209,69.09,186.91,47A24,24,0,0,0,153,47L124,76l56,56,29-29A24,24,0,0,0,209,69.09Z",
+    /* @__PURE__ */ a53.createElement(a53.Fragment, null, /* @__PURE__ */ a53.createElement("path", {
+      d: "M207.86,123.18l16.78-21a99.14,99.14,0,0,0-10.07-24.29l-26.7-3a81,81,0,0,0-6.81-6.81l-3-26.71a99.43,99.43,0,0,0-24.3-10l-21,16.77a81.59,81.59,0,0,0-9.64,0l-21-16.78A99.14,99.14,0,0,0,77.91,41.43l-3,26.7a81,81,0,0,0-6.81,6.81l-26.71,3a99.43,99.43,0,0,0-10,24.3l16.77,21a81.59,81.59,0,0,0,0,9.64l-16.78,21a99.14,99.14,0,0,0,10.07,24.29l26.7,3a81,81,0,0,0,6.81,6.81l3,26.71a99.43,99.43,0,0,0,24.3,10l21-16.77a81.59,81.59,0,0,0,9.64,0l21,16.78a99.14,99.14,0,0,0,24.29-10.07l3-26.7a81,81,0,0,0,6.81-6.81l26.71-3a99.43,99.43,0,0,0,10-24.3l-16.77-21A81.59,81.59,0,0,0,207.86,123.18ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a54.createElement("path", { d: "M149.66,138.34a8,8,0,0,0-11.32,0L120,156.69,99.31,136l18.35-18.34a8,8,0,0,0-11.32-11.32L88,124.69,69.66,106.34a8,8,0,0,0-11.32,11.32L64.69,124,41.37,147.31a32,32,0,0,0,0,45.26l5.38,5.37-28.41,28.4a8,8,0,0,0,11.32,11.32l28.4-28.41,5.37,5.38a32,32,0,0,0,45.26,0L132,191.31l6.34,6.35a8,8,0,0,0,11.32-11.32L131.31,168l18.35-18.34A8,8,0,0,0,149.66,138.34Zm-52.29,65a16,16,0,0,1-22.62,0L52.69,181.25a16,16,0,0,1,0-22.62L76,135.31,120.69,180Zm140.29-185a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Zm-34.35,79L180,120.69,135.31,76l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,203.31,97.37Z" }))
+    }), /* @__PURE__ */ a53.createElement("path", { d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8.06,8.06,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8.06,8.06,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M149.66,149.66,131.31,168l18.35,18.34a8,8,0,0,1-11.32,11.32L132,191.31l-23.31,23.32a32.06,32.06,0,0,1-45.26,0l-5.37-5.38-28.4,28.41a8,8,0,0,1-11.32-11.32l28.41-28.4-5.38-5.37a32,32,0,0,1,0-45.26L64.69,124l-6.35-6.34a8,8,0,0,1,11.32-11.32L88,124.69l18.34-18.35a8,8,0,0,1,11.32,11.32L99.31,136,120,156.69l18.34-18.35a8,8,0,0,1,11.32,11.32Zm88-131.32a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Z" }))
+    /* @__PURE__ */ a53.createElement(a53.Fragment, null, /* @__PURE__ */ a53.createElement("path", { d: "M216,130.16q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.6,107.6,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.29,107.29,0,0,0-26.25-10.86,8,8,0,0,0-7.06,1.48L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.6,107.6,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06ZM128,168a40,40,0,1,1,40-40A40,40,0,0,1,128,168Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M148.24,139.76a6,6,0,0,0-8.48,0L120,159.51,96.49,136l19.75-19.76a6,6,0,0,0-8.48-8.48L88,127.51,68.24,107.76a6,6,0,0,0-8.48,8.48L67.51,124,42.79,148.73a30,30,0,0,0,0,42.42l6.78,6.79L19.76,227.76a6,6,0,1,0,8.48,8.48l29.82-29.81,6.79,6.78a30,30,0,0,0,42.42,0L132,188.49l7.76,7.75a6,6,0,0,0,8.48-8.48L128.49,168l19.75-19.76A6,6,0,0,0,148.24,139.76Zm-49.45,65a18,18,0,0,1-25.46,0L51.27,182.67a18,18,0,0,1,0-25.46L76,132.49,123.51,180Zm137.45-185a6,6,0,0,0-8.48,0L197.94,49.57l-6.79-6.78a30,30,0,0,0-42.42,0L124,67.51l-7.76-7.75a6,6,0,0,0-8.48,8.48l80,80a6,6,0,0,0,8.48-8.48L188.49,132l24.72-24.73a30,30,0,0,0,0-42.42l-6.78-6.79,29.81-29.82A6,6,0,0,0,236.24,19.76Zm-31.51,79L180,123.51,132.49,76l24.72-24.73a18,18,0,0,1,25.46,0l22.06,22.06a18,18,0,0,1,0,25.46Z" }))
+    /* @__PURE__ */ a53.createElement(a53.Fragment, null, /* @__PURE__ */ a53.createElement("path", { d: "M128,82a46,46,0,1,0,46,46A46.06,46.06,0,0,0,128,82Zm0,80a34,34,0,1,1,34-34A34,34,0,0,1,128,162ZM214,130.84c.06-1.89.06-3.79,0-5.68L229.33,106a6,6,0,0,0,1.11-5.29A105.34,105.34,0,0,0,219.76,74.9a6,6,0,0,0-4.53-3l-24.45-2.71q-1.93-2.07-4-4l-2.72-24.46a6,6,0,0,0-3-4.53,105.65,105.65,0,0,0-25.77-10.66A6,6,0,0,0,150,26.68l-19.2,15.37c-1.89-.06-3.79-.06-5.68,0L106,26.67a6,6,0,0,0-5.29-1.11A105.34,105.34,0,0,0,74.9,36.24a6,6,0,0,0-3,4.53L69.23,65.22q-2.07,1.94-4,4L40.76,72a6,6,0,0,0-4.53,3,105.65,105.65,0,0,0-10.66,25.77A6,6,0,0,0,26.68,106l15.37,19.2c-.06,1.89-.06,3.79,0,5.68L26.67,150.05a6,6,0,0,0-1.11,5.29A105.34,105.34,0,0,0,36.24,181.1a6,6,0,0,0,4.53,3l24.45,2.71q1.94,2.07,4,4L72,215.24a6,6,0,0,0,3,4.53,105.65,105.65,0,0,0,25.77,10.66,6,6,0,0,0,5.29-1.11L125.16,214c1.89.06,3.79.06,5.68,0l19.21,15.38a6,6,0,0,0,3.75,1.31,6.2,6.2,0,0,0,1.54-.2,105.34,105.34,0,0,0,25.76-10.68,6,6,0,0,0,3-4.53l2.71-24.45q2.07-1.93,4-4l24.46-2.72a6,6,0,0,0,4.53-3,105.49,105.49,0,0,0,10.66-25.77,6,6,0,0,0-1.11-5.29Zm-3.1,41.63-23.64,2.63a6,6,0,0,0-3.82,2,75.14,75.14,0,0,1-6.31,6.31,6,6,0,0,0-2,3.82l-2.63,23.63A94.28,94.28,0,0,1,155.14,218l-18.57-14.86a6,6,0,0,0-3.75-1.31h-.36a78.07,78.07,0,0,1-8.92,0,6,6,0,0,0-4.11,1.3L100.87,218a94.13,94.13,0,0,1-17.34-7.17L80.9,187.21a6,6,0,0,0-2-3.82,75.14,75.14,0,0,1-6.31-6.31,6,6,0,0,0-3.82-2l-23.63-2.63A94.28,94.28,0,0,1,38,155.14l14.86-18.57a6,6,0,0,0,1.3-4.11,78.07,78.07,0,0,1,0-8.92,6,6,0,0,0-1.3-4.11L38,100.87a94.13,94.13,0,0,1,7.17-17.34L68.79,80.9a6,6,0,0,0,3.82-2,75.14,75.14,0,0,1,6.31-6.31,6,6,0,0,0,2-3.82l2.63-23.63A94.28,94.28,0,0,1,100.86,38l18.57,14.86a6,6,0,0,0,4.11,1.3,78.07,78.07,0,0,1,8.92,0,6,6,0,0,0,4.11-1.3L155.13,38a94.13,94.13,0,0,1,17.34,7.17l2.63,23.64a6,6,0,0,0,2,3.82,75.14,75.14,0,0,1,6.31,6.31,6,6,0,0,0,3.82,2l23.63,2.63A94.28,94.28,0,0,1,218,100.86l-14.86,18.57a6,6,0,0,0-1.3,4.11,78.07,78.07,0,0,1,0,8.92,6,6,0,0,0,1.3,4.11L218,155.13A94.13,94.13,0,0,1,210.85,172.47Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M149.66,138.34a8,8,0,0,0-11.32,0L120,156.69,99.31,136l18.35-18.34a8,8,0,0,0-11.32-11.32L88,124.69,69.66,106.34a8,8,0,0,0-11.32,11.32L64.69,124,41.37,147.31a32,32,0,0,0,0,45.26l5.38,5.37-28.41,28.4a8,8,0,0,0,11.32,11.32l28.4-28.41,5.37,5.38a32,32,0,0,0,45.26,0L132,191.31l6.34,6.35a8,8,0,0,0,11.32-11.32L131.31,168l18.35-18.34A8,8,0,0,0,149.66,138.34Zm-52.29,65a16,16,0,0,1-22.62,0L52.69,181.25a16,16,0,0,1,0-22.62L76,135.31,120.69,180Zm140.29-185a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Zm-34.35,79L180,120.69,135.31,76l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,203.31,97.37Z" }))
+    /* @__PURE__ */ a53.createElement(a53.Fragment, null, /* @__PURE__ */ a53.createElement("path", { d: "M128,80a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Zm88-29.84q.06-2.16,0-4.32l14.92-18.64a8,8,0,0,0,1.48-7.06,107.21,107.21,0,0,0-10.88-26.25,8,8,0,0,0-6-3.93l-23.72-2.64q-1.48-1.56-3-3L186,40.54a8,8,0,0,0-3.94-6,107.71,107.71,0,0,0-26.25-10.87,8,8,0,0,0-7.06,1.49L130.16,40Q128,40,125.84,40L107.2,25.11a8,8,0,0,0-7.06-1.48A107.6,107.6,0,0,0,73.89,34.51a8,8,0,0,0-3.93,6L67.32,64.27q-1.56,1.49-3,3L40.54,70a8,8,0,0,0-6,3.94,107.71,107.71,0,0,0-10.87,26.25,8,8,0,0,0,1.49,7.06L40,125.84Q40,128,40,130.16L25.11,148.8a8,8,0,0,0-1.48,7.06,107.21,107.21,0,0,0,10.88,26.25,8,8,0,0,0,6,3.93l23.72,2.64q1.49,1.56,3,3L70,215.46a8,8,0,0,0,3.94,6,107.71,107.71,0,0,0,26.25,10.87,8,8,0,0,0,7.06-1.49L125.84,216q2.16.06,4.32,0l18.64,14.92a8,8,0,0,0,7.06,1.48,107.21,107.21,0,0,0,26.25-10.88,8,8,0,0,0,3.93-6l2.64-23.72q1.56-1.48,3-3L215.46,186a8,8,0,0,0,6-3.94,107.71,107.71,0,0,0,10.87-26.25,8,8,0,0,0-1.49-7.06Zm-16.1-6.5a73.93,73.93,0,0,1,0,8.68,8,8,0,0,0,1.74,5.48l14.19,17.73a91.57,91.57,0,0,1-6.23,15L187,173.11a8,8,0,0,0-5.1,2.64,74.11,74.11,0,0,1-6.14,6.14,8,8,0,0,0-2.64,5.1l-2.51,22.58a91.32,91.32,0,0,1-15,6.23l-17.74-14.19a8,8,0,0,0-5-1.75h-.48a73.93,73.93,0,0,1-8.68,0,8,8,0,0,0-5.48,1.74L100.45,215.8a91.57,91.57,0,0,1-15-6.23L82.89,187a8,8,0,0,0-2.64-5.1,74.11,74.11,0,0,1-6.14-6.14,8,8,0,0,0-5.1-2.64L46.43,170.6a91.32,91.32,0,0,1-6.23-15l14.19-17.74a8,8,0,0,0,1.74-5.48,73.93,73.93,0,0,1,0-8.68,8,8,0,0,0-1.74-5.48L40.2,100.45a91.57,91.57,0,0,1,6.23-15L69,82.89a8,8,0,0,0,5.1-2.64,74.11,74.11,0,0,1,6.14-6.14A8,8,0,0,0,82.89,69L85.4,46.43a91.32,91.32,0,0,1,15-6.23l17.74,14.19a8,8,0,0,0,5.48,1.74,73.93,73.93,0,0,1,8.68,0,8,8,0,0,0,5.48-1.74L155.55,40.2a91.57,91.57,0,0,1,15,6.23L173.11,69a8,8,0,0,0,2.64,5.1,74.11,74.11,0,0,1,6.14,6.14,8,8,0,0,0,5.1,2.64l22.58,2.51a91.32,91.32,0,0,1,6.23,15l-14.19,17.74A8,8,0,0,0,199.87,123.66Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a54.createElement(a54.Fragment, null, /* @__PURE__ */ a54.createElement("path", { d: "M146.83,141.17a4,4,0,0,0-5.66,0L120,162.34,93.66,136l21.17-21.17a4,4,0,0,0-5.66-5.66L88,130.34,66.83,109.17a4,4,0,0,0-5.66,5.66L70.34,124,44.2,150.14a28,28,0,0,0,0,39.6l8.2,8.2L21.17,229.17a4,4,0,0,0,5.66,5.66L58.06,203.6l8.2,8.2a28,28,0,0,0,39.6,0L132,185.66l9.17,9.17a4,4,0,0,0,5.66-5.66L125.66,168l21.17-21.17A4,4,0,0,0,146.83,141.17Zm-46.63,65a20,20,0,0,1-28.28,0L49.86,184.08a20,20,0,0,1,0-28.28L76,129.66,126.34,180Zm134.63-185a4,4,0,0,0-5.66,0L197.94,52.4l-8.2-8.2a28,28,0,0,0-39.6,0L124,70.34l-9.17-9.17a4,4,0,0,0-5.66,5.66l80,80a4,4,0,0,0,5.66-5.66L185.66,132l26.14-26.14a28,28,0,0,0,0-39.6l-8.2-8.2,31.23-31.23A4,4,0,0,0,234.83,21.17ZM212,86.06a19.86,19.86,0,0,1-5.86,14.14L180,126.34,129.66,76,155.8,49.86a20,20,0,0,1,28.28,0l22.06,22.06A19.85,19.85,0,0,1,212,86.06Z" }))
+    /* @__PURE__ */ a53.createElement(a53.Fragment, null, /* @__PURE__ */ a53.createElement("path", { d: "M128,84a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,84Zm0,80a36,36,0,1,1,36-36A36,36,0,0,1,128,164Zm83.93-32.49q.13-3.51,0-7l15.83-19.79a4,4,0,0,0,.75-3.53A103.64,103.64,0,0,0,218,75.9a4,4,0,0,0-3-2l-25.19-2.8c-1.58-1.71-3.24-3.37-4.95-4.95L182.07,41a4,4,0,0,0-2-3A104,104,0,0,0,154.82,27.5a4,4,0,0,0-3.53.74L131.51,44.07q-3.51-.14-7,0L104.7,28.24a4,4,0,0,0-3.53-.75A103.64,103.64,0,0,0,75.9,38a4,4,0,0,0-2,3l-2.8,25.19c-1.71,1.58-3.37,3.24-4.95,4.95L41,73.93a4,4,0,0,0-3,2A104,104,0,0,0,27.5,101.18a4,4,0,0,0,.74,3.53l15.83,19.78q-.14,3.51,0,7L28.24,151.3a4,4,0,0,0-.75,3.53A103.64,103.64,0,0,0,38,180.1a4,4,0,0,0,3,2l25.19,2.8c1.58,1.71,3.24,3.37,4.95,4.95l2.8,25.2a4,4,0,0,0,2,3,104,104,0,0,0,25.28,10.46,4,4,0,0,0,3.53-.74l19.78-15.83q3.51.13,7,0l19.79,15.83a4,4,0,0,0,2.5.88,4,4,0,0,0,1-.13A103.64,103.64,0,0,0,180.1,218a4,4,0,0,0,2-3l2.8-25.19c1.71-1.58,3.37-3.24,4.95-4.95l25.2-2.8a4,4,0,0,0,3-2,104,104,0,0,0,10.46-25.28,4,4,0,0,0-.74-3.53Zm.17,42.83-24.67,2.74a4,4,0,0,0-2.55,1.32,76.2,76.2,0,0,1-6.48,6.48,4,4,0,0,0-1.32,2.55l-2.74,24.66a95.45,95.45,0,0,1-19.64,8.15l-19.38-15.51a4,4,0,0,0-2.5-.87h-.24a73.67,73.67,0,0,1-9.16,0,4,4,0,0,0-2.74.87l-19.37,15.5a95.33,95.33,0,0,1-19.65-8.13l-2.74-24.67a4,4,0,0,0-1.32-2.55,76.2,76.2,0,0,1-6.48-6.48,4,4,0,0,0-2.55-1.32l-24.66-2.74a95.45,95.45,0,0,1-8.15-19.64l15.51-19.38a4,4,0,0,0,.87-2.74,77.76,77.76,0,0,1,0-9.16,4,4,0,0,0-.87-2.74l-15.5-19.37A95.33,95.33,0,0,1,43.9,81.66l24.67-2.74a4,4,0,0,0,2.55-1.32,76.2,76.2,0,0,1,6.48-6.48,4,4,0,0,0,1.32-2.55l2.74-24.66a95.45,95.45,0,0,1,19.64-8.15l19.38,15.51a4,4,0,0,0,2.74.87,73.67,73.67,0,0,1,9.16,0,4,4,0,0,0,2.74-.87l19.37-15.5a95.33,95.33,0,0,1,19.65,8.13l2.74,24.67a4,4,0,0,0,1.32,2.55,76.2,76.2,0,0,1,6.48,6.48,4,4,0,0,0,2.55,1.32l24.66,2.74a95.45,95.45,0,0,1,8.15,19.64l-15.51,19.38a4,4,0,0,0-.87,2.74,77.76,77.76,0,0,1,0,9.16,4,4,0,0,0,.87,2.74l15.5,19.37A95.33,95.33,0,0,1,212.1,174.34Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Plugs.es.js
-var e67 = o71.forwardRef((r52, s27) => /* @__PURE__ */ o71.createElement(p37, { ref: s27, ...r52, weights: l15 }));
-e67.displayName = "PlugsIcon";
-var n32 = e67;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Gear.es.js
+var o72 = e65.forwardRef((r54, a54) => /* @__PURE__ */ e65.createElement(p37, { ref: a54, ...r54, weights: l15 }));
+o72.displayName = "GearIcon";
+var n32 = o72;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Prohibit.es.js
-var o72 = __toESM(require_react(), 1);
-
-// ../../node_modules/@phosphor-icons/react/dist/defs/Prohibit.es.js
-var e68 = __toESM(require_react(), 1);
-var t39 = /* @__PURE__ */ new Map([
-  [
-    "bold",
-    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm84,108a83.6,83.6,0,0,1-16.75,50.28L77.72,60.75A84,84,0,0,1,212,128ZM44,128A83.6,83.6,0,0,1,60.75,77.72L178.28,195.25A84,84,0,0,1,44,128Z" }))
-  ],
-  [
-    "duotone",
-    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e68.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z" }))
-  ],
-  [
-    "fill",
-    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M200,128a71.69,71.69,0,0,1-15.78,44.91L83.09,71.78A71.95,71.95,0,0,1,200,128ZM56,128a71.95,71.95,0,0,0,116.91,56.22L71.78,83.09A71.69,71.69,0,0,0,56,128Zm180,0A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-20,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z" }))
-  ],
-  [
-    "light",
-    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm90,102a89.6,89.6,0,0,1-22.29,59.22L68.78,60.29A89.95,89.95,0,0,1,218,128ZM38,128A89.6,89.6,0,0,1,60.29,68.78L187.22,195.71A89.95,89.95,0,0,1,38,128Z" }))
-  ],
-  [
-    "regular",
-    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z" }))
-  ],
-  [
-    "thin",
-    /* @__PURE__ */ e68.createElement(e68.Fragment, null, /* @__PURE__ */ e68.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm92,100a91.67,91.67,0,0,1-24.21,62.13L65.87,60.21A92,92,0,0,1,220,128ZM36,128A91.67,91.67,0,0,1,60.21,65.87L190.13,195.79A92,92,0,0,1,36,128Z" }))
-  ]
-]);
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Prohibit.es.js
-var r52 = o72.forwardRef((t40, i23) => /* @__PURE__ */ o72.createElement(p37, { ref: i23, ...t40, weights: t39 }));
-r52.displayName = "ProhibitIcon";
-var s27 = r52;
-
-// ../../node_modules/@phosphor-icons/react/dist/csr/Robot.es.js
+// ../../node_modules/@phosphor-icons/react/dist/csr/GridFour.es.js
 var o73 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/Robot.es.js
-var a55 = __toESM(require_react(), 1);
-var e69 = /* @__PURE__ */ new Map([
+// ../../node_modules/@phosphor-icons/react/dist/defs/GridFour.es.js
+var e66 = __toESM(require_react(), 1);
+var a54 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M72,104a16,16,0,1,1,16,16A16,16,0,0,1,72,104Zm96,16a16,16,0,1,0-16-16A16,16,0,0,0,168,120Zm68-40V192a36,36,0,0,1-36,36H56a36,36,0,0,1-36-36V80A36,36,0,0,1,56,44h60V16a12,12,0,0,1,24,0V44h60A36,36,0,0,1,236,80Zm-24,0a12,12,0,0,0-12-12H56A12,12,0,0,0,44,80V192a12,12,0,0,0,12,12H200a12,12,0,0,0,12-12Zm-12,82a30,30,0,0,1-30,30H86a30,30,0,0,1,0-60h84A30,30,0,0,1,200,162Zm-80-6v12h16V156ZM86,168H96V156H86a6,6,0,0,0,0,12Zm90-6a6,6,0,0,0-6-6H160v12h10A6,6,0,0,0,176,162Z" }))
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M200,36H56A20,20,0,0,0,36,56V200a20,20,0,0,0,20,20H200a20,20,0,0,0,20-20V56A20,20,0,0,0,200,36Zm-4,80H140V60h56ZM116,60v56H60V60ZM60,140h56v56H60Zm80,56V140h56v56Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", {
+      d: "M208,56V200a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8H200A8,8,0,0,1,208,56Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ e66.createElement("path", { d: "M200,40H56A16,16,0,0,0,40,56V200a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,80H136V56h64ZM120,56v64H56V56ZM56,136h64v64H56Zm144,64H136V136h64v64Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M216,56v60a4,4,0,0,1-4,4H136V44a4,4,0,0,1,4-4h60A16,16,0,0,1,216,56ZM116,40H56A16,16,0,0,0,40,56v60a4,4,0,0,0,4,4h76V44A4,4,0,0,0,116,40Zm96,96H136v76a4,4,0,0,0,4,4h60a16,16,0,0,0,16-16V140A4,4,0,0,0,212,136ZM40,140v60a16,16,0,0,0,16,16h60a4,4,0,0,0,4-4V136H44A4,4,0,0,0,40,140Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M200,42H56A14,14,0,0,0,42,56V200a14,14,0,0,0,14,14H200a14,14,0,0,0,14-14V56A14,14,0,0,0,200,42Zm2,14v66H134V54h66A2,2,0,0,1,202,56ZM56,54h66v68H54V56A2,2,0,0,1,56,54ZM54,200V134h68v68H56A2,2,0,0,1,54,200Zm146,2H134V134h68v66A2,2,0,0,1,200,202Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M200,40H56A16,16,0,0,0,40,56V200a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,80H136V56h64ZM120,56v64H56V56ZM56,136h64v64H56Zm144,64H136V136h64v64Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e66.createElement(e66.Fragment, null, /* @__PURE__ */ e66.createElement("path", { d: "M200,44H56A12,12,0,0,0,44,56V200a12,12,0,0,0,12,12H200a12,12,0,0,0,12-12V56A12,12,0,0,0,200,44Zm4,12v68H132V52h68A4,4,0,0,1,204,56ZM56,52h68v72H52V56A4,4,0,0,1,56,52ZM52,200V132h72v72H56A4,4,0,0,1,52,200Zm148,4H132V132h72v68A4,4,0,0,1,200,204Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/GridFour.es.js
+var r54 = o73.forwardRef((e67, t39) => /* @__PURE__ */ o73.createElement(p37, { ref: t39, ...e67, weights: a54 }));
+r54.displayName = "GridFourIcon";
+var s27 = r54;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Hourglass.es.js
+var o74 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Hourglass.es.js
+var a55 = __toESM(require_react(), 1);
+var e67 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M204,75.64V40a20,20,0,0,0-20-20H72A20,20,0,0,0,52,40V76a20.1,20.1,0,0,0,8,16l48,36L60,164a20.1,20.1,0,0,0-8,16v36a20,20,0,0,0,20,20H184a20,20,0,0,0,20-20V180.36a20.13,20.13,0,0,0-7.94-16L147.9,128l48.16-36.4A20.13,20.13,0,0,0,204,75.64ZM180,212H76V182l52-39,52,39.33Zm0-138.35L128,113,76,74V44H180Z" }))
   ],
   [
     "duotone",
     /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", {
-      d: "M200,56H56A24,24,0,0,0,32,80V192a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56ZM164,184H92a20,20,0,0,1,0-40h72a20,20,0,0,1,0,40Z",
+      d: "M188.82,82,128,128,67.2,82.4A8,8,0,0,1,64,76V40a8,8,0,0,1,8-8H184a8,8,0,0,1,8,8V75.64A8,8,0,0,1,188.82,82ZM64,180v36a8,8,0,0,0,8,8H184a8,8,0,0,0,8-8V180.36a8,8,0,0,0-3.18-6.38L128,128,67.2,173.6A8,8,0,0,0,64,180Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a55.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Zm4,28H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24Z" }))
+    }), /* @__PURE__ */ a55.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.59A16.09,16.09,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48ZM172,96a12,12,0,1,1-12,12A12,12,0,0,1,172,96ZM96,184H80a16,16,0,0,1,0-32H96ZM84,120a12,12,0,1,1,12-12A12,12,0,0,1,84,120Zm60,64H112V152h32Zm32,0H160V152h16a16,16,0,0,1,0,32Z" }))
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,50H134V16a6,6,0,0,0-12,0V50H56A30,30,0,0,0,26,80V192a30,30,0,0,0,30,30H200a30,30,0,0,0,30-30V80A30,30,0,0,0,200,50Zm18,142a18,18,0,0,1-18,18H56a18,18,0,0,1-18-18V80A18,18,0,0,1,56,62H200a18,18,0,0,1,18,18ZM74,108a10,10,0,1,1,10,10A10,10,0,0,1,74,108Zm88,0a10,10,0,1,1,10,10A10,10,0,0,1,162,108Zm2,30H92a26,26,0,0,0,0,52h72a26,26,0,0,0,0-52Zm-22,12v28H114V150ZM78,164a14,14,0,0,1,14-14h10v28H92A14,14,0,0,1,78,164Zm86,14H154V150h10a14,14,0,0,1,0,28Z" }))
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M198,75.64V40a14,14,0,0,0-14-14H72A14,14,0,0,0,58,40V76a14.06,14.06,0,0,0,5.6,11.2L118,128,63.6,168.8A14.06,14.06,0,0,0,58,180v36a14,14,0,0,0,14,14H184a14,14,0,0,0,14-14V180.36a14.08,14.08,0,0,0-5.56-11.17L138,128l54.49-41.19A14.08,14.08,0,0,0,198,75.64ZM186,180.36V216a2,2,0,0,1-2,2H72a2,2,0,0,1-2-2V180a2,2,0,0,1,.8-1.6L128,135.51l57.22,43.25A2,2,0,0,1,186,180.36Zm0-104.72a2,2,0,0,1-.79,1.6L128,120.49,70.8,77.6A2,2,0,0,1,70,76V40a2,2,0,0,1,2-2H184a2,2,0,0,1,2,2Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-52-56H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Z" }))
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.6A16.05,16.05,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M200,52H132V16a4,4,0,0,0-8,0V52H56A28,28,0,0,0,28,80V192a28,28,0,0,0,28,28H200a28,28,0,0,0,28-28V80A28,28,0,0,0,200,52Zm20,140a20,20,0,0,1-20,20H56a20,20,0,0,1-20-20V80A20,20,0,0,1,56,60H200a20,20,0,0,1,20,20ZM76,108a8,8,0,1,1,8,8A8,8,0,0,1,76,108Zm88,0a8,8,0,1,1,8,8A8,8,0,0,1,164,108Zm0,32H92a24,24,0,0,0,0,48h72a24,24,0,0,0,0-48Zm-20,8v32H112V148ZM76,164a16,16,0,0,1,16-16h12v32H92A16,16,0,0,1,76,164Zm88,16H152V148h12a16,16,0,0,1,0,32Z" }))
+    /* @__PURE__ */ a55.createElement(a55.Fragment, null, /* @__PURE__ */ a55.createElement("path", { d: "M196,75.64V40a12,12,0,0,0-12-12H72A12,12,0,0,0,60,40V76a12,12,0,0,0,4.8,9.6L121.33,128,64.8,170.4A12,12,0,0,0,60,180v36a12,12,0,0,0,12,12H184a12,12,0,0,0,12-12V180.36a12.05,12.05,0,0,0-4.76-9.57L134.63,128l56.61-42.79A12.05,12.05,0,0,0,196,75.64Zm-8,104.72V216a4,4,0,0,1-4,4H72a4,4,0,0,1-4-4V180a4,4,0,0,1,1.6-3.2L128,133l58.42,44.16A4,4,0,0,1,188,180.36Zm0-104.72a4,4,0,0,1-1.59,3.19L128,123,69.6,79.2A4,4,0,0,1,68,76V40a4,4,0,0,1,4-4H184a4,4,0,0,1,4,4Z" }))
   ]
 ]);
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/Robot.es.js
-var t40 = o73.forwardRef((e70, r53) => /* @__PURE__ */ o73.createElement(p37, { ref: r53, ...e70, weights: e69 }));
-t40.displayName = "RobotIcon";
-var n33 = t40;
+// ../../node_modules/@phosphor-icons/react/dist/csr/Hourglass.es.js
+var r55 = o74.forwardRef((s28, a56) => /* @__PURE__ */ o74.createElement(p37, { ref: a56, ...s28, weights: e67 }));
+r55.displayName = "HourglassIcon";
+var n33 = r55;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/ShieldCheck.es.js
-var e71 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/House.es.js
+var o75 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/ShieldCheck.es.js
+// ../../node_modules/@phosphor-icons/react/dist/defs/House.es.js
 var a56 = __toESM(require_react(), 1);
-var e70 = /* @__PURE__ */ new Map([
+var e68 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,36H48A20,20,0,0,0,28,56v56c0,54.29,26.32,87.22,48.4,105.29,23.71,19.39,47.44,26,48.44,26.29a12.1,12.1,0,0,0,6.32,0c1-.28,24.73-6.9,48.44-26.29,22.08-18.07,48.4-51,48.4-105.29V56A20,20,0,0,0,208,36Zm-4,76c0,35.71-13.09,64.69-38.91,86.15A126.28,126.28,0,0,1,128,219.38a126.14,126.14,0,0,1-37.09-21.23C65.09,176.69,52,147.71,52,112V60H204ZM79.51,144.49a12,12,0,1,1,17-17L112,143l47.51-47.52a12,12,0,0,1,17,17l-56,56a12,12,0,0,1-17,0Z" }))
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M222.14,105.85l-80-80a20,20,0,0,0-28.28,0l-80,80A19.86,19.86,0,0,0,28,120v96a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V164h24v52a12,12,0,0,0,12,12h64a12,12,0,0,0,12-12V120A19.86,19.86,0,0,0,222.14,105.85ZM204,204H164V152a12,12,0,0,0-12-12H104a12,12,0,0,0-12,12v52H52V121.65l76-76,76,76Z" }))
   ],
   [
     "duotone",
     /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", {
-      d: "M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z",
+      d: "M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z",
       opacity: "0.2"
-    }), /* @__PURE__ */ a56.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" }))
+    }), /* @__PURE__ */ a56.createElement("path", { d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm-34.32,69.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z" }))
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M224,120v96a8,8,0,0,1-8,8H160a8,8,0,0,1-8-8V164a4,4,0,0,0-4-4H108a4,4,0,0,0-4,4v52a8,8,0,0,1-8,8H40a8,8,0,0,1-8-8V120a16,16,0,0,1,4.69-11.31l80-80a16,16,0,0,1,22.62,0l80,80A16,16,0,0,1,224,120Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z" }))
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M217.9,110.1l-80-80a14,14,0,0,0-19.8,0l-80,80A13.92,13.92,0,0,0,34,120v96a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V158h36v58a6,6,0,0,0,6,6h64a6,6,0,0,0,6-6V120A13.92,13.92,0,0,0,217.9,110.1ZM210,210H158V152a6,6,0,0,0-6-6H104a6,6,0,0,0-6,6v58H46V120a2,2,0,0,1,.58-1.42l80-80a2,2,0,0,1,2.84,0l80,80A2,2,0,0,1,210,120Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" }))
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M208,44H48A12,12,0,0,0,36,56v56c0,51.16,24.73,82.12,45.47,99.1,22.4,18.32,44.55,24.5,45.48,24.76a4,4,0,0,0,2.1,0c.93-.26,23.08-6.44,45.48-24.76,20.74-17,45.47-47.94,45.47-99.1V56A12,12,0,0,0,208,44Zm4,68c0,38.44-14.23,69.63-42.29,92.71A132.45,132.45,0,0,1,128,227.82a132.23,132.23,0,0,1-41.71-23.11C58.23,181.63,44,150.44,44,112V56a4,4,0,0,1,4-4H208a4,4,0,0,1,4,4Zm-41.17-10.83a4,4,0,0,1,0,5.66l-56,56a4,4,0,0,1-5.66,0l-24-24a4,4,0,0,1,5.66-5.66L112,154.34l53.17-53.17A4,4,0,0,1,170.83,101.17Z" }))
+    /* @__PURE__ */ a56.createElement(a56.Fragment, null, /* @__PURE__ */ a56.createElement("path", { d: "M216.49,111.51l-80-80a12,12,0,0,0-17,0l-80,80A12,12,0,0,0,36,120v96a4,4,0,0,0,4,4h64a4,4,0,0,0,4-4V156h40v60a4,4,0,0,0,4,4h64a4,4,0,0,0,4-4V120A12,12,0,0,0,216.49,111.51ZM212,212H156V152a4,4,0,0,0-4-4H104a4,4,0,0,0-4,4v60H44V120a4,4,0,0,1,1.17-2.83l80-80a4,4,0,0,1,5.66,0l80,80A4,4,0,0,1,212,120Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/House.es.js
+var e69 = o75.forwardRef((r56, s28) => /* @__PURE__ */ o75.createElement(p37, { ref: s28, ...r56, weights: e68 }));
+e69.displayName = "HouseIcon";
+var n34 = e69;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Info.es.js
+var o76 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Info.es.js
+var e70 = __toESM(require_react(), 1);
+var a57 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e70.createElement(e70.Fragment, null, /* @__PURE__ */ e70.createElement("path", { d: "M108,84a16,16,0,1,1,16,16A16,16,0,0,1,108,84Zm128,44A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-24,0a84,84,0,1,0-84,84A84.09,84.09,0,0,0,212,128Zm-72,36.68V132a20,20,0,0,0-20-20,12,12,0,0,0-4,23.32V168a20,20,0,0,0,20,20,12,12,0,0,0,4-23.32Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e70.createElement(e70.Fragment, null, /* @__PURE__ */ e70.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e70.createElement("path", { d: "M144,176a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176Zm88-48A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128ZM124,96a12,12,0,1,0-12-12A12,12,0,0,0,124,96Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e70.createElement(e70.Fragment, null, /* @__PURE__ */ e70.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-4,48a12,12,0,1,1-12,12A12,12,0,0,1,124,72Zm12,112a16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40a8,8,0,0,1,0,16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e70.createElement(e70.Fragment, null, /* @__PURE__ */ e70.createElement("path", { d: "M142,176a6,6,0,0,1-6,6,14,14,0,0,1-14-14V128a2,2,0,0,0-2-2,6,6,0,0,1,0-12,14,14,0,0,1,14,14v40a2,2,0,0,0,2,2A6,6,0,0,1,142,176ZM124,94a10,10,0,1,0-10-10A10,10,0,0,0,124,94Zm106,34A102,102,0,1,1,128,26,102.12,102.12,0,0,1,230,128Zm-12,0a90,90,0,1,0-90,90A90.1,90.1,0,0,0,218,128Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e70.createElement(e70.Fragment, null, /* @__PURE__ */ e70.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e70.createElement(e70.Fragment, null, /* @__PURE__ */ e70.createElement("path", { d: "M140,176a4,4,0,0,1-4,4,12,12,0,0,1-12-12V128a4,4,0,0,0-4-4,4,4,0,0,1,0-8,12,12,0,0,1,12,12v40a4,4,0,0,0,4,4A4,4,0,0,1,140,176ZM124,92a8,8,0,1,0-8-8A8,8,0,0,0,124,92Zm104,36A100,100,0,1,1,128,28,100.11,100.11,0,0,1,228,128Zm-8,0a92,92,0,1,0-92,92A92.1,92.1,0,0,0,220,128Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Info.es.js
+var e71 = o76.forwardRef((r56, t39) => /* @__PURE__ */ o76.createElement(p37, { ref: t39, ...r56, weights: a57 }));
+e71.displayName = "InfoIcon";
+var c8 = e71;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Kanban.es.js
+var a59 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Kanban.es.js
+var a58 = __toESM(require_react(), 1);
+var e72 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a58.createElement(a58.Fragment, null, /* @__PURE__ */ a58.createElement("path", { d: "M216,44H40A12,12,0,0,0,28,56V208a20,20,0,0,0,20,20H88a20,20,0,0,0,20-20V164h40v12a20,20,0,0,0,20,20h40a20,20,0,0,0,20-20V56A12,12,0,0,0,216,44Zm-12,64H172V68h32ZM84,68v40H52V68Zm0,136H52V132H84Zm24-64V68h40v72Zm64,32V132h32v40Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a58.createElement(a58.Fragment, null, /* @__PURE__ */ a58.createElement("path", {
+      d: "M216,56v64H160V56ZM40,208a8,8,0,0,0,8,8H88a8,8,0,0,0,8-8V120H40Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a58.createElement("path", { d: "M216,48H40a8,8,0,0,0-8,8V208a16,16,0,0,0,16,16H88a16,16,0,0,0,16-16V160h48v16a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V56A8,8,0,0,0,216,48Zm-8,64H168V64h40ZM88,64v48H48V64Zm0,144H48V128H88Zm16-64V64h48v80Zm64,32V128h40v48Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a58.createElement(a58.Fragment, null, /* @__PURE__ */ a58.createElement("path", { d: "M160,56v96a8,8,0,0,1-8,8H112a8,8,0,0,1-8-8V56a8,8,0,0,1,8-8h40A8,8,0,0,1,160,56Zm64-8H184a8,8,0,0,0-8,8v52a4,4,0,0,0,4,4h48a4,4,0,0,0,4-4V56A8,8,0,0,0,224,48Zm4,80H180a4,4,0,0,0-4,4v44a16,16,0,0,0,16,16h24a16,16,0,0,0,16-16V132A4,4,0,0,0,228,128ZM80,48H40a8,8,0,0,0-8,8v52a4,4,0,0,0,4,4H84a4,4,0,0,0,4-4V56A8,8,0,0,0,80,48Zm4,80H36a4,4,0,0,0-4,4v76a16,16,0,0,0,16,16H72a16,16,0,0,0,16-16V132A4,4,0,0,0,84,128Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a58.createElement(a58.Fragment, null, /* @__PURE__ */ a58.createElement("path", { d: "M216,50H40a6,6,0,0,0-6,6V208a14,14,0,0,0,14,14H88a14,14,0,0,0,14-14V158h52v18a14,14,0,0,0,14,14h40a14,14,0,0,0,14-14V56A6,6,0,0,0,216,50Zm-6,64H166V62h44ZM90,62v52H46V62Zm0,146a2,2,0,0,1-2,2H48a2,2,0,0,1-2-2V126H90Zm12-62V62h52v84Zm106,32H168a2,2,0,0,1-2-2V126h44v50A2,2,0,0,1,208,178Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a58.createElement(a58.Fragment, null, /* @__PURE__ */ a58.createElement("path", { d: "M216,48H40a8,8,0,0,0-8,8V208a16,16,0,0,0,16,16H88a16,16,0,0,0,16-16V160h48v16a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V56A8,8,0,0,0,216,48ZM88,208H48V128H88Zm0-96H48V64H88Zm64,32H104V64h48Zm56,32H168V128h40Zm0-64H168V64h40Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a58.createElement(a58.Fragment, null, /* @__PURE__ */ a58.createElement("path", { d: "M216,52H40a4,4,0,0,0-4,4V208a12,12,0,0,0,12,12H88a12,12,0,0,0,12-12V156h56v20a12,12,0,0,0,12,12h40a12,12,0,0,0,12-12V56A4,4,0,0,0,216,52ZM92,208a4,4,0,0,1-4,4H48a4,4,0,0,1-4-4V124H92Zm0-92H44V60H92Zm64,32H100V60h56Zm56,28a4,4,0,0,1-4,4H168a4,4,0,0,1-4-4V124h48Zm0-60H164V60h48Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Kanban.es.js
+var o77 = a59.forwardRef((n35, e73) => /* @__PURE__ */ a59.createElement(p37, { ref: e73, ...n35, weights: e72 }));
+o77.displayName = "KanbanIcon";
+var s28 = o77;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Key.es.js
+var e74 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Key.es.js
+var a60 = __toESM(require_react(), 1);
+var e73 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a60.createElement(a60.Fragment, null, /* @__PURE__ */ a60.createElement("path", { d: "M196,76a16,16,0,1,1-16-16A16,16,0,0,1,196,76Zm48,22.74A84.3,84.3,0,0,1,160.11,180H160a83.52,83.52,0,0,1-23.65-3.38l-7.86,7.87A12,12,0,0,1,120,188H108v12a12,12,0,0,1-12,12H84v12a12,12,0,0,1-12,12H40a20,20,0,0,1-20-20V187.31a19.86,19.86,0,0,1,5.86-14.14l53.52-53.52A84,84,0,1,1,244,98.74ZM202.43,53.57A59.48,59.48,0,0,0,158,36c-32,1-58,27.89-58,59.89a59.69,59.69,0,0,0,4.2,22.19,12,12,0,0,1-2.55,13.21L44,189v23H60V200a12,12,0,0,1,12-12H84V176a12,12,0,0,1,12-12h19l9.65-9.65a12,12,0,0,1,13.22-2.55A59.58,59.58,0,0,0,160,156h.08c32,0,58.87-26.07,59.89-58A59.55,59.55,0,0,0,202.43,53.57Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a60.createElement(a60.Fragment, null, /* @__PURE__ */ a60.createElement("path", {
+      d: "M232,98.36C230.73,136.92,198.67,168,160.09,168a71.68,71.68,0,0,1-26.92-5.17h0L120,176H96v24H72v24H40a8,8,0,0,1-8-8V187.31a8,8,0,0,1,2.34-5.65l58.83-58.83h0A71.68,71.68,0,0,1,88,95.91c0-38.58,31.08-70.64,69.64-71.87A72,72,0,0,1,232,98.36Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a60.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a60.createElement(a60.Fragment, null, /* @__PURE__ */ a60.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM180,92a16,16,0,1,1,16-16A16,16,0,0,1,180,92Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a60.createElement(a60.Fragment, null, /* @__PURE__ */ a60.createElement("path", { d: "M215.15,40.85A78,78,0,0,0,86.2,121.31l-56.1,56.1a13.94,13.94,0,0,0-4.1,9.9V216a14,14,0,0,0,14,14H72a6,6,0,0,0,6-6V206H96a6,6,0,0,0,6-6V182h18a6,6,0,0,0,4.24-1.76l10.45-10.44A77.59,77.59,0,0,0,160,174h.1A78,78,0,0,0,215.15,40.85ZM226,98.16c-1.12,35.16-30.67,63.8-65.88,63.84a65.93,65.93,0,0,1-24.51-4.67,6,6,0,0,0-6.64,1.26L117.51,170H96a6,6,0,0,0-6,6v18H72a6,6,0,0,0-6,6v18H40a2,2,0,0,1-2-2V187.31a2,2,0,0,1,.58-1.41l58.83-58.83a6,6,0,0,0,1.26-6.64A65.61,65.61,0,0,1,94,95.92C94,60.71,122.68,31.16,157.83,30A66,66,0,0,1,226,98.16ZM190,76a10,10,0,1,1-10-10A10,10,0,0,1,190,76Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a60.createElement(a60.Fragment, null, /* @__PURE__ */ a60.createElement("path", { d: "M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a60.createElement(a60.Fragment, null, /* @__PURE__ */ a60.createElement("path", { d: "M213.74,42.26A76,76,0,0,0,88.51,121.84l-57,57A11.93,11.93,0,0,0,28,187.31V216a12,12,0,0,0,12,12H72a4,4,0,0,0,4-4V204H96a4,4,0,0,0,4-4V180h20a4,4,0,0,0,2.83-1.17l11.33-11.34A75.72,75.72,0,0,0,160,172h.1A76,76,0,0,0,213.74,42.26Zm14.22,56c-1.15,36.22-31.6,65.72-67.87,65.77H160a67.52,67.52,0,0,1-25.21-4.83,4,4,0,0,0-4.45.83l-12,12H96a4,4,0,0,0-4,4v20H72a4,4,0,0,0-4,4v20H40a4,4,0,0,1-4-4V187.31a4.06,4.06,0,0,1,1.17-2.83L96,125.66a4,4,0,0,0,.83-4.45A67.51,67.51,0,0,1,92,95.91C92,59.64,121.55,29.19,157.77,28A68,68,0,0,1,228,98.23ZM188,76a8,8,0,1,1-8-8A8,8,0,0,1,188,76Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Key.es.js
+var o78 = e74.forwardRef((r56, t39) => /* @__PURE__ */ e74.createElement(p37, { ref: t39, ...r56, weights: e73 }));
+o78.displayName = "KeyIcon";
+var n35 = o78;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Keyboard.es.js
+var o79 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Keyboard.es.js
+var a61 = __toESM(require_react(), 1);
+var e75 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a61.createElement(a61.Fragment, null, /* @__PURE__ */ a61.createElement("path", { d: "M224,44H32A20,20,0,0,0,12,64V192a20,20,0,0,0,20,20H224a20,20,0,0,0,20-20V64A20,20,0,0,0,224,44Zm-4,144H36V68H220ZM52,128a12,12,0,0,1,12-12H192a12,12,0,0,1,0,24H64A12,12,0,0,1,52,128Zm0-36A12,12,0,0,1,64,80H192a12,12,0,0,1,0,24H64A12,12,0,0,1,52,92Zm0,72a12,12,0,0,1,12-12h8a12,12,0,0,1,0,24H64A12,12,0,0,1,52,164Zm108,0a12,12,0,0,1-12,12H108a12,12,0,0,1,0-24h40A12,12,0,0,1,160,164Zm44,0a12,12,0,0,1-12,12h-8a12,12,0,0,1,0-24h8A12,12,0,0,1,204,164Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a61.createElement(a61.Fragment, null, /* @__PURE__ */ a61.createElement("path", {
+      d: "M232,64V192a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V64a8,8,0,0,1,8-8H224A8,8,0,0,1,232,64Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a61.createElement("path", { d: "M224,48H32A16,16,0,0,0,16,64V192a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48Zm0,144H32V64H224V192Zm-16-64a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16H200A8,8,0,0,1,208,128Zm0-32a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16H200A8,8,0,0,1,208,96ZM72,160a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16h8A8,8,0,0,1,72,160Zm96,0a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,160Zm40,0a8,8,0,0,1-8,8h-8a8,8,0,0,1,0-16h8A8,8,0,0,1,208,160Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a61.createElement(a61.Fragment, null, /* @__PURE__ */ a61.createElement("path", { d: "M224,48H32A16,16,0,0,0,16,64V192a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48ZM64,168H48a8,8,0,0,1,0-16H64a8,8,0,0,1,0,16Zm96,0H96a8,8,0,0,1,0-16h64a8,8,0,0,1,0,16Zm48,0H192a8,8,0,0,1,0-16h16a8,8,0,0,1,0,16Zm0-32H48a8,8,0,0,1,0-16H208a8,8,0,0,1,0,16Zm0-32H48a8,8,0,0,1,0-16H208a8,8,0,0,1,0,16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a61.createElement(a61.Fragment, null, /* @__PURE__ */ a61.createElement("path", { d: "M224,50H32A14,14,0,0,0,18,64V192a14,14,0,0,0,14,14H224a14,14,0,0,0,14-14V64A14,14,0,0,0,224,50Zm2,142a2,2,0,0,1-2,2H32a2,2,0,0,1-2-2V64a2,2,0,0,1,2-2H224a2,2,0,0,1,2,2Zm-20-64a6,6,0,0,1-6,6H56a6,6,0,0,1,0-12H200A6,6,0,0,1,206,128Zm0-32a6,6,0,0,1-6,6H56a6,6,0,0,1,0-12H200A6,6,0,0,1,206,96ZM70,160a6,6,0,0,1-6,6H56a6,6,0,0,1,0-12h8A6,6,0,0,1,70,160Zm96,0a6,6,0,0,1-6,6H96a6,6,0,0,1,0-12h64A6,6,0,0,1,166,160Zm40,0a6,6,0,0,1-6,6h-8a6,6,0,0,1,0-12h8A6,6,0,0,1,206,160Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a61.createElement(a61.Fragment, null, /* @__PURE__ */ a61.createElement("path", { d: "M224,48H32A16,16,0,0,0,16,64V192a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V64A16,16,0,0,0,224,48Zm0,144H32V64H224V192Zm-16-64a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16H200A8,8,0,0,1,208,128Zm0-32a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16H200A8,8,0,0,1,208,96ZM72,160a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16h8A8,8,0,0,1,72,160Zm96,0a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,160Zm40,0a8,8,0,0,1-8,8h-8a8,8,0,0,1,0-16h8A8,8,0,0,1,208,160Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a61.createElement(a61.Fragment, null, /* @__PURE__ */ a61.createElement("path", { d: "M224,52H32A12,12,0,0,0,20,64V192a12,12,0,0,0,12,12H224a12,12,0,0,0,12-12V64A12,12,0,0,0,224,52Zm4,140a4,4,0,0,1-4,4H32a4,4,0,0,1-4-4V64a4,4,0,0,1,4-4H224a4,4,0,0,1,4,4Zm-24-64a4,4,0,0,1-4,4H56a4,4,0,0,1,0-8H200A4,4,0,0,1,204,128Zm0-32a4,4,0,0,1-4,4H56a4,4,0,0,1,0-8H200A4,4,0,0,1,204,96ZM68,160a4,4,0,0,1-4,4H56a4,4,0,0,1,0-8h8A4,4,0,0,1,68,160Zm96,0a4,4,0,0,1-4,4H96a4,4,0,0,1,0-8h64A4,4,0,0,1,164,160Zm40,0a4,4,0,0,1-4,4h-8a4,4,0,0,1,0-8h8A4,4,0,0,1,204,160Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Keyboard.es.js
+var e76 = o79.forwardRef((r56, a62) => /* @__PURE__ */ o79.createElement(p37, { ref: a62, ...r56, weights: e75 }));
+e76.displayName = "KeyboardIcon";
+var n36 = e76;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ListBullets.es.js
+var t39 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/ListBullets.es.js
+var a62 = __toESM(require_react(), 1);
+var e77 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a62.createElement(a62.Fragment, null, /* @__PURE__ */ a62.createElement("path", { d: "M76,64A12,12,0,0,1,88,52H216a12,12,0,0,1,0,24H88A12,12,0,0,1,76,64Zm140,52H88a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24Zm0,64H88a12,12,0,0,0,0,24H216a12,12,0,0,0,0-24ZM44,112a16,16,0,1,0,16,16A16,16,0,0,0,44,112Zm0-64A16,16,0,1,0,60,64,16,16,0,0,0,44,48Zm0,128a16,16,0,1,0,16,16A16,16,0,0,0,44,176Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a62.createElement(a62.Fragment, null, /* @__PURE__ */ a62.createElement("path", { d: "M216,64V192H88V64Z", opacity: "0.2" }), /* @__PURE__ */ a62.createElement("path", { d: "M80,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H88A8,8,0,0,1,80,64Zm136,56H88a8,8,0,1,0,0,16H216a8,8,0,0,0,0-16Zm0,64H88a8,8,0,1,0,0,16H216a8,8,0,0,0,0-16ZM44,52A12,12,0,1,0,56,64,12,12,0,0,0,44,52Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,116Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,180Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a62.createElement(a62.Fragment, null, /* @__PURE__ */ a62.createElement("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM68,188a12,12,0,1,1,12-12A12,12,0,0,1,68,188Zm0-48a12,12,0,1,1,12-12A12,12,0,0,1,68,140Zm0-48A12,12,0,1,1,80,80,12,12,0,0,1,68,92Zm124,92H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Zm0-48H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Zm0-48H104a8,8,0,0,1,0-16h88a8,8,0,0,1,0,16Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a62.createElement(a62.Fragment, null, /* @__PURE__ */ a62.createElement("path", { d: "M82,64a6,6,0,0,1,6-6H216a6,6,0,0,1,0,12H88A6,6,0,0,1,82,64Zm134,58H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12Zm0,64H88a6,6,0,0,0,0,12H216a6,6,0,0,0,0-12ZM44,54A10,10,0,1,0,54,64,10,10,0,0,0,44,54Zm0,128a10,10,0,1,0,10,10A10,10,0,0,0,44,182Zm0-64a10,10,0,1,0,10,10A10,10,0,0,0,44,118Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a62.createElement(a62.Fragment, null, /* @__PURE__ */ a62.createElement("path", { d: "M80,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H88A8,8,0,0,1,80,64Zm136,56H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Zm0,64H88a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM44,52A12,12,0,1,0,56,64,12,12,0,0,0,44,52Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,116Zm0,64a12,12,0,1,0,12,12A12,12,0,0,0,44,180Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a62.createElement(a62.Fragment, null, /* @__PURE__ */ a62.createElement("path", { d: "M84,64a4,4,0,0,1,4-4H216a4,4,0,0,1,0,8H88A4,4,0,0,1,84,64Zm132,60H88a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8Zm0,64H88a4,4,0,0,0,0,8H216a4,4,0,0,0,0-8ZM44,120a8,8,0,1,0,8,8A8,8,0,0,0,44,120Zm0-64a8,8,0,1,0,8,8A8,8,0,0,0,44,56Zm0,128a8,8,0,1,0,8,8A8,8,0,0,0,44,184Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ListBullets.es.js
+var e78 = t39.forwardRef((o80, s29) => /* @__PURE__ */ t39.createElement(p37, { ref: s29, ...o80, weights: e77 }));
+e78.displayName = "ListBulletsIcon";
+var m18 = e78;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/MagnifyingGlass.es.js
+var a64 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/MagnifyingGlass.es.js
+var e79 = __toESM(require_react(), 1);
+var a63 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e79.createElement(e79.Fragment, null, /* @__PURE__ */ e79.createElement("path", { d: "M232.49,215.51,185,168a92.12,92.12,0,1,0-17,17l47.53,47.54a12,12,0,0,0,17-17ZM44,112a68,68,0,1,1,68,68A68.07,68.07,0,0,1,44,112Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e79.createElement(e79.Fragment, null, /* @__PURE__ */ e79.createElement("path", { d: "M192,112a80,80,0,1,1-80-80A80,80,0,0,1,192,112Z", opacity: "0.2" }), /* @__PURE__ */ e79.createElement("path", { d: "M229.66,218.34,179.6,168.28a88.21,88.21,0,1,0-11.32,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e79.createElement(e79.Fragment, null, /* @__PURE__ */ e79.createElement("path", { d: "M168,112a56,56,0,1,1-56-56A56,56,0,0,1,168,112Zm61.66,117.66a8,8,0,0,1-11.32,0l-50.06-50.07a88,88,0,1,1,11.32-11.31l50.06,50.06A8,8,0,0,1,229.66,229.66ZM112,184a72,72,0,1,0-72-72A72.08,72.08,0,0,0,112,184Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e79.createElement(e79.Fragment, null, /* @__PURE__ */ e79.createElement("path", { d: "M228.24,219.76l-51.38-51.38a86.15,86.15,0,1,0-8.48,8.48l51.38,51.38a6,6,0,0,0,8.48-8.48ZM38,112a74,74,0,1,1,74,74A74.09,74.09,0,0,1,38,112Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e79.createElement(e79.Fragment, null, /* @__PURE__ */ e79.createElement("path", { d: "M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e79.createElement(e79.Fragment, null, /* @__PURE__ */ e79.createElement("path", { d: "M226.83,221.17l-52.7-52.7a84.1,84.1,0,1,0-5.66,5.66l52.7,52.7a4,4,0,0,0,5.66-5.66ZM36,112a76,76,0,1,1,76,76A76.08,76.08,0,0,1,36,112Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/MagnifyingGlass.es.js
+var o80 = a64.forwardRef((s29, n37) => /* @__PURE__ */ a64.createElement(p37, { ref: n37, ...s29, weights: a63 }));
+o80.displayName = "MagnifyingGlassIcon";
+var f21 = o80;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Plugs.es.js
+var o81 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Plugs.es.js
+var a65 = __toESM(require_react(), 1);
+var l16 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a65.createElement(a65.Fragment, null, /* @__PURE__ */ a65.createElement("path", { d: "M137,168l11.52-11.51a12,12,0,0,0-17-17L120,151l-15-15,11.52-11.51a12,12,0,0,0-17-17L88,119,72.49,103.51a12,12,0,0,0-17,17L59,124,38.54,144.49a36,36,0,0,0,0,50.91l2.55,2.54L15.51,223.51a12,12,0,0,0,17,17l25.57-25.58,2.54,2.55a36.06,36.06,0,0,0,50.91,0L132,197l3.51,3.52a12,12,0,0,0,17-17ZM94.54,200.49a12,12,0,0,1-17,0L55.51,178.43a12,12,0,0,1,0-17L76,141l39,39Zm146-185a12,12,0,0,0-17,0L197.94,41.09l-2.54-2.55a36.05,36.05,0,0,0-50.91,0L124,59l-3.51-3.52a12,12,0,0,0-17,17l80,80a12,12,0,0,0,17-17L197,132l20.49-20.49a36,36,0,0,0,0-50.91l-2.55-2.54,25.58-25.57A12,12,0,0,0,240.49,15.51Zm-40,79L180,115,141,76l20.49-20.49a12,12,0,0,1,17,0l22.06,22.06a12,12,0,0,1,0,17Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a65.createElement(a65.Fragment, null, /* @__PURE__ */ a65.createElement("path", {
+      d: "M76,124l56,56-29,29a24,24,0,0,1-33.94,0L47,186.91A24,24,0,0,1,47,153ZM209,69.09,186.91,47A24,24,0,0,0,153,47L124,76l56,56,29-29A24,24,0,0,0,209,69.09Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a65.createElement("path", { d: "M149.66,138.34a8,8,0,0,0-11.32,0L120,156.69,99.31,136l18.35-18.34a8,8,0,0,0-11.32-11.32L88,124.69,69.66,106.34a8,8,0,0,0-11.32,11.32L64.69,124,41.37,147.31a32,32,0,0,0,0,45.26l5.38,5.37-28.41,28.4a8,8,0,0,0,11.32,11.32l28.4-28.41,5.37,5.38a32,32,0,0,0,45.26,0L132,191.31l6.34,6.35a8,8,0,0,0,11.32-11.32L131.31,168l18.35-18.34A8,8,0,0,0,149.66,138.34Zm-52.29,65a16,16,0,0,1-22.62,0L52.69,181.25a16,16,0,0,1,0-22.62L76,135.31,120.69,180Zm140.29-185a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Zm-34.35,79L180,120.69,135.31,76l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,203.31,97.37Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a65.createElement(a65.Fragment, null, /* @__PURE__ */ a65.createElement("path", { d: "M149.66,149.66,131.31,168l18.35,18.34a8,8,0,0,1-11.32,11.32L132,191.31l-23.31,23.32a32.06,32.06,0,0,1-45.26,0l-5.37-5.38-28.4,28.41a8,8,0,0,1-11.32-11.32l28.41-28.4-5.38-5.37a32,32,0,0,1,0-45.26L64.69,124l-6.35-6.34a8,8,0,0,1,11.32-11.32L88,124.69l18.34-18.35a8,8,0,0,1,11.32,11.32L99.31,136,120,156.69l18.34-18.35a8,8,0,0,1,11.32,11.32Zm88-131.32a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a65.createElement(a65.Fragment, null, /* @__PURE__ */ a65.createElement("path", { d: "M148.24,139.76a6,6,0,0,0-8.48,0L120,159.51,96.49,136l19.75-19.76a6,6,0,0,0-8.48-8.48L88,127.51,68.24,107.76a6,6,0,0,0-8.48,8.48L67.51,124,42.79,148.73a30,30,0,0,0,0,42.42l6.78,6.79L19.76,227.76a6,6,0,1,0,8.48,8.48l29.82-29.81,6.79,6.78a30,30,0,0,0,42.42,0L132,188.49l7.76,7.75a6,6,0,0,0,8.48-8.48L128.49,168l19.75-19.76A6,6,0,0,0,148.24,139.76Zm-49.45,65a18,18,0,0,1-25.46,0L51.27,182.67a18,18,0,0,1,0-25.46L76,132.49,123.51,180Zm137.45-185a6,6,0,0,0-8.48,0L197.94,49.57l-6.79-6.78a30,30,0,0,0-42.42,0L124,67.51l-7.76-7.75a6,6,0,0,0-8.48,8.48l80,80a6,6,0,0,0,8.48-8.48L188.49,132l24.72-24.73a30,30,0,0,0,0-42.42l-6.78-6.79,29.81-29.82A6,6,0,0,0,236.24,19.76Zm-31.51,79L180,123.51,132.49,76l24.72-24.73a18,18,0,0,1,25.46,0l22.06,22.06a18,18,0,0,1,0,25.46Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a65.createElement(a65.Fragment, null, /* @__PURE__ */ a65.createElement("path", { d: "M149.66,138.34a8,8,0,0,0-11.32,0L120,156.69,99.31,136l18.35-18.34a8,8,0,0,0-11.32-11.32L88,124.69,69.66,106.34a8,8,0,0,0-11.32,11.32L64.69,124,41.37,147.31a32,32,0,0,0,0,45.26l5.38,5.37-28.41,28.4a8,8,0,0,0,11.32,11.32l28.4-28.41,5.37,5.38a32,32,0,0,0,45.26,0L132,191.31l6.34,6.35a8,8,0,0,0,11.32-11.32L131.31,168l18.35-18.34A8,8,0,0,0,149.66,138.34Zm-52.29,65a16,16,0,0,1-22.62,0L52.69,181.25a16,16,0,0,1,0-22.62L76,135.31,120.69,180Zm140.29-185a8,8,0,0,0-11.32,0l-28.4,28.41-5.37-5.38a32.05,32.05,0,0,0-45.26,0L124,64.69l-6.34-6.35a8,8,0,0,0-11.32,11.32l80,80a8,8,0,0,0,11.32-11.32L191.31,132l23.32-23.31a32,32,0,0,0,0-45.26l-5.38-5.37,28.41-28.4A8,8,0,0,0,237.66,18.34Zm-34.35,79L180,120.69,135.31,76l23.32-23.31a16,16,0,0,1,22.62,0l22.06,22A16,16,0,0,1,203.31,97.37Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a65.createElement(a65.Fragment, null, /* @__PURE__ */ a65.createElement("path", { d: "M146.83,141.17a4,4,0,0,0-5.66,0L120,162.34,93.66,136l21.17-21.17a4,4,0,0,0-5.66-5.66L88,130.34,66.83,109.17a4,4,0,0,0-5.66,5.66L70.34,124,44.2,150.14a28,28,0,0,0,0,39.6l8.2,8.2L21.17,229.17a4,4,0,0,0,5.66,5.66L58.06,203.6l8.2,8.2a28,28,0,0,0,39.6,0L132,185.66l9.17,9.17a4,4,0,0,0,5.66-5.66L125.66,168l21.17-21.17A4,4,0,0,0,146.83,141.17Zm-46.63,65a20,20,0,0,1-28.28,0L49.86,184.08a20,20,0,0,1,0-28.28L76,129.66,126.34,180Zm134.63-185a4,4,0,0,0-5.66,0L197.94,52.4l-8.2-8.2a28,28,0,0,0-39.6,0L124,70.34l-9.17-9.17a4,4,0,0,0-5.66,5.66l80,80a4,4,0,0,0,5.66-5.66L185.66,132l26.14-26.14a28,28,0,0,0,0-39.6l-8.2-8.2,31.23-31.23A4,4,0,0,0,234.83,21.17ZM212,86.06a19.86,19.86,0,0,1-5.86,14.14L180,126.34,129.66,76,155.8,49.86a20,20,0,0,1,28.28,0l22.06,22.06A19.85,19.85,0,0,1,212,86.06Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Plugs.es.js
+var e80 = o81.forwardRef((r56, s29) => /* @__PURE__ */ o81.createElement(p37, { ref: s29, ...r56, weights: l16 }));
+e80.displayName = "PlugsIcon";
+var n37 = e80;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Prohibit.es.js
+var o82 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Prohibit.es.js
+var e81 = __toESM(require_react(), 1);
+var t40 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e81.createElement(e81.Fragment, null, /* @__PURE__ */ e81.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm84,108a83.6,83.6,0,0,1-16.75,50.28L77.72,60.75A84,84,0,0,1,212,128ZM44,128A83.6,83.6,0,0,1,60.75,77.72L178.28,195.25A84,84,0,0,1,44,128Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e81.createElement(e81.Fragment, null, /* @__PURE__ */ e81.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e81.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e81.createElement(e81.Fragment, null, /* @__PURE__ */ e81.createElement("path", { d: "M200,128a71.69,71.69,0,0,1-15.78,44.91L83.09,71.78A71.95,71.95,0,0,1,200,128ZM56,128a71.95,71.95,0,0,0,116.91,56.22L71.78,83.09A71.69,71.69,0,0,0,56,128Zm180,0A108,108,0,1,1,128,20,108.12,108.12,0,0,1,236,128Zm-20,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e81.createElement(e81.Fragment, null, /* @__PURE__ */ e81.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm90,102a89.6,89.6,0,0,1-22.29,59.22L68.78,60.29A89.95,89.95,0,0,1,218,128ZM38,128A89.6,89.6,0,0,1,60.29,68.78L187.22,195.71A89.95,89.95,0,0,1,38,128Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e81.createElement(e81.Fragment, null, /* @__PURE__ */ e81.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm88,104a87.56,87.56,0,0,1-20.41,56.28L71.72,60.4A88,88,0,0,1,216,128ZM40,128A87.56,87.56,0,0,1,60.41,71.72L184.28,195.6A88,88,0,0,1,40,128Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e81.createElement(e81.Fragment, null, /* @__PURE__ */ e81.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm92,100a91.67,91.67,0,0,1-24.21,62.13L65.87,60.21A92,92,0,0,1,220,128ZM36,128A91.67,91.67,0,0,1,60.21,65.87L190.13,195.79A92,92,0,0,1,36,128Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Prohibit.es.js
+var r56 = o82.forwardRef((t41, i23) => /* @__PURE__ */ o82.createElement(p37, { ref: i23, ...t41, weights: t40 }));
+r56.displayName = "ProhibitIcon";
+var s29 = r56;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Robot.es.js
+var o83 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Robot.es.js
+var a66 = __toESM(require_react(), 1);
+var e82 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a66.createElement(a66.Fragment, null, /* @__PURE__ */ a66.createElement("path", { d: "M72,104a16,16,0,1,1,16,16A16,16,0,0,1,72,104Zm96,16a16,16,0,1,0-16-16A16,16,0,0,0,168,120Zm68-40V192a36,36,0,0,1-36,36H56a36,36,0,0,1-36-36V80A36,36,0,0,1,56,44h60V16a12,12,0,0,1,24,0V44h60A36,36,0,0,1,236,80Zm-24,0a12,12,0,0,0-12-12H56A12,12,0,0,0,44,80V192a12,12,0,0,0,12,12H200a12,12,0,0,0,12-12Zm-12,82a30,30,0,0,1-30,30H86a30,30,0,0,1,0-60h84A30,30,0,0,1,200,162Zm-80-6v12h16V156ZM86,168H96V156H86a6,6,0,0,0,0,12Zm90-6a6,6,0,0,0-6-6H160v12h10A6,6,0,0,0,176,162Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a66.createElement(a66.Fragment, null, /* @__PURE__ */ a66.createElement("path", {
+      d: "M200,56H56A24,24,0,0,0,32,80V192a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56ZM164,184H92a20,20,0,0,1,0-40h72a20,20,0,0,1,0,40Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a66.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Zm4,28H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a66.createElement(a66.Fragment, null, /* @__PURE__ */ a66.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48ZM172,96a12,12,0,1,1-12,12A12,12,0,0,1,172,96ZM96,184H80a16,16,0,0,1,0-32H96ZM84,120a12,12,0,1,1,12-12A12,12,0,0,1,84,120Zm60,64H112V152h32Zm32,0H160V152h16a16,16,0,0,1,0,32Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a66.createElement(a66.Fragment, null, /* @__PURE__ */ a66.createElement("path", { d: "M200,50H134V16a6,6,0,0,0-12,0V50H56A30,30,0,0,0,26,80V192a30,30,0,0,0,30,30H200a30,30,0,0,0,30-30V80A30,30,0,0,0,200,50Zm18,142a18,18,0,0,1-18,18H56a18,18,0,0,1-18-18V80A18,18,0,0,1,56,62H200a18,18,0,0,1,18,18ZM74,108a10,10,0,1,1,10,10A10,10,0,0,1,74,108Zm88,0a10,10,0,1,1,10,10A10,10,0,0,1,162,108Zm2,30H92a26,26,0,0,0,0,52h72a26,26,0,0,0,0-52Zm-22,12v28H114V150ZM78,164a14,14,0,0,1,14-14h10v28H92A14,14,0,0,1,78,164Zm86,14H154V150h10a14,14,0,0,1,0,28Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a66.createElement(a66.Fragment, null, /* @__PURE__ */ a66.createElement("path", { d: "M200,48H136V16a8,8,0,0,0-16,0V48H56A32,32,0,0,0,24,80V192a32,32,0,0,0,32,32H200a32,32,0,0,0,32-32V80A32,32,0,0,0,200,48Zm16,144a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V80A16,16,0,0,1,56,64H200a16,16,0,0,1,16,16Zm-52-56H92a28,28,0,0,0,0,56h72a28,28,0,0,0,0-56Zm-24,16v24H116V152ZM80,164a12,12,0,0,1,12-12h8v24H92A12,12,0,0,1,80,164Zm84,12h-8V152h8a12,12,0,0,1,0,24ZM72,108a12,12,0,1,1,12,12A12,12,0,0,1,72,108Zm88,0a12,12,0,1,1,12,12A12,12,0,0,1,160,108Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a66.createElement(a66.Fragment, null, /* @__PURE__ */ a66.createElement("path", { d: "M200,52H132V16a4,4,0,0,0-8,0V52H56A28,28,0,0,0,28,80V192a28,28,0,0,0,28,28H200a28,28,0,0,0,28-28V80A28,28,0,0,0,200,52Zm20,140a20,20,0,0,1-20,20H56a20,20,0,0,1-20-20V80A20,20,0,0,1,56,60H200a20,20,0,0,1,20,20ZM76,108a8,8,0,1,1,8,8A8,8,0,0,1,76,108Zm88,0a8,8,0,1,1,8,8A8,8,0,0,1,164,108Zm0,32H92a24,24,0,0,0,0,48h72a24,24,0,0,0,0-48Zm-20,8v32H112V148ZM76,164a16,16,0,0,1,16-16h12v32H92A16,16,0,0,1,76,164Zm88,16H152V148h12a16,16,0,0,1,0,32Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Robot.es.js
+var t41 = o83.forwardRef((e83, r57) => /* @__PURE__ */ o83.createElement(p37, { ref: r57, ...e83, weights: e82 }));
+t41.displayName = "RobotIcon";
+var n38 = t41;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/ShieldCheck.es.js
+var e84 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/ShieldCheck.es.js
+var a67 = __toESM(require_react(), 1);
+var e83 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a67.createElement(a67.Fragment, null, /* @__PURE__ */ a67.createElement("path", { d: "M208,36H48A20,20,0,0,0,28,56v56c0,54.29,26.32,87.22,48.4,105.29,23.71,19.39,47.44,26,48.44,26.29a12.1,12.1,0,0,0,6.32,0c1-.28,24.73-6.9,48.44-26.29,22.08-18.07,48.4-51,48.4-105.29V56A20,20,0,0,0,208,36Zm-4,76c0,35.71-13.09,64.69-38.91,86.15A126.28,126.28,0,0,1,128,219.38a126.14,126.14,0,0,1-37.09-21.23C65.09,176.69,52,147.71,52,112V60H204ZM79.51,144.49a12,12,0,1,1,17-17L112,143l47.51-47.52a12,12,0,0,1,17,17l-56,56a12,12,0,0,1-17,0Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a67.createElement(a67.Fragment, null, /* @__PURE__ */ a67.createElement("path", {
+      d: "M216,56v56c0,96-88,120-88,120S40,208,40,112V56a8,8,0,0,1,8-8H208A8,8,0,0,1,216,56Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a67.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a67.createElement(a67.Fragment, null, /* @__PURE__ */ a67.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm-34.32,69.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a67.createElement(a67.Fragment, null, /* @__PURE__ */ a67.createElement("path", { d: "M208,42H48A14,14,0,0,0,34,56v56c0,51.94,25.12,83.4,46.2,100.64,22.73,18.6,45.27,24.89,46.22,25.15a6,6,0,0,0,3.16,0c.95-.26,23.49-6.55,46.22-25.15C196.88,195.4,222,163.94,222,112V56A14,14,0,0,0,208,42Zm2,70c0,37.76-13.94,68.39-41.44,91.06A131.17,131.17,0,0,1,128,225.72a130.94,130.94,0,0,1-40.56-22.66C59.94,180.39,46,149.76,46,112V56a2,2,0,0,1,2-2H208a2,2,0,0,1,2,2ZM172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a67.createElement(a67.Fragment, null, /* @__PURE__ */ a67.createElement("path", { d: "M208,40H48A16,16,0,0,0,32,56v56c0,52.72,25.52,84.67,46.93,102.19,23.06,18.86,46,25.26,47,25.53a8,8,0,0,0,4.2,0c1-.27,23.91-6.67,47-25.53C198.48,196.67,224,164.72,224,112V56A16,16,0,0,0,208,40Zm0,72c0,37.07-13.66,67.16-40.6,89.42A129.3,129.3,0,0,1,128,223.62a128.25,128.25,0,0,1-38.92-21.81C61.82,179.51,48,149.3,48,112l0-56,160,0ZM82.34,141.66a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32l-56,56a8,8,0,0,1-11.32,0Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a67.createElement(a67.Fragment, null, /* @__PURE__ */ a67.createElement("path", { d: "M208,44H48A12,12,0,0,0,36,56v56c0,51.16,24.73,82.12,45.47,99.1,22.4,18.32,44.55,24.5,45.48,24.76a4,4,0,0,0,2.1,0c.93-.26,23.08-6.44,45.48-24.76,20.74-17,45.47-47.94,45.47-99.1V56A12,12,0,0,0,208,44Zm4,68c0,38.44-14.23,69.63-42.29,92.71A132.45,132.45,0,0,1,128,227.82a132.23,132.23,0,0,1-41.71-23.11C58.23,181.63,44,150.44,44,112V56a4,4,0,0,1,4-4H208a4,4,0,0,1,4,4Zm-41.17-10.83a4,4,0,0,1,0,5.66l-56,56a4,4,0,0,1-5.66,0l-24-24a4,4,0,0,1,5.66-5.66L112,154.34l53.17-53.17A4,4,0,0,1,170.83,101.17Z" }))
   ]
 ]);
 
 // ../../node_modules/@phosphor-icons/react/dist/csr/ShieldCheck.es.js
-var o74 = e71.forwardRef((c8, r53) => /* @__PURE__ */ e71.createElement(p37, { ref: r53, ...c8, weights: e70 }));
-o74.displayName = "ShieldCheckIcon";
-var h4 = o74;
+var o84 = e84.forwardRef((c9, r57) => /* @__PURE__ */ e84.createElement(p37, { ref: r57, ...c9, weights: e83 }));
+o84.displayName = "ShieldCheckIcon";
+var h4 = o84;
 
 // ../../node_modules/@phosphor-icons/react/dist/csr/Terminal.es.js
-var e73 = __toESM(require_react(), 1);
+var e86 = __toESM(require_react(), 1);
 
 // ../../node_modules/@phosphor-icons/react/dist/defs/Terminal.es.js
-var e72 = __toESM(require_react(), 1);
-var a57 = /* @__PURE__ */ new Map([
+var e85 = __toESM(require_react(), 1);
+var a68 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M120,137,48,201A12,12,0,1,1,32,183l61.91-55L32,73A12,12,0,1,1,48,55l72,64A12,12,0,0,1,120,137Zm96,43H120a12,12,0,0,0,0,24h96a12,12,0,0,0,0-24Z" }))
+    /* @__PURE__ */ e85.createElement(e85.Fragment, null, /* @__PURE__ */ e85.createElement("path", { d: "M120,137,48,201A12,12,0,1,1,32,183l61.91-55L32,73A12,12,0,1,1,48,55l72,64A12,12,0,0,1,120,137Zm96,43H120a12,12,0,0,0,0,24h96a12,12,0,0,0,0-24Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M216,80V192H40V64H200A16,16,0,0,1,216,80Z", opacity: "0.2" }), /* @__PURE__ */ e72.createElement("path", { d: "M117.31,134l-72,64a8,8,0,1,1-10.63-12L100,128,34.69,70A8,8,0,1,1,45.32,58l72,64a8,8,0,0,1,0,12ZM216,184H120a8,8,0,0,0,0,16h96a8,8,0,0,0,0-16Z" }))
+    /* @__PURE__ */ e85.createElement(e85.Fragment, null, /* @__PURE__ */ e85.createElement("path", { d: "M216,80V192H40V64H200A16,16,0,0,1,216,80Z", opacity: "0.2" }), /* @__PURE__ */ e85.createElement("path", { d: "M117.31,134l-72,64a8,8,0,1,1-10.63-12L100,128,34.69,70A8,8,0,1,1,45.32,58l72,64a8,8,0,0,1,0,12ZM216,184H120a8,8,0,0,0,0,16h96a8,8,0,0,0,0-16Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM77.66,173.66a8,8,0,0,1-11.32-11.32L100.69,128,66.34,93.66A8,8,0,0,1,77.66,82.34l40,40a8,8,0,0,1,0,11.32ZM192,176H128a8,8,0,0,1,0-16h64a8,8,0,0,1,0,16Z" }))
+    /* @__PURE__ */ e85.createElement(e85.Fragment, null, /* @__PURE__ */ e85.createElement("path", { d: "M216,40H40A16,16,0,0,0,24,56V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM77.66,173.66a8,8,0,0,1-11.32-11.32L100.69,128,66.34,93.66A8,8,0,0,1,77.66,82.34l40,40a8,8,0,0,1,0,11.32ZM192,176H128a8,8,0,0,1,0-16h64a8,8,0,0,1,0,16Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M116,132.48l-72,64a6,6,0,0,1-8-9L103,128,36,68.49a6,6,0,0,1,8-9l72,64a6,6,0,0,1,0,9ZM216,186H120a6,6,0,0,0,0,12h96a6,6,0,0,0,0-12Z" }))
+    /* @__PURE__ */ e85.createElement(e85.Fragment, null, /* @__PURE__ */ e85.createElement("path", { d: "M116,132.48l-72,64a6,6,0,0,1-8-9L103,128,36,68.49a6,6,0,0,1,8-9l72,64a6,6,0,0,1,0,9ZM216,186H120a6,6,0,0,0,0,12h96a6,6,0,0,0,0-12Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M117.31,134l-72,64a8,8,0,1,1-10.63-12L100,128,34.69,70A8,8,0,1,1,45.32,58l72,64a8,8,0,0,1,0,12ZM216,184H120a8,8,0,0,0,0,16h96a8,8,0,0,0,0-16Z" }))
+    /* @__PURE__ */ e85.createElement(e85.Fragment, null, /* @__PURE__ */ e85.createElement("path", { d: "M117.31,134l-72,64a8,8,0,1,1-10.63-12L100,128,34.69,70A8,8,0,1,1,45.32,58l72,64a8,8,0,0,1,0,12ZM216,184H120a8,8,0,0,0,0,16h96a8,8,0,0,0,0-16Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ e72.createElement(e72.Fragment, null, /* @__PURE__ */ e72.createElement("path", { d: "M116,128a4,4,0,0,1-1.34,3l-72,64a4,4,0,1,1-5.32-6L106,128,37.34,67a4,4,0,0,1,5.32-6l72,64A4,4,0,0,1,116,128Zm100,60H120a4,4,0,0,0,0,8h96a4,4,0,0,0,0-8Z" }))
+    /* @__PURE__ */ e85.createElement(e85.Fragment, null, /* @__PURE__ */ e85.createElement("path", { d: "M116,128a4,4,0,0,1-1.34,3l-72,64a4,4,0,1,1-5.32-6L106,128,37.34,67a4,4,0,0,1,5.32-6l72,64A4,4,0,0,1,116,128Zm100,60H120a4,4,0,0,0,0,8h96a4,4,0,0,0,0-8Z" }))
   ]
 ]);
 
 // ../../node_modules/@phosphor-icons/react/dist/csr/Terminal.es.js
-var o75 = e73.forwardRef((r53, a58) => /* @__PURE__ */ e73.createElement(p37, { ref: a58, ...r53, weights: a57 }));
-o75.displayName = "TerminalIcon";
-var c8 = o75;
+var o85 = e86.forwardRef((r57, a69) => /* @__PURE__ */ e86.createElement(p37, { ref: a69, ...r57, weights: a68 }));
+o85.displayName = "TerminalIcon";
+var c9 = o85;
 
-// ../../node_modules/@phosphor-icons/react/dist/csr/WarningCircle.es.js
-var r53 = __toESM(require_react(), 1);
+// ../../node_modules/@phosphor-icons/react/dist/csr/Tray.es.js
+var o86 = __toESM(require_react(), 1);
 
-// ../../node_modules/@phosphor-icons/react/dist/defs/WarningCircle.es.js
-var e74 = __toESM(require_react(), 1);
-var a58 = /* @__PURE__ */ new Map([
+// ../../node_modules/@phosphor-icons/react/dist/defs/Tray.es.js
+var a69 = __toESM(require_react(), 1);
+var e87 = /* @__PURE__ */ new Map([
   [
     "bold",
-    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm0,192a84,84,0,1,1,84-84A84.09,84.09,0,0,1,128,212Zm-12-80V80a12,12,0,0,1,24,0v52a12,12,0,0,1-24,0Zm28,40a16,16,0,1,1-16-16A16,16,0,0,1,144,172Z" }))
+    /* @__PURE__ */ a69.createElement(a69.Fragment, null, /* @__PURE__ */ a69.createElement("path", { d: "M208,28H48A20,20,0,0,0,28,48V208a20,20,0,0,0,20,20H208a20,20,0,0,0,20-20V48A20,20,0,0,0,208,28Zm-4,24v92H179.31a19.86,19.86,0,0,0-14.14,5.86L147,168H109L90.83,149.86A19.86,19.86,0,0,0,76.69,144H52V52ZM52,204V168H75l18.14,18.14A19.86,19.86,0,0,0,107.31,192h41.38a19.86,19.86,0,0,0,14.14-5.86L181,168h23v36Z" }))
   ],
   [
     "duotone",
-    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e74.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z" }))
+    /* @__PURE__ */ a69.createElement(a69.Fragment, null, /* @__PURE__ */ a69.createElement("path", {
+      d: "M216,48V160H179.31a8,8,0,0,0-5.66,2.34l-19.31,19.32a8,8,0,0,1-5.66,2.34H107.31a8,8,0,0,1-5.66-2.34L82.34,162.34A8,8,0,0,0,76.68,160H40V48a8,8,0,0,1,8-8H208A8,8,0,0,1,216,48Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a69.createElement("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V152h-28.7A15.86,15.86,0,0,0,168,156.69L148.69,176H107.31L88,156.68A15.89,15.89,0,0,0,76.69,152H48V48Zm0,160H48V168H76.69L96,187.32A15.89,15.89,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z" }))
   ],
   [
     "fill",
-    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,56a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm8,104a12,12,0,1,1,12-12A12,12,0,0,1,128,184Z" }))
+    /* @__PURE__ */ a69.createElement(a69.Fragment, null, /* @__PURE__ */ a69.createElement("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V168H76.69L96,187.32A15.89,15.89,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z" }))
   ],
   [
     "light",
-    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm0,192a90,90,0,1,1,90-90A90.1,90.1,0,0,1,128,218Zm-6-82V80a6,6,0,0,1,12,0v56a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,172Z" }))
+    /* @__PURE__ */ a69.createElement(a69.Fragment, null, /* @__PURE__ */ a69.createElement("path", { d: "M208,34H48A14,14,0,0,0,34,48V208a14,14,0,0,0,14,14H208a14,14,0,0,0,14-14V48A14,14,0,0,0,208,34ZM48,46H208a2,2,0,0,1,2,2V154H179.31a13.94,13.94,0,0,0-9.9,4.1L150.1,177.41a2,2,0,0,1-1.41.59H107.31a2,2,0,0,1-1.41-.58L86.59,158.1a13.94,13.94,0,0,0-9.9-4.1H46V48A2,2,0,0,1,48,46ZM208,210H48a2,2,0,0,1-2-2V166H76.69a2,2,0,0,1,1.41.58L97.41,185.9a13.94,13.94,0,0,0,9.9,4.1h41.38a13.94,13.94,0,0,0,9.9-4.1l19.31-19.31a2,2,0,0,1,1.41-.59H210v42A2,2,0,0,1,208,210Z" }))
   ],
   [
     "regular",
-    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z" }))
+    /* @__PURE__ */ a69.createElement(a69.Fragment, null, /* @__PURE__ */ a69.createElement("path", { d: "M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V152h-28.7A15.86,15.86,0,0,0,168,156.69L148.69,176H107.31L88,156.69A15.86,15.86,0,0,0,76.69,152H48V48Zm0,160H48V168H76.69L96,187.31A15.86,15.86,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z" }))
   ],
   [
     "thin",
-    /* @__PURE__ */ e74.createElement(e74.Fragment, null, /* @__PURE__ */ e74.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm0,192a92,92,0,1,1,92-92A92.1,92.1,0,0,1,128,220Zm-4-84V80a4,4,0,0,1,8,0v56a4,4,0,0,1-8,0Zm12,36a8,8,0,1,1-8-8A8,8,0,0,1,136,172Z" }))
+    /* @__PURE__ */ a69.createElement(a69.Fragment, null, /* @__PURE__ */ a69.createElement("path", { d: "M208,36H48A12,12,0,0,0,36,48V208a12,12,0,0,0,12,12H208a12,12,0,0,0,12-12V48A12,12,0,0,0,208,36ZM48,44H208a4,4,0,0,1,4,4V156H179.31a12,12,0,0,0-8.48,3.51l-19.32,19.32a4,4,0,0,1-2.82,1.17H107.31a4,4,0,0,1-2.82-1.17L85.17,159.51A12,12,0,0,0,76.69,156H44V48A4,4,0,0,1,48,44ZM208,212H48a4,4,0,0,1-4-4V164H76.69a4,4,0,0,1,2.82,1.17l19.32,19.32a12,12,0,0,0,8.48,3.51h41.38a12,12,0,0,0,8.48-3.51l19.32-19.32a4,4,0,0,1,2.82-1.17H212v44A4,4,0,0,1,208,212Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Tray.es.js
+var r57 = o86.forwardRef((a70, e88) => /* @__PURE__ */ o86.createElement(p37, { ref: e88, ...a70, weights: e87 }));
+r57.displayName = "TrayIcon";
+var n39 = r57;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/WarningCircle.es.js
+var r58 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/WarningCircle.es.js
+var e88 = __toESM(require_react(), 1);
+var a70 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ e88.createElement(e88.Fragment, null, /* @__PURE__ */ e88.createElement("path", { d: "M128,20A108,108,0,1,0,236,128,108.12,108.12,0,0,0,128,20Zm0,192a84,84,0,1,1,84-84A84.09,84.09,0,0,1,128,212Zm-12-80V80a12,12,0,0,1,24,0v52a12,12,0,0,1-24,0Zm28,40a16,16,0,1,1-16-16A16,16,0,0,1,144,172Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ e88.createElement(e88.Fragment, null, /* @__PURE__ */ e88.createElement("path", { d: "M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z", opacity: "0.2" }), /* @__PURE__ */ e88.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ e88.createElement(e88.Fragment, null, /* @__PURE__ */ e88.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm-8,56a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm8,104a12,12,0,1,1,12-12A12,12,0,0,1,128,184Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ e88.createElement(e88.Fragment, null, /* @__PURE__ */ e88.createElement("path", { d: "M128,26A102,102,0,1,0,230,128,102.12,102.12,0,0,0,128,26Zm0,192a90,90,0,1,1,90-90A90.1,90.1,0,0,1,128,218Zm-6-82V80a6,6,0,0,1,12,0v56a6,6,0,0,1-12,0Zm16,36a10,10,0,1,1-10-10A10,10,0,0,1,138,172Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ e88.createElement(e88.Fragment, null, /* @__PURE__ */ e88.createElement("path", { d: "M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm-8-80V80a8,8,0,0,1,16,0v56a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,172Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ e88.createElement(e88.Fragment, null, /* @__PURE__ */ e88.createElement("path", { d: "M128,28A100,100,0,1,0,228,128,100.11,100.11,0,0,0,128,28Zm0,192a92,92,0,1,1,92-92A92.1,92.1,0,0,1,128,220Zm-4-84V80a4,4,0,0,1,8,0v56a4,4,0,0,1-8,0Zm12,36a8,8,0,1,1-8-8A8,8,0,0,1,136,172Z" }))
   ]
 ]);
 
 // ../../node_modules/@phosphor-icons/react/dist/csr/WarningCircle.es.js
-var e75 = r53.forwardRef((o76, n34) => /* @__PURE__ */ r53.createElement(p37, { ref: n34, ...o76, weights: a58 }));
-e75.displayName = "WarningCircleIcon";
-var m18 = e75;
+var e89 = r58.forwardRef((o87, n40) => /* @__PURE__ */ r58.createElement(p37, { ref: n40, ...o87, weights: a70 }));
+e89.displayName = "WarningCircleIcon";
+var m19 = e89;
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Wrench.es.js
+var e91 = __toESM(require_react(), 1);
+
+// ../../node_modules/@phosphor-icons/react/dist/defs/Wrench.es.js
+var a71 = __toESM(require_react(), 1);
+var e90 = /* @__PURE__ */ new Map([
+  [
+    "bold",
+    /* @__PURE__ */ a71.createElement(a71.Fragment, null, /* @__PURE__ */ a71.createElement("path", { d: "M230.47,67.5a12,12,0,0,0-19.26-4.32L172.43,99l-12.68-2.72L157,83.57l35.79-38.78a12,12,0,0,0-4.32-19.26A76.07,76.07,0,0,0,88.41,121.64L30.92,174.18a4.68,4.68,0,0,0-.39.38,36,36,0,0,0,50.91,50.91l.38-.39,52.54-57.49A76.05,76.05,0,0,0,230.47,67.5ZM160,148a51.5,51.5,0,0,1-23.35-5.52,12,12,0,0,0-14.26,2.62L64.31,208.66a12,12,0,0,1-17-17l63.55-58.07a12,12,0,0,0,2.62-14.26A51.5,51.5,0,0,1,108,96a52.06,52.06,0,0,1,52-52h.89L135.17,71.87a12,12,0,0,0-2.91,10.65l5.66,26.35a12,12,0,0,0,9.21,9.21l26.35,5.66a12,12,0,0,0,10.65-2.91L212,95.12c0,.3,0,.59,0,.89A52.06,52.06,0,0,1,160,148Z" }))
+  ],
+  [
+    "duotone",
+    /* @__PURE__ */ a71.createElement(a71.Fragment, null, /* @__PURE__ */ a71.createElement("path", {
+      d: "M224,96a64,64,0,0,1-94.94,56L73,217A24,24,0,0,1,39,183L104,126.94a64,64,0,0,1,80-90.29L144,80l5.66,26.34L176,112l43.35-40A63.8,63.8,0,0,1,224,96Z",
+      opacity: "0.2"
+    }), /* @__PURE__ */ a71.createElement("path", { d: "M226.76,69a8,8,0,0,0-12.84-2.88l-40.3,37.19-17.23-3.7-3.7-17.23,37.19-40.3A8,8,0,0,0,187,29.24,72,72,0,0,0,88,96,72.34,72.34,0,0,0,94,124.94L33.79,177c-.15.12-.29.26-.43.39a32,32,0,0,0,45.26,45.26c.13-.13.27-.28.39-.42L131.06,162A72,72,0,0,0,232,96,71.56,71.56,0,0,0,226.76,69ZM160,152a56.14,56.14,0,0,1-27.07-7,8,8,0,0,0-9.92,1.77L67.11,211.51a16,16,0,0,1-22.62-22.62L109.18,133a8,8,0,0,0,1.77-9.93,56,56,0,0,1,58.36-82.31l-31.2,33.81a8,8,0,0,0-1.94,7.1L141.83,108a8,8,0,0,0,6.14,6.14l26.35,5.66a8,8,0,0,0,7.1-1.94l33.81-31.2A56.06,56.06,0,0,1,160,152Z" }))
+  ],
+  [
+    "fill",
+    /* @__PURE__ */ a71.createElement(a71.Fragment, null, /* @__PURE__ */ a71.createElement("path", { d: "M232,96a72,72,0,0,1-100.94,66L79,222.22c-.12.14-.26.29-.39.42a32,32,0,0,1-45.26-45.26c.14-.13.28-.27.43-.39L94,124.94a72.07,72.07,0,0,1,83.54-98.78,8,8,0,0,1,3.93,13.19L144,80l5.66,26.35L176,112l40.65-37.52a8,8,0,0,1,13.19,3.93A72.6,72.6,0,0,1,232,96Z" }))
+  ],
+  [
+    "light",
+    /* @__PURE__ */ a71.createElement(a71.Fragment, null, /* @__PURE__ */ a71.createElement("path", { d: "M224.91,69.75a6,6,0,0,0-9.63-2.16l-41.07,37.9L154.7,101.3l-4.19-19.51,37.9-41.07a6,6,0,0,0-2.16-9.63,70,70,0,0,0-89.77,94.39l-61.39,53c-.11.09-.21.19-.32.3A30,30,0,0,0,77.2,221.23c.11-.11.21-.21.3-.32l53-61.39a70,70,0,0,0,94.39-89.77ZM160,154a58,58,0,0,1-28-7.22,6,6,0,0,0-7.45,1.33L68.57,212.88a18,18,0,0,1-25.45-25.45l64.76-55.94A6,6,0,0,0,109.2,124a58,58,0,0,1,64-84.53L139.58,75.93a6,6,0,0,0-1.45,5.33l5.65,26.35a6,6,0,0,0,4.61,4.61l26.35,5.65a6,6,0,0,0,5.33-1.45L216.49,82.8A58.06,58.06,0,0,1,160,154Z" }))
+  ],
+  [
+    "regular",
+    /* @__PURE__ */ a71.createElement(a71.Fragment, null, /* @__PURE__ */ a71.createElement("path", { d: "M226.76,69a8,8,0,0,0-12.84-2.88l-40.3,37.19-17.23-3.7-3.7-17.23,37.19-40.3A8,8,0,0,0,187,29.24,72,72,0,0,0,88,96,72.34,72.34,0,0,0,94,124.94L33.79,177c-.15.12-.29.26-.43.39a32,32,0,0,0,45.26,45.26c.13-.13.27-.28.39-.42L131.06,162A72,72,0,0,0,232,96,71.56,71.56,0,0,0,226.76,69ZM160,152a56.14,56.14,0,0,1-27.07-7,8,8,0,0,0-9.92,1.77L67.11,211.51a16,16,0,0,1-22.62-22.62L109.18,133a8,8,0,0,0,1.77-9.93,56,56,0,0,1,58.36-82.31l-31.2,33.81a8,8,0,0,0-1.94,7.1L141.83,108a8,8,0,0,0,6.14,6.14l26.35,5.66a8,8,0,0,0,7.1-1.94l33.81-31.2A56.06,56.06,0,0,1,160,152Z" }))
+  ],
+  [
+    "thin",
+    /* @__PURE__ */ a71.createElement(a71.Fragment, null, /* @__PURE__ */ a71.createElement("path", { d: "M223.05,70.5a4,4,0,0,0-6.42-1.44l-41.82,38.6L153,103l-4.68-21.79,38.6-41.82a4,4,0,0,0-1.44-6.43A68,68,0,0,0,98.94,126L36.4,180l-.21.2a28,28,0,0,0,39.6,39.6l.2-.21,54-62.54A68,68,0,0,0,228,96,67.51,67.51,0,0,0,223.05,70.5ZM160,156a60,60,0,0,1-29-7.47,4,4,0,0,0-5,.89L70,214.25A20,20,0,0,1,41.75,186l64.82-56a4,4,0,0,0,.89-5,60,60,0,0,1,69.46-86.59L141.05,77.29a4,4,0,0,0-1,3.55l5.66,26.35a4,4,0,0,0,3.07,3.07l26.35,5.66a4,4,0,0,0,3.55-1l38.87-35.87A60.05,60.05,0,0,1,160,156Z" }))
+  ]
+]);
+
+// ../../node_modules/@phosphor-icons/react/dist/csr/Wrench.es.js
+var o87 = e91.forwardRef((r59, c10) => /* @__PURE__ */ e91.createElement(p37, { ref: c10, ...r59, weights: e90 }));
+o87.displayName = "WrenchIcon";
+var s30 = o87;
 
 // src/client/adapt/glyphs.ts
-var glyphs = {
+var table = {
+  AppWindow: m17,
   ArrowClockwise: m16,
   ArrowSquareOut: n25,
+  Books: n26,
+  Brain: c6,
+  Browsers: n27,
+  Cards: n28,
   CaretLeft: s26,
-  Check: n26,
-  Desktop: c6,
-  DotsThree: n27,
-  Gear: n28,
-  Hourglass: n29,
-  House: n30,
-  Info: c7,
-  Key: n31,
-  ListBullets: m17,
+  Chats: n29,
+  Check: n30,
+  CircleHalf: l14,
+  Desktop: c7,
+  DotsThree: n31,
+  Gear: n32,
+  GridFour: s27,
+  Hourglass: n33,
+  House: n34,
+  Info: c8,
+  Kanban: s28,
+  Key: n35,
+  Keyboard: n36,
+  ListBullets: m18,
   MagnifyingGlass: f21,
-  Plugs: n32,
-  Prohibit: s27,
-  Robot: n33,
+  Plugs: n37,
+  Prohibit: s29,
+  Robot: n38,
   ShieldCheck: h4,
-  Terminal: c8,
-  WarningCircle: m18
+  Terminal: c9,
+  Tray: n39,
+  WarningCircle: m19,
+  Wrench: s30
 };
+var glyphs = table;
+var glyphNames = Object.keys(table);
 
 // src/client/adapt/catalog.ts
 var library = exports_esm;
@@ -54032,20 +54361,20 @@ var Lookup = ({ of, props, children }) => {
   }, undefined, false, undefined, this);
 };
 var eventOf = (handler) => handler.slice(2, 3).toLowerCase() + handler.slice(3);
-var control = (spec2, of) => (ctx) => {
+var control = (spec, of) => (ctx) => {
   const props = propsOf(ctx);
-  const [bound, setBound] = useBoundProp(props[spec2.prop], ctx.bindings?.[spec2.prop]);
+  const [bound, setBound] = useBoundProp(props[spec.prop], ctx.bindings?.[spec.prop]);
   const changed = (next) => {
-    setBound(read(next, spec2));
-    ctx.emit(eventOf(spec2.handler));
+    setBound(read(next, spec));
+    ctx.emit(eventOf(spec.handler));
   };
   return /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Lookup, {
     of,
-    props: { ...attributes(ctx), [spec2.prop]: bound ?? props[spec2.prop], [spec2.handler]: changed },
+    props: { ...attributes(ctx), [spec.prop]: bound ?? props[spec.prop], [spec.handler]: changed },
     children: hasChildren(ctx) ? content(ctx) : undefined
   }, undefined, false, undefined, this);
 };
-var press2 = (of) => (ctx) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Lookup, {
+var press = (of) => (ctx) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Lookup, {
   of,
   props: { ...attributes(ctx), onClick: () => ctx.emit("press") },
   children: content(ctx)
@@ -54056,10 +54385,10 @@ var display = (of) => (ctx) => /* @__PURE__ */ jsx_dev_runtime2.jsxDEV(Lookup, {
   children: content(ctx)
 }, undefined, false, undefined, this);
 var shapeOf = (name, of) => {
-  const spec2 = binding(name);
-  if (spec2 !== undefined)
-    return control(spec2, of);
-  return PRESSABLE.has(name) ? press2(of) : display(of);
+  const spec = binding(name);
+  if (spec !== undefined)
+    return control(spec, of);
+  return PRESSABLE.has(name) ? press(of) : display(of);
 };
 var CACHE = new Map;
 var adaptComponent = (name) => {
@@ -54072,14 +54401,327 @@ var adaptComponent = (name) => {
   return renderer;
 };
 
+// src/client/config-spec.ts
+var supportsConfigSpec = (input2) => {
+  const spec = input2;
+  if (!spec || typeof spec !== "object" || !spec.elements)
+    return false;
+  return Object.values(spec.elements).every(({ props }) => props?.role !== "array" || typeof props.itemSchema === "object");
+};
+
+// src/client/config-array.ts
+var kind = (s31) => s31.enum?.length ? "enum" : s31.type ?? (s31.properties ? "object" : "string");
+var inputType = (s31) => ["enum", "boolean"].includes(kind(s31)) ? "select" : ["number", "integer"].includes(kind(s31)) ? "number" : "text";
+var parseFieldValue = (node2, input2) => {
+  if (input2.type === "checkbox")
+    return input2.checked;
+  if (input2.value === "")
+    return;
+  if (node2.dataset.kind === "number" || node2.dataset.kind === "integer") {
+    const value = Number(input2.value);
+    if (!Number.isFinite(value) || node2.dataset.kind === "integer" && !Number.isInteger(value))
+      throw new Error(`Invalid ${node2.dataset.kind} value`);
+    return value;
+  }
+  if (node2.dataset.kind === "enum" || node2.dataset.kind === "boolean") {
+    try {
+      return JSON.parse(input2.value);
+    } catch {
+      return input2.value;
+    }
+  }
+  return input2.value;
+};
+var lower = (elements, id, path, key, schema2, value, required2) => {
+  const nodeKind = kind(schema2);
+  if (nodeKind === "object") {
+    const source = value;
+    const children = Object.entries(schema2.properties ?? {}).map(([name, field]) => lower(elements, `${id}-${name}`, `${path}.${name}`, name, field, source?.[name], schema2.required?.includes(name) ?? false));
+    elements[id] = { type: "Flex", props: { direction: "column", gap: "3", role: "array-row", fieldPath: path, arrayRow: true }, children };
+    return id;
+  }
+  elements[id] = { type: "TextField", props: { label: key, value: String(value ?? ""), rawValue: value, inputType: inputType(schema2), fieldKind: nodeKind, fieldPath: path, arrayRow: true, options: schema2.enum ?? (nodeKind === "boolean" ? [true, false] : undefined), required: required2, unset: value === undefined, checked: value === true } };
+  return id;
+};
+var rewriteArrayRowPaths = (elements, rowId, path) => {
+  const node2 = elements[rowId], old = String(node2?.props?.fieldPath ?? "");
+  const rewrite = (id) => {
+    const child = elements[id];
+    if (!child)
+      return;
+    const current = String(child.props?.fieldPath ?? "");
+    if (current.startsWith(old))
+      child.props = { ...child.props ?? {}, fieldPath: `${path}${current.slice(old.length)}` };
+    (child.children ?? []).forEach(rewrite);
+  };
+  rewrite(rowId);
+};
+var appendArrayRow = (elements, arrayId, index2, item) => {
+  const array2 = elements[arrayId], path = `${String(array2.props?.fieldPath ?? arrayId)}.${index2}`, rowId = `${arrayId}-row-${index2}-${Object.keys(elements).length}`;
+  lower(elements, rowId, path, String(index2 + 1), item, undefined, true);
+  return rowId;
+};
+
+// src/client/config-react-mount.tsx
+var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+var withNodeIds = (spec) => ({ ...spec, elements: Object.fromEntries(Object.entries(spec.elements).map(([id, element]) => [id, { ...element, children: element.children ? [...element.children] : undefined, props: { ...element.props ?? {}, nodeId: id } }])) });
+var assign = (target, path, value) => {
+  const parts = path.split(".");
+  let current = target;
+  parts.forEach((part, index2) => {
+    if (index2 === parts.length - 1)
+      current[part] = value;
+    else {
+      const next = parts[index2 + 1], child = current[part];
+      if (child === undefined)
+        current[part] = /^\d+$/.test(next) ? [] : {};
+      current = current[part];
+    }
+  });
+};
+var hasPath = (target, path) => path.split(".").reduce((current, part) => current && typeof current === "object" ? current[part] : undefined, target) !== undefined;
+var removeTree = (elements, id) => {
+  (elements[id]?.children ?? []).forEach((child) => removeTree(elements, child));
+  delete elements[id];
+};
+var rowsOf = (spec, id) => (spec.elements[id]?.children ?? []).filter((child) => spec.elements[child]?.props?.arrayRow === true);
+var syncRows = (spec, id) => {
+  const array2 = spec.elements[id];
+  rowsOf(spec, id).forEach((row, index3) => rewriteArrayRowPaths(spec.elements, row, `${String(array2?.props?.fieldPath ?? id)}.${index3}`));
+  let index2 = 0;
+  (array2?.children ?? []).forEach((child) => {
+    const props = spec.elements[child]?.props;
+    if (props?.arrayAction === "remove")
+      props.arrayIndex = index2++;
+  });
+};
+var addArrayControls = (spec) => Object.entries(spec.elements).forEach(([id, element]) => {
+  if (element.props?.role !== "array")
+    return;
+  const rows = rowsOf(spec, id), controls = rows.map((_, index2) => {
+    const control2 = `${id}-remove-${index2}`;
+    spec.elements[control2] = { type: "Button", props: { value: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: index2 } };
+    return control2;
+  });
+  const add = `${id}-add`;
+  spec.elements[add] = { type: "Button", props: { value: "Add item", arrayAction: "add", arrayNode: id } };
+  element.children = [...rows, ...controls, add];
+});
+var makeConfigMount = (ours) => (container, input2) => {
+  const render = (root2, spec2) => {
+    const registry2 = adaptRegistry(spec2, adaptComponent, ours);
+    root2.render(/* @__PURE__ */ jsx_dev_runtime3.jsxDEV(JSONUIProvider, {
+      registry: registry2,
+      children: /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(Renderer, {
+        spec: spec2,
+        registry: registry2,
+        fallback: Unresolved
+      }, undefined, false, undefined, this)
+    }, undefined, false, undefined, this));
+  };
+  if (!supportsConfigSpec(input2))
+    throw new Error("Config Spec does not support this structure");
+  const spec = withNodeIds(input2);
+  addArrayControls(spec);
+  const root = import_client.createRoot(container);
+  container.replaceChildren();
+  render(root, spec);
+  const onClick = (event) => {
+    const button = event.target.closest("[data-array-action]");
+    if (!button)
+      return;
+    const id = button.dataset.arrayNode, array2 = id && spec.elements[id];
+    if (!id || !array2)
+      return;
+    const rows = rowsOf(spec, id);
+    if (button.dataset.arrayAction === "remove") {
+      const row = rows[Number(button.dataset.arrayIndex)];
+      if (!row)
+        return;
+      removeTree(spec.elements, row);
+      array2.children = (array2.children ?? []).filter((child) => child !== row);
+      syncRows(spec, id);
+    } else if (button.dataset.arrayAction === "add" && array2.props?.itemSchema) {
+      const row = appendArrayRow(spec.elements, id, rows.length, array2.props.itemSchema);
+      const add = (array2.children ?? []).find((child) => spec.elements[child]?.props?.arrayAction === "add");
+      array2.children = (array2.children ?? []).filter((child) => child !== add);
+      const remove = `${id}-remove-${rows.length}`;
+      spec.elements[remove] = { type: "Button", props: { value: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: rows.length } };
+      array2.children.push(row, remove);
+      if (add)
+        array2.children.push(add);
+    } else
+      return;
+    render(root, spec);
+  };
+  container.addEventListener("click", onClick);
+  return { read: () => {
+    const value = {};
+    container.querySelectorAll('[data-ui="input"][data-path]').forEach((node2) => {
+      const input3 = node2.querySelector("input,select");
+      const path = node2.dataset.path;
+      if (input3 && path) {
+        const out = parseFieldValue(node2, input3);
+        if (out !== undefined)
+          assign(value, path, out);
+      }
+    });
+    Object.entries(spec.elements).filter(([, element]) => element.props?.role === "array").forEach(([, element]) => {
+      const path = String(element.props?.fieldPath ?? ""), rows = (element.children ?? []).filter((id) => spec.elements[id]?.props?.arrayRow === true);
+      if (rows.length && path) {
+        rows.forEach((row, index2) => {
+          const rowPath = String(spec.elements[row]?.props?.fieldPath ?? `${path}.${index2}`);
+          if (!hasPath(value, rowPath))
+            assign(value, rowPath, {});
+        });
+      } else if (path && (element.children ?? []).every((id) => spec.elements[id]?.props?.arrayAction !== undefined))
+        assign(value, path, []);
+    });
+    return value;
+  }, dispose: () => {
+    container.removeEventListener("click", onClick);
+    root.unmount();
+  } };
+};
+
+// src/client/adapt/config-fields.tsx
+var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
+var marker = (key, value) => value === undefined ? {} : { [key]: String(value) };
+var optionOf = (option) => typeof option === "object" && option !== null ? { value: String(option.value), label: String(option.label ?? option.value) } : { value: String(option), label: String(option) };
+var ConfigField = (ctx) => {
+  const props = propsOf(ctx), options2 = Array.isArray(props.options) ? props.options.map(optionOf) : [];
+  const value = props.value === undefined || props.value === null ? "" : String(props.value);
+  const marks = { ...marker("data-ui", "input"), ...marker("data-path", props.fieldPath), ...marker("data-kind", props.fieldKind), ...marker("data-node", props.nodeId) };
+  const control2 = props.inputType === "checkbox" ? /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("input", {
+    type: "checkbox",
+    defaultChecked: props.checked === true,
+    disabled: props.readOnly === true
+  }, undefined, false, undefined, this) : props.inputType === "select" ? /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("select", {
+    defaultValue: value,
+    disabled: props.readOnly === true,
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("option", {
+        value: "",
+        children: props.required === true ? "Select an option" : "Unset"
+      }, undefined, false, undefined, this),
+      options2.map((option) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("option", {
+        value: option.value,
+        children: option.label
+      }, option.value, false, undefined, this))
+    ]
+  }, undefined, true, undefined, this) : /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(exports_text_field.Root, {
+    type: props.inputType === "number" ? "number" : "text",
+    defaultValue: value,
+    readOnly: props.readOnly === true
+  }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(p12, {
+    asChild: true,
+    direction: "column",
+    gap: "2",
+    children: /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("label", {
+      ...marks,
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(p, {
+          size: "2",
+          weight: "medium",
+          color: "gray",
+          children: [
+            String(props.label ?? ""),
+            props.required === true ? " *" : ""
+          ]
+        }, undefined, true, undefined, this),
+        control2
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this);
+};
+var ConfigFlex = (ctx) => {
+  const { direction, gap, align, justify, role } = propsOf(ctx);
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(p12, {
+    direction: direction ?? "column",
+    gap: gap ?? "3",
+    align,
+    justify,
+    ...marker("data-ui-role", role),
+    children: ctx.children
+  }, undefined, false, undefined, this);
+};
+var ConfigText = (ctx) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(p, {
+  size: "4",
+  weight: "bold",
+  children: content(ctx)
+}, undefined, false, undefined, this);
+var ConfigButton = (ctx) => {
+  const props = propsOf(ctx), restart = props.strategy === "restart";
+  return /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(o15, {
+    type: "button",
+    variant: restart ? "soft" : "solid",
+    color: restart ? "gray" : undefined,
+    ...marker("data-strategy", props.strategy),
+    ...marker("data-array-action", props.arrayAction),
+    ...marker("data-array-node", props.arrayNode),
+    ...marker("data-array-index", props.arrayIndex),
+    children: content(ctx)
+  }, undefined, false, undefined, this);
+};
+var configComponents = { Flex: ConfigFlex, Text: ConfigText, TextField: ConfigField, Button: ConfigButton };
+
+// src/client/config-api.ts
+function createConfigApi(fetcher) {
+  const record2 = (value) => !!value && typeof value === "object" && !Array.isArray(value);
+  const request = async (url2, init) => {
+    const response = await fetcher(url2, { cache: "no-store", ...init });
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error(`HTTP ${response.status}: response is not valid JSON`);
+    }
+    if (!response.ok || !record2(data) || data.ok === false) {
+      const detail = record2(data) ? data.error ?? data.detail : undefined;
+      throw Object.assign(new Error(`HTTP ${response.status}: ${typeof detail === "string" ? detail : "config request failed"}`), { status: response.status, data: record2(data) ? data : {} });
+    }
+    return data;
+  };
+  const path = (id) => `/console/api/config/${encodeURIComponent(id)}`;
+  const get = async (id) => {
+    const data = await request(path(id));
+    if (data.kind !== "config" || data.id !== id || data.ok !== true || !record2(data.schema) || !record2(data.value) || !record2(data.sources) || typeof data.pendingRestart !== "boolean")
+      throw new Error("config response contract is incomplete");
+    return data;
+  };
+  const mutation = async (id, applyOnly, body) => {
+    const data = await request(path(id) + (applyOnly ? "/apply" : ""), {
+      method: "POST",
+      ...body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}
+    });
+    if (data.ok !== true || data.appId !== id || typeof data.pendingRestart !== "boolean")
+      throw new Error("save response contract is incomplete; reload to confirm state");
+    return data;
+  };
+  return {
+    get,
+    save: (id, override, strategy, unset = []) => {
+      if (strategy !== "apply" && strategy !== "restart")
+        throw new Error("strategy must be apply or restart");
+      return mutation(id, false, { override, strategy, unset });
+    },
+    apply: (id) => mutation(id, true)
+  };
+}
+
+// src/client/console-shell.tsx
+var React79 = __toESM(require_react(), 1);
+
 // src/client/theme-appearance.ts
 var React62 = __toESM(require_react(), 1);
 
 // src/client/theme-runtime.ts
 var THEME_CHANGE = "effect-theme-change";
-var modes = ["system", "light", "dark"];
+var THEME_MODES = ["system", "light", "dark"];
 var normalizeThemeMode = (value) => value === "light" || value === "dark" ? value : "system";
-var nextThemeMode = (mode) => modes[(modes.indexOf(mode) + 1) % modes.length];
+var nextThemeMode = (mode) => THEME_MODES[(THEME_MODES.indexOf(mode) + 1) % THEME_MODES.length];
 var themeLabel = (mode) => mode === "system" ? "Follow system" : mode === "light" ? "Light mode" : "Dark mode";
 var readThemeMode = (storage) => {
   try {
@@ -54117,14 +54759,14 @@ var useThemeMode = () => {
     window.addEventListener(THEME_CHANGE, onMode);
     return () => window.removeEventListener(THEME_CHANGE, onMode);
   }, []);
-  const cycle = React62.useCallback(() => {
+  const set2 = React62.useCallback((next) => {
     let storage;
     try {
       storage = window.localStorage;
     } catch {}
-    setThemeMode(nextThemeMode(currentMode()), storage);
+    setThemeMode(next, storage);
   }, []);
-  return [mode, cycle];
+  return [mode, set2];
 };
 var appearanceOf = (mode, dark) => mode === "system" ? dark ? "dark" : "light" : mode;
 var useAppearance = () => {
@@ -54140,10 +54782,10 @@ var useAppearance = () => {
 };
 
 // src/client/console-theme.tsx
-var jsx_dev_runtime3 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
 var ConsoleTheme = ({ children, fill = false }) => {
   const appearance = useAppearance();
-  return /* @__PURE__ */ jsx_dev_runtime3.jsxDEV(R2, {
+  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(R2, {
     className: fill ? "view-fill" : undefined,
     appearance,
     accentColor: "jade",
@@ -54154,6 +54796,70 @@ var ConsoleTheme = ({ children, fill = false }) => {
   }, undefined, false, undefined, this);
 };
 
+// src/client/console-chrome.tsx
+var React78 = __toESM(require_react(), 1);
+// ../../packages/effect-ui/src/screen.ts
+var ROOT_SCREEN = "root";
+var NAV_ROOT = "/_nav";
+var chainOf = (screens, id) => {
+  const byId = new Map(screens.map((screen) => [screen.id, screen]));
+  const chain = [];
+  const seen = new Set;
+  let cursor = id;
+  while (cursor !== undefined && !seen.has(cursor)) {
+    seen.add(cursor);
+    const screen = byId.get(cursor);
+    if (screen === undefined)
+      break;
+    chain.unshift(screen);
+    cursor = screen.parent ?? (screen.id === ROOT_SCREEN ? undefined : ROOT_SCREEN);
+  }
+  return chain;
+};
+// ../../packages/effect-ui/src/source-status.ts
+var sourceStatusPath = (id) => `/_sources/${id}`;
+var initialStatus = () => ({ state: "loading", answered: false, error: null, count: 0, at: 0 });
+var sourceStateOf = (answered, error61, count3) => error61 !== null ? "failed" : !answered ? "loading" : count3 === 0 ? "empty" : "ready";
+var readStatus = (value) => {
+  const record2 = value ?? {};
+  return { ...initialStatus(), ...record2 };
+};
+// ../../packages/effect-ui/src/schema-parts.ts
+var stateRef = exports_external.object({ state: exports_external.string() });
+var itemRef = exports_external.object({ item: exports_external.string() });
+var actionParam = exports_external.union([exports_external.string(), exports_external.number(), exports_external.boolean(), exports_external.null(), stateRef, itemRef]);
+var repeat = exports_external.object({ source: exports_external.union([stateRef, itemRef]), key: exports_external.string().optional() });
+var condition = exports_external.object({
+  source: exports_external.union([stateRef, itemRef]),
+  equals: exports_external.union([exports_external.string(), exports_external.number(), exports_external.boolean(), exports_external.null(), stateRef]).optional(),
+  not: exports_external.boolean().optional()
+});
+var visible = exports_external.union([condition, exports_external.object({ any: exports_external.array(condition) })]);
+var source = exports_external.object({ id: exports_external.string().min(1), url: exports_external.string().min(1), state: exports_external.string().min(1), refreshMs: exports_external.number().positive().optional() });
+var action = exports_external.object({
+  name: exports_external.string().min(1),
+  method: exports_external.enum(["GET", "POST", "PATCH", "DELETE"]).optional(),
+  url: exports_external.string().min(1).optional(),
+  opens: exports_external.string().min(1).optional(),
+  params: exports_external.record(exports_external.string(), actionParam).optional(),
+  result: exports_external.string().min(1).optional(),
+  clear: exports_external.array(exports_external.string()).optional(),
+  refresh: exports_external.array(exports_external.string()).optional()
+}).superRefine((value, ctx) => {
+  if (value.url === undefined && value.opens === undefined && (value.refresh ?? []).length === 0) {
+    ctx.addIssue({ code: "custom", path: ["url"], message: "an action calls a url, opens a screen, or re-runs a read; this one does none" });
+  }
+});
+
+// ../../packages/effect-ui/src/schema.ts
+var NODE_FIELDS = ["component", "props", "children", "id", "bind", "item", "as", "repeat", "visible", "onPress", "params"];
+var nodeProps = exports_external.record(exports_external.string(), exports_external.unknown()).superRefine((value, ctx) => {
+  for (const field of NODE_FIELDS) {
+    if (field in value) {
+      ctx.addIssue({ code: "custom", path: [field], message: `"${field}" is a node field, not a prop. Write it beside props, not inside them.` });
+    }
+  }
+});
 // src/client/console-stack.ts
 var entries = [];
 var current = () => entries[entries.length - 1];
@@ -54213,721 +54919,6 @@ var navigate = (route) => {
 };
 var openScreen = (id, destination) => navigate({ kind: "app", id, ...destination });
 
-// src/client/effect-ui-screen-menu.tsx
-var jsx_dev_runtime4 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenMenu = ({ appId, screens }) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV("div", {
-  className: "screen-menu",
-  children: screens.filter((screen2) => screen2.id !== ROOT_SCREEN).map((screen2) => /* @__PURE__ */ jsx_dev_runtime4.jsxDEV(o15, {
-    variant: "soft",
-    size: "2",
-    onClick: () => openScreen(appId, { screen: screen2.id }),
-    children: screen2.title
-  }, screen2.id, false, undefined, this))
-}, undefined, false, undefined, this);
-
-// src/client/effect-ui-screen-panes.tsx
-var jsx_dev_runtime5 = __toESM(require_jsx_dev_runtime(), 1);
-var ScreenBar = ({ label, title, onBack }) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-  className: "screen-bar",
-  children: [
-    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(o15, {
-      variant: "soft",
-      size: "2",
-      onClick: onBack,
-      children: `‹ ${label}`
-    }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(p, {
-      size: "2",
-      weight: "medium",
-      className: "screen-bar-title",
-      children: title
-    }, undefined, false, undefined, this)
-  ]
-}, undefined, true, undefined, this);
-var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-  className: "screen-body",
-  children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Renderer, {
-    spec: screen2.spec,
-    registry: registry2,
-    fallback: Unresolved
-  }, undefined, false, undefined, this)
-}, undefined, false, undefined, this);
-var ScreenPanes = ({ chain, registry: registry2, menu, onBack, returnLabel }) => {
-  const current2 = chain[chain.length - 1];
-  const parent = chain.length < 2 ? undefined : chain[chain.length - 2];
-  return /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-    className: "screen-panes",
-    "data-split": parent === undefined ? "off" : "on",
-    children: [
-      parent === undefined ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-        className: "screen-parent",
-        children: /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Pane, {
-          screen: parent,
-          registry: registry2
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime5.jsxDEV("div", {
-        className: "screen-pane",
-        children: [
-          returnLabel === undefined ? null : /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(ScreenBar, {
-            label: returnLabel,
-            title: current2.title,
-            onBack
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime5.jsxDEV(Pane, {
-            screen: current2,
-            registry: registry2
-          }, undefined, false, undefined, this),
-          menu
-        ]
-      }, undefined, true, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-
-// src/client/effect-ui-screen-nav.ts
-var React64 = __toESM(require_react(), 1);
-
-// src/client/console-route-hooks.ts
-var React63 = __toESM(require_react(), 1);
-
-// src/client/console-route.ts
-var decodePart = (value) => {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-};
-var parseAddress = (hash2) => {
-  const body = hash2.startsWith("#") ? hash2.slice(1) : hash2;
-  const cut = body.indexOf("?");
-  return {
-    raw: hash2,
-    parts: (cut === -1 ? body : body.slice(0, cut)).split("/").filter((part) => part !== "").map(decodePart),
-    query: new URLSearchParams(cut === -1 ? "" : body.slice(cut + 1))
-  };
-};
-var paramsOf = (query2) => Object.fromEntries(query2);
-var filtersOf = (query2) => {
-  const one = (name) => {
-    const value = query2.get(name);
-    return value === null || value === "" ? {} : { [name]: value };
-  };
-  return { ...one("actor"), ...one("app"), ...one("kind"), ...one("since") };
-};
-var unresolved = (address, part, text, app) => ({ kind: "not-found", address: address.raw, part, text, ...app === undefined ? {} : { app } });
-var parseDestination = (hash2) => {
-  const address = parseAddress(hash2);
-  if (address.parts[0] !== "app")
-    return {};
-  const screen2 = address.parts[2];
-  const params = paramsOf(address.query);
-  return { ...screen2 === undefined ? {} : { screen: screen2 }, ...Object.keys(params).length === 0 ? {} : { params } };
-};
-
-// src/client/console-route-hooks.ts
-var useAddress = () => {
-  const [hash2, setHash] = React63.useState(() => window.location.hash);
-  React63.useEffect(() => {
-    const onHash = () => setHash(window.location.hash);
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-  return hash2;
-};
-var useDestination = () => {
-  const hash2 = useAddress();
-  return React63.useMemo(() => parseDestination(hash2), [hash2]);
-};
-
-// src/client/effect-ui-screen-nav.ts
-var chainFor = (screens, screen2) => {
-  const walked = chainOf(screens, screen2 ?? ROOT_SCREEN);
-  return walked.length === 0 ? chainOf(screens, ROOT_SCREEN) : walked;
-};
-var useScreenView = (screens) => {
-  const destination = useDestination();
-  return React64.useMemo(() => {
-    const chain = chainFor(screens, destination.screen);
-    return { chain, current: chain[chain.length - 1], params: destination.params ?? {} };
-  }, [screens, destination]);
-};
-var useNavState = (store, id, params) => {
-  const key = `${id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
-  React64.useLayoutEffect(() => {
-    store.set(NAV_ROOT, { ...params });
-  }, [store, key, params]);
-};
-
-// src/client/effect-ui-screen-entry.ts
-var React65 = __toESM(require_react(), 1);
-var useScreenEnter = (handlers, screen2, params) => {
-  const key = `${screen2?.id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
-  const name = screen2?.onEnter;
-  React65.useEffect(() => {
-    if (name === undefined)
-      return;
-    handlers[name]?.();
-  }, [handlers, name, key]);
-};
-
-// src/client/effect-ui-view-state.tsx
-var React66 = __toESM(require_react(), 1);
-var seeded = (state, sources) => ({
-  ...state,
-  [NAV_ROOT]: {},
-  _sources: Object.fromEntries(sources.map((source2) => [source2.id, initialStatus()]))
-});
-var useViewStore = (state, sources) => {
-  const ref = React66.useRef(null);
-  if (ref.current === null)
-    ref.current = createStateStore(seeded(state, sources));
-  return ref.current;
-};
-var SourceLoader = ({ sources, store, fetcher }) => {
-  React66.useEffect(() => {
-    const timers = [];
-    for (const source2 of sources) {
-      const load = () => void loadSource(source2, store, fetcher);
-      load();
-      if (source2.refreshMs !== undefined)
-        timers.push(window.setInterval(load, source2.refreshMs));
-    }
-    return () => timers.forEach((timer) => window.clearInterval(timer));
-  }, [sources, store, fetcher]);
-  return null;
-};
-
-// src/client/effect-ui-runtime.tsx
-var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
-var asParams = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]));
-var EffectUiRuntime = ({ ours, runtime }) => {
-  const screens = React67.useMemo(() => runtime?.screens ?? [], [runtime]);
-  const sources = React67.useMemo(() => runtime?.sources ?? [], [runtime]);
-  const appId = runtime?.appId ?? "";
-  const registry2 = React67.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ours))), [screens, ours]);
-  const store = useViewStore(screens[0]?.spec.state, sources);
-  const fetcher = React67.useMemo(() => window.fetch.bind(window), []);
-  const { chain, current: current2, params } = useScreenView(screens);
-  useNavState(store, current2?.id, params);
-  const open2 = React67.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
-  const back = React67.useCallback(() => {
-    if (canGoBack()) {
-      window.history.back();
-      return;
-    }
-    const parent = chain[chain.length - 2]?.id;
-    navigate({ kind: "app", id: appId, ...parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent } });
-  }, [appId, chain]);
-  const returnTo = React67.useMemo(() => {
-    const parent = chain[chain.length - 2];
-    if (!canGoBack())
-      return parent;
-    const screen2 = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN;
-    return screens.find((candidate) => candidate.id === screen2) ?? parent;
-  }, [chain, screens]);
-  const handlers = React67.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
-  useScreenEnter(handlers, current2, params);
-  if (current2 === undefined)
-    return null;
-  const menu = runtime?.menu === true && current2.id === ROOT_SCREEN ? /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(ScreenMenu, {
-    appId,
-    screens
-  }, undefined, false, undefined, this) : null;
-  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(ConsoleTheme, {
-    fill: true,
-    children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(JSONUIProvider, {
-      store,
-      registry: registry2,
-      handlers,
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(SourceLoader, {
-          sources,
-          store,
-          fetcher
-        }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(ScreenPanes, {
-          chain,
-          registry: registry2,
-          menu,
-          onBack: back,
-          returnLabel: returnTo?.title
-        }, undefined, false, undefined, this)
-      ]
-    }, undefined, true, undefined, this)
-  }, undefined, false, undefined, this);
-};
-
-// src/client/config-react-mount.tsx
-var import_client = __toESM(require_client(), 1);
-
-// src/client/config-spec.ts
-var supportsConfigSpec = (input2) => {
-  const spec2 = input2;
-  if (!spec2 || typeof spec2 !== "object" || !spec2.elements)
-    return false;
-  return Object.values(spec2.elements).every(({ props }) => props?.role !== "array" || typeof props.itemSchema === "object");
-};
-
-// src/client/config-array.ts
-var kind = (s28) => s28.enum?.length ? "enum" : s28.type ?? (s28.properties ? "object" : "string");
-var inputType = (s28) => ["enum", "boolean"].includes(kind(s28)) ? "select" : ["number", "integer"].includes(kind(s28)) ? "number" : "text";
-var parseFieldValue = (node2, input2) => {
-  if (input2.type === "checkbox")
-    return input2.checked;
-  if (input2.value === "")
-    return;
-  if (node2.dataset.kind === "number" || node2.dataset.kind === "integer") {
-    const value = Number(input2.value);
-    if (!Number.isFinite(value) || node2.dataset.kind === "integer" && !Number.isInteger(value))
-      throw new Error(`Invalid ${node2.dataset.kind} value`);
-    return value;
-  }
-  if (node2.dataset.kind === "enum" || node2.dataset.kind === "boolean") {
-    try {
-      return JSON.parse(input2.value);
-    } catch {
-      return input2.value;
-    }
-  }
-  return input2.value;
-};
-var lower = (elements, id, path, key, schema3, value, required2) => {
-  const nodeKind = kind(schema3);
-  if (nodeKind === "object") {
-    const source2 = value;
-    const children = Object.entries(schema3.properties ?? {}).map(([name, field]) => lower(elements, `${id}-${name}`, `${path}.${name}`, name, field, source2?.[name], schema3.required?.includes(name) ?? false));
-    elements[id] = { type: "Flex", props: { direction: "column", gap: "3", role: "array-row", fieldPath: path, arrayRow: true }, children };
-    return id;
-  }
-  elements[id] = { type: "TextField", props: { label: key, value: String(value ?? ""), rawValue: value, inputType: inputType(schema3), fieldKind: nodeKind, fieldPath: path, arrayRow: true, options: schema3.enum ?? (nodeKind === "boolean" ? [true, false] : undefined), required: required2, unset: value === undefined, checked: value === true } };
-  return id;
-};
-var rewriteArrayRowPaths = (elements, rowId, path) => {
-  const node2 = elements[rowId], old = String(node2?.props?.fieldPath ?? "");
-  const rewrite = (id) => {
-    const child = elements[id];
-    if (!child)
-      return;
-    const current2 = String(child.props?.fieldPath ?? "");
-    if (current2.startsWith(old))
-      child.props = { ...child.props ?? {}, fieldPath: `${path}${current2.slice(old.length)}` };
-    (child.children ?? []).forEach(rewrite);
-  };
-  rewrite(rowId);
-};
-var appendArrayRow = (elements, arrayId, index2, item) => {
-  const array2 = elements[arrayId], path = `${String(array2.props?.fieldPath ?? arrayId)}.${index2}`, rowId = `${arrayId}-row-${index2}-${Object.keys(elements).length}`;
-  lower(elements, rowId, path, String(index2 + 1), item, undefined, true);
-  return rowId;
-};
-
-// src/client/config-react-mount.tsx
-var jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
-var withNodeIds = (spec2) => ({ ...spec2, elements: Object.fromEntries(Object.entries(spec2.elements).map(([id, element]) => [id, { ...element, children: element.children ? [...element.children] : undefined, props: { ...element.props ?? {}, nodeId: id } }])) });
-var assign = (target, path, value) => {
-  const parts = path.split(".");
-  let current2 = target;
-  parts.forEach((part, index2) => {
-    if (index2 === parts.length - 1)
-      current2[part] = value;
-    else {
-      const next = parts[index2 + 1], child = current2[part];
-      if (child === undefined)
-        current2[part] = /^\d+$/.test(next) ? [] : {};
-      current2 = current2[part];
-    }
-  });
-};
-var hasPath = (target, path) => path.split(".").reduce((current2, part) => current2 && typeof current2 === "object" ? current2[part] : undefined, target) !== undefined;
-var removeTree = (elements, id) => {
-  (elements[id]?.children ?? []).forEach((child) => removeTree(elements, child));
-  delete elements[id];
-};
-var rowsOf = (spec2, id) => (spec2.elements[id]?.children ?? []).filter((child) => spec2.elements[child]?.props?.arrayRow === true);
-var syncRows = (spec2, id) => {
-  const array2 = spec2.elements[id];
-  rowsOf(spec2, id).forEach((row2, index3) => rewriteArrayRowPaths(spec2.elements, row2, `${String(array2?.props?.fieldPath ?? id)}.${index3}`));
-  let index2 = 0;
-  (array2?.children ?? []).forEach((child) => {
-    const props = spec2.elements[child]?.props;
-    if (props?.arrayAction === "remove")
-      props.arrayIndex = index2++;
-  });
-};
-var addArrayControls = (spec2) => Object.entries(spec2.elements).forEach(([id, element]) => {
-  if (element.props?.role !== "array")
-    return;
-  const rows = rowsOf(spec2, id), controls = rows.map((_, index2) => {
-    const control2 = `${id}-remove-${index2}`;
-    spec2.elements[control2] = { type: "Button", props: { value: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: index2 } };
-    return control2;
-  });
-  const add = `${id}-add`;
-  spec2.elements[add] = { type: "Button", props: { value: "Add item", arrayAction: "add", arrayNode: id } };
-  element.children = [...rows, ...controls, add];
-});
-var makeConfigMount = (ours) => (container, input2) => {
-  const render = (root2, spec3) => {
-    const registry2 = adaptRegistry(spec3, adaptComponent, ours);
-    root2.render(/* @__PURE__ */ jsx_dev_runtime7.jsxDEV(JSONUIProvider, {
-      registry: registry2,
-      children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(Renderer, {
-        spec: spec3,
-        registry: registry2,
-        fallback: Unresolved
-      }, undefined, false, undefined, this)
-    }, undefined, false, undefined, this));
-  };
-  if (!supportsConfigSpec(input2))
-    throw new Error("Config Spec does not support this structure");
-  const spec2 = withNodeIds(input2);
-  addArrayControls(spec2);
-  const root = import_client.createRoot(container);
-  container.replaceChildren();
-  render(root, spec2);
-  const onClick = (event) => {
-    const button = event.target.closest("[data-array-action]");
-    if (!button)
-      return;
-    const id = button.dataset.arrayNode, array2 = id && spec2.elements[id];
-    if (!id || !array2)
-      return;
-    const rows = rowsOf(spec2, id);
-    if (button.dataset.arrayAction === "remove") {
-      const row2 = rows[Number(button.dataset.arrayIndex)];
-      if (!row2)
-        return;
-      removeTree(spec2.elements, row2);
-      array2.children = (array2.children ?? []).filter((child) => child !== row2);
-      syncRows(spec2, id);
-    } else if (button.dataset.arrayAction === "add" && array2.props?.itemSchema) {
-      const row2 = appendArrayRow(spec2.elements, id, rows.length, array2.props.itemSchema);
-      const add = (array2.children ?? []).find((child) => spec2.elements[child]?.props?.arrayAction === "add");
-      array2.children = (array2.children ?? []).filter((child) => child !== add);
-      const remove = `${id}-remove-${rows.length}`;
-      spec2.elements[remove] = { type: "Button", props: { value: "Remove", arrayAction: "remove", arrayNode: id, arrayIndex: rows.length } };
-      array2.children.push(row2, remove);
-      if (add)
-        array2.children.push(add);
-    } else
-      return;
-    render(root, spec2);
-  };
-  container.addEventListener("click", onClick);
-  return { read: () => {
-    const value = {};
-    container.querySelectorAll('[data-ui="input"][data-path]').forEach((node2) => {
-      const input3 = node2.querySelector("input,select");
-      const path = node2.dataset.path;
-      if (input3 && path) {
-        const out = parseFieldValue(node2, input3);
-        if (out !== undefined)
-          assign(value, path, out);
-      }
-    });
-    Object.entries(spec2.elements).filter(([, element]) => element.props?.role === "array").forEach(([, element]) => {
-      const path = String(element.props?.fieldPath ?? ""), rows = (element.children ?? []).filter((id) => spec2.elements[id]?.props?.arrayRow === true);
-      if (rows.length && path) {
-        rows.forEach((row2, index2) => {
-          const rowPath = String(spec2.elements[row2]?.props?.fieldPath ?? `${path}.${index2}`);
-          if (!hasPath(value, rowPath))
-            assign(value, rowPath, {});
-        });
-      } else if (path && (element.children ?? []).every((id) => spec2.elements[id]?.props?.arrayAction !== undefined))
-        assign(value, path, []);
-    });
-    return value;
-  }, dispose: () => {
-    container.removeEventListener("click", onClick);
-    root.unmount();
-  } };
-};
-
-// src/client/adapt/config-fields.tsx
-var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
-var marker = (key, value) => value === undefined ? {} : { [key]: String(value) };
-var optionOf = (option) => typeof option === "object" && option !== null ? { value: String(option.value), label: String(option.label ?? option.value) } : { value: String(option), label: String(option) };
-var ConfigField = (ctx) => {
-  const props = propsOf(ctx), options2 = Array.isArray(props.options) ? props.options.map(optionOf) : [];
-  const value = props.value === undefined || props.value === null ? "" : String(props.value);
-  const marks = { ...marker("data-ui", "input"), ...marker("data-path", props.fieldPath), ...marker("data-kind", props.fieldKind), ...marker("data-node", props.nodeId) };
-  const control2 = props.inputType === "checkbox" ? /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("input", {
-    type: "checkbox",
-    defaultChecked: props.checked === true,
-    disabled: props.readOnly === true
-  }, undefined, false, undefined, this) : props.inputType === "select" ? /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("select", {
-    defaultValue: value,
-    disabled: props.readOnly === true,
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("option", {
-        value: "",
-        children: props.required === true ? "Select an option" : "Unset"
-      }, undefined, false, undefined, this),
-      options2.map((option) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("option", {
-        value: option.value,
-        children: option.label
-      }, option.value, false, undefined, this))
-    ]
-  }, undefined, true, undefined, this) : /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(exports_text_field.Root, {
-    type: props.inputType === "number" ? "number" : "text",
-    defaultValue: value,
-    readOnly: props.readOnly === true
-  }, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(p12, {
-    asChild: true,
-    direction: "column",
-    gap: "2",
-    children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("label", {
-      ...marks,
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(p, {
-          size: "2",
-          weight: "medium",
-          color: "gray",
-          children: [
-            String(props.label ?? ""),
-            props.required === true ? " *" : ""
-          ]
-        }, undefined, true, undefined, this),
-        control2
-      ]
-    }, undefined, true, undefined, this)
-  }, undefined, false, undefined, this);
-};
-var ConfigFlex = (ctx) => {
-  const { direction, gap, align, justify, role } = propsOf(ctx);
-  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(p12, {
-    direction: direction ?? "column",
-    gap: gap ?? "3",
-    align,
-    justify,
-    ...marker("data-ui-role", role),
-    children: ctx.children
-  }, undefined, false, undefined, this);
-};
-var ConfigText = (ctx) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(p, {
-  size: "4",
-  weight: "bold",
-  children: content(ctx)
-}, undefined, false, undefined, this);
-var ConfigButton = (ctx) => {
-  const props = propsOf(ctx), restart = props.strategy === "restart";
-  return /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(o15, {
-    type: "button",
-    variant: restart ? "soft" : "solid",
-    color: restart ? "gray" : undefined,
-    ...marker("data-strategy", props.strategy),
-    ...marker("data-array-action", props.arrayAction),
-    ...marker("data-array-node", props.arrayNode),
-    ...marker("data-array-index", props.arrayIndex),
-    children: content(ctx)
-  }, undefined, false, undefined, this);
-};
-var configComponents = { Flex: ConfigFlex, Text: ConfigText, TextField: ConfigField, Button: ConfigButton };
-
-// src/client/adapt/preview.tsx
-var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
-var resourceOf = (value) => typeof value === "object" && value !== null ? value : {};
-var Preview = (ctx) => {
-  const props = propsOf(ctx);
-  const value = resourceOf(props.value);
-  const height = props.height === undefined ? undefined : String(props.height);
-  if (typeof value.error === "string")
-    return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(exports_callout.Root, {
-      color: "red",
-      size: "1",
-      children: /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(exports_callout.Text, {
-        children: value.error
-      }, undefined, false, undefined, this)
-    }, undefined, false, undefined, this);
-  if (typeof value.body !== "string")
-    return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(o17, {
-      variant: "surface",
-      children: /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(p, {
-        size: "2",
-        color: "gray",
-        children: "Select a resource to preview."
-      }, undefined, false, undefined, this)
-    }, undefined, false, undefined, this);
-  if (value.kind === "html")
-    return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("iframe", {
-      title: value.uri ?? "Resource preview",
-      sandbox: "allow-scripts",
-      srcDoc: value.body,
-      style: { width: "100%", border: 0, height: height ?? "420px", background: "white" }
-    }, undefined, false, undefined, this);
-  if (value.kind === "image")
-    return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV("img", {
-      alt: value.uri ?? "Resource preview",
-      src: `data:${value.mimeType ?? "image/png"};base64,${value.body}`,
-      style: { maxWidth: "100%", height: "auto" }
-    }, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(o17, {
-    variant: "surface",
-    children: /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(p16, {
-      style: { whiteSpace: "pre-wrap" },
-      children: value.body
-    }, undefined, false, undefined, this)
-  }, undefined, false, undefined, this);
-};
-
-// src/client/config-api.ts
-function createConfigApi(fetcher) {
-  const record2 = (value) => !!value && typeof value === "object" && !Array.isArray(value);
-  const request = async (url2, init2) => {
-    const response = await fetcher(url2, { cache: "no-store", ...init2 });
-    const text = await response.text();
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      throw new Error(`HTTP ${response.status}: response is not valid JSON`);
-    }
-    if (!response.ok || !record2(data) || data.ok === false) {
-      const detail = record2(data) ? data.error ?? data.detail : undefined;
-      throw Object.assign(new Error(`HTTP ${response.status}: ${typeof detail === "string" ? detail : "config request failed"}`), { status: response.status, data: record2(data) ? data : {} });
-    }
-    return data;
-  };
-  const path = (id) => `/console/api/config/${encodeURIComponent(id)}`;
-  const get = async (id) => {
-    const data = await request(path(id));
-    if (data.kind !== "config" || data.id !== id || data.ok !== true || !record2(data.schema) || !record2(data.value) || !record2(data.sources) || typeof data.pendingRestart !== "boolean")
-      throw new Error("config response contract is incomplete");
-    return data;
-  };
-  const mutation = async (id, applyOnly, body) => {
-    const data = await request(path(id) + (applyOnly ? "/apply" : ""), {
-      method: "POST",
-      ...body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}
-    });
-    if (data.ok !== true || data.appId !== id || typeof data.pendingRestart !== "boolean")
-      throw new Error("save response contract is incomplete; reload to confirm state");
-    return data;
-  };
-  return {
-    get,
-    save: (id, override, strategy, unset = []) => {
-      if (strategy !== "apply" && strategy !== "restart")
-        throw new Error("strategy must be apply or restart");
-      return mutation(id, false, { override, strategy, unset });
-    },
-    apply: (id) => mutation(id, true)
-  };
-}
-
-// src/client/console-shell.tsx
-var React74 = __toESM(require_react(), 1);
-
-// src/client/console-status-bar.tsx
-var React68 = __toESM(require_react(), 1);
-var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
-var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
-var AppearanceButton = () => {
-  const [mode, cycle] = useThemeMode();
-  const label = `Appearance: ${themeLabel(mode)}`;
-  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(e43, {
-    content: label,
-    children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(o30, {
-      size: "1",
-      variant: "ghost",
-      color: "gray",
-      "aria-label": label,
-      onClick: cycle,
-      children: "◐"
-    }, undefined, false, undefined, this)
-  }, undefined, false, undefined, this);
-};
-var ConsoleStatusBar = ({ status, title, home }) => {
-  const [clock, setClock] = React68.useState(clockText);
-  React68.useEffect(() => {
-    const timer = setInterval(() => setClock(clockText()), 30000);
-    return () => clearInterval(timer);
-  }, []);
-  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p12, {
-    align: "center",
-    gap: "3",
-    px: "3",
-    py: "2",
-    flexShrink: "0",
-    children: [
-      home ? null : /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(e43, {
-        content: "Home",
-        children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(o30, {
-          size: "1",
-          variant: "ghost",
-          "aria-label": "Home",
-          onClick: () => navigate({ kind: "home" }),
-          children: "⌂"
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
-        size: "2",
-        weight: "bold",
-        truncate: true,
-        children: title
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
-        size: "1",
-        color: "gray",
-        truncate: true,
-        children: status
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p9, {
-        flexGrow: "1"
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
-        size: "1",
-        color: "gray",
-        style: { fontVariantNumeric: "tabular-nums" },
-        children: clock
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(AppearanceButton, {}, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-
-// src/client/console-app-icon.tsx
-var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
-var accent = (color) => color;
-var markOf = (entry) => ({ title: entry.title, icon: entry.icon, color: entry.color });
-var AppAvatar = ({ mark, size: size4 = "5" }) => /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(i2, {
-  size: size4,
-  radius: "large",
-  variant: "solid",
-  color: accent(mark.color),
-  fallback: mark.icon
-}, undefined, false, undefined, this);
-var AppTile = ({ mark, onSelect }) => /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(o17, {
-  asChild: true,
-  size: "2",
-  children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV("button", {
-    type: "button",
-    onClick: onSelect,
-    style: { border: 0, background: "transparent", cursor: "pointer", padding: 0 },
-    children: /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p12, {
-      direction: "column",
-      align: "center",
-      gap: "2",
-      py: "2",
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(AppAvatar, {
-          mark,
-          size: "6"
-        }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p, {
-          size: "2",
-          weight: "medium",
-          align: "center",
-          children: mark.title
-        }, undefined, false, undefined, this)
-      ]
-    }, undefined, true, undefined, this)
-  }, undefined, false, undefined, this)
-}, undefined, false, undefined, this);
-
 // src/client/console-plan.ts
 var PALETTE = ["jade", "iris", "grass", "sky", "cyan", "amber", "crimson", "violet", "orange", "teal"];
 var defaultColor = (id) => {
@@ -54964,16 +54955,13 @@ var planConsole = (catalogue) => {
       touch(app.interfaceId, app.title ?? app.interfaceId).hasTools = true;
   for (const app of catalogue.config ?? [])
     touch(app.appId, app.title ?? app.appId).hasConfig = true;
-  for (const entry of map2.values())
-    if (entry.icon === "")
-      entry.icon = entry.title.slice(0, 1).toUpperCase();
   return [...map2.values()];
 };
 var configApps = (plan) => plan.filter((entry) => entry.hasConfig);
 var appRoute = (id) => ({ kind: "app", id });
 
 // src/client/console-not-found.tsx
-var jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime6 = __toESM(require_jsx_dev_runtime(), 1);
 var sentence = (part, text, app, known) => {
   if (part === "place")
     return text === "" ? "This console has no place at this address." : `This console has no place called "${text}".`;
@@ -54984,14 +54972,14 @@ var sentence = (part, text, app, known) => {
   }
   return `"${app ?? ""}" has no screen called "${text}".`;
 };
-var shared = (a59, b6) => {
+var shared = (a72, b6) => {
   let count3 = 0;
-  while (count3 < a59.length && count3 < b6.length && a59[count3] === b6[count3])
+  while (count3 < a72.length && count3 < b6.length && a72[count3] === b6[count3])
     count3 += 1;
   return count3;
 };
 var nearest = (plan, text) => plan.filter((entry) => shared(entry.id, text) > 0).sort((left, right) => shared(right.id, text) - shared(left.id, text) || left.id.localeCompare(right.id)).slice(0, 3);
-var Link2 = ({ label, route }) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o15, {
+var Link2 = ({ label, route }) => /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(o15, {
   size: "1",
   variant: "soft",
   color: "gray",
@@ -55000,63 +54988,63 @@ var Link2 = ({ label, route }) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o15, 
 }, undefined, false, undefined, this);
 var NotFound = ({ address, part, text, app, plan, screens }) => {
   const entry = part === "app" ? plan.find((item) => item.id === text) : undefined;
-  return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(r8, {
             size: "6",
             children: "Not found"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: sentence(part, text, app, entry)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p, {
             size: "1",
             color: "gray",
             children: address
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      screens === undefined || screens.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      screens === undefined || screens.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p12, {
         gap: "2",
         wrap: "wrap",
-        children: screens.map((screen2) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+        children: screens.map((screen2) => /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Link2, {
           label: screen2.title,
           route: { kind: "app", id: app ?? "", screen: screen2.id }
         }, screen2.id, false, undefined, this))
       }, undefined, false, undefined, this),
-      entry === undefined ? null : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      entry === undefined ? null : /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p12, {
         gap: "2",
         wrap: "wrap",
         children: [
-          entry.hasTools ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+          entry.hasTools ? /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Link2, {
             label: `Operations of ${entry.title}`,
             route: { kind: "tools", app: entry.id }
           }, undefined, false, undefined, this) : null,
-          entry.hasConfig ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+          entry.hasConfig ? /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Link2, {
             label: `Configure ${entry.title}`,
             route: { kind: "settings", app: entry.id }
           }, undefined, false, undefined, this) : null
         ]
       }, undefined, true, undefined, this),
-      entry === undefined && part === "app" ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      entry === undefined && part === "app" ? /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p12, {
         gap: "2",
         wrap: "wrap",
-        children: nearest(plan, text).map((candidate) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+        children: nearest(plan, text).map((candidate) => /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Link2, {
           label: candidate.title,
           route: appRoute(candidate.id)
         }, candidate.id, false, undefined, this))
       }, undefined, false, undefined, this) : null,
-      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(p12, {
         gap: "2",
-        children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(Link2, {
+        children: /* @__PURE__ */ jsx_dev_runtime6.jsxDEV(Link2, {
           label: "Go to Home",
           route: { kind: "home" }
         }, undefined, false, undefined, this)
@@ -55066,11 +55054,30 @@ var NotFound = ({ address, part, text, app, plan, screens }) => {
 };
 
 // src/client/console-source.ts
-var React69 = __toESM(require_react(), 1);
+var React64 = __toESM(require_react(), 1);
+
+// src/client/console-read-now.ts
+var React63 = __toESM(require_react(), 1);
+var READ_NOW = "effect-console-read-now";
+var readNow = () => {
+  window.dispatchEvent(new CustomEvent(READ_NOW));
+};
+var useReadNow = () => {
+  const [count3, setCount] = React63.useState(0);
+  React63.useEffect(() => {
+    const onRead = () => setCount((value) => value + 1);
+    window.addEventListener(READ_NOW, onRead);
+    return () => window.removeEventListener(READ_NOW, onRead);
+  }, []);
+  return count3;
+};
+
+// src/client/console-source.ts
 var useSource = (key, load) => {
-  const [state, setState] = React69.useState({ status: "loading" });
-  const [attempt, setAttempt] = React69.useState(0);
-  React69.useEffect(() => {
+  const [state, setState] = React64.useState({ status: "loading" });
+  const [attempt, setAttempt] = React64.useState(0);
+  const read2 = useReadNow();
+  React64.useEffect(() => {
     let live = true;
     load(key).then((value) => {
       if (live)
@@ -55083,8 +55090,8 @@ var useSource = (key, load) => {
     return () => {
       live = false;
     };
-  }, [key, load, attempt]);
-  const retry = React69.useCallback(() => setAttempt((count3) => count3 + 1), []);
+  }, [key, load, attempt, read2]);
+  const retry = React64.useCallback(() => setAttempt((count3) => count3 + 1), []);
   return { state, retry };
 };
 var readAt = (at2) => new Date(at2).toLocaleTimeString();
@@ -55100,44 +55107,44 @@ var loadInbox = async () => {
 };
 
 // src/client/console-first-steps.tsx
-var jsx_dev_runtime13 = __toESM(require_jsx_dev_runtime(), 1);
-var FirstSteps = ({ status, quiet }) => /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+var jsx_dev_runtime7 = __toESM(require_jsx_dev_runtime(), 1);
+var FirstSteps = ({ status, quiet }) => /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(p12, {
   direction: "column",
   gap: "4",
   align: "start",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Root, {
+    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(exports_callout.Root, {
       color: "amber",
-      children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(exports_callout.Text, {
         children: [
           quiet ? "No apps discovered. " : "",
           "No app has registered a screen of its own."
         ]
       }, undefined, true, undefined, this)
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(p, {
       size: "2",
       color: "gray",
       children: status
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
+    /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(p12, {
       direction: "column",
       gap: "2",
       align: "start",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
+        /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(p, {
           size: "2",
           color: "gray",
           children: "1. Register an MCP server."
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
+        /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(o15, {
           size: "2",
           variant: "soft",
           color: "gray",
           onClick: () => navigate({ kind: "activity", filter: {} }),
           children: "2. Read the host record"
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
+        /* @__PURE__ */ jsx_dev_runtime7.jsxDEV(o15, {
           size: "2",
           variant: "soft",
           color: "gray",
@@ -55150,26 +55157,84 @@ var FirstSteps = ({ status, quiet }) => /* @__PURE__ */ jsx_dev_runtime13.jsxDEV
 }, undefined, true, undefined, this);
 
 // src/client/console-home-grid.tsx
-var React70 = __toESM(require_react(), 1);
-var jsx_dev_runtime14 = __toESM(require_jsx_dev_runtime(), 1);
-var matches = (entry, text) => {
-  const needle = text.trim().toLowerCase();
-  return needle === "" || entry.title.toLowerCase().includes(needle) || entry.id.toLowerCase().includes(needle);
+var React65 = __toESM(require_react(), 1);
+
+// src/client/console-app-icon.tsx
+var jsx_dev_runtime8 = __toESM(require_jsx_dev_runtime(), 1);
+var MARK = { "2": 16, "3": 18, "4": 20, "5": 24, "6": 28 };
+var accent = (color) => color;
+var Mark = ({ name, size: size4 }) => {
+  const Glyph = glyphs[name];
+  return Glyph === undefined ? null : /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Glyph, {
+    weight: "regular",
+    size: MARK[size4]
+  }, undefined, false, undefined, this);
 };
-var HomeGrid = ({ apps }) => {
-  const [filter, setFilter] = React70.useState("");
-  const shown = apps.filter((entry) => matches(entry, filter));
+var markOf = (entry) => ({ id: entry.id, title: entry.title, icon: entry.icon, color: entry.color });
+var placeMark = (place) => ({ id: place.id, title: place.title, icon: place.mark, color: place.color });
+var AppAvatar = ({ mark, size: size4 = "5" }) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(i2, {
+  size: size4,
+  radius: "large",
+  variant: "solid",
+  color: accent(mark.color),
+  fallback: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(Mark, {
+    name: mark.icon,
+    size: size4
+  }, undefined, false, undefined, this)
+}, undefined, false, undefined, this);
+var AppTile = ({ mark, onSelect }) => /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(o17, {
+  asChild: true,
+  size: "1",
+  children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV("button", {
+    type: "button",
+    onClick: onSelect,
+    style: { border: 0, background: "transparent", cursor: "pointer", padding: 0 },
+    children: /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(p12, {
+      direction: "column",
+      align: "center",
+      gap: "2",
+      py: "2",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(AppAvatar, {
+          mark,
+          size: "6"
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime8.jsxDEV(p, {
+          size: "2",
+          weight: "medium",
+          align: "center",
+          children: mark.title
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this)
+}, undefined, false, undefined, this);
+
+// src/client/console-home-grid.tsx
+var jsx_dev_runtime9 = __toESM(require_jsx_dev_runtime(), 1);
+var springboard = (apps, settings) => [
+  ...apps.map((entry) => ({ mark: markOf(entry), open: () => navigate(appRoute(entry.id)) })),
+  { mark: placeMark(settings), open: () => navigate(settings.route) }
+];
+var matches = (mark, text) => {
+  const needle = text.trim().toLowerCase();
+  return needle === "" || mark.title.toLowerCase().includes(needle) || mark.id.toLowerCase().includes(needle);
+};
+var HomeGrid = ({ apps, settings }) => {
+  const [filter, setFilter] = React65.useState("");
+  const links = springboard(apps, settings);
+  const shown = links.filter((link) => matches(link.mark, filter));
   const missed = filter.trim() !== "" && shown.length === 0;
-  return /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(p12, {
     direction: "column",
     gap: "3",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(p12, {
         align: "center",
         gap: "3",
         wrap: "wrap",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(exports_text_field.Root, {
+          /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(exports_text_field.Root, {
             size: "2",
             style: { maxWidth: 280 },
             value: filter,
@@ -55177,16 +55242,16 @@ var HomeGrid = ({ apps }) => {
             "aria-label": "Filter apps",
             onChange: (event) => setFilter(event.target.value)
           }, undefined, false, undefined, this),
-          missed ? /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
+          missed ? /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(p12, {
             align: "center",
             gap: "2",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(p, {
                 size: "2",
                 color: "amber",
                 children: `No app matches "${filter.trim()}".`
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(o15, {
+              /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(o15, {
                 size: "1",
                 variant: "soft",
                 color: "gray",
@@ -55197,21 +55262,347 @@ var HomeGrid = ({ apps }) => {
           }, undefined, true, undefined, this) : null
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(o20, {
-        columns: { initial: "2", sm: "4", md: "6" },
+      /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(o20, {
+        columns: { initial: "2", sm: "3", md: "4", lg: "6" },
         gap: "3",
-        children: (missed ? apps : shown).map((entry) => /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(AppTile, {
-          mark: markOf(entry),
-          onSelect: () => navigate(appRoute(entry.id))
-        }, entry.id, false, undefined, this))
+        children: (missed ? links : shown).map((link) => /* @__PURE__ */ jsx_dev_runtime9.jsxDEV(AppTile, {
+          mark: link.mark,
+          onSelect: link.open
+        }, link.mark.id, false, undefined, this))
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 };
 
+// src/client/config-surface.tsx
+var React66 = __toESM(require_react(), 1);
+
+// src/client/config-state.ts
+function describeConfigState(state) {
+  const pending = state.pendingRestart;
+  const tone2 = !state.ok ? "error" : pending ? "pending" : "active";
+  return {
+    tone: tone2,
+    label: !state.ok ? "Configuration error" : pending ? "Saved · restart or apply pending" : "Configuration is active",
+    detail: pending ? "Saved values are not fully active; apply them explicitly or restart the service." : "Reload reads the persisted server values.",
+    revision: state.revision === undefined ? "" : `revision ${state.revision}`,
+    canApply: pending
+  };
+}
+
+// src/client/config-edits.ts
+function createConfigEdits() {
+  let initialKeys = [];
+  return {
+    loaded: (value) => {
+      initialKeys = Object.keys(value);
+    },
+    patch: (override) => ({
+      override,
+      unset: initialKeys.filter((key) => !Object.hasOwn(override, key))
+    })
+  };
+}
+
+// src/client/config-session.ts
+var lockForm = (container, on) => {
+  container.querySelectorAll("input,select,textarea,button").forEach((control2) => {
+    control2.disabled = on;
+  });
+  container.setAttribute("aria-busy", String(on));
+};
+var makeConfigSession = (api2, id, hooks) => {
+  const edits = createConfigEdits();
+  let editor, busy = false, disposed = false;
+  const active = () => !disposed && hooks.current();
+  const note = (message, error61 = false) => {
+    if (active())
+      hooks.onNote(message, error61);
+  };
+  const reload = async (container, mountConfig) => {
+    const data = await api2.get(id);
+    if (!active())
+      return;
+    editor?.dispose();
+    editor = mountConfig(container, data.jsonSpec);
+    edits.loaded(data.value);
+    if (active())
+      hooks.onState(data);
+  };
+  const action2 = async (container, mountConfig, strategy, applySaved = false) => {
+    if (busy || !active())
+      return;
+    busy = true;
+    lockForm(container, true);
+    let saved = false;
+    try {
+      if (strategy !== undefined || applySaved) {
+        if (applySaved) {
+          const result = await api2.apply(id);
+          saved = true;
+          if (active())
+            hooks.onState(result);
+        } else {
+          const patch = edits.patch(editor.read());
+          const result = await api2.save(id, patch.override, strategy, patch.unset);
+          saved = true;
+          if (active())
+            hooks.onState(result);
+        }
+        if (!active())
+          return;
+      }
+      await reload(container, mountConfig);
+      note(saved ? "Operation succeeded; saved server values were reloaded." : "Saved values were reloaded.");
+    } catch (error61) {
+      const failure = error61;
+      if (active() && failure.data?.pendingRestart !== undefined)
+        hooks.onState({ appId: id, ...failure.data, ok: false });
+      note(`${saved ? "Operation succeeded, but reload failed: " : ""}${failure.message}`, true);
+    } finally {
+      busy = false;
+      if (container.isConnected)
+        lockForm(container, false);
+    }
+  };
+  return {
+    reload,
+    action: action2,
+    note,
+    read: () => editor?.read(),
+    dispose: () => {
+      disposed = true;
+      editor?.dispose();
+    }
+  };
+};
+
+// src/client/config-surface.tsx
+var jsx_dev_runtime10 = __toESM(require_jsx_dev_runtime(), 1);
+var TONE = { active: "green", pending: "amber", error: "red" };
+var EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart.";
+var STRATEGIES = ["apply", "restart"];
+var ConfigSurface = ({ id, api: api2, mountConfig }) => {
+  const [state, setState] = React66.useState(undefined);
+  const [note, setNote] = React66.useState({ message: "Loading configuration…", error: false });
+  const form = React66.useRef(null);
+  const session = React66.useRef(undefined);
+  React66.useEffect(() => {
+    const node2 = form.current;
+    if (node2 === null)
+      return;
+    let live = true;
+    const made = makeConfigSession(api2, id, { onState: setState, onNote: (message, error61) => setNote({ message, error: error61 }), current: () => live });
+    session.current = made;
+    const run = async () => {
+      try {
+        await made.reload(node2, mountConfig);
+        if (live)
+          setNote({ message: "", error: false });
+      } catch (error61) {
+        if (live)
+          setNote({ message: error61.message, error: true });
+      }
+    };
+    const onClick = (event) => {
+      const target = event.target;
+      const strategy = target.closest("[data-strategy]")?.dataset.strategy;
+      if (strategy !== undefined && STRATEGIES.includes(strategy)) {
+        event.preventDefault();
+        made.action(node2, mountConfig, strategy);
+      }
+    };
+    const onEdit = () => {
+      if (node2.getAttribute("aria-busy") !== "true")
+        setNote({ message: EDIT_HINT, error: false });
+    };
+    node2.addEventListener("click", onClick);
+    node2.addEventListener("input", onEdit);
+    node2.addEventListener("change", onEdit);
+    run();
+    return () => {
+      live = false;
+      session.current = undefined;
+      node2.removeEventListener("click", onClick);
+      node2.removeEventListener("input", onEdit);
+      node2.removeEventListener("change", onEdit);
+      made.dispose();
+    };
+  }, [id, api2, mountConfig]);
+  const apply = () => {
+    const node2 = form.current;
+    if (node2 !== null)
+      session.current?.action(node2, mountConfig, undefined, true);
+  };
+  const display2 = state === undefined ? undefined : describeConfigState(state);
+  return /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p12, {
+    direction: "column",
+    gap: "4",
+    children: [
+      display2 === undefined ? null : /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_callout.Root, {
+        color: TONE[display2.tone],
+        size: "1",
+        children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(exports_callout.Text, {
+          children: /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p12, {
+            align: "center",
+            gap: "3",
+            wrap: "wrap",
+            children: [
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+                size: "2",
+                weight: "medium",
+                children: display2.label
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+                size: "2",
+                children: display2.detail
+              }, undefined, false, undefined, this),
+              /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+                size: "1",
+                color: "gray",
+                children: display2.revision
+              }, undefined, false, undefined, this),
+              display2.canApply ? /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(o15, {
+                size: "1",
+                variant: "soft",
+                onClick: apply,
+                children: "Apply saved configuration"
+              }, undefined, false, undefined, this) : null
+            ]
+          }, undefined, true, undefined, this)
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      note.message === "" ? null : /* @__PURE__ */ jsx_dev_runtime10.jsxDEV(p, {
+        size: "2",
+        color: note.error ? "red" : "gray",
+        children: note.message
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime10.jsxDEV("div", {
+        ref: form
+      }, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-config-editor.tsx
+var jsx_dev_runtime11 = __toESM(require_jsx_dev_runtime(), 1);
+var ConfigEditor = ({ id, plan, surfaces }) => {
+  if (!plan.some((entry) => entry.id === id && entry.hasConfig)) {
+    return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p12, {
+      direction: "column",
+      gap: "3",
+      align: "start",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(p, {
+          size: "2",
+          color: "gray",
+          children: `"${id}" declares no configuration.`
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(o15, {
+          size: "1",
+          variant: "soft",
+          color: "gray",
+          onClick: () => navigate({ kind: "settings" }),
+          children: "All configuration"
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this);
+  }
+  return /* @__PURE__ */ jsx_dev_runtime11.jsxDEV(ConfigSurface, {
+    id,
+    api: surfaces.config.api,
+    mountConfig: surfaces.config.mountConfig
+  }, id, false, undefined, this);
+};
+
+// src/client/console-place-settings.tsx
+var jsx_dev_runtime12 = __toESM(require_jsx_dev_runtime(), 1);
+var SettingsPlace = ({ app, context }) => {
+  const apps = configApps(context.plan);
+  return /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+    direction: "column",
+    gap: "5",
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+        direction: "column",
+        gap: "1",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(r8, {
+            size: "6",
+            children: "Settings"
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+            size: "2",
+            color: "gray",
+            children: "One row per configurable app, with its editor beside it."
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this),
+      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(exports_callout.Root, {
+        color: "amber",
+        children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(exports_callout.Text, {
+          children: "No configurable apps."
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o20, {
+        columns: { initial: "1", md: "280px 1fr" },
+        gap: "4",
+        align: "start",
+        children: [
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p12, {
+              direction: "column",
+              gap: "1",
+              children: apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o15, {
+                size: "3",
+                variant: entry.id === app ? "soft" : "ghost",
+                color: entry.id === app ? "jade" : "gray",
+                style: { justifyContent: "flex-start" },
+                onClick: () => navigate({ kind: "settings", app: entry.id }),
+                children: [
+                  /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(AppAvatar, {
+                    mark: markOf(entry),
+                    size: "4"
+                  }, undefined, false, undefined, this),
+                  entry.title
+                ]
+              }, entry.id, true, undefined, this))
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(o17, {
+            size: "3",
+            children: app === undefined ? /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(p, {
+              size: "2",
+              color: "gray",
+              children: "Select an app to inspect and change its configuration."
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(ConfigEditor, {
+              id: app,
+              plan: context.plan,
+              surfaces: context.surfaces
+            }, undefined, false, undefined, this)
+          }, undefined, false, undefined, this)
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+var SETTINGS = {
+  id: "settings",
+  title: "Settings",
+  route: { kind: "settings" },
+  mark: "Gear",
+  color: "gray",
+  chrome: "page",
+  kinds: ["settings"],
+  claim: (address) => address.parts[0] === "settings" ? { kind: "settings", ...address.parts[1] === undefined ? {} : { app: address.parts[1] } } : undefined,
+  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime12.jsxDEV(SettingsPlace, {
+    app: route.kind === "settings" ? route.app : undefined,
+    context
+  }, undefined, false, undefined, this)
+};
+
 // src/client/console-home.tsx
-var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
-var Count = ({ label }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o15, {
+var jsx_dev_runtime13 = __toESM(require_jsx_dev_runtime(), 1);
+var Count = ({ label }) => /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
   size: "2",
   variant: "soft",
   color: "violet",
@@ -55225,23 +55616,23 @@ var NeedsYou = () => {
   const actions = snapshot?.actionItems.length ?? 0;
   if (waiting === 0 && actions === 0)
     return null;
-  return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Root, {
+  return /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Root, {
     color: "violet",
-    children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Text, {
-      children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+    children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
         align: "center",
         gap: "3",
         wrap: "wrap",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
             size: "2",
             weight: "medium",
             children: "Needs you now"
           }, undefined, false, undefined, this),
-          waiting === 0 ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Count, {
+          waiting === 0 ? null : /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Count, {
             label: waiting === 1 ? "1 decision waiting" : `${String(waiting)} decisions waiting`
           }, undefined, false, undefined, this),
-          actions === 0 ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Count, {
+          actions === 0 ? null : /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(Count, {
             label: actions === 1 ? "1 action item" : `${String(actions)} action items`
           }, undefined, false, undefined, this)
         ]
@@ -55252,38 +55643,38 @@ var NeedsYou = () => {
 var HomePlace = ({ context }) => {
   const apps = context.plan.filter((entry) => entry.hasView);
   const { failure, retry } = context.catalogue;
-  return /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(r8, {
             size: "6",
             children: "Apps"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "The springboard: every app this host has, and what is waiting on you."
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      failure === undefined ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Root, {
+      failure === undefined ? null : /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Root, {
         color: "red",
-        children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(exports_callout.Text, {
-          children: /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
+        children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(exports_callout.Text, {
+          children: /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p12, {
             align: "center",
             gap: "3",
             wrap: "wrap",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(p, {
                 size: "2",
                 children: failure
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(o15, {
+              /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(o15, {
                 size: "1",
                 variant: "soft",
                 color: "gray",
@@ -55294,12 +55685,13 @@ var HomePlace = ({ context }) => {
           }, undefined, true, undefined, this)
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(NeedsYou, {}, undefined, false, undefined, this),
-      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(FirstSteps, {
+      /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(NeedsYou, {}, undefined, false, undefined, this),
+      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(FirstSteps, {
         status: context.status,
         quiet: context.plan.length === 0
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(HomeGrid, {
-        apps
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(HomeGrid, {
+        apps,
+        settings: SETTINGS
       }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
@@ -55308,46 +55700,46 @@ var HOME = {
   id: "home",
   title: "Home",
   route: { kind: "home" },
-  mark: "⌂",
+  mark: "House",
   color: "jade",
   chrome: "page",
   kinds: ["home"],
   claim: (address) => address.parts.length === 0 ? { kind: "home" } : undefined,
-  view: (_route, context) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(HomePlace, {
+  view: (_route, context) => /* @__PURE__ */ jsx_dev_runtime13.jsxDEV(HomePlace, {
     context
   }, undefined, false, undefined, this)
 };
 
 // src/client/console-freshness.tsx
-var jsx_dev_runtime16 = __toESM(require_jsx_dev_runtime(), 1);
-var Tone = ({ tone: tone2, children }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
+var jsx_dev_runtime14 = __toESM(require_jsx_dev_runtime(), 1);
+var Tone = ({ tone: tone2, children }) => /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p, {
   size: "1",
   color: tone2 === "live" ? "gray" : tone2 === "stale" ? "amber" : "red",
   children
 }, undefined, false, undefined, this);
 var Freshness = ({ state, onRetry }) => {
   if (state.status === "loading")
-    return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Tone, {
+    return /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Tone, {
       tone: "live",
       children: "Reading…"
     }, undefined, false, undefined, this);
   if (state.status === "ready")
-    return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Tone, {
+    return /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Tone, {
       tone: "live",
       children: `live · read at ${readAt(state.at)}`
     }, undefined, false, undefined, this);
-  return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(p12, {
     align: "center",
     gap: "2",
     wrap: "wrap",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Tone, {
+      /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(Tone, {
         tone: state.value === undefined ? "failed" : "stale",
         children: `${state.value === undefined ? "failed" : `stale · last read at ${state.at === undefined ? "never" : readAt(state.at)}`} · ${state.error}`
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(e43, {
+      /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(e43, {
         content: "Read this source again now",
-        children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o15, {
+        children: /* @__PURE__ */ jsx_dev_runtime14.jsxDEV(o15, {
           size: "1",
           variant: "soft",
           color: "gray",
@@ -55360,18 +55752,18 @@ var Freshness = ({ state, onRetry }) => {
 };
 
 // src/client/console-decision-card.tsx
-var jsx_dev_runtime17 = __toESM(require_jsx_dev_runtime(), 1);
-var Row = ({ label, value }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
+var jsx_dev_runtime15 = __toESM(require_jsx_dev_runtime(), 1);
+var Row = ({ label, value }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
   gap: "3",
   align: "start",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
       size: "1",
       color: "gray",
       style: { minWidth: 104 },
       children: label
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
       size: "2",
       children: value
     }, undefined, false, undefined, this)
@@ -55391,46 +55783,46 @@ var stateText = (decision) => {
   }
   return decision.state;
 };
-var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
+var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
   direction: "column",
   gap: "3",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p12, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p12, {
       direction: "column",
       gap: "1",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(r8, {
+        /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(r8, {
           size: "3",
           children: decision.subject
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
+        /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(p, {
           size: "2",
           color: "gray",
           children: stateText(decision)
         }, undefined, false, undefined, this)
       ]
     }, undefined, true, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
       label: "Class",
       value: decision.class
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
       label: "Asked by",
       value: decision.raisedBy
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
       label: "Blocking",
       value: decision.raisedFor
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
       label: "Reasons",
       value: decision.reasons.join(" · ")
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+    /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
       label: "Deadline",
       value: deadlineText(decision.deadline)
     }, undefined, false, undefined, this),
-    decision.recovery === undefined ? null : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Row, {
+    decision.recovery === undefined ? null : /* @__PURE__ */ jsx_dev_runtime15.jsxDEV(Row, {
       label: "Recovery",
       value: decision.recovery
     }, undefined, false, undefined, this)
@@ -55438,24 +55830,24 @@ var DecisionCard = ({ decision }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p1
 }, undefined, true, undefined, this);
 
 // src/client/console-place-inbox.tsx
-var jsx_dev_runtime18 = __toESM(require_jsx_dev_runtime(), 1);
-var ItemRow = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o15, {
+var jsx_dev_runtime16 = __toESM(require_jsx_dev_runtime(), 1);
+var ItemRow = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o15, {
   size: "2",
   variant: active ? "soft" : "ghost",
   color: active ? "jade" : "gray",
   style: { justifyContent: "flex-start", height: "auto", paddingBlock: "var(--space-2)" },
   onClick: open2,
-  children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+  children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
     direction: "column",
     align: "start",
     gap: "1",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
         size: "2",
         weight: "medium",
         children: label
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
         size: "1",
         color: "gray",
         children: detail
@@ -55463,21 +55855,21 @@ var ItemRow = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_de
     ]
   }, undefined, true, undefined, this)
 }, undefined, false, undefined, this);
-var ActionRow = ({ item }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+var ActionRow = ({ item }) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
   direction: "column",
   gap: "1",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
       size: "2",
       weight: "medium",
       children: item.title
     }, undefined, false, undefined, this),
-    item.detail === undefined ? null : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+    item.detail === undefined ? null : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
       size: "1",
       color: "gray",
       children: item.detail
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+    /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
       size: "1",
       color: "gray",
       children: item.app === undefined ? item.action : `${item.app} · ${item.action}`
@@ -55490,34 +55882,34 @@ var InboxPlace = ({ decisionId }) => {
   const decisions = snapshot?.decisions ?? [];
   const actionItems = snapshot?.actionItems ?? [];
   const open2 = decisionId === undefined ? undefined : decisions.find((item) => item.id === decisionId);
-  return /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(r8, {
             size: "6",
             children: "Inbox"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(Freshness, {
+          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(Freshness, {
             state: inbox.state,
             onRetry: inbox.retry
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      snapshot === undefined ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+      snapshot === undefined ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: "This queue cannot be read, so it cannot say whether anything is waiting."
-      }, undefined, false, undefined, this) : decisions.length === 0 && actionItems.length === 0 ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_callout.Root, {
+      }, undefined, false, undefined, this) : decisions.length === 0 && actionItems.length === 0 ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(exports_callout.Root, {
         color: "gray",
-        children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_callout.Text, {
+        children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(exports_callout.Text, {
           children: [
             "Nothing is waiting on you. ",
-            /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o15, {
+            /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o15, {
               size: "1",
               variant: "ghost",
               onClick: () => navigate({ kind: "activity", filter: {} }),
@@ -55525,45 +55917,45 @@ var InboxPlace = ({ decisionId }) => {
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o20, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o20, {
         columns: { initial: "1", md: "320px 1fr" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
+          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p12, {
               direction: "column",
               gap: "1",
               children: [
-                decisions.map((item) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(ItemRow, {
+                decisions.map((item) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(ItemRow, {
                   label: item.subject,
                   detail: `${item.class} · ${item.raisedBy}`,
                   active: item.id === decisionId,
                   open: () => navigate({ kind: "inbox", decisionId: item.id })
                 }, item.id, false, undefined, this)),
-                actionItems.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+                actionItems.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
                   size: "1",
                   color: "gray",
                   mt: "3",
                   children: "Action items"
                 }, undefined, false, undefined, this),
-                actionItems.map((item) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(ActionRow, {
+                actionItems.map((item) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(ActionRow, {
                   item
                 }, item.id, false, undefined, this))
               ]
             }, undefined, true, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o17, {
+          /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(o17, {
             size: "3",
-            children: decisionId === undefined ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+            children: decisionId === undefined ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: "Select a decision to read what it is holding up."
-            }, undefined, false, undefined, this) : open2 === undefined ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
+            }, undefined, false, undefined, this) : open2 === undefined ? /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: `No decision "${decisionId}" is waiting.`
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(DecisionCard, {
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(DecisionCard, {
               decision: open2
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
@@ -55576,12 +55968,12 @@ var INBOX = {
   id: "inbox",
   title: "Inbox",
   route: { kind: "inbox" },
-  mark: "✉",
+  mark: "Tray",
   color: "violet",
   chrome: "page",
   kinds: ["inbox"],
   claim: (address) => address.parts[0] === "inbox" ? { kind: "inbox", ...address.parts[1] === undefined ? {} : { decisionId: address.parts[1] } } : undefined,
-  view: (route) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(InboxPlace, {
+  view: (route) => /* @__PURE__ */ jsx_dev_runtime16.jsxDEV(InboxPlace, {
     decisionId: route.kind === "inbox" ? route.decisionId : undefined
   }, undefined, false, undefined, this)
 };
@@ -55654,47 +56046,47 @@ var applyFilter = (observations, filter) => {
 var unhonouredKind = (filter) => all(filter.kind) ? undefined : filter.kind;
 
 // src/client/console-activity-stream.tsx
-var jsx_dev_runtime19 = __toESM(require_jsx_dev_runtime(), 1);
-var Time = ({ at: at2 }) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+var jsx_dev_runtime17 = __toESM(require_jsx_dev_runtime(), 1);
+var Time = ({ at: at2 }) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
   size: "1",
   color: "gray",
   style: { fontVariantNumeric: "tabular-nums" },
   children: new Date(at2).toLocaleTimeString()
 }, undefined, false, undefined, this);
-var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => observations.length === 0 ? /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => observations.length === 0 ? /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
   size: "2",
   color: "gray",
   children: empty
-}, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Root, {
+}, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Root, {
   variant: "ghost",
   size: "1",
   children: [
-    /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Header, {
-      children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Row, {
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Header, {
+      children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Row, {
         children: [
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "Actor"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "App"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "Outcome"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "1",
               color: "gray",
               children: "When"
@@ -55703,30 +56095,30 @@ var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => obse
         ]
       }, undefined, true, undefined, this)
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Body, {
-      children: observations.map((observation, index2) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Row, {
+    /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Body, {
+      children: observations.map((observation, index2) => /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Row, {
         children: [
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "2",
               children: actorOf(observation)
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "2",
               children: observation.target
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(p, {
               size: "1",
               color: observation.error === undefined ? "gray" : "red",
               children: observation.error ?? "ok"
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_table.Cell, {
-            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Time, {
+          /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(exports_table.Cell, {
+            children: /* @__PURE__ */ jsx_dev_runtime17.jsxDEV(Time, {
               at: observation.at
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
@@ -55737,34 +56129,34 @@ var ActivityStream = ({ observations, empty = "Nothing reported yet." }) => obse
 }, undefined, true, undefined, this);
 
 // src/client/console-activity-readouts.tsx
-var jsx_dev_runtime20 = __toESM(require_jsx_dev_runtime(), 1);
-var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o17, {
-  children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+var jsx_dev_runtime18 = __toESM(require_jsx_dev_runtime(), 1);
+var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o17, {
+  children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
     direction: "column",
     gap: "3",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(r8, {
         size: "3",
         children: title
       }, undefined, false, undefined, this),
-      rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+      rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: empty
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Root, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Root, {
         variant: "ghost",
         size: "1",
-        children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Body, {
-          children: rows.map(([label, detail], index2) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Row, {
+        children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Body, {
+          children: rows.map(([label, detail], index2) => /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Row, {
             children: [
-              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Cell, {
-                children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+                children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
                   size: "2",
                   children: label
                 }, undefined, false, undefined, this)
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_table.Cell, {
-                children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+              /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(exports_table.Cell, {
+                children: /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
                   size: "2",
                   color: "gray",
                   children: detail
@@ -55780,21 +56172,21 @@ var CardTable = ({ title, empty, rows }) => /* @__PURE__ */ jsx_dev_runtime20.js
 var ActivityReadOuts = ({ snapshot }) => {
   const enabled = snapshot.services.filter((service) => service.enabled).length;
   const offline = snapshot.services.filter((service) => !service.enabled).map((service) => service.id);
-  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p12, {
     direction: "column",
     gap: "4",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(o20, {
+      /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(o20, {
         columns: { initial: "1", md: "2" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(CardTable, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(CardTable, {
             title: `Services (${String(enabled)}/${String(snapshot.services.length)})`,
             empty: "Nothing reported yet.",
             rows: snapshot.services.map((service) => [service.id, service.enabled ? `enabled, priority ${String(service.priority)}` : "disabled"])
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(CardTable, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(CardTable, {
             title: "Apps",
             empty: "Nothing reported yet.",
             rows: [
@@ -55803,14 +56195,14 @@ var ActivityReadOuts = ({ snapshot }) => {
               ["host operations", String(snapshot.privilegedOperations)]
             ]
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(CardTable, {
+          /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(CardTable, {
             title: `Failures (${String(snapshot.failures.length)})`,
             empty: "No failures observed.",
             rows: snapshot.failures.map((item) => [item.target, item.error ?? ""])
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      offline.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
+      offline.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime18.jsxDEV(p, {
         size: "2",
         color: "amber",
         children: `${String(offline.length)} service(s) disabled: ${offline.join(", ")}`
@@ -55819,10 +56211,45 @@ var ActivityReadOuts = ({ snapshot }) => {
   }, undefined, true, undefined, this);
 };
 
+// src/client/console-route.ts
+var decodePart = (value) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+var parseAddress = (hash2) => {
+  const body = hash2.startsWith("#") ? hash2.slice(1) : hash2;
+  const cut = body.indexOf("?");
+  return {
+    raw: hash2,
+    parts: (cut === -1 ? body : body.slice(0, cut)).split("/").filter((part) => part !== "").map(decodePart),
+    query: new URLSearchParams(cut === -1 ? "" : body.slice(cut + 1))
+  };
+};
+var paramsOf = (query2) => Object.fromEntries(query2);
+var filtersOf = (query2) => {
+  const one = (name) => {
+    const value = query2.get(name);
+    return value === null || value === "" ? {} : { [name]: value };
+  };
+  return { ...one("actor"), ...one("app"), ...one("kind"), ...one("since") };
+};
+var unresolved = (address, part, text2, app) => ({ kind: "not-found", address: address.raw, part, text: text2, ...app === undefined ? {} : { app } });
+var parseDestination = (hash2) => {
+  const address = parseAddress(hash2);
+  if (address.parts[0] !== "app")
+    return {};
+  const screen2 = address.parts[2];
+  const params = paramsOf(address.query);
+  return { ...screen2 === undefined ? {} : { screen: screen2 }, ...Object.keys(params).length === 0 ? {} : { params } };
+};
+
 // src/client/console-place-activity.tsx
-var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime19 = __toESM(require_jsx_dev_runtime(), 1);
 var loadHostRecord = () => loadActivity(fetchActivity);
-var Option = ({ value, label }) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Item, {
+var Option = ({ value, label }) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Item, {
   value,
   children: label
 }, undefined, false, undefined, this);
@@ -55831,54 +56258,54 @@ var FilterBar = ({ filter, plan }) => {
     navigate({ kind: "activity", filter: next });
   };
   const carried = unhonouredKind(filter);
-  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
     direction: "column",
     gap: "2",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
         align: "center",
         gap: "3",
         wrap: "wrap",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "Actor"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Root, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Root, {
             value: filter.actor ?? "all",
             onValueChange: (value) => set2({ ...filter, actor: value }),
             children: [
-              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Trigger, {
+              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Trigger, {
                 "aria-label": "Actor"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Content, {
-                children: ACTORS.map((actor) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Option, {
+              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Content, {
+                children: ACTORS.map((actor) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
                   value: actor,
                   label: actor === "all" ? "All actors" : actor
                 }, actor, false, undefined, this))
               }, undefined, false, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "App"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Root, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Root, {
             value: filter.app ?? "all",
             onValueChange: (value) => set2({ ...filter, app: value }),
             children: [
-              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Trigger, {
+              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Trigger, {
                 "aria-label": "App"
               }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_select.Content, {
+              /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(exports_select.Content, {
                 children: [
-                  /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Option, {
+                  /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
                     value: "all",
                     label: "All apps"
                   }, undefined, false, undefined, this),
-                  plan.map((entry) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Option, {
+                  plan.map((entry) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Option, {
                     value: entry.id,
                     label: entry.title
                   }, entry.id, false, undefined, this))
@@ -55886,7 +56313,7 @@ var FilterBar = ({ filter, plan }) => {
               }, undefined, true, undefined, this)
             ]
           }, undefined, true, undefined, this),
-          filter.actor === undefined && filter.app === undefined && filter.kind === undefined && filter.since === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o15, {
+          filter.actor === undefined && filter.app === undefined && filter.kind === undefined && filter.since === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o15, {
             size: "1",
             variant: "soft",
             color: "gray",
@@ -55895,7 +56322,7 @@ var FilterBar = ({ filter, plan }) => {
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      carried === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+      carried === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
         size: "1",
         color: "amber",
         children: `The host record carries no kind yet, so "${carried}" is kept in the address and not applied.`
@@ -55907,44 +56334,44 @@ var ActivityPlace = ({ filter, context }) => {
   const record2 = useSource("activity", loadHostRecord);
   const snapshot = sourceValue(record2.state);
   const filtered = filter.actor !== undefined || filter.app !== undefined || filter.kind !== undefined || filter.since !== undefined;
-  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(r8, {
             size: "6",
             children: "Activity"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: "What the host reports about itself, drawn as it is reported."
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(Freshness, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(Freshness, {
             state: record2.state,
             onRetry: record2.retry
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(FilterBar, {
+      /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(FilterBar, {
         filter,
         plan: context.plan
       }, undefined, false, undefined, this),
-      snapshot === undefined ? null : /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
+      snapshot === undefined ? null : /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(p12, {
         direction: "column",
         gap: "4",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityStream, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(ActivityStream, {
               observations: applyFilter(snapshot.observations.slice(-20).reverse(), filter),
               empty: filtered ? "No row matches this filter." : "Nothing reported yet."
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityReadOuts, {
+          /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(ActivityReadOuts, {
             snapshot
           }, undefined, false, undefined, this)
         ]
@@ -55956,12 +56383,12 @@ var ACTIVITY = {
   id: "activity",
   title: "Activity",
   route: { kind: "activity", filter: {} },
-  mark: "◔",
+  mark: "ListBullets",
   color: "orange",
   chrome: "page",
   kinds: ["activity"],
   claim: (address) => address.parts[0] === "activity" ? { kind: "activity", filter: filtersOf(address.query) } : undefined,
-  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(ActivityPlace, {
+  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime19.jsxDEV(ActivityPlace, {
     filter: route.kind === "activity" ? route.filter : {},
     context
   }, undefined, false, undefined, this)
@@ -55978,21 +56405,21 @@ var loadTools = async () => {
 var operationOf = (app, operation) => operation === undefined ? undefined : app.tools.find((tool) => tool.name === operation);
 
 // src/client/inspector-detail.tsx
-var React71 = __toESM(require_react(), 1);
+var React67 = __toESM(require_react(), 1);
 
 // src/client/inspector-field.tsx
-var jsx_dev_runtime22 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime20 = __toESM(require_jsx_dev_runtime(), 1);
 var Control = ({ field, value, onChange }) => {
   if (field.type === "choice") {
-    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Root, {
       value,
       onValueChange: onChange,
       children: [
-        /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Trigger, {
+        /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Trigger, {
           placeholder: "Unset"
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Content, {
-          children: field.choices?.map((choice) => /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_select.Item, {
+        /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Content, {
+          children: field.choices?.map((choice) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_select.Item, {
             value: choice,
             children: choice
           }, choice, false, undefined, this))
@@ -56001,13 +56428,13 @@ var Control = ({ field, value, onChange }) => {
     }, undefined, true, undefined, this);
   }
   if (field.type === "boolean") {
-    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(i19, {
+    return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(i19, {
       checked: value === "true",
       onCheckedChange: (checked) => onChange(String(checked))
     }, undefined, false, undefined, this);
   }
   if (field.type === "json") {
-    return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r46, {
+    return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(r46, {
       resize: "vertical",
       rows: 4,
       value,
@@ -56015,20 +56442,20 @@ var Control = ({ field, value, onChange }) => {
       onChange: (event) => onChange(event.target.value)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(exports_text_field.Root, {
+  return /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(exports_text_field.Root, {
     type: field.type === "number" ? "number" : "text",
     value,
     placeholder: field.fallback,
     onChange: (event) => onChange(event.target.value)
   }, undefined, false, undefined, this);
 };
-var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
+var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p12, {
   asChild: true,
   direction: "column",
   gap: "2",
-  children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV("label", {
+  children: /* @__PURE__ */ jsx_dev_runtime20.jsxDEV("label", {
     children: [
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
         size: "2",
         weight: "medium",
         color: "gray",
@@ -56037,12 +56464,12 @@ var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_run
           field.required ? " *" : ""
         ]
       }, undefined, true, undefined, this),
-      field.description === undefined ? null : /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
+      field.description === undefined ? null : /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(p, {
         size: "1",
         color: "gray",
         children: field.description
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(Control, {
+      /* @__PURE__ */ jsx_dev_runtime20.jsxDEV(Control, {
         field,
         value,
         onChange
@@ -56052,7 +56479,7 @@ var InspectorField = ({ field, value, onChange }) => /* @__PURE__ */ jsx_dev_run
 }, undefined, false, undefined, this);
 
 // src/client/inspector-result.tsx
-var jsx_dev_runtime23 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime21 = __toESM(require_jsx_dev_runtime(), 1);
 var shown = (value) => {
   if (typeof value === "string")
     return value;
@@ -56068,23 +56495,23 @@ var InspectorResult = ({ result }) => {
   if (result === undefined)
     return null;
   if (!result.ok) {
-    return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Root, {
+    return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_callout.Root, {
       color: "red",
-      children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Text, {
+      children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(exports_callout.Text, {
         children: result.error ?? "The call failed."
       }, undefined, false, undefined, this)
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p12, {
     direction: "column",
     gap: "2",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(r8, {
         size: "3",
         children: "Result"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o17, {
-        children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
+      /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(o17, {
+        children: /* @__PURE__ */ jsx_dev_runtime21.jsxDEV(p, {
           as: "div",
           size: "1",
           style: { fontFamily: "var(--code-font-family)", whiteSpace: "pre-wrap", wordBreak: "break-word" },
@@ -56176,13 +56603,13 @@ var fieldsOf = (schema3) => {
 var initialValues = (fields) => Object.fromEntries(fields.filter((field) => field.required && field.type === "boolean").map((field) => [field.name, "false"]));
 
 // src/client/inspector-detail.tsx
-var jsx_dev_runtime24 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime22 = __toESM(require_jsx_dev_runtime(), 1);
 var message = (error61) => error61 instanceof Error ? error61.message : String(error61);
 var InspectorDetail = ({ id, tool }) => {
-  const fields = React71.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
-  const [values, setValues] = React71.useState(() => initialValues(fields));
-  const [result, setResult] = React71.useState(undefined);
-  const [running, setRunning] = React71.useState(false);
+  const fields = React67.useMemo(() => fieldsOf(tool.inputSchema), [tool.inputSchema]);
+  const [values, setValues] = React67.useState(() => initialValues(fields));
+  const [result, setResult] = React67.useState(undefined);
+  const [running, setRunning] = React67.useState(false);
   const run = () => {
     let args;
     try {
@@ -56194,23 +56621,23 @@ var InspectorDetail = ({ id, tool }) => {
     setRunning(true);
     callTool(id, tool.name, args).then(setResult, (error61) => setResult({ ok: false, error: error61.message })).finally(() => setRunning(false));
   };
-  return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
     direction: "column",
     gap: "4",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r8, {
             size: "4",
             children: tool.title ?? tool.name
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
+          /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
             size: "2",
             color: "gray",
             children: [
-              /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p16, {
+              /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p16, {
                 children: tool.name
               }, undefined, false, undefined, this),
               tool.description === undefined ? "" : `: ${tool.description}`
@@ -56218,34 +56645,34 @@ var InspectorDetail = ({ id, tool }) => {
           }, undefined, true, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o48, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(o48, {
         size: "4"
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(r8, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(r8, {
         size: "3",
         children: "Arguments"
       }, undefined, false, undefined, this),
-      fields.length === 0 ? /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
+      fields.length === 0 ? /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p, {
         size: "2",
         color: "gray",
         children: "This tool takes no arguments."
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
         direction: "column",
         gap: "4",
-        children: fields.map((field) => /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(InspectorField, {
+        children: fields.map((field) => /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(InspectorField, {
           field,
           value: values[field.name] ?? "",
           onChange: (next) => setValues((old) => ({ ...old, [field.name]: next }))
         }, field.name, false, undefined, this))
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p12, {
-        children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o15, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(p12, {
+        children: /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(o15, {
           loading: running,
           onClick: run,
           children: running ? "Running" : "Run"
         }, undefined, false, undefined, this)
       }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(InspectorResult, {
+      /* @__PURE__ */ jsx_dev_runtime22.jsxDEV(InspectorResult, {
         result
       }, undefined, false, undefined, this)
     ]
@@ -56253,8 +56680,8 @@ var InspectorDetail = ({ id, tool }) => {
 };
 
 // src/client/console-place-tools.tsx
-var jsx_dev_runtime25 = __toESM(require_jsx_dev_runtime(), 1);
-var Row2 = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+var jsx_dev_runtime23 = __toESM(require_jsx_dev_runtime(), 1);
+var Row2 = ({ label, detail, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o15, {
   size: detail === undefined ? "2" : "3",
   variant: active ? "soft" : "ghost",
   color: active ? "jade" : "gray",
@@ -56271,31 +56698,31 @@ var ToolsPlace = ({ app, operation }) => {
   const apps = catalogue?.apps ?? [];
   const scoped = apps.find((entry) => entry.id === app);
   const tool = scoped === undefined ? undefined : operationOf(scoped, operation);
-  return /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
+  return /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
     direction: "column",
     gap: "5",
     children: [
-      /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
+      /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
         direction: "column",
         gap: "1",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(r8, {
+          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(r8, {
             size: "6",
             children: "Tools"
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Freshness, {
+          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Freshness, {
             state: tools.state,
             onRetry: tools.retry
           }, undefined, false, undefined, this)
         ]
       }, undefined, true, undefined, this),
-      catalogue === undefined ? null : apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_callout.Root, {
+      catalogue === undefined ? null : apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Root, {
         color: "gray",
-        children: /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(exports_callout.Text, {
+        children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(exports_callout.Text, {
           children: [
             "No app has registered an operation.",
             " ",
-            /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+            /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o15, {
               size: "1",
               variant: "ghost",
               onClick: () => navigate({ kind: "activity", filter: {} }),
@@ -56303,23 +56730,23 @@ var ToolsPlace = ({ app, operation }) => {
             }, undefined, false, undefined, this)
           ]
         }, undefined, true, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o20, {
+      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o20, {
         columns: { initial: "1", md: "320px 1fr" },
         gap: "4",
         align: "start",
         children: [
-          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
+          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o17, {
+            children: /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p12, {
               direction: "column",
               gap: "1",
               children: [
-                apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Row2, {
+                apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Row2, {
                   label: entry.title,
                   detail: `${entry.tools.length}`,
                   active: entry.id === app,
                   open: () => navigate({ kind: "tools", app: entry.id })
                 }, entry.id, false, undefined, this)),
-                scoped === undefined ? null : scoped.tools.map((entry) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(Row2, {
+                scoped === undefined ? null : scoped.tools.map((entry) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(Row2, {
                   label: entry.title ?? entry.name,
                   active: entry.name === operation,
                   open: () => navigate({ kind: "tools", app: scoped.id, operation: entry.name })
@@ -56327,17 +56754,17 @@ var ToolsPlace = ({ app, operation }) => {
               ]
             }, undefined, true, undefined, this)
           }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o17, {
+          /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(o17, {
             size: "3",
-            children: scoped === undefined ? /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p, {
+            children: scoped === undefined ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: "Select a tool to see what it takes."
-            }, undefined, false, undefined, this) : tool === undefined ? /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p, {
+            }, undefined, false, undefined, this) : tool === undefined ? /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(p, {
               size: "2",
               color: "gray",
               children: `"${scoped.title}" has no operation called "${operation ?? ""}".`
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(InspectorDetail, {
+            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(InspectorDetail, {
               id: scoped.id,
               tool
             }, tool.name, false, undefined, this)
@@ -56351,7 +56778,7 @@ var TOOLS = {
   id: "tools",
   title: "Tools",
   route: { kind: "tools" },
-  mark: "⌘",
+  mark: "Wrench",
   color: "cyan",
   chrome: "page",
   kinds: ["tools"],
@@ -56366,340 +56793,11 @@ var TOOLS = {
     const operation = address.parts[2];
     return { kind: "tools", app, ...operation === undefined ? {} : { operation } };
   },
-  view: (route) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(ToolsPlace, {
+  view: (route) => /* @__PURE__ */ jsx_dev_runtime23.jsxDEV(ToolsPlace, {
     app: route.kind === "tools" ? route.app : undefined,
     operation: route.kind === "tools" ? route.operation : undefined
   }, undefined, false, undefined, this)
 };
-
-// src/client/config-surface.tsx
-var React72 = __toESM(require_react(), 1);
-
-// src/client/config-state.ts
-function describeConfigState(state) {
-  const pending = state.pendingRestart;
-  const tone2 = !state.ok ? "error" : pending ? "pending" : "active";
-  return {
-    tone: tone2,
-    label: !state.ok ? "Configuration error" : pending ? "Saved · restart or apply pending" : "Configuration is active",
-    detail: pending ? "Saved values are not fully active; apply them explicitly or restart the service." : "Reload reads the persisted server values.",
-    revision: state.revision === undefined ? "" : `revision ${state.revision}`,
-    canApply: pending
-  };
-}
-
-// src/client/config-edits.ts
-function createConfigEdits() {
-  let initialKeys = [];
-  return {
-    loaded: (value) => {
-      initialKeys = Object.keys(value);
-    },
-    patch: (override) => ({
-      override,
-      unset: initialKeys.filter((key) => !Object.hasOwn(override, key))
-    })
-  };
-}
-
-// src/client/config-session.ts
-var lockForm = (container, on) => {
-  container.querySelectorAll("input,select,textarea,button").forEach((control2) => {
-    control2.disabled = on;
-  });
-  container.setAttribute("aria-busy", String(on));
-};
-var makeConfigSession = (api2, id, hooks) => {
-  const edits = createConfigEdits();
-  let editor, busy = false, disposed = false;
-  const active = () => !disposed && hooks.current();
-  const note = (message2, error61 = false) => {
-    if (active())
-      hooks.onNote(message2, error61);
-  };
-  const reload = async (container, mountConfig) => {
-    const data = await api2.get(id);
-    if (!active())
-      return;
-    editor?.dispose();
-    editor = mountConfig(container, data.jsonSpec);
-    edits.loaded(data.value);
-    if (active())
-      hooks.onState(data);
-  };
-  const action2 = async (container, mountConfig, strategy, applySaved = false) => {
-    if (busy || !active())
-      return;
-    busy = true;
-    lockForm(container, true);
-    let saved = false;
-    try {
-      if (strategy !== undefined || applySaved) {
-        if (applySaved) {
-          const result = await api2.apply(id);
-          saved = true;
-          if (active())
-            hooks.onState(result);
-        } else {
-          const patch = edits.patch(editor.read());
-          const result = await api2.save(id, patch.override, strategy, patch.unset);
-          saved = true;
-          if (active())
-            hooks.onState(result);
-        }
-        if (!active())
-          return;
-      }
-      await reload(container, mountConfig);
-      note(saved ? "Operation succeeded; saved server values were reloaded." : "Saved values were reloaded.");
-    } catch (error61) {
-      const failure = error61;
-      if (active() && failure.data?.pendingRestart !== undefined)
-        hooks.onState({ appId: id, ...failure.data, ok: false });
-      note(`${saved ? "Operation succeeded, but reload failed: " : ""}${failure.message}`, true);
-    } finally {
-      busy = false;
-      if (container.isConnected)
-        lockForm(container, false);
-    }
-  };
-  return {
-    reload,
-    action: action2,
-    note,
-    read: () => editor?.read(),
-    dispose: () => {
-      disposed = true;
-      editor?.dispose();
-    }
-  };
-};
-
-// src/client/config-surface.tsx
-var jsx_dev_runtime26 = __toESM(require_jsx_dev_runtime(), 1);
-var TONE = { active: "green", pending: "amber", error: "red" };
-var EDIT_HINT = "Unsaved changes; choose Save and Apply or Save for Restart.";
-var STRATEGIES = ["apply", "restart"];
-var ConfigSurface = ({ id, api: api2, mountConfig }) => {
-  const [state, setState] = React72.useState(undefined);
-  const [note, setNote] = React72.useState({ message: "Loading configuration…", error: false });
-  const form = React72.useRef(null);
-  const session = React72.useRef(undefined);
-  React72.useEffect(() => {
-    const node2 = form.current;
-    if (node2 === null)
-      return;
-    let live = true;
-    const made = makeConfigSession(api2, id, { onState: setState, onNote: (message2, error61) => setNote({ message: message2, error: error61 }), current: () => live });
-    session.current = made;
-    const run = async () => {
-      try {
-        await made.reload(node2, mountConfig);
-        if (live)
-          setNote({ message: "", error: false });
-      } catch (error61) {
-        if (live)
-          setNote({ message: error61.message, error: true });
-      }
-    };
-    const onClick = (event) => {
-      const target = event.target;
-      const strategy = target.closest("[data-strategy]")?.dataset.strategy;
-      if (strategy !== undefined && STRATEGIES.includes(strategy)) {
-        event.preventDefault();
-        made.action(node2, mountConfig, strategy);
-      }
-    };
-    const onEdit = () => {
-      if (node2.getAttribute("aria-busy") !== "true")
-        setNote({ message: EDIT_HINT, error: false });
-    };
-    node2.addEventListener("click", onClick);
-    node2.addEventListener("input", onEdit);
-    node2.addEventListener("change", onEdit);
-    run();
-    return () => {
-      live = false;
-      session.current = undefined;
-      node2.removeEventListener("click", onClick);
-      node2.removeEventListener("input", onEdit);
-      node2.removeEventListener("change", onEdit);
-      made.dispose();
-    };
-  }, [id, api2, mountConfig]);
-  const apply = () => {
-    const node2 = form.current;
-    if (node2 !== null)
-      session.current?.action(node2, mountConfig, undefined, true);
-  };
-  const display2 = state === undefined ? undefined : describeConfigState(state);
-  return /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p12, {
-    direction: "column",
-    gap: "4",
-    children: [
-      display2 === undefined ? null : /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(exports_callout.Root, {
-        color: TONE[display2.tone],
-        size: "1",
-        children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(exports_callout.Text, {
-          children: /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p12, {
-            align: "center",
-            gap: "3",
-            wrap: "wrap",
-            children: [
-              /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
-                size: "2",
-                weight: "medium",
-                children: display2.label
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
-                size: "2",
-                children: display2.detail
-              }, undefined, false, undefined, this),
-              /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
-                size: "1",
-                color: "gray",
-                children: display2.revision
-              }, undefined, false, undefined, this),
-              display2.canApply ? /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(o15, {
-                size: "1",
-                variant: "soft",
-                onClick: apply,
-                children: "Apply saved configuration"
-              }, undefined, false, undefined, this) : null
-            ]
-          }, undefined, true, undefined, this)
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this),
-      note.message === "" ? null : /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(p, {
-        size: "2",
-        color: note.error ? "red" : "gray",
-        children: note.message
-      }, undefined, false, undefined, this),
-      /* @__PURE__ */ jsx_dev_runtime26.jsxDEV("div", {
-        ref: form
-      }, undefined, false, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-
-// src/client/console-config-editor.tsx
-var jsx_dev_runtime27 = __toESM(require_jsx_dev_runtime(), 1);
-var ConfigEditor = ({ id, plan, surfaces }) => {
-  if (!plan.some((entry) => entry.id === id && entry.hasConfig)) {
-    return /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(p12, {
-      direction: "column",
-      gap: "3",
-      align: "start",
-      children: [
-        /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(p, {
-          size: "2",
-          color: "gray",
-          children: `"${id}" declares no configuration.`
-        }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(o15, {
-          size: "1",
-          variant: "soft",
-          color: "gray",
-          onClick: () => navigate({ kind: "settings" }),
-          children: "All configuration"
-        }, undefined, false, undefined, this)
-      ]
-    }, undefined, true, undefined, this);
-  }
-  return /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(ConfigSurface, {
-    id,
-    api: surfaces.config.api,
-    mountConfig: surfaces.config.mountConfig
-  }, id, false, undefined, this);
-};
-
-// src/client/console-place-settings.tsx
-var jsx_dev_runtime28 = __toESM(require_jsx_dev_runtime(), 1);
-var SettingsPlace = ({ app, context }) => {
-  const apps = configApps(context.plan);
-  return /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p12, {
-    direction: "column",
-    gap: "5",
-    children: [
-      /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p12, {
-        direction: "column",
-        gap: "1",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(r8, {
-            size: "6",
-            children: "Settings"
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p, {
-            size: "2",
-            color: "gray",
-            children: "One row per configurable app, with its editor beside it."
-          }, undefined, false, undefined, this)
-        ]
-      }, undefined, true, undefined, this),
-      apps.length === 0 ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(exports_callout.Root, {
-        color: "amber",
-        children: /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(exports_callout.Text, {
-          children: "No configurable apps."
-        }, undefined, false, undefined, this)
-      }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o20, {
-        columns: { initial: "1", md: "280px 1fr" },
-        gap: "4",
-        align: "start",
-        children: [
-          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o17, {
-            children: /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p12, {
-              direction: "column",
-              gap: "1",
-              children: apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o15, {
-                size: "3",
-                variant: entry.id === app ? "soft" : "ghost",
-                color: entry.id === app ? "jade" : "gray",
-                style: { justifyContent: "flex-start" },
-                onClick: () => navigate({ kind: "settings", app: entry.id }),
-                children: [
-                  /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(AppAvatar, {
-                    mark: markOf(entry),
-                    size: "4"
-                  }, undefined, false, undefined, this),
-                  entry.title
-                ]
-              }, entry.id, true, undefined, this))
-            }, undefined, false, undefined, this)
-          }, undefined, false, undefined, this),
-          /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(o17, {
-            size: "3",
-            children: app === undefined ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(p, {
-              size: "2",
-              color: "gray",
-              children: "Select an app to inspect and change its configuration."
-            }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ConfigEditor, {
-              id: app,
-              plan: context.plan,
-              surfaces: context.surfaces
-            }, undefined, false, undefined, this)
-          }, undefined, false, undefined, this)
-        ]
-      }, undefined, true, undefined, this)
-    ]
-  }, undefined, true, undefined, this);
-};
-var SETTINGS = {
-  id: "settings",
-  title: "Settings",
-  route: { kind: "settings" },
-  mark: "⚙",
-  color: "gray",
-  chrome: "page",
-  kinds: ["settings"],
-  claim: (address) => address.parts[0] === "settings" ? { kind: "settings", ...address.parts[1] === undefined ? {} : { app: address.parts[1] } } : undefined,
-  view: (route, context) => /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(SettingsPlace, {
-    app: route.kind === "settings" ? route.app : undefined,
-    context
-  }, undefined, false, undefined, this)
-};
-
-// src/client/console-app-surface.tsx
-var React73 = __toESM(require_react(), 1);
 
 // src/client/console-view-read.ts
 var loadView = async (id) => {
@@ -56719,29 +56817,397 @@ var loadView = async (id) => {
 };
 var isView = (read2) => !("kind" in read2);
 
-// src/client/console-app-surface.tsx
-var jsx_dev_runtime29 = __toESM(require_jsx_dev_runtime(), 1);
-var Mounted = ({ payload, appId }) => {
-  const ref = React73.useRef(null);
-  React73.useEffect(() => {
-    const node2 = ref.current;
-    const api2 = window.effectUi;
-    if (node2 === null || api2 === undefined)
-      return;
-    node2.replaceChildren();
-    return api2.mount(node2, {
-      appId,
-      screens: payload.screens,
-      menu: payload.menu,
-      ...payload.actions === undefined ? {} : { actions: payload.actions },
-      ...payload.sources === undefined ? {} : { sources: payload.sources }
-    });
-  }, [payload, appId]);
-  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV("div", {
-    className: "view-fill",
-    ref
+// src/client/effect-ui-runtime.tsx
+var React72 = __toESM(require_react(), 1);
+
+// src/client/effect-ui-source-runtime.ts
+var rowsIn = (body) => {
+  if (Array.isArray(body))
+    return body.length;
+  if (typeof body !== "object" || body === null)
+    return 0;
+  return Object.values(body).reduce((total, value) => total + (Array.isArray(value) ? value.length : 0), 0);
+};
+var readError = (body, status) => {
+  if (typeof body === "object" && body !== null) {
+    const detail = body.detail ?? body.error;
+    if (typeof detail === "string")
+      return detail;
+  }
+  return `HTTP ${status}`;
+};
+var loadSource = async (source2, store, fetcher) => {
+  const statusPath = sourceStatusPath(source2.id), previous = readStatus(store.get(statusPath));
+  if (!previous.answered)
+    store.set(statusPath, { ...previous, state: "loading" });
+  try {
+    const response = await fetcher(source2.url, { cache: "no-store", headers: { accept: "application/json" } });
+    const body = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+    if (!response.ok)
+      throw new Error(readError(body, response.status));
+    store.set(source2.state, body);
+    const count3 = rowsIn(body);
+    store.set(statusPath, { state: sourceStateOf(true, null, count3), answered: true, error: null, count: count3, at: Date.now() });
+  } catch (error61) {
+    const message2 = error61 instanceof Error ? error61.message : String(error61);
+    store.set(statusPath, { ...previous, state: "failed", error: message2, at: Date.now() });
+  }
+};
+
+// src/client/effect-ui-action-call.ts
+var headers = (method) => method === "GET" ? { accept: "application/json" } : { accept: "application/json", "content-type": "application/json" };
+var template = () => /\{([^}]+)\}/g;
+var pathKeys = (url2) => [...url2.matchAll(template())].map((match) => match[1]);
+var addressed = (url2, params) => pathKeys(url2).every((key) => params[key] !== undefined && params[key] !== null && params[key] !== "");
+var payloadOf = (params, url2) => {
+  const consumed = pathKeys(url2);
+  return Object.fromEntries(Object.entries(params).filter(([key]) => !consumed.includes(key)));
+};
+var init = (url2, method, params) => ({ method, headers: headers(method), ...method === "GET" ? {} : { body: JSON.stringify(payloadOf(params, url2)) } });
+var requestUrl = (url2, method, params, baseUrl) => {
+  const templated = url2.replace(template(), (_, key) => encodeURIComponent(String(params[key] ?? "")));
+  const query2 = payloadOf(params, url2);
+  if (method !== "GET" || Object.keys(query2).length === 0)
+    return templated;
+  const target = new URL(templated, baseUrl);
+  for (const [key, value] of Object.entries(query2))
+    target.searchParams.set(key, String(value ?? ""));
+  return target.pathname + target.search;
+};
+var bodyOf = (body, status) => typeof body === "object" && body !== null ? body : { ok: status >= 200 && status < 300, value: body };
+var refusal = (parsed, status) => {
+  const body = parsed;
+  return { ok: false, error: body?.detail ?? body?.error ?? `HTTP ${status}` };
+};
+var isStateRef = (value) => typeof value === "object" && value !== null && ("state" in value) && typeof value.state === "string";
+var declared = (params, store) => Object.fromEntries(Object.entries(params ?? {}).map(([key, value]) => [key, isStateRef(value) ? store.get(value.state) : value]));
+
+// src/client/effect-ui-action-runtime.ts
+var makeActionHandlers = (actions = [], sources = [], store, open2 = () => {}, fetcher = window.fetch.bind(window), baseUrl = window.location.origin) => {
+  const declaredOf = (action2, runtimeParams) => ({ ...declared(action2.params, store), ...runtimeParams });
+  const call = async (action2, params) => {
+    const url2 = action2.url;
+    if (url2 === undefined || !addressed(url2, params))
+      return false;
+    const method = action2.method ?? "POST";
+    try {
+      const response = await fetcher(requestUrl(url2, method, params, baseUrl), init(url2, method, params));
+      const parsed = bodyOf(await response.json().catch(() => {
+        return;
+      }), response.status);
+      if (action2.result !== undefined)
+        store.set(action2.result, response.ok ? parsed : refusal(parsed, response.status));
+      return response.ok;
+    } catch (error61) {
+      if (action2.result !== undefined)
+        store.set(action2.result, { ok: false, error: error61 instanceof Error ? error61.message : String(error61) });
+      return false;
+    }
+  };
+  return Object.fromEntries(actions.map((action2) => [action2.name, async (runtimeParams = {}) => {
+    const params = declaredOf(action2, runtimeParams);
+    const ran = action2.url !== undefined && await call(action2, params);
+    if (ran)
+      for (const path of action2.clear ?? [])
+        store.set(path, "");
+    if (ran || action2.url === undefined)
+      await Promise.all((action2.refresh ?? []).map(async (id) => {
+        const source2 = sources.find((candidate) => candidate.id === id);
+        if (source2 !== undefined)
+          return loadSource(source2, store, fetcher);
+        const read2 = actions.find((candidate) => candidate.name === id);
+        if (read2 !== undefined)
+          await call(read2, declaredOf(read2, {}));
+      }));
+    if (action2.opens !== undefined)
+      open2(action2.opens, params);
+  }]));
+};
+
+// src/client/adapt/preview.tsx
+var jsx_dev_runtime24 = __toESM(require_jsx_dev_runtime(), 1);
+var resourceOf = (value) => typeof value === "object" && value !== null ? value : {};
+var Preview = (ctx) => {
+  const props = propsOf(ctx);
+  const value = resourceOf(props.value);
+  const height = props.height === undefined ? undefined : String(props.height);
+  if (typeof value.error === "string")
+    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(exports_callout.Root, {
+      color: "red",
+      size: "1",
+      children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(exports_callout.Text, {
+        children: value.error
+      }, undefined, false, undefined, this)
+    }, undefined, false, undefined, this);
+  if (typeof value.body !== "string")
+    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o17, {
+      variant: "surface",
+      children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p, {
+        size: "2",
+        color: "gray",
+        children: "Select a resource to preview."
+      }, undefined, false, undefined, this)
+    }, undefined, false, undefined, this);
+  if (value.kind === "html")
+    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV("iframe", {
+      title: value.uri ?? "Resource preview",
+      sandbox: "allow-scripts",
+      srcDoc: value.body,
+      style: { width: "100%", border: 0, height: height ?? "420px", background: "white" }
+    }, undefined, false, undefined, this);
+  if (value.kind === "image")
+    return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV("img", {
+      alt: value.uri ?? "Resource preview",
+      src: `data:${value.mimeType ?? "image/png"};base64,${value.body}`,
+      style: { maxWidth: "100%", height: "auto" }
+    }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(o17, {
+    variant: "surface",
+    children: /* @__PURE__ */ jsx_dev_runtime24.jsxDEV(p16, {
+      style: { whiteSpace: "pre-wrap" },
+      children: value.body
+    }, undefined, false, undefined, this)
   }, undefined, false, undefined, this);
 };
+
+// src/client/effect-ui-own-components.ts
+var ownComponents = { Preview };
+
+// src/client/effect-ui-screen-menu.tsx
+var jsx_dev_runtime25 = __toESM(require_jsx_dev_runtime(), 1);
+var ScreenMenu = ({ appId, title, screens }) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(p12, {
+  wrap: "wrap",
+  gap: "2",
+  pt: "3",
+  role: "group",
+  "aria-label": `Screens of ${title}`,
+  children: screens.filter((screen2) => screen2.id !== ROOT_SCREEN).map((screen2) => /* @__PURE__ */ jsx_dev_runtime25.jsxDEV(o15, {
+    variant: "soft",
+    size: "1",
+    onClick: () => openScreen(appId, { screen: screen2.id }),
+    children: screen2.title
+  }, screen2.id, false, undefined, this))
+}, undefined, false, undefined, this);
+
+// src/client/console-glyph.tsx
+var jsx_dev_runtime26 = __toESM(require_jsx_dev_runtime(), 1);
+var Glyph = ({ name }) => {
+  const Icon = glyphs[name];
+  return Icon === undefined ? null : /* @__PURE__ */ jsx_dev_runtime26.jsxDEV(Icon, {
+    weight: "regular",
+    size: 16
+  }, undefined, false, undefined, this);
+};
+
+// src/client/effect-ui-screen-panes.tsx
+var jsx_dev_runtime27 = __toESM(require_jsx_dev_runtime(), 1);
+var ScreenBar = ({ label, title, onBack }) => /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+  className: "screen-bar",
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(o15, {
+      variant: "ghost",
+      size: "1",
+      onClick: onBack,
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Glyph, {
+          name: "CaretLeft"
+        }, undefined, false, undefined, this),
+        `Back to ${label}`
+      ]
+    }, undefined, true, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(r8, {
+      as: "h1",
+      size: "2",
+      weight: "medium",
+      tabIndex: -1,
+      "data-route-heading": true,
+      className: "screen-bar-title",
+      children: title
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var Pane = ({ screen: screen2, registry: registry2 }) => /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+  className: "screen-body",
+  children: /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Renderer, {
+    spec: screen2.spec,
+    registry: registry2,
+    fallback: Unresolved
+  }, undefined, false, undefined, this)
+}, undefined, false, undefined, this);
+var ScreenPanes = ({ chain, registry: registry2, menu, onBack, returnLabel }) => {
+  const current2 = chain[chain.length - 1];
+  const parent = chain.length < 2 ? undefined : chain[chain.length - 2];
+  return /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+    className: "screen-panes",
+    "data-split": parent === undefined ? "off" : "on",
+    children: [
+      parent === undefined ? null : /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+        className: "screen-parent",
+        children: /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Pane, {
+          screen: parent,
+          registry: registry2
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime27.jsxDEV("div", {
+        className: "screen-pane",
+        children: [
+          returnLabel === undefined ? null : /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(ScreenBar, {
+            label: returnLabel,
+            title: current2.title,
+            onBack
+          }, undefined, false, undefined, this),
+          /* @__PURE__ */ jsx_dev_runtime27.jsxDEV(Pane, {
+            screen: current2,
+            registry: registry2
+          }, undefined, false, undefined, this),
+          menu
+        ]
+      }, undefined, true, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/effect-ui-screen-nav.ts
+var React69 = __toESM(require_react(), 1);
+
+// src/client/console-route-hooks.ts
+var React68 = __toESM(require_react(), 1);
+var useAddress = () => {
+  const [hash2, setHash] = React68.useState(() => window.location.hash);
+  React68.useEffect(() => {
+    const onHash = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  return hash2;
+};
+var useDestination = () => {
+  const hash2 = useAddress();
+  return React68.useMemo(() => parseDestination(hash2), [hash2]);
+};
+
+// src/client/effect-ui-screen-nav.ts
+var chainFor = (screens, screen2) => {
+  const walked = chainOf(screens, screen2 ?? ROOT_SCREEN);
+  return walked.length === 0 ? chainOf(screens, ROOT_SCREEN) : walked;
+};
+var useScreenView = (screens) => {
+  const destination = useDestination();
+  return React69.useMemo(() => {
+    const chain = chainFor(screens, destination.screen);
+    return { chain, current: chain[chain.length - 1], params: destination.params ?? {} };
+  }, [screens, destination]);
+};
+var useNavState = (store, id, params) => {
+  const key = `${id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
+  React69.useLayoutEffect(() => {
+    store.set(NAV_ROOT, { ...params });
+  }, [store, key, params]);
+};
+
+// src/client/effect-ui-screen-entry.ts
+var React70 = __toESM(require_react(), 1);
+var useScreenEnter = (handlers, screen2, params) => {
+  const key = `${screen2?.id ?? ""}?${new URLSearchParams(Object.entries(params)).toString()}`;
+  const name = screen2?.onEnter;
+  React70.useEffect(() => {
+    if (name === undefined)
+      return;
+    handlers[name]?.();
+  }, [handlers, name, key]);
+};
+
+// src/client/effect-ui-view-state.tsx
+var React71 = __toESM(require_react(), 1);
+var seeded = (state, sources) => ({
+  ...state,
+  [NAV_ROOT]: {},
+  _sources: Object.fromEntries(sources.map((source2) => [source2.id, initialStatus()]))
+});
+var useViewStore = (state, sources) => {
+  const ref = React71.useRef(null);
+  if (ref.current === null)
+    ref.current = createStateStore(seeded(state, sources));
+  return ref.current;
+};
+var SourceLoader = ({ sources, store, fetcher }) => {
+  const read2 = useReadNow();
+  React71.useEffect(() => {
+    const timers = [];
+    for (const source2 of sources) {
+      const load = () => void loadSource(source2, store, fetcher);
+      load();
+      if (source2.refreshMs !== undefined)
+        timers.push(window.setInterval(load, source2.refreshMs));
+    }
+    return () => timers.forEach((timer) => window.clearInterval(timer));
+  }, [sources, store, fetcher, read2]);
+  return null;
+};
+
+// src/client/effect-ui-runtime.tsx
+var jsx_dev_runtime28 = __toESM(require_jsx_dev_runtime(), 1);
+var asParams = (values) => Object.fromEntries(Object.entries(values).map(([key, value]) => [key, String(value ?? "")]));
+var EffectUiRuntime = ({ runtime }) => {
+  const screens = React72.useMemo(() => runtime?.screens ?? [], [runtime]);
+  const sources = React72.useMemo(() => runtime?.sources ?? [], [runtime]);
+  const appId = runtime?.appId ?? "";
+  const registry2 = React72.useMemo(() => Object.assign({}, ...screens.map((screen2) => adaptRegistry(screen2.spec, adaptComponent, ownComponents))), [screens]);
+  const store = useViewStore(screens[0]?.spec.state, sources);
+  const fetcher = React72.useMemo(() => window.fetch.bind(window), []);
+  const { chain, current: current2, params } = useScreenView(screens);
+  useNavState(store, current2?.id, params);
+  const open2 = React72.useCallback((screen2, values) => openScreen(appId, { screen: screen2, params: asParams(values) }), [appId]);
+  const back = React72.useCallback(() => {
+    if (canGoBack()) {
+      window.history.back();
+      return;
+    }
+    const parent = chain[chain.length - 2]?.id;
+    navigate({ kind: "app", id: appId, ...parent === undefined || parent === ROOT_SCREEN ? {} : { screen: parent } });
+  }, [appId, chain]);
+  const returnTo = React72.useMemo(() => {
+    const parent = chain[chain.length - 2];
+    if (!canGoBack())
+      return parent;
+    const screen2 = parseDestination(backTarget() ?? "").screen ?? ROOT_SCREEN;
+    return screens.find((candidate) => candidate.id === screen2) ?? parent;
+  }, [chain, screens]);
+  const handlers = React72.useMemo(() => makeActionHandlers(runtime?.actions, sources, store, open2, fetcher), [runtime?.actions, sources, store, open2, fetcher]);
+  useScreenEnter(handlers, current2, params);
+  if (current2 === undefined)
+    return null;
+  const menu = runtime?.menu === true && current2.id === ROOT_SCREEN ? /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ScreenMenu, {
+    appId,
+    title: runtime.title ?? appId,
+    screens
+  }, undefined, false, undefined, this) : null;
+  return /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ConsoleTheme, {
+    fill: true,
+    children: /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(JSONUIProvider, {
+      store,
+      registry: registry2,
+      handlers,
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(SourceLoader, {
+          sources,
+          store,
+          fetcher
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime28.jsxDEV(ScreenPanes, {
+          chain,
+          registry: registry2,
+          menu,
+          onBack: back,
+          returnLabel: returnTo?.title
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this);
+};
+
+// src/client/console-app-surface.tsx
+var jsx_dev_runtime29 = __toESM(require_jsx_dev_runtime(), 1);
 var AppScreen = ({ route, address, context }) => {
   const read2 = useSource(route.id, loadView);
   const payload = sourceValue(read2.state);
@@ -56771,10 +57237,16 @@ var AppScreen = ({ route, address, context }) => {
       screens: payload.screens.map((screen2) => ({ id: screen2.id, title: screen2.title }))
     }, undefined, false, undefined, this);
   }
-  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(Mounted, {
-    payload,
-    appId: route.id
-  }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime29.jsxDEV(EffectUiRuntime, {
+    runtime: {
+      appId: route.id,
+      title: context.plan.find((entry) => entry.id === route.id)?.title ?? route.id,
+      screens: payload.screens,
+      menu: payload.menu,
+      ...payload.actions === undefined ? {} : { actions: payload.actions },
+      ...payload.sources === undefined ? {} : { sources: payload.sources }
+    }
+  }, route.id, false, undefined, this);
 };
 var APP = {
   kinds: ["app", "app-settings"],
@@ -56844,10 +57316,560 @@ var parseConsoleHash = (hash2, plan) => {
   return unresolved(address, "place", address.parts[0] ?? "");
 };
 
-// src/client/console-dock.tsx
+// src/client/console-status-bar.tsx
+var React73 = __toESM(require_react(), 1);
+
+// src/client/console-keys.ts
+var modKey = () => typeof navigator === "undefined" || !/Mac|iPhone|iPad/.test(navigator.userAgent) ? "Ctrl" : "⌘";
+var MOD = modKey();
+var KEY_MAP = [
+  { keys: `${MOD}+K`, action: "Open the command palette", scope: "Global" },
+  { keys: "Escape", action: "Close the topmost overlay. With none open it does nothing, and it never navigates", scope: "Global" },
+  { keys: "?", action: "Open the palette showing the keyboard list", scope: "Global, not while a text field has focus" },
+  { keys: "g then h", action: "Go Home", scope: "Global, not while a text field has focus. The g prefix expires after 1500 ms" },
+  { keys: "g then s", action: "Go Settings", scope: "Global, not while a text field has focus" },
+  { keys: "r", action: "Read the current screen's sources again, now", scope: "Global, not while a text field has focus" },
+  { keys: "Tab", action: "The browser's own order, with the focus scope inside an open dialog and nowhere else", scope: "Global" },
+  { keys: "Enter", action: "Run the focused control", scope: "Any focusable control" }
+];
+var CHORD_MS = 1500;
+var UNTYPED = new Set(["checkbox", "radio", "button", "submit", "reset", "file", "image", "color", "hidden"]);
+var isTypingTarget = (target) => {
+  if (!(target instanceof Element))
+    return false;
+  if (target.closest("[contenteditable]:not([contenteditable='false']), [role='slider']") !== null)
+    return true;
+  const field = target.closest("input, textarea, select");
+  return field === null ? false : !(field instanceof HTMLInputElement) || !UNTYPED.has(field.type);
+};
+var isMod = (event) => (event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey;
+
+// src/client/console-status-bar.tsx
 var jsx_dev_runtime31 = __toESM(require_jsx_dev_runtime(), 1);
-var palette = (color) => ({ "--tile-9": `var(--${color}-9)`, "--tile-10": `var(--${color}-10)`, "--tile-contrast": `var(--${color}-contrast)` });
-var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("button", {
+var clockText = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date);
+var AppearanceButton = () => {
+  const [mode, setMode] = useThemeMode();
+  const label = `Appearance: ${themeLabel(mode)}`;
+  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(e43, {
+    content: label,
+    children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(o30, {
+      size: "1",
+      variant: "ghost",
+      color: "gray",
+      "aria-label": label,
+      onClick: () => setMode(nextThemeMode(mode)),
+      children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Glyph, {
+        name: "CircleHalf"
+      }, undefined, false, undefined, this)
+    }, undefined, false, undefined, this)
+  }, undefined, false, undefined, this);
+};
+var PaletteButton = ({ onPalette }) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(o15, {
+  variant: "soft",
+  size: "1",
+  "aria-label": "Open the command palette",
+  onClick: onPalette,
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Glyph, {
+      name: "MagnifyingGlass"
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(r30, {
+      className: "shell-bar-key",
+      size: "1",
+      children: `${modKey()}+K`
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+var ConsoleStatusBar = ({ status, title, home, onPalette }) => {
+  const [clock, setClock] = React73.useState(clockText);
+  React73.useEffect(() => {
+    const timer = setInterval(() => setClock(clockText()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p12, {
+    className: "shell-bar",
+    align: "center",
+    gap: "3",
+    px: "3",
+    flexShrink: "0",
+    children: [
+      home ? null : /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(e43, {
+        content: "Home",
+        children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(o30, {
+          size: "1",
+          variant: "ghost",
+          "aria-label": "Home",
+          onClick: () => navigate({ kind: "home" }),
+          children: /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Glyph, {
+            name: "House"
+          }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this)
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p, {
+        size: "2",
+        weight: "bold",
+        truncate: true,
+        children: title
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p, {
+        className: "shell-bar-status",
+        size: "1",
+        color: "gray",
+        truncate: true,
+        children: status
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p9, {
+        flexGrow: "1"
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(PaletteButton, {
+        onPalette
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(p, {
+        size: "1",
+        color: "gray",
+        style: { fontVariantNumeric: "tabular-nums" },
+        children: clock
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(AppearanceButton, {}, undefined, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-palette.tsx
+var React75 = __toESM(require_react(), 1);
+
+// src/client/console-command-row.tsx
+var jsx_dev_runtime32 = __toESM(require_jsx_dev_runtime(), 1);
+var CommandRowButton = ({ row: row2, active, onPress }) => /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(o15, {
+  variant: "ghost",
+  color: "gray",
+  size: "2",
+  className: "command-palette-row",
+  "data-active": active ? "on" : undefined,
+  onClick: onPress,
+  children: [
+    /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(Glyph, {
+      name: row2.glyph
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p, {
+      size: "2",
+      weight: active ? "medium" : "regular",
+      children: row2.label
+    }, undefined, false, undefined, this),
+    row2.caption === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p, {
+      size: "1",
+      color: "gray",
+      children: row2.caption
+    }, undefined, false, undefined, this),
+    /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p9, {
+      flexGrow: "1"
+    }, undefined, false, undefined, this),
+    row2.shortcut === undefined ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(r30, {
+      size: "1",
+      children: row2.shortcut
+    }, undefined, false, undefined, this)
+  ]
+}, undefined, true, undefined, this);
+
+// src/client/console-commands.ts
+var commandRows = ({ plan, route, screens, places }) => {
+  const byKind = (kind2) => places.find((place) => place.kinds.includes(kind2));
+  const settings = byKind("settings"), activity = byKind("activity");
+  const rows = [];
+  for (const entry of plan)
+    if (entry.hasView)
+      rows.push({
+        id: `app/${entry.id}`,
+        label: `Open ${entry.title}`,
+        glyph: entry.icon,
+        action: { kind: "go", route: appRoute(entry.id) }
+      });
+  const open2 = route.kind === "app" ? route.id : undefined;
+  const app = plan.find((entry) => entry.id === open2);
+  if (open2 !== undefined)
+    for (const screen2 of screens)
+      rows.push({
+        id: `screen/${open2}/${screen2.id}`,
+        label: screen2.title,
+        caption: app?.title ?? open2,
+        glyph: "AppWindow",
+        action: { kind: "go", route: { kind: "app", id: open2, screen: screen2.id } }
+      });
+  if (settings !== undefined)
+    rows.push({
+      id: "place/settings",
+      label: `Open ${settings.title}`,
+      glyph: settings.mark,
+      shortcut: "g s",
+      action: { kind: "go", route: settings.route }
+    });
+  for (const entry of configApps(plan))
+    rows.push({
+      id: `configure/${entry.id}`,
+      label: `Configure ${entry.title}`,
+      glyph: entry.icon,
+      action: { kind: "go", route: { kind: "settings", app: entry.id } }
+    });
+  if (activity !== undefined)
+    rows.push({
+      id: "place/activity",
+      label: `Open ${activity.title}`,
+      glyph: activity.mark,
+      action: { kind: "go", route: activity.route }
+    });
+  for (const mode of THEME_MODES)
+    rows.push({
+      id: `appearance/${mode}`,
+      label: `Appearance: ${themeLabel(mode)}`,
+      glyph: "CircleHalf",
+      action: { kind: "appearance", mode }
+    });
+  rows.push({ id: "read", label: "Read now", glyph: "ArrowClockwise", shortcut: "r", action: { kind: "read" } });
+  rows.push({ id: "shortcuts", label: "Keyboard shortcuts", glyph: "Keyboard", shortcut: "?", action: { kind: "shortcuts" } });
+  return rows;
+};
+var matches2 = (text2, query2) => {
+  const needle = query2.trim().toLowerCase();
+  return needle === "" || text2.toLowerCase().includes(needle);
+};
+var filterCommands = (rows, query2) => rows.filter((row2) => matches2(`${row2.label} ${row2.caption ?? ""}`, query2));
+
+// src/client/console-shortcuts.tsx
+var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
+var ConsoleShortcuts = ({ search }) => {
+  const rows = KEY_MAP.filter((binding2) => matches2(`${binding2.keys} ${binding2.action} ${binding2.scope}`, search));
+  if (rows.length === 0)
+    return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
+      size: "2",
+      color: "gray",
+      m: "2",
+      children: "No key matches that."
+    }, undefined, false, undefined, this);
+  return /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
+    direction: "column",
+    gap: "3",
+    p: "2",
+    children: rows.map((binding2) => /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
+      align: "start",
+      gap: "3",
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p9, {
+          style: { flex: "none", minWidth: "6rem" },
+          children: /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(r30, {
+            size: "1",
+            children: binding2.keys
+          }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p12, {
+          direction: "column",
+          gap: "1",
+          style: { flex: "1 1 auto", minWidth: 0 },
+          children: [
+            /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
+              size: "2",
+              children: binding2.action
+            }, undefined, false, undefined, this),
+            /* @__PURE__ */ jsx_dev_runtime33.jsxDEV(p, {
+              size: "1",
+              color: "gray",
+              children: binding2.scope
+            }, undefined, false, undefined, this)
+          ]
+        }, undefined, true, undefined, this)
+      ]
+    }, binding2.keys, true, undefined, this))
+  }, undefined, false, undefined, this);
+};
+
+// src/client/console-app-screens.ts
+var React74 = __toESM(require_react(), 1);
+var useAppScreens = (id) => {
+  const [screens, setScreens] = React74.useState([]);
+  React74.useEffect(() => {
+    if (id === undefined)
+      return;
+    let live = true;
+    loadView(id).then((read2) => {
+      if (live)
+        setScreens(isView(read2) ? read2.screens : []);
+    }, () => {
+      if (live)
+        setScreens([]);
+    });
+    return () => {
+      live = false;
+    };
+  }, [id]);
+  return screens;
+};
+
+// src/client/console-palette.tsx
+var jsx_dev_runtime34 = __toESM(require_jsx_dev_runtime(), 1);
+var BOX = {
+  position: "fixed",
+  top: "12vh",
+  left: "50%",
+  transform: "translateX(-50%)",
+  width: "min(560px, calc(100vw - 32px))",
+  maxWidth: "none",
+  background: "var(--color-panel-solid)",
+  borderRadius: "var(--radius-5)",
+  boxShadow: "var(--shadow-3)"
+};
+var ConsolePalette = ({ mode, plan, route, places, onClose, restore }) => {
+  const [view, setView] = React75.useState(mode);
+  const [search, setSearch] = React75.useState("");
+  const [cursor, setCursor] = React75.useState(0);
+  const list = React75.useRef(null);
+  const navigated = React75.useRef(false);
+  const screens = useAppScreens(route.kind === "app" ? route.id : undefined);
+  const [, setTheme] = useThemeMode();
+  const rows = React75.useMemo(() => filterCommands(commandRows({ plan, route, screens, places }), search), [plan, route, screens, places, search]);
+  const run = React75.useCallback((row2) => {
+    switch (row2.action.kind) {
+      case "go":
+        navigated.current = true;
+        onClose();
+        navigate(row2.action.route);
+        return;
+      case "appearance":
+        setTheme(row2.action.mode);
+        onClose();
+        return;
+      case "read":
+        readNow();
+        onClose();
+        return;
+      case "shortcuts":
+        setView("shortcuts");
+        setSearch("");
+        setCursor(0);
+        return;
+    }
+  }, [onClose, setTheme]);
+  React75.useEffect(() => {
+    list.current?.querySelector('[data-active="on"]')?.scrollIntoView({ block: "nearest" });
+  }, [cursor, rows]);
+  const onKeyDown = (event) => {
+    if (view !== "commands")
+      return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      if (rows.length === 0)
+        return;
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : rows.length - 1;
+      setCursor((current2) => (current2 + step) % rows.length);
+      return;
+    }
+    if (event.key !== "Enter")
+      return;
+    const row2 = rows[cursor];
+    if (row2 === undefined)
+      return;
+    event.preventDefault();
+    run(row2);
+  };
+  return /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Root, {
+    open: true,
+    onOpenChange: (next) => {
+      if (!next)
+        onClose();
+    },
+    children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Content, {
+      style: BOX,
+      onKeyDown,
+      onCloseAutoFocus: (event) => {
+        event.preventDefault();
+        if (!navigated.current)
+          restore();
+      },
+      children: [
+        /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(d4, {
+          children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_dialog.Title, {
+            children: view === "shortcuts" ? "Keyboard shortcuts" : "Command palette"
+          }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(exports_text_field.Root, {
+          size: "3",
+          variant: "soft",
+          placeholder: "Search apps, screens and settings",
+          value: search,
+          onChange: (event) => {
+            setSearch(event.target.value);
+            setCursor(0);
+          }
+        }, undefined, false, undefined, this),
+        /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(c3, {
+          ref: list,
+          className: "command-palette-list",
+          children: /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p12, {
+            direction: "column",
+            gap: "1",
+            p: "1",
+            children: view === "shortcuts" ? /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(ConsoleShortcuts, {
+              search
+            }, undefined, false, undefined, this) : rows.length === 0 ? /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(p, {
+              size: "2",
+              color: "gray",
+              m: "2",
+              children: "No command matches that."
+            }, undefined, false, undefined, this) : rows.map((row2, index2) => /* @__PURE__ */ jsx_dev_runtime34.jsxDEV(CommandRowButton, {
+              row: row2,
+              active: index2 === cursor,
+              onPress: () => run(row2)
+            }, row2.id, false, undefined, this))
+          }, undefined, false, undefined, this)
+        }, undefined, false, undefined, this)
+      ]
+    }, undefined, true, undefined, this)
+  }, undefined, false, undefined, this);
+};
+
+// src/client/console-skip-link.tsx
+var jsx_dev_runtime35 = __toESM(require_jsx_dev_runtime(), 1);
+var SkipLink = ({ target }) => /* @__PURE__ */ jsx_dev_runtime35.jsxDEV(d4, {
+  asChild: true,
+  children: /* @__PURE__ */ jsx_dev_runtime35.jsxDEV("button", {
+    type: "button",
+    onClick: () => target.current?.focus({ preventScroll: true }),
+    children: "Skip to content"
+  }, undefined, false, undefined, this)
+}, undefined, false, undefined, this);
+
+// src/client/console-keyboard.ts
+var React76 = __toESM(require_react(), 1);
+var useConsoleKeys = (keys) => {
+  const latest = React76.useRef(keys);
+  React76.useEffect(() => {
+    latest.current = keys;
+  });
+  React76.useEffect(() => {
+    let chord = 0;
+    const onKeyDown = (event) => {
+      const keys2 = latest.current;
+      if (isMod(event) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        if (keys2.paletteOpen)
+          keys2.closePalette();
+        else
+          keys2.openPalette();
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey)
+        return;
+      if (isTypingTarget(event.target)) {
+        chord = 0;
+        return;
+      }
+      const prefixed = chord !== 0 && Date.now() - chord <= CHORD_MS;
+      chord = 0;
+      switch (event.key) {
+        case "h":
+          if (prefixed) {
+            event.preventDefault();
+            keys2.goHome();
+          }
+          return;
+        case "s":
+          if (prefixed) {
+            event.preventDefault();
+            keys2.goSettings();
+          }
+          return;
+        case "g":
+          chord = Date.now();
+          return;
+        case "?":
+          event.preventDefault();
+          keys2.openShortcuts();
+          return;
+        case "r":
+          event.preventDefault();
+          readNow();
+          return;
+        default:
+          return;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+};
+
+// src/client/console-route-focus.ts
+var React77 = __toESM(require_react(), 1);
+var headingIn = (body) => body.querySelector("[data-route-heading]") ?? body.querySelector("h1, h2, h3, h4, h5, h6");
+var useRouteFocus = (route, body) => {
+  const address = hashOf(route);
+  React77.useEffect(() => {
+    const node2 = body.current;
+    if (node2 === null || isTypingTarget(document.activeElement))
+      return;
+    const frame = requestAnimationFrame(() => {
+      const heading = headingIn(node2);
+      if (heading === null) {
+        node2.focus({ preventScroll: true });
+        return;
+      }
+      heading.setAttribute("tabindex", "-1");
+      heading.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [address, body]);
+};
+
+// src/client/console-chrome.tsx
+var jsx_dev_runtime36 = __toESM(require_jsx_dev_runtime(), 1);
+var ConsoleChrome = ({ plan, route, status, home, body }) => {
+  const [palette, setPalette] = React78.useState(null);
+  const opener = React78.useRef(null);
+  const openPalette = React78.useCallback((mode) => {
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setPalette(mode);
+  }, []);
+  const closePalette = React78.useCallback(() => setPalette(null), []);
+  const restore = React78.useCallback(() => {
+    const control2 = opener.current;
+    if (control2 !== null && control2.isConnected)
+      control2.focus({ preventScroll: true });
+    else
+      body.current?.focus({ preventScroll: true });
+  }, [body]);
+  useConsoleKeys({
+    paletteOpen: palette !== null,
+    openPalette: React78.useCallback(() => openPalette("commands"), [openPalette]),
+    openShortcuts: React78.useCallback(() => openPalette("shortcuts"), [openPalette]),
+    closePalette,
+    goHome: React78.useCallback(() => navigate({ kind: "home" }), []),
+    goSettings: React78.useCallback(() => navigate({ kind: "settings" }), [])
+  });
+  useRouteFocus(route, body);
+  return /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(jsx_dev_runtime36.Fragment, {
+    children: [
+      /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(SkipLink, {
+        target: body
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsoleStatusBar, {
+        status,
+        title: titleOf(route, plan),
+        home,
+        onPalette: () => openPalette("commands")
+      }, undefined, false, undefined, this),
+      palette === null ? null : /* @__PURE__ */ jsx_dev_runtime36.jsxDEV(ConsolePalette, {
+        mode: palette,
+        plan,
+        route,
+        places: PLACES,
+        onClose: closePalette,
+        restore
+      }, palette, false, undefined, this)
+    ]
+  }, undefined, true, undefined, this);
+};
+
+// src/client/console-dock.tsx
+var jsx_dev_runtime37 = __toESM(require_jsx_dev_runtime(), 1);
+var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("button", {
   type: "button",
   className: "shell-dock-item",
   "aria-label": mark.title,
@@ -56855,40 +57877,43 @@ var Item5 = ({ mark, active, open: open2 }) => /* @__PURE__ */ jsx_dev_runtime31
   "aria-current": active ? "page" : undefined,
   onClick: open2,
   children: [
-    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("span", {
-      className: "shell-dock-icon",
-      style: palette(mark.color),
-      "aria-hidden": "true",
-      children: mark.icon
+    /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(AppAvatar, {
+      mark,
+      size: "2"
     }, undefined, false, undefined, this),
-    /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("span", {
+    /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("span", {
       className: "shell-dock-label",
       children: mark.title
     }, undefined, false, undefined, this)
   ]
 }, undefined, true, undefined, this);
-var placeMark = (place) => ({ title: place.title, icon: place.mark, color: place.color });
+var working = PLACES.filter((place) => place !== SETTINGS);
 var ConsoleDock = ({ plan, route }) => {
   const apps = plan.filter((entry) => entry.hasView);
-  return /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("nav", {
+  return /* @__PURE__ */ jsx_dev_runtime37.jsxDEV("nav", {
     className: "shell-dock",
     "aria-label": "Places and apps",
     children: [
-      PLACES.map((place) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Item5, {
+      working.map((place) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(Item5, {
         mark: placeMark(place),
         active: place.kinds.includes(route.kind),
         open: () => navigate(place.route)
       }, place.id, false, undefined, this)),
-      apps.length === 0 ? null : /* @__PURE__ */ jsx_dev_runtime31.jsxDEV("span", {
-        className: "shell-dock-divider",
-        role: "separator",
-        "aria-label": "Apps"
-      }, undefined, false, undefined, this),
-      apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime31.jsxDEV(Item5, {
+      apps.map((entry) => /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(Item5, {
         mark: markOf(entry),
         active: (route.kind === "app" || route.kind === "app-settings") && route.id === entry.id,
         open: () => navigate(appRoute(entry.id))
-      }, entry.id, false, undefined, this))
+      }, entry.id, false, undefined, this)),
+      /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(o48, {
+        orientation: "vertical",
+        size: "2",
+        style: { alignSelf: "center" }
+      }, undefined, false, undefined, this),
+      /* @__PURE__ */ jsx_dev_runtime37.jsxDEV(Item5, {
+        mark: placeMark(SETTINGS),
+        active: SETTINGS.kinds.includes(route.kind),
+        open: () => navigate(SETTINGS.route)
+      }, undefined, false, undefined, this)
     ]
   }, undefined, true, undefined, this);
 };
@@ -56913,10 +57938,10 @@ var loadStatusLine = async () => {
 };
 
 // src/client/console-shell.tsx
-var jsx_dev_runtime32 = __toESM(require_jsx_dev_runtime(), 1);
+var jsx_dev_runtime38 = __toESM(require_jsx_dev_runtime(), 1);
 var useStatusLine = () => {
-  const [status, setStatus] = React74.useState("Loading system status…");
-  React74.useEffect(() => {
+  const [status, setStatus] = React79.useState("Loading system status…");
+  React79.useEffect(() => {
     let live = true;
     loadStatusLine().then((value) => {
       if (live)
@@ -56931,11 +57956,11 @@ var useStatusLine = () => {
 var ConsoleShell = ({ surfaces }) => {
   const catalogue = useSource("catalogue", loadCatalogue);
   const status = useStatusLine();
-  const plan = React74.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
+  const plan = React79.useMemo(() => planConsole(sourceValue(catalogue.state) ?? {}), [catalogue.state]);
   const hash2 = useAddress();
-  const route = React74.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
+  const route = React79.useMemo(() => parseConsoleHash(hash2, plan), [hash2, plan]);
   const surface = surfaceFor(route);
-  const context = React74.useMemo(() => ({
+  const context = React79.useMemo(() => ({
     plan,
     surfaces,
     status,
@@ -56945,35 +57970,41 @@ var ConsoleShell = ({ surfaces }) => {
     }
   }), [plan, surfaces, status, catalogue.state, catalogue.retry]);
   const home = route.kind === "home";
-  const body = surface?.view(route, context) ?? null;
-  return /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(ConsoleTheme, {
-    children: /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p12, {
+  const view = surface?.view(route, context) ?? null;
+  const main = React79.useRef(null);
+  return /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleTheme, {
+    children: /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p12, {
       direction: "column",
       height: "100dvh",
       children: [
-        /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(ConsoleStatusBar, {
+        /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleChrome, {
+          plan,
+          route,
           status,
-          title: titleOf(route, plan),
-          home
+          home,
+          body: main
         }, undefined, false, undefined, this),
-        /* @__PURE__ */ jsx_dev_runtime32.jsxDEV("div", {
+        /* @__PURE__ */ jsx_dev_runtime38.jsxDEV("div", {
           className: "shell-body",
+          ref: main,
+          tabIndex: -1,
+          id: "console-main",
           "data-shell-view": surface?.chrome ?? "page",
           "data-dock": home ? "off" : "on",
-          children: surface?.chrome === "fill" ? /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p12, {
+          children: surface?.chrome === "fill" ? /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p12, {
             className: "view-fill",
             direction: "column",
             p: "4",
-            children: body
-          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(r35, {
+            children: view
+          }, undefined, false, undefined, this) : /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(r35, {
             size: "1",
             px: "4",
-            children: /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(p18, {
-              children: body
+            children: /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(p18, {
+              children: view
             }, undefined, false, undefined, this)
           }, undefined, false, undefined, this)
         }, undefined, false, undefined, this),
-        home ? null : /* @__PURE__ */ jsx_dev_runtime32.jsxDEV(ConsoleDock, {
+        home ? null : /* @__PURE__ */ jsx_dev_runtime38.jsxDEV(ConsoleDock, {
           plan,
           route
         }, undefined, false, undefined, this)
@@ -56983,21 +58014,7 @@ var ConsoleShell = ({ surfaces }) => {
 };
 
 // src/client/effect-ui-client.tsx
-var jsx_dev_runtime33 = __toESM(require_jsx_dev_runtime(), 1);
-var own2 = { Preview };
-window.effectUi = {
-  mount: (container, runtime) => {
-    container.replaceChildren();
-    const root = import_client2.createRoot(container);
-    root.render(/* @__PURE__ */ jsx_dev_runtime33.jsxDEV(EffectUiRuntime, {
-      ours: own2,
-      runtime
-    }, undefined, false, undefined, this));
-    return () => {
-      root.unmount();
-    };
-  }
-};
+var jsx_dev_runtime39 = __toESM(require_jsx_dev_runtime(), 1);
 var start = () => {
   let storage;
   try {
@@ -57010,7 +58027,7 @@ var start = () => {
   const surfaces = {
     config: { api: createConfigApi(window.fetch.bind(window)), mountConfig: makeConfigMount(configComponents) }
   };
-  import_client2.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime33.jsxDEV(ConsoleShell, {
+  import_client2.createRoot(root).render(/* @__PURE__ */ jsx_dev_runtime39.jsxDEV(ConsoleShell, {
     surfaces
   }, undefined, false, undefined, this));
 };

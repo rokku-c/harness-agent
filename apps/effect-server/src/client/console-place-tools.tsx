@@ -74,7 +74,7 @@ export const TOOLS: Place = {
   id: "tools",
   title: "Tools",
   route: { kind: "tools" },
-  mark: "⌘",
+  mark: "Wrench",
   color: "cyan",
   chrome: "page",
   kinds: ["tools"],

@@ -4,7 +4,7 @@
  * Concept: one HTTP request becomes one call on the in-process mantis MCP
  * server, by way of the route module that owns that family (state/events,
  * chat, approvals, workspace, conversation). Nothing here reads a file or
- * knows what the panel looks like; the browser cannot speak MCP stdio, and
+ * knows what a caller renders; the browser cannot speak MCP stdio, and
  * this file is the whole of the translation. Failures answer 500 with the
  * readable cause. A path outside the mount, or inside it and claimed by no
  * route, is a 404.

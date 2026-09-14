@@ -15,7 +15,7 @@ export const createDeckPlugin = (
   priority: 40,
   load: async () => {
     const { configFile } = effectConfig.schema.parse(getConfig())
-    const app = make({ configFile, basePath: "/deck" })
+    const app = make({ configFile })
     return {
       tools: app.tools,
       handle: async (request) => {

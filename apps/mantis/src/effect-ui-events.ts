@@ -15,9 +15,9 @@
  * A reader who has one and needs the other should not have to know the address.
  */
 
-import type { UiNodeSpec } from "@effect-agent/effect-ui"
+import { toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 import {
-  cellOf, itemTone, keyCell, region, row, rowValue, section, sourceStates, stateBadge, stateRows, table, text, whenRows,
+  cellOf, keyCell, region, row, rowValue, section, sourceStates, stateBadge, stateRows, table, text, whenRows,
 } from "./effect-ui-nodes.ts"
 import { toolStateBadges } from "./effect-ui-timeline.ts"
 
@@ -30,8 +30,8 @@ const detailCells: readonly UiNodeSpec[] = [
   present("detail", { component: "Text", props: { size: "1", color: "gray" }, item: "detail" }),
   present("tool", rowValue("tool", { color: "gray" })),
   ...toolStateBadges,
-  itemTone("allow", true, "Allowed", "ok"),
-  itemTone("allow", false, "Denied", "denied"),
+  { ...toneBadge("ok", "Allowed"), visible: { source: { item: "allow" }, equals: true } },
+  { ...toneBadge("denied", "Denied"), visible: { source: { item: "allow" }, equals: false } },
 ]
 
 /**

@@ -18,9 +18,8 @@
  * nothing — and a screen that painted `Denied` over a failed read would be
  * inventing the one answer an operator most needs to trust.
  */
-import { chip, heading, list, press, region, row, section, text, type UiNodeSpec } from "@effect-agent/effect-ui"
+import { chip, heading, list, press, region, row, section, text, toneBadge, type UiNodeSpec } from "@effect-agent/effect-ui"
 import { refused, retry } from "./effect-ui-refusal.ts"
-import { toneBadge } from "./effect-ui-tone.ts"
 import { ACCESS_RESULT, DECISION, NAV_AGENT, NAV_TOOL } from "./effect-ui-paths.ts"
 import { boundSets } from "./effect-ui-bound-sets.ts"
 

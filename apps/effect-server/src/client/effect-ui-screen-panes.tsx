@@ -17,9 +17,10 @@
  */
 
 import * as React from "react"
-import { Button, Text } from "@radix-ui/themes"
+import { Button, Heading } from "@radix-ui/themes"
 import { Renderer, type ComponentRegistry } from "@json-render/react"
 import { Unresolved } from "./adapt/unresolved.tsx"
+import { Glyph } from "./console-glyph.tsx"
 import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
 
 /**
@@ -32,14 +33,20 @@ import type { ScreenPayload } from "./effect-ui-runtime-types.ts"
  * goes up to its parent (console-stack.ts). It is drawn only where there is a
  * screen to go back to; at the first screen the only way out is Home.
  *
- * The label is the destination's own title, never the word "Back" (§2.H5): a
- * control that says where it goes needs no second sentence to explain it, and
- * "Back" was the word two different controls shared.
+ * §10.2.4 fixes what it reads: `Back to <the destination's own title>`, at the
+ * chrome's own size and weight, so a reader about to press it knows where it
+ * lands. Naming the destination is what makes it one control rather than two
+ * that both say "back"; the arrow is `CaretLeft` and not a `‹` character, because
+ * §8 rule 2 leaves no textual stand-in anywhere in the console.
+ *
+ * The screen's title is the route's heading when the route declares one, which
+ * is why it is a real `h1` and not a span: §10.3 moves focus to it on every route
+ * change, and only a focusable heading can be the thing that is focused.
  */
 const ScreenBar = ({ label, title, onBack }: { readonly label: string; readonly title: string; readonly onBack: () => void }) =>
   <div className="screen-bar">
-    <Button variant="soft" size="2" onClick={onBack}>{`‹ ${label}`}</Button>
-    <Text size="2" weight="medium" className="screen-bar-title">{title}</Text>
+    <Button variant="ghost" size="1" onClick={onBack}><Glyph name="CaretLeft" />{`Back to ${label}`}</Button>
+    <Heading as="h1" size="2" weight="medium" tabIndex={-1} data-route-heading className="screen-bar-title">{title}</Heading>
   </div>
 
 /**

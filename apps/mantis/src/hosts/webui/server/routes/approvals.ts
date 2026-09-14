@@ -1,8 +1,8 @@
 /**
  * server/routes/approvals.ts - the APPROVAL HTTP route.
  *
- * Concept: the operator resolves one pending approval from the panel - the
- * same mantis_approve an MCP agent client would call.
+ * Concept: the operator resolves one pending approval over HTTP - the same
+ * mantis_approve an MCP agent client would call.
  */
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { callText, json } from "../helpers.ts"

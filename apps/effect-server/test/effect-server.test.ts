@@ -41,8 +41,10 @@ test("board plugin serves the real board web surface", async () => {
   expect((await json<{ ok: boolean }>(health)).ok).toBe(true)
   const state = await host.handle(req("/board/api/state"))
   expect(state.status).toBe(200)
-  const root = await host.handle(req("/board/"))
-  expect(root.headers.get("content-type")?.split(";")[0]).toBe("text/html")
+  // the board's UI is its declarative view in the console, so the mount serves
+  // the API and answers everything else with the board's own 404
+  expect((await host.handle(req("/board/"))).status).toBe(404)
+  expect((await host.handle(req("/board/app.js"))).status).toBe(404)
   await host.close()
 })
 

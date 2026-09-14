@@ -10,7 +10,7 @@ export const createDeckApp = (options: DeckOptions = {}) => {
   const domain = makeDeckDomain(options)
   // one list, projected twice: the routes this app answers and the tools it offers
   const operations = deckOperations(domain)
-  const router = makeRouter(operations, options.basePath ?? "")
+  const router = makeRouter(operations)
   let closed = false
   return {
     deck: domain.deck,

@@ -5,26 +5,25 @@ import { hashOf } from "../console-nav.ts"
 
 test("an app's mark and colour come from the app, never from a host-side table", () => {
   const plan = planConsole({
-    ui: [{ interfaceId: "board", title: "Board", icon: "▦", color: "grass" }],
+    ui: [{ interfaceId: "board", title: "Board", icon: "Kanban", color: "grass" }],
     config: [{ appId: "daemon", title: "Daemon" }],
   })
-  expect(plan[0]).toMatchObject({ icon: "▦", color: "grass" })
-  // an app that declares nothing still draws as itself: the fallback is derived
-  // from the id, so the host needs no list of ids to recognise an app it has
-  // never heard of, and two consoles agree on how it looks
-  expect(plan[1]).toMatchObject({ icon: "D", color: defaultColor("daemon") })
+  expect(plan[0]).toMatchObject({ icon: "Kanban", color: "grass" })
+  // an app that declares no mark draws none: §8 rule 2 leaves no textual
+  // stand-in to invent, and an invented glyph is a mark nothing chose
+  expect(plan[1]).toMatchObject({ icon: "", color: defaultColor("daemon") })
 })
 
 test("the app's own registration names it; a config record only fills a gap", () => {
   const plan = planConsole({
-    ui: [{ interfaceId: "ui-host", title: "UI Canvas", icon: "▣", color: "iris" }],
+    ui: [{ interfaceId: "ui-host", title: "UI Canvas", icon: "Browsers", color: "iris" }],
     config: [{ appId: "ui-host", title: "ui-host" }, { appId: "platform-network", title: "Platform Network" }],
   })
   // one app, two records about it: the config registry's note must not rename the
   // app the launcher draws, and an app only the config registry knows still gets
   // a name of its own
-  expect(plan.find((entry) => entry.id === "ui-host")).toMatchObject({ title: "UI Canvas", icon: "▣", color: "iris" })
-  expect(plan.find((entry) => entry.id === "platform-network")).toMatchObject({ title: "Platform Network", icon: "P" })
+  expect(plan.find((entry) => entry.id === "ui-host")).toMatchObject({ title: "UI Canvas", icon: "Browsers", color: "iris" })
+  expect(plan.find((entry) => entry.id === "platform-network")).toMatchObject({ title: "Platform Network", icon: "" })
 })
 
 test("plan merges app surfaces once and preserves catalogue order", () => {

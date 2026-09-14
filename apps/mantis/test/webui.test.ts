@@ -1,7 +1,7 @@
 /**
  * The web console: versioned agent UI store, the console wiring (messages ->
  * MantisHost -> bus/reply, approvals resolved by the page = operator), and
- * the HTTP surface (static panel + JSON API).
+ * the HTTP surface (the MCP-translated JSON API).
  */
 import { mkdtempSync, rmSync } from "node:fs"
 import { afterAll, beforeAll, describe, expect, test } from "bun:test"
@@ -92,22 +92,20 @@ describe("HTTP surface (MCP-translated)", () => {
       model: scriptedModel([finalJson("served")]),
       logger: noopLogger()
     })
-    // the panel talks to the mantis MCP server through an in-process client
+    // the HTTP surface talks to the mantis MCP server through an in-process client
     const mcpServer = makeMantisMcp({ console: web })
     const client = new Client({ name: "test-console", version: "0.0.0" })
     const pair = InMemoryTransport.createLinkedPair()
     await mcpServer.connect(pair[0])
     await client.connect(pair[1])
-    server = serveConsole({ client, publicDir: join(import.meta.dir, "../src/hosts/webui/public"), port: 0 })
+    server = serveConsole({ client, port: 0 })
   })
   afterAll(() => {
     server.stop()
     rmSync(dir, { recursive: true, force: true })
   })
 
-  test("serves the panel + state + message round trip", async () => {
-    const html = await fetch(server.url + "/").then((r) => r.text())
-    expect(html).toContain("mantis console")
+  test("serves state + message round trip", async () => {
     const state = (await fetch(server.url + "/api/state").then((r) => r.json())) as Record<string, unknown>
     expect(state).toHaveProperty("conversations")
     const sent = (await fetch(server.url + "/api/message", {

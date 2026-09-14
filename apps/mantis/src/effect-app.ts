@@ -14,7 +14,7 @@ export const effectApp = defineApp({
   title: "Mantis",
   description: "Human-agent conversations, workspace records, memory, and approvals",
   path: "/mantis",
-  icon: "◉", color: "crimson",
+  icon: "Chats", color: "crimson",
   config: effectConfig,
   ui: effectUiView,
   createPlugin: (getConfig) => createMantisPlugin(getConfig),

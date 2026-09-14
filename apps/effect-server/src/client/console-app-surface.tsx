@@ -18,38 +18,16 @@
  */
 
 import * as React from "react"
-import { Flex, Skeleton } from "@radix-ui/themes"
+import { Skeleton } from "@radix-ui/themes"
 import { hashOf } from "./console-nav.ts"
 import { Freshness } from "./console-freshness.tsx"
 import { useSource, sourceValue } from "./console-source.ts"
-import { isView, loadView, type ViewPayload } from "./console-view-read.ts"
+import { isView, loadView } from "./console-view-read.ts"
 import { NotFound } from "./console-not-found.tsx"
 import { ConfigEditor } from "./console-config-editor.tsx"
+import { EffectUiRuntime } from "./effect-ui-runtime.tsx"
 import { paramsOf, unresolved, type Address, type ConsoleRoute } from "./console-route.ts"
 import type { PlaceContext, Surface } from "./console-place.ts"
-
-/**
- * Hosts the view the client bundle mounts. The bundle is a separate script with
- * its own React root, so this owns the lifetime: when the address moves on, the
- * effect's own cleanup unmounts the root instead of leaving it polling under the
- * new surface.
- */
-const Mounted = ({ payload, appId }: { readonly payload: ViewPayload; readonly appId: string }) => {
-  const ref = React.useRef<HTMLDivElement>(null)
-  React.useEffect(() => {
-    const node = ref.current
-    const api = window.effectUi
-    if (node === null || api === undefined) return
-    node.replaceChildren()
-    return api.mount(node, {
-      appId, screens: payload.screens, menu: payload.menu,
-      ...(payload.actions === undefined ? {} : { actions: payload.actions }),
-      ...(payload.sources === undefined ? {} : { sources: payload.sources }),
-    })
-  }, [payload, appId])
-  // The pane the screens are laid out in, and the height they lay themselves out against.
-  return <div className="view-fill" ref={ref} />
-}
 
 const AppScreen = ({ route, address, context }: {
   readonly route: Extract<ConsoleRoute, { kind: "app" }>
@@ -66,7 +44,21 @@ const AppScreen = ({ route, address, context }: {
     return <NotFound address={address} part="screen" text={route.screen} app={route.id} plan={context.plan}
       screens={payload.screens.map((screen) => ({ id: screen.id, title: screen.title }))} />
   }
-  return <Mounted payload={payload} appId={route.id} />
+  /**
+   * Keyed by the app, so walking from one app to another is a new mount and a new
+   * store (effect-ui-view-state.tsx seeds one per mount, and a view's state is the
+   * app's own). A *screen* change is the same mount, which is what keeps a draft
+   * alive across it, and a re-read of the payload is the same mount too — a view
+   * read again is still the view the operator is working in.
+   */
+  return <EffectUiRuntime key={route.id} runtime={{
+    appId: route.id,
+    title: context.plan.find((entry) => entry.id === route.id)?.title ?? route.id,
+    screens: payload.screens,
+    menu: payload.menu,
+    ...(payload.actions === undefined ? {} : { actions: payload.actions }),
+    ...(payload.sources === undefined ? {} : { sources: payload.sources }),
+  }} />
 }
 
 export const APP: Surface = {

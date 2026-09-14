@@ -23,11 +23,10 @@
  * in it reads `ready` while a token survives in the same body (`empty-rows.ts`).
  */
 import {
-  cellOf, chip, heading, listCard, loadingRows, press, region, text, type UiNodeSpec,
+  cellOf, chip, heading, listCard, loadingRows, press, region, text, toneField, toneWhen, type UiNodeSpec,
 } from "@effect-agent/effect-ui"
 import { titled } from "./effect-ui-cells.ts"
 import { readFailed, refused, retry } from "./effect-ui-refusal.ts"
-import { toneField, toneFor } from "./effect-ui-tone.ts"
 import { IDENTITIES, PRINCIPALS, PRINCIPAL_RESULT, REVOKE_RESULT } from "./effect-ui-paths.ts"
 import { issueNodes } from "./effect-ui-issue.ts"
 import { tokensTable } from "./effect-ui-tokens.ts"
@@ -59,8 +58,8 @@ const directory = listCard({
     titled("displayName", "key"),
     cellOf(toneField("info", "kind")),
     cellOf([
-      toneFor("status", "active", "ok", "Active"),
-      toneFor("status", "disabled", "info", "Disabled"),
+      toneWhen("status", "active", "ok", "Active"),
+      toneWhen("status", "disabled", "info", "Disabled"),
     ]),
     cellOf(chip("created")),
     cellOf([
