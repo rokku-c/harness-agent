@@ -202,3 +202,39 @@ so its landing-page directives (§4.7 hero discipline, §4.8 imagery, §4.9 cont
 density) do not bind here. Its §4.1–4.5 engineering directives, §5 interactive
 states, §9 AI tells and §2 "one system per project" do, and those are what the
 reimplementation is designed to.
+
+## 7. The order of work
+
+Deleting 231 files and then rebuilding leaves the tree broken for as long as the
+rebuild takes, and it breaks the *proofs* too — a module models a file, and a
+file that is gone for a week is a week in which `check:proofs` is red for a
+reason nobody can act on. So the deletion and the reimplementation are **one act
+per layer**: delete a layer, rebuild it, pass its guards, commit, next.
+
+Each layer is a commit, so any guard that moves is attributable to the layer that
+moved it.
+
+| # | layer | deleted | rebuilt as | its gate |
+|---|---|---|---|---|
+| L1 | **the render contract** — what an app declares and how a node becomes an element | the presentation files in `packages/effect-ui/src` (10), `console/view-route.ts`, all of `client/adapt/**` | the new node vocabulary, the new lowering, the new adaptation layer | `typecheck:client` clean; `check:proofs` counts the new modules |
+| L2 | **the shell** — chrome, routing, theme, keyboard | the rest of `apps/effect-server/src/client/**` | per `design-system.md` §10–11 and `flows.md` §6 | the console loads at `/console` and every address in `console-surface.md` §2 still resolves |
+| L3 | **the nine app views** | `apps/*/src/effect-ui*.ts` (73 files) | one view per app against the new vocabulary, per `flows.md` §7 | every app's entry flow walks end to end in a browser; each app's `effect-app.ts` registers cleanly |
+| L4 | **the auxiliary hosts** | `mantis/src/hosts/webui/panel` + its `public/`, board `hosts/web/public`, `deckconsole/public` | the board's UI is the board's app view; mantis keeps its HTTP API and loses its panel | mantis and the board still answer over MCP; the board's UI is reachable from the console |
+| L5 | **dependencies** | `@mantine/core`, `@tabler/icons-react` | the one icon family chosen in `design-system.md` §8 | `bun run check:boundary` at 0/0 with the packages gone |
+| L6 | **proofs** | the nine modules named in §3 | one module per new mechanism, house style | `check:proofs` back to at least 493 in at least 57 files |
+
+L1 is first because everything else declares against its vocabulary, and because
+of the finding in §4: `view-route.ts` is the only producer of `jsonSpec`, so it
+cannot go before its replacement exists.
+
+Two operational notes that are not visible from a file list:
+
+- `apps/effect-server/src/client-bundle.ts` walks `packages/` for mtimes to
+  decide console-bundle staleness, so deleting anything under
+  `packages/effect-ui/src` invalidates the built console client even though no
+  import edge exists. `bun run --cwd apps/effect-server build:client` must be
+  re-run after L1 and L2.
+- The live server on 8080 runs without `EFFECT_DEV`, so it serves the
+  git-tracked bundle from disk and does not re-read on request. Neither the
+  deletion nor the rebuild restarts it; it keeps serving the old console until
+  the new bundle is built, which is the intended behaviour and not a failure.
